@@ -140,7 +140,7 @@ socket.on("cargarAeronaves", lista => {
 
   lista.forEach(data => {
 
-    if (aeronaves.some(a => a.callsign === data.id)) return
+    if (aeronaves.some(a => a.id === data.id)) return
 
     const marker = L.marker([data.lat, data.lng], {
       icon: crearIcono(data.id, data.tipo),
@@ -162,19 +162,22 @@ socket.on("cargarAeronaves", lista => {
     return
   }
 
-  seleccionarAeronave(objetoAeronave)
+  seleccionarAeronave(nueva)
 
 })
 
 
-    aeronaves.push({
-      callsign: data.id,
-      tipo: data.tipo,
-      marker: marker,
-      remoto: true,
-      altitud: data.altitud || 0,
-      angulo: data.angulo || 0
-    })
+  const nueva = {
+  id: data.id,
+  tipo: data.tipo,
+  marker: marker,
+  remoto: true,
+  altitud: data.altitud || 0,
+  angulo: data.angulo || 0
+}
+
+aeronaves.push(nueva)
+
 
   })
 
@@ -459,7 +462,7 @@ function confirmarCreacion(){
 
   callsign = callsign.toUpperCase().trim()
 
-  if(aeronaves.some(a => a.callsign === callsign)){
+  if(aeronaves.some(a => a.id === callsign)){
     alert("Callsign already exists")
     return
   }
@@ -556,7 +559,7 @@ socket.emit("crearAeronave", {
 }
 socket.on("crearAeronave", data => {
 
-  if(aeronaves.some(a => a.callsign === data.id)) return
+  if(aeronaves.some(a => a.id === data.id)) return
 
   const marker = L.marker([data.lat, data.lng], {
     icon: crearIcono(data.id, data.tipo),
@@ -576,17 +579,20 @@ marker.on("click", function(event){
     return
   }
 
-  seleccionarAeronave(objetoAeronave)
+  seleccionarAeronave(nueva)
 
 })
+const nueva = {
+  id: data.id,
+  tipo: data.tipo,
+  marker: marker,
+  remoto: true,
+  altitud: data.altitud || 0,
+  angulo: data.angulo || 0
+}
 
+aeronaves.push(nueva)
 
-  aeronaves.push({
-    callsign: data.id,
-    tipo: data.tipo,
-    marker: marker,
-    remoto: true
-  })
 
 })
 socket.on("actualizarAeronave", data => {
@@ -624,7 +630,7 @@ function seleccionarAeronave(obj){
 
   aeronaveSeleccionada = obj
 
-  document.getElementById("aircraftTitle").innerText = obj.callsign
+  document.getElementById("aircraftTitle").innerText = obj.id
 
   actualizarPanelInfo(obj)
 
@@ -659,7 +665,7 @@ if(a.altitud){
 
   document.getElementById("aircraftInfo").innerHTML = `
     Type: ${a.tipo}<br>
-    Callsign: ${a.callsign}<br>
+    Callsign: ${a.id}<br>
     SID: ${sidTexto}<br>
     Status: ${estado}<br>
     Level: ${altitudTexto}
@@ -984,7 +990,7 @@ function despegar(){
       actualizarPanelInfo(a)
     }
 socket.emit("actualizarAeronave", {
-  id: a.callsign,
+  id: a.id,
   lat: a.marker.getLatLng().lat,
   lng: a.marker.getLatLng().lng,
   altitud: a.altitud,
@@ -1116,7 +1122,7 @@ function moverPorPuntos(a){
       a.marker.setLatLng([lat,lng])
 
 socket.emit("actualizarAeronave", {
-  id: a.callsign,
+  id: a.id,
   lat: lat,
   lng: lng,
   altitud: a.altitud,
@@ -1254,7 +1260,7 @@ function iniciarCircuito(){
 const pos = a.marker.getLatLng()
 
 socket.emit("actualizarAeronave", {
-    id: a.callsign,
+    id: a.id,
     lat: pos.lat,
     lng: pos.lng,
     altitud: a.altitud,
@@ -1287,7 +1293,7 @@ function eliminarSeleccionada(){
 
   if(!aeronaveSeleccionada) return
 
-  const id = aeronaveSeleccionada.callsign
+  const id = aeronaveSeleccionada.id
 
   // Avisar al servidor
   socket.emit("eliminarAeronave", id)
@@ -1297,7 +1303,7 @@ function eliminarSeleccionada(){
 
   map.removeLayer(aeronaveSeleccionada.marker)
 
-  aeronaves = aeronaves.filter(a => a.callsign !== id)
+  aeronaves = aeronaves.filter(a => a.id !== id)
 
   aeronaveSeleccionada = null
   modoRuta = false

@@ -1157,6 +1157,12 @@ actualizarReloj()
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const socket = io()
+// Obtener nombre desde la URL
+const params = new URLSearchParams(window.location.search);
+const nombreSala = params.get("nombre");
+
+// Unirse realmente a la room
+socket.emit("unirseSala", nombreSala);
 </script>
 
 

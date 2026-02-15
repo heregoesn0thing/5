@@ -42,8 +42,10 @@ socket.on("listaSalas", (salas) => {
 });
 
 function unirse(nombre) {
+  socket.emit("unirseSala", nombre);
   window.location.href = "/sala?nombre=" + nombre;
 }
+
 
 </script>
 

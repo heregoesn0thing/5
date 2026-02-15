@@ -1,53 +1,239 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Lobby</title>
+
+  <!-- Socket.IO se carga primero -->
+  <script src="/socket.io/socket.io.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      color: #f1f5f9;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 800px;
+      background: #1e293b;
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      font-weight: 700;
+      font-size: 28px;
+    }
+
+    .crear-sala {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 40px;
+    }
+
+    .crear-sala input {
+      flex: 1;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: none;
+      font-size: 14px;
+      outline: none;
+      background: #334155;
+      color: white;
+    }
+
+    .crear-sala input::placeholder {
+      color: #94a3b8;
+    }
+
+    .btn {
+      padding: 12px 20px;
+      border-radius: 10px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .btn-primary {
+      background: #3b82f6;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #2563eb;
+    }
+
+    .btn-join {
+      background: #22c55e;
+      color: white;
+      font-size: 13px;
+      padding: 8px 14px;
+    }
+
+    .btn-join:hover {
+      background: #16a34a;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+      font-size: 18px;
+      font-weight: 600;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 8px;
+    }
+
+    ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    li {
+      background: #0f172a;
+      padding: 16px;
+      border-radius: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: 0.2s ease;
+    }
+
+    li:hover {
+      transform: translateY(-2px);
+      background: #1e293b;
+    }
+
+    .info {
+      font-size: 14px;
+    }
+
+    .empty {
+      text-align: center;
+      color: #94a3b8;
+      margin-top: 10px;
+    }
+
+    @media (max-width: 600px) {
+      .crear-sala {
+        flex-direction: column;
+      }
+
+      li {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+
+      .btn-join {
+        width: 100%;
+      }
+    }
+  </style>
 </head>
 <body>
 
-<h2>Crear sala</h2>
-<input type="text" id="nuevaSala" placeholder="Nombre sala">
-<button onclick="crearSala()">Crear</button>
+  <div class="container">
+    <h1>🎮 Lobby de Juego</h1>
 
-<h2>Salas disponibles</h2>
-<ul id="listaSalas"></ul>
+    <div class="crear-sala">
+      <input type="text" id="nuevaSala" placeholder="Nombre de la sala" />
+      <button class="btn btn-primary" id="btnCrear">Crear Sala</button>
+    </div>
 
-<script src="/socket.io/socket.io.js"></script>
-<script>
+    <h2>Salas Disponibles</h2>
+    <ul id="listaSalas"></ul>
+    <p id="mensajeVacio" class="empty" style="display:none;">No hay salas creadas aún</p>
+  </div>
 
-const socket = io();
+  <script>
+    // Todo el JS se ejecuta SOLO cuando la página está completamente cargada
+    window.addEventListener("load", () => {
+      if (typeof io === "undefined") {
+        console.error("Socket.IO no está cargado correctamente.");
+        alert("Error: Socket.IO no está disponible.");
+        return;
+      }
 
-function crearSala() {
-  const nombre = document.getElementById("nuevaSala").value;
-  if (!nombre) return alert("Escribe un nombre");
-  socket.emit("crearSala", nombre);
-}
+      const socket = io();
 
-socket.on("listaSalas", (salas) => {
+      const input = document.getElementById("nuevaSala");
+      const btnCrear = document.getElementById("btnCrear");
+      const ul = document.getElementById("listaSalas");
+      const mensajeVacio = document.getElementById("mensajeVacio");
 
-  const ul = document.getElementById("listaSalas");
-  ul.innerHTML = "";
+      function crearSala() {
+        const nombre = input.value.trim();
+        if (!nombre) {
+          alert("Escribe un nombre");
+          return;
+        }
+        socket.emit("crearSala", nombre);
+        input.value = "";
+      }
 
-  salas.forEach(sala => {
+      function unirse(nombre) {
+        window.location.href = "/sala?nombre=" + encodeURIComponent(nombre);
+      }
 
-    const li = document.createElement("li");
+      btnCrear.addEventListener("click", crearSala);
 
-    li.innerHTML = `
-      ${sala.nombre} (${sala.jugadores} jugadores)
-      <button onclick="unirse('${sala.nombre}')">Unirse</button>
-    `;
+      socket.on("listaSalas", (salas) => {
+        ul.innerHTML = "";
 
-    ul.appendChild(li);
-  });
-});
+        if (!Array.isArray(salas) || salas.length === 0) {
+          mensajeVacio.style.display = "block";
+          return;
+        }
 
-function unirse(nombre) {
-  
-  window.location.href = "/sala?nombre=" + nombre;
-}
+        mensajeVacio.style.display = "none";
 
+        salas.forEach(sala => {
+          const li = document.createElement("li");
 
-</script>
+          const info = document.createElement("div");
+          info.className = "info";
+          info.textContent = `${sala.nombre} (${sala.jugadores} jugadores)`;
+
+          const boton = document.createElement("button");
+          boton.textContent = "Unirse";
+          boton.className = "btn btn-join";
+          boton.addEventListener("click", () => unirse(sala.nombre));
+
+          li.appendChild(info);
+          li.appendChild(boton);
+          ul.appendChild(li);
+        });
+      });
+
+      // =========================
+      // TESTS BÁSICOS EN CONSOLA
+      // =========================
+      console.assert(typeof socket !== "undefined", "❌ Socket no fue inicializado");
+      console.assert(typeof crearSala === "function", "❌ crearSala no está definida");
+      console.assert(typeof unirse === "function", "❌ unirse no está definida");
+      console.log("✅ Lobby inicializado correctamente");
+    });
+  </script>
 
 </body>
 </html>

@@ -1,42 +1,1165 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>Test Mapa</title>
+<title>ATC Simulator</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <style>
-html, body {
-  margin:0;
-  padding:0;
-  height:100%;
+body{ margin:0; }
+#map{ height:100vh; width:100vw; }
+
+.icon-wrapper{
+  width:70px;
+  height:60px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  position:relative;
 }
-#map {
+
+.icon-aircraft{
+  font-size:26px;
+  transform-origin:center center;
+}
+
+.callsign-label{
+  position:absolute;
+  bottom:-18px;
+  font-size:11px;
+  font-weight:bold;
+  color:white;
+  background:black;
+  padding:2px 5px;
+  border-radius:4px;
+  white-space:nowrap;
+}
+
+.status-label{
+  position:absolute;
+  top:-16px;
+  font-size:10px;
+  font-weight:bold;
+  color:white;
+  background:blue;
+  padding:2px 4px;
+  border-radius:4px;
+  display:none;
+}
+
+#menuAeronave{
+  position:fixed;
+  top:120px;
+  left:20px;
+  background:rgba(20,20,20,0.95);
+  color:white;
+  border-radius:8px;
+  display:none;
+  z-index:2000;
+  width:260px;
+  font-family:monospace;
+}
+
+#panelHeader{
+  background:#111;
+  padding:8px;
+  cursor:move;
+  display:flex;
+  justify-content:space-between;
+}
+
+#panelBody{ padding:10px; }
+
+#panelBody button{
   width:100%;
-  height:100vh;
+  margin-top:6px;
+  padding:6px;
+  cursor:pointer;
 }
+
+#aircraftInfo{
+  font-size:12px;
+  margin-bottom:10px;
+  background:#000;
+  padding:6px;
+  border-radius:4px;
+}
+
+#relojPanel{
+  position:fixed;
+  top:15px;
+  right:15px;
+  background:rgba(0,0,0,0.85);
+  color:white;
+  padding:12px;
+  border-radius:8px;
+  text-align:center;
+  z-index:3000;
+  font-family:monospace;
+}
+
+#relojHora{ font-size:20px; margin-bottom:8px; }
 </style>
 </head>
+
 <body>
 
 <div id="map"></div>
 
+<div id="menuAeronave">
+  <div id="panelHeader">
+    <span id="aircraftTitle">Aircraft</span>
+    <span onclick="cerrarPanel()" style="cursor:pointer;color:red;">✖</span>
+  </div>
+  <div id="panelBody">
+    <div id="aircraftInfo"></div>
+    <button onclick="activarModoRuta()">Create Route</button>
+<button onclick="iniciarRodaje()">Start Taxi</button>
+<button onclick="detenerRodaje()">Stop Taxi</button>
+<button onclick="despegar()">Takeoff</button>
+<button onclick="iniciarCircuito()">Traffic Pattern</button>
+<button onclick="detenerCircuito()">Stop Pattern</button>
+<button onclick="eliminarSeleccionada()">Remove Aircraft</button>
+</div><select id="sidSelect" style="width:100%;margin-bottom:8px;">
+  <option value="">Select SID</option>
+  <option value="KOPRA1">KOPRA 1</option>
+  <option value="TELOT1">TELOT 1</option>
+</select>
+<select id="starSelect" style="width:100%;margin-bottom:8px;">
+  <option value="">Select STAR</option>
+  <option value="GEBED3">GEBED 3 RWY 22</option>
+</select>
+
+<button onclick="iniciarSTAR()">Start STAR</button>
+
+<div style="margin-top:10px;">
+  <div style="font-size:12px;margin-bottom:4px;">Speed: <span id="speedValue">0</span> kt</div>
+  <input type="range" id="speedSlider"
+         min="0" max="250" value="0"
+         style="width:100%;"
+         oninput="cambiarVelocidad(this.value)">
+</div>
+
+</div>
+
+<div id="relojPanel">
+  <div id="relojHora">00:00:00</div>
+  <button onclick="iniciarReloj()">▶</button>
+  <button onclick="pausarReloj()">⏸</button>
+  <button onclick="ajustarHora()">✏</button>
+</div>
+
 <script>
 
-console.log("Script cargado");
+// ================= MAP =================
 
-const map = L.map('map').setView([-12.0464, -77.0428], 13);
+const map = L.map('map').setView([-13.7443,-76.2204],16)
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19
-}).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  maxZoom:19
+}).addTo(map)
+function crearTriangulo(nombre, lat, lng){
+
+  const icono = L.divIcon({
+    className:"",
+    iconSize:[20,20],
+    iconAnchor:[10,10],
+    html:`
+      <div style="
+        width: 0;
+        height: 0;
+        border-left: 10px solid transparent;
+        border-right: 10px solid transparent;
+        border-bottom: 18px solid black;
+      "></div>
+      <div style="
+        font-size:10px;
+        font-weight:bold;
+        color:black;
+        text-align:center;
+      ">${nombre}</div>
+    `
+  })
+
+  L.marker([lat,lng],{icon:icono}).addTo(map)
+}
+crearTriangulo("KOPRA", -13.406306, -76.700917)
+crearTriangulo("TELOT", -13.241667, -76.530000)
+crearTriangulo("GEBED", -13.193611, -76.432583)
+crearTriangulo("KOLMI", -13.673139, -76.159944)
+crearTriangulo("MUMOP", -13.567306, -76.281944)
+crearTriangulo("SILAM", -13.695056, -76.178417)
+crearTriangulo("ESEDI", -12.577222, -76.951667)
+crearTriangulo("ASOXI", -12.760556, -76.606389)
+crearTriangulo("LIB MANDI", -12.389000, -76.758094)
+
+
+function crearVOR(nombre, lat, lng){
+
+  const icono = L.divIcon({
+    className:"",
+    iconSize:[20,20],
+    iconAnchor:[10,10],
+    html:`
+      <div style="
+        width:20px;
+        height:20px;
+        border:2px solid black;
+        background:white;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        box-sizing:border-box;
+      ">
+        <div style="
+          width:20px;
+          height:20px;
+          background:white;
+          border:2px solid black;
+          clip-path: polygon(
+            50% 0%, 
+            100% 25%, 
+            100% 75%, 
+            50% 100%, 
+            0% 75%, 
+            0% 25%
+          );
+          box-sizing:border-box;
+        "></div>
+      </div>
+      <div style="
+        font-size:10px;
+        font-weight:bold;
+        text-align:center;
+        color:black;
+      ">
+        ${nombre}
+      </div>
+    `
+  })
+
+  L.marker([lat,lng],{icon:icono}).addTo(map)
+}
+
+
+
+crearVOR("SCO VOR", -13.738556, -76.212750)
+
+// ================= VARIABLES =================
+
+let aeronaves = []
+let aeronaveSeleccionada = null
+let modoRuta = false
+let rutaTemporal = []
+const VELOCIDAD = 8
+const TIPOS = ["A320","A319","C172","AN32"]
+const RUMBO_PISTA_22 = 220
+const DISTANCIA_FADE = 80 * 1852      // 80 NM
+const DISTANCIA_REMOVE = 85 * 1852    // 85 NM
+
+const PERFORMANCE = {
+  A320: { VR:145, CLIMB:250, ACC:1.2 },
+  A319: { VR:140, CLIMB:240, ACC:1.1 },
+  C172: { VR:55,  CLIMB:75,  ACC:0.4 },
+  AN32: { VR:110, CLIMB:180, ACC:0.8 }
+}
+const CLIMB_RATE = {
+  A320: 3000,
+  A319: 2800,
+  AN32: 2000,
+  C172: 700
+}
+const LIB_MANDI = L.latLng(-12.389000, -76.758094)
+const RUMBO_LIB_MANDI = 140
+const TOLERANCIA_RUMBO = 15
+const DISTANCIA_LIB_MANDI = 2 * 1852   // 2 NM
+
+// ================= ICON =================
+
+function crearIcono(callsign,tipo){
+  return L.divIcon({
+    className:"",
+    iconSize:[70,60],
+    iconAnchor:[35,30],
+    html:`
+      <div class="icon-wrapper">
+        <div class="status-label">TAXIING</div>
+        <div class="icon-aircraft">✈</div>
+        <div class="callsign-label">${callsign} (${tipo})</div>
+      </div>
+    `
+  })
+}
+
+// ================= CREATE AIRCRAFT =================
+
+map.on("click", function(e){
+
+  // Si estamos creando ruta
+  if(modoRuta){
+    if(aeronaveSeleccionada && !aeronaveSeleccionada.rodando){
+      agregarPuntoRuta(e.latlng)
+    }
+    return
+  }
+
+  // Si NO estamos creando ruta → abrir creación
+  mostrarSelectorTipo(e.latlng)
+})
+
+function mostrarSelectorTipo(latlng){
+
+  // Evitar múltiples paneles
+  if(document.getElementById("selectorTipo")) return
+
+  const contenedor = document.createElement("div")
+  contenedor.style.position = "fixed"
+  contenedor.style.top = "40%"
+  contenedor.style.left = "50%"
+  contenedor.style.transform = "translate(-50%,-50%)"
+  contenedor.style.background = "#111"
+  contenedor.style.padding = "20px"
+  contenedor.style.borderRadius = "8px"
+  contenedor.style.color = "white"
+  contenedor.style.zIndex = 5000
+  contenedor.id = "selectorTipo"
+
+  contenedor.innerHTML = `
+    <div style="margin-bottom:10px;">Select Aircraft Type</div>
+    <select id="tipoSelect" style="width:100%;margin-bottom:10px;">
+      <option value="A320">A320</option>
+      <option value="A319">A319</option>
+      <option value="C172">C172</option>
+      <option value="AN32">AN32</option>
+    </select>
+    <input id="callsignInput" placeholder="Enter Callsign"
+           style="width:100%;margin-bottom:10px;padding:4px;" />
+    <button onclick="confirmarCreacion()" style="width:100%;">Create</button>
+  `
+
+  document.body.appendChild(contenedor)
+  window.tempLatLng = latlng
+
+  // 🔹 Cerrar al hacer click fuera
+  setTimeout(() => {
+    document.addEventListener("click", cerrarSiClickFuera)
+  }, 0)
+}
+function cerrarSiClickFuera(e){
+
+  const panel = document.getElementById("selectorTipo")
+  if(!panel) return
+
+  if(!panel.contains(e.target)){
+    panel.remove()
+    document.removeEventListener("click", cerrarSiClickFuera)
+  }
+}
+
+function confirmarCreacion(){
+
+  const tipo = document.getElementById("tipoSelect").value
+  let callsign = document.getElementById("callsignInput").value
+
+  if(!callsign){
+    alert("Enter Callsign")
+    return
+  }
+
+  callsign = callsign.toUpperCase().trim()
+
+  if(aeronaves.some(a => a.callsign === callsign)){
+    alert("Callsign already exists")
+    return
+  }
+
+  const marker = L.marker(window.tempLatLng,{
+    icon:crearIcono(callsign,tipo),
+    draggable:true
+  }).addTo(map)
+
+const nueva = {
+  tipo,
+  callsign,
+  marker,
+  ruta:null,
+  puntosRuta:[],
+  rodando:false,
+  angulo:0,
+  intervaloMovimiento:null,
+  sid:null,
+  altitud:0,
+  velocidad:0,
+  velocidadObjetivo:0,
+  star:null,
+  starActivo:false,
+  faseStar:null,
+  altitudObjetivo:null
+}
+
+
+
+
+
+  aeronaves.push(nueva)
+
+  marker.on("click", function(event){
+    L.DomEvent.stopPropagation(event)
+    seleccionarAeronave(nueva)
+  })
+
+  marker.on("dragstart", function(){
+    if(nueva.rodando){
+      marker.dragging.disable()
+      return
+    }
+    if(nueva.ruta){
+      map.removeLayer(nueva.ruta)
+      nueva.ruta=null
+      nueva.puntosRuta=[]
+    }
+    modoRuta=false
+  })
+
+  marker.on("dragend", function(){
+    marker.dragging.enable()
+  })
+
+  document.getElementById("selectorTipo").remove()
+  document.removeEventListener("click", cerrarSiClickFuera)
+socket.emit("crearAeronave", {
+  id: callsign,
+  tipo,
+  lat: window.tempLatLng.lat,
+  lng: window.tempLatLng.lng
+})
+
+}
+socket.on("crearAeronave", data => {
+
+  if(aeronaves.some(a => a.callsign === data.id)) return
+
+  const marker = L.marker([data.lat, data.lng], {
+    icon: crearIcono(data.id, data.tipo),
+    interactive: false
+  }).addTo(map)
+
+  aeronaves.push({
+    callsign: data.id,
+    tipo: data.tipo,
+    marker: marker,
+    remoto: true
+  })
+
+})
+
+// ================= PANEL =================
+
+function seleccionarAeronave(obj){
+
+  aeronaveSeleccionada = obj
+
+  document.getElementById("aircraftTitle").innerText = obj.callsign
+
+  actualizarPanelInfo(obj)
+
+  document.getElementById("menuAeronave").style.display = "block"
+  document.getElementById("speedSlider").value = obj.velocidadObjetivo || 0
+document.getElementById("speedValue").innerText = obj.velocidadObjetivo || 0
+
+}
+function actualizarPanelInfo(a){
+
+  let estado = "ON GROUND"
+
+  if(a.rodando) estado = "TAXIING"
+  if(a.enVuelo) estado = "AIRBORNE"
+
+  let sidTexto = a.sid ? a.sid : "None"
+
+// ===== FORMATO DE ALTITUD =====
+let altitudTexto = "0 ft"
+
+if(a.altitud){
+
+  if(a.altitud <= 3000){
+    altitudTexto = Math.round(a.altitud) + " ft"
+  }else{
+    const FL = Math.round(a.altitud / 100)
+    altitudTexto = "FL" + String(FL).padStart(3,'0')
+  }
+
+}
+
+
+  document.getElementById("aircraftInfo").innerHTML = `
+    Type: ${a.tipo}<br>
+    Callsign: ${a.callsign}<br>
+    SID: ${sidTexto}<br>
+    Status: ${estado}<br>
+    Level: ${altitudTexto}
+  `
+}
+
+
+
+function cerrarPanel(){
+  document.getElementById("menuAeronave").style.display = "none"
+  aeronaveSeleccionada = null
+}
+function cambiarVelocidad(valor){
+
+  if(!aeronaveSeleccionada) return
+
+  const a = aeronaveSeleccionada
+
+  a.velocidadObjetivo = parseInt(valor)
+
+  document.getElementById("speedValue").innerText = valor
+}
+
+// ================= ROUTE =================
+
+function activarModoRuta(){
+  if(!aeronaveSeleccionada) return
+  if(aeronaveSeleccionada.rodando){
+    alert("Aircraft is taxiing")
+    return
+  }
+
+  modoRuta=true
+  const pos=aeronaveSeleccionada.marker.getLatLng()
+  rutaTemporal=[pos]
+  aeronaveSeleccionada.puntosRuta=rutaTemporal
+  aeronaveSeleccionada.ruta=L.polyline(rutaTemporal,{color:"yellow"}).addTo(map)
+}
+
+function agregarPuntoRuta(latlng){
+  if(!aeronaveSeleccionada || aeronaveSeleccionada.rodando) return
+  rutaTemporal.push(latlng)
+  aeronaveSeleccionada.ruta.setLatLngs(rutaTemporal)
+}
+
+// ================= TAXI =================
+
+function iniciarRodaje(){
+  if(!aeronaveSeleccionada) return
+  if(aeronaveSeleccionada.puntosRuta.length<2) return
+  aeronaveSeleccionada.rodando=true
+  aeronaveSeleccionada.marker.dragging.disable()
+  mostrarTaxiing(aeronaveSeleccionada,true)
+  moverPorPuntos(aeronaveSeleccionada)
+  actualizarPanelInfo(aeronaveSeleccionada)
+
+}
+
+function detenerRodaje(){
+  if(!aeronaveSeleccionada) return
+
+  aeronaveSeleccionada.rodando=false
+  modoRuta=false
+aeronaveSeleccionada.marker.dragging.enable()
+  if(aeronaveSeleccionada.intervaloMovimiento){
+    clearInterval(aeronaveSeleccionada.intervaloMovimiento)
+    aeronaveSeleccionada.intervaloMovimiento=null
+  }
+
+  if(aeronaveSeleccionada.ruta){
+    map.removeLayer(aeronaveSeleccionada.ruta)
+    aeronaveSeleccionada.ruta=null
+  }
+
+  aeronaveSeleccionada.puntosRuta=[]
+  mostrarTaxiing(aeronaveSeleccionada,false)
+  actualizarPanelInfo(aeronaveSeleccionada)
+
+}
+function iniciarSTAR(){
+
+  if(!aeronaveSeleccionada) return
+  const a = aeronaveSeleccionada
+
+  if(!a.enVuelo){
+    alert("Aircraft must be airborne")
+    return
+  }
+
+  const starElegido = document.getElementById("starSelect").value
+  if(!starElegido){
+    alert("Select STAR")
+    return
+  }
+
+  if(starElegido !== "GEBED3") return
+
+  a.star = "GEBED3"
+  a.starActivo = true
+  a.faseStar = "ASOXI"
+  a.altitudObjetivo = 8000   // FL080
+
+  actualizarPanelInfo(a)
+}
+function ejecutarSTAR(a){
+
+  const ASOXI = L.latLng(-12.760556, -76.606389)
+  const GEBED = L.latLng(-13.193611, -76.432583)
+  const MUMOP = L.latLng(-13.567306, -76.281944)
+  const VOR   = L.latLng(-13.738556, -76.212750)
+
+  const actual = a.marker.getLatLng()
+
+  // ===== DESCENSO CONTROLADO =====
+  const descensoFPM = 1500
+  const descensoFPS = descensoFPM / 60
+
+  if(a.altitud > a.altitudObjetivo){
+    a.altitud -= descensoFPS * 0.05
+  }
+
+  switch(a.faseStar){
+
+    // ================= ASOXI ≥ FL080 =================
+    case "ASOXI":
+
+      a.headingObjetivo = calcularBearing(actual, ASOXI)
+
+      if(map.distance(actual, ASOXI) < 2000){
+
+        if(a.altitud < 8000){
+          a.altitudObjetivo = 8000
+        }
+
+        a.faseStar = "RADIAL"
+        a.altitudObjetivo = 7000   // siguiente restricción
+      }
+
+    break
+
+    // ================= RADIAL 341 SCO =================
+    case "RADIAL":
+
+      a.headingObjetivo = 161   // curso inbound
+
+      if(map.distance(actual, GEBED) < 2000){
+        a.faseStar = "GEBED"
+      }
+
+    break
+
+    // ================= GEBED ≤ FL070 =================
+    case "GEBED":
+
+      if(a.altitud > 7000){
+        a.altitudObjetivo = 7000
+      }
+
+      a.headingObjetivo = calcularBearing(actual, MUMOP)
+
+      if(map.distance(actual, MUMOP) < 2000){
+        a.faseStar = "MUMOP"
+        a.altitudObjetivo = 4000
+      }
+
+    break
+
+    // ================= MUMOP ≥ FL040 =================
+    case "MUMOP":
+
+      if(a.altitud < 4000){
+        a.altitudObjetivo = 4000
+      }
+
+      // Aquí termina STAR
+      a.starActivo = false
+
+    break
+  }
+}
+
+function despegar(){
+
+  if(!aeronaveSeleccionada) return
+  const a = aeronaveSeleccionada
+
+  if(a.enVuelo) return
+
+  if(a.rodando){
+    alert("Cannot takeoff while taxiing")
+    return
+  }
+
+  // ================= VALIDACIÓN ZONA =================
+
+  const desdeRWY22 = estaAlineadoConPista(a)
+  const desdeLIB   = puedeDespegarDesdeLIB(a)
+
+  if(!desdeRWY22 && !desdeLIB){
+    alert("Aircraft not aligned with valid departure area")
+    return
+  }
+
+  // ================= VALIDACIÓN SID / STAR =================
+
+  const sidElegida  = document.getElementById("sidSelect").value
+  const starElegida = document.getElementById("starSelect").value
+
+  if(desdeLIB && !sidElegida && !starElegida){
+    alert("LIB MANDI departures require SID, STAR or Free Navigation")
+    return
+  }
+
+  // ================= INICIALIZACIÓN =================
+
+  a.sid = sidElegida || null
+  a.star = starElegida || null
+  a.starActivo = false
+  a.altitud = 0
+  a.velocidad = 0
+  a.enVuelo = true
+  a.fase = "RUNWAY"
+
+  // Heading inicial según punto de salida
+  if(desdeRWY22){
+    a.headingObjetivo = RUMBO_PISTA_22
+  }
+
+  if(desdeLIB){
+    a.headingObjetivo = RUMBO_LIB_MANDI
+  }
+
+  actualizarPanelInfo(a)
+
+  const puntoSalida = a.marker.getLatLng()
+
+  if(a.intervaloVuelo){
+    clearInterval(a.intervaloVuelo)
+  }
+
+  a.intervaloVuelo = setInterval(()=>{
+
+    // ================= ACELERACIÓN PROGRESIVA =================
+
+    const aceleracion = 0.8
+
+    if(a.velocidad < a.velocidadObjetivo){
+      a.velocidad += aceleracion
+      if(a.velocidad > a.velocidadObjetivo)
+        a.velocidad = a.velocidadObjetivo
+    }
+
+    // ================= ASCENSO =================
+
+    if(a.velocidad >= 25){
+
+      const climbFPM = CLIMB_RATE[a.tipo] || 2000
+      const climbFPS = climbFPM / 60
+      a.altitud += climbFPS * 0.05
+    }
+
+    // ================= EJECUTAR STAR =================
+
+    if(a.starActivo){
+      ejecutarSTAR(a)
+    }
+
+    // ================= GIRO SUAVE =================
+
+    a.angulo = girarSuavemente(
+      a,
+      a.angulo || a.headingObjetivo,
+      a.headingObjetivo
+    )
+
+    actualizarRotacion(a)
+
+    // ================= MOVIMIENTO =================
+
+    const headingRad = a.angulo * Math.PI/180
+    const actual = a.marker.getLatLng()
+
+    const mps = a.velocidad * 0.514444
+
+    const deltaLat = (Math.cos(headingRad) * mps) / 111320
+    const deltaLng = (Math.sin(headingRad) * mps) /
+                     (111320 * Math.cos(actual.lat*Math.PI/180))
+
+    a.marker.setLatLng([
+      actual.lat + deltaLat,
+      actual.lng + deltaLng
+    ])
+
+    // ================= FADE 80 NM =================
+
+    const distanciaSalida = map.distance(
+      puntoSalida,
+      a.marker.getLatLng()
+    )
+
+    if(distanciaSalida > DISTANCIA_FADE){
+
+      const progreso = (distanciaSalida - DISTANCIA_FADE) /
+                       (DISTANCIA_REMOVE - DISTANCIA_FADE)
+
+      const opacidad = 1 - Math.min(progreso,1)
+
+      a.marker.getElement().style.opacity = opacidad
+    }
+
+    if(distanciaSalida >= DISTANCIA_REMOVE){
+
+      clearInterval(a.intervaloVuelo)
+      map.removeLayer(a.marker)
+      aeronaves = aeronaves.filter(x=>x!==a)
+      cerrarPanel()
+    }
+
+    // ================= ACTUALIZAR PANEL =================
+
+    if(aeronaveSeleccionada === a){
+      actualizarPanelInfo(a)
+    }
+socket.emit("actualizarAeronave", {
+  id: a.callsign,
+  lat: a.marker.getLatLng().lat,
+  lng: a.marker.getLatLng().lng,
+  altitud: a.altitud,
+  angulo: a.angulo
+  
+})
+socket.on("actualizarAeronave", data => {
+
+  const a = aeronaves.find(x => x.callsign === data.id)
+  if(!a) return
+
+  a.marker.setLatLng([data.lat, data.lng])
+})
+
+  },50)
+}
+function puedeDespegarDesdeLIB(a){
+
+  const distancia = map.distance(
+    LIB_MANDI,
+    a.marker.getLatLng()
+  )
+
+  if(distancia > DISTANCIA_LIB_MANDI) return false
+
+  let diferencia = Math.abs(a.angulo - RUMBO_LIB_MANDI)
+
+  if(diferencia > 180)
+    diferencia = 360 - diferencia
+
+  if(diferencia > TOLERANCIA_RUMBO) return false
+
+  return true
+}
+
+
+function girarSuavemente(a, headingActual, headingObjetivo){
+
+  const turnRate = 6        // grados por segundo
+  const deltaTiempo = 0.05  // 50 ms
+  const maxCambio = turnRate * deltaTiempo
+
+  let diferencia = headingObjetivo - headingActual
+
+  if(diferencia > 180) diferencia -= 360
+  if(diferencia < -180) diferencia += 360
+
+  if(Math.abs(diferencia) < maxCambio){
+    return headingObjetivo
+  }
+
+  return headingActual + (diferencia > 0 ? maxCambio : -maxCambio)
+}
+
+
+function estaAlineadoConPista(a){
+
+  let diferencia = Math.abs(a.angulo - RUMBO_PISTA_22)
+
+  if(diferencia > 180){
+    diferencia = 360 - diferencia
+  }
+
+  return diferencia <= 10 // tolerancia ±10°
+}
+
+// AUTO HEADING
+function calcularBearing(inicio, fin){
+  const lat1=inicio.lat*Math.PI/180
+  const lat2=fin.lat*Math.PI/180
+  const dLng=(fin.lng-inicio.lng)*Math.PI/180
+  const y=Math.sin(dLng)*Math.cos(lat2)
+  const x=Math.cos(lat1)*Math.sin(lat2)-
+          Math.sin(lat1)*Math.cos(lat2)*Math.cos(dLng)
+  let brng=Math.atan2(y,x)*180/Math.PI
+  return (brng+360)%360
+}
+function estaEnRadial(a, radial){
+
+  const vor = { lat:-13.738556, lng:-76.212750 } // SCO
+
+  const posicion = a.marker.getLatLng()
+
+  const bearingDesdeVOR = calcularBearing(vor, posicion)
+
+  let diferencia = Math.abs(bearingDesdeVOR - radial)
+
+  if(diferencia > 180){
+    diferencia = 360 - diferencia
+  }
+
+  return diferencia < 3 // tolerancia 3°
+}
+function distanciaDesdeVOR(a){
+  const vor = L.latLng(-13.738556, -76.212750)
+  return map.distance(vor, a.marker.getLatLng())
+}
+
+function actualizarRotacion(a){
+  const el=a.marker.getElement()
+  const icono=el.querySelector(".icon-aircraft")
+  icono.style.transform=`rotate(${a.angulo-90}deg)`
+}
+
+function moverPorPuntos(a){
+  let i=0
+  const ruta=a.puntosRuta
+
+  function mover(){
+    if(i>=ruta.length-1){
+      detenerRodaje()
+      return
+    }
+
+    const inicio=ruta[i]
+    const fin=ruta[i+1]
+
+    a.angulo=calcularBearing(inicio,fin)
+    actualizarRotacion(a)
+
+    const dist=map.distance(inicio,fin)
+    const dur=(dist/VELOCIDAD)*1000
+    const start=Date.now()
+
+    a.intervaloMovimiento=setInterval(()=>{
+      const t=(Date.now()-start)/dur
+      if(t>=1){
+        a.marker.setLatLng(fin)
+        clearInterval(a.intervaloMovimiento)
+        i++
+        mover()
+        return
+      }
+      const lat=inicio.lat+(fin.lat-inicio.lat)*t
+      const lng=inicio.lng+(fin.lng-inicio.lng)*t
+      a.marker.setLatLng([lat,lng])
+    },30)
+  }
+  mover()
+}
+
+function mostrarTaxiing(a,estado){
+  const el=a.marker.getElement()
+  const label=el.querySelector(".status-label")
+  label.style.display=estado?"block":"none"
+}
+//===========CIRCUITO=============
+//=========== TRAFFIC PATTERN =============
+
+// ================= REALISTIC LEFT TRAFFIC PATTERN RWY 22 =================
+
+function iniciarCircuito(){
+
+  if(!aeronaveSeleccionada) return
+  const a = aeronaveSeleccionada
+
+  if(a.tipo !== "C172"){
+    alert("Traffic pattern available only for C172")
+    return
+  }
+
+  if(a.circuitoActivo) return
+
+  a.circuitoActivo = true
+  a.altitud = 0
+
+  const velocidad = 60          // 60 KTAS realista
+  const patronAltitud = 1500    // 1500 ft
+  const climbFPM = 700          // climb real C172
+  const descensoFPM = 500       // descenso base/final
+
+  const climbFPS = climbFPM / 60
+  const descensoFPS = descensoFPM / 60
+
+  const referencia = a.marker.getLatLng()
+
+  const distUpwind   = 1 * 1852
+  const distCross    = 1 * 1852
+  const distDownwind = 2 * 1852
+  const distBase     = 1 * 1852
+
+  let fase = "UPWIND"
+  let headingObjetivo = 220
+  let puntoInicioFase = referencia
+
+  a.intervaloCircuito = setInterval(()=>{
+
+    const actual = a.marker.getLatLng()
+    const distancia = map.distance(puntoInicioFase, actual)
+
+    // ================= ALTITUD REALISTA =================
+    if(fase === "UPWIND" || fase === "CROSSWIND"){
+      if(a.altitud < patronAltitud){
+        a.altitud += climbFPS * 0.05
+      }
+    }
+
+    if(fase === "BASE" || fase === "FINAL"){
+      a.altitud -= descensoFPS * 0.05
+      if(a.altitud < 0) a.altitud = 0
+    }
+
+    // ================= CAMBIO DE FASE =================
+    switch(fase){
+
+      case "UPWIND":
+        if(distancia >= distUpwind){
+          headingObjetivo = 130
+          fase = "CROSSWIND"
+          puntoInicioFase = actual
+        }
+      break
+
+      case "CROSSWIND":
+        if(distancia >= distCross){
+          headingObjetivo = 40
+          fase = "DOWNWIND"
+          puntoInicioFase = actual
+        }
+      break
+
+      case "DOWNWIND":
+        if(distancia >= distDownwind){
+          headingObjetivo = 310
+          fase = "BASE"
+          puntoInicioFase = actual
+        }
+      break
+
+      case "BASE":
+        if(distancia >= distBase){
+          headingObjetivo = 220
+          fase = "FINAL"
+          puntoInicioFase = actual
+        }
+      break
+
+      case "FINAL":
+        if(a.altitud <= 0){
+          // Touch & Go
+          fase = "UPWIND"
+          headingObjetivo = 220
+          puntoInicioFase = actual
+        }
+      break
+    }
+
+    // ================= GIRO CORRECTO =================
+    a.angulo = girarSuavemente(a, a.angulo || 220, headingObjetivo)
+    actualizarRotacion(a)
+
+    // ================= MOVIMIENTO =================
+    const mps = velocidad * 0.514444
+    const headingRad = a.angulo * Math.PI/180
+
+    const deltaLat = (Math.cos(headingRad)*mps)/111320
+    const deltaLng = (Math.sin(headingRad)*mps)/
+      (111320*Math.cos(actual.lat*Math.PI/180))
+
+    a.marker.setLatLng([
+      actual.lat + deltaLat,
+      actual.lng + deltaLng
+    ])
+
+  },50)
+}
+
+
+
+function detenerCircuito(){
+
+  if(!aeronaveSeleccionada) return
+  const a = aeronaveSeleccionada
+
+  if(a.intervaloCircuito){
+    clearInterval(a.intervaloCircuito)
+    a.intervaloCircuito = null
+  }
+
+  a.circuitoActivo = false
+}
+
+
+
+// ================= REMOVE =================
+
+function eliminarSeleccionada(){
+  if(!aeronaveSeleccionada) return
+  detenerRodaje()
+  map.removeLayer(aeronaveSeleccionada.marker)
+  aeronaves=aeronaves.filter(a=>a!==aeronaveSeleccionada)
+  aeronaveSeleccionada=null
+  modoRuta=false
+  rutaTemporal=[]
+  cerrarPanel()
+}
+
+// ================= CLOCK =================
+
+let segundosTotales=0
+let intervaloReloj=null
+
+function actualizarReloj(){
+  let h=Math.floor(segundosTotales/3600)
+  let m=Math.floor((segundosTotales%3600)/60)
+  let s=segundosTotales%60
+  document.getElementById("relojHora").innerText=
+    `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+}
+
+function iniciarReloj(){
+  if(intervaloReloj) return
+  intervaloReloj=setInterval(()=>{segundosTotales++;actualizarReloj()},1000)
+}
+
+function pausarReloj(){
+  clearInterval(intervaloReloj)
+  intervaloReloj=null
+}
+
+function ajustarHora(){
+  const t=prompt("Enter time HH:MM:SS")
+  if(!t) return
+  const p=t.split(":")
+  segundosTotales=parseInt(p[0])*3600+parseInt(p[1])*60+parseInt(p[2])
+  actualizarReloj()
+}
+
+actualizarReloj()
 
 </script>
 
+
 </body>
 </html>
+
+
+
 
 
 

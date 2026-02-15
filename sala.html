@@ -108,7 +108,16 @@ body{ margin:0; }
 <body>
 
 <div id="map"></div>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io()
+// Obtener nombre desde la URL
+const params = new URLSearchParams(window.location.search);
+const nombreSala = params.get("nombre");
 
+// Unirse realmente a la room
+socket.emit("unirseSala", nombreSala);
+</script>
 <div id="menuAeronave">
   <div id="panelHeader">
     <span id="aircraftTitle">Aircraft</span>
@@ -1147,16 +1156,7 @@ function ajustarHora(){
 actualizarReloj()
 
 </script>
-<script src="/socket.io/socket.io.js"></script>
-<script>
-const socket = io()
-// Obtener nombre desde la URL
-const params = new URLSearchParams(window.location.search);
-const nombreSala = params.get("nombre");
 
-// Unirse realmente a la room
-socket.emit("unirseSala", nombreSala);
-</script>
 
 
 </body>

@@ -148,18 +148,24 @@ socket.on("cargarAeronaves", lista => {
     }).addTo(map)
 
     // 🔴 AGREGAR ESTO
-    marker.on("click", function(event){
+   marker.on("click", function(event){
 
-      L.DomEvent.stopPropagation(event)
+  L.DomEvent.stopPropagation(event)
 
-      if (!modoEliminar) return
+  if (modoEliminar) {
 
-      socket.emit("eliminarAeronave", data.id)
+    socket.emit("eliminarAeronave", data.id) // o callsign si es local
 
-      modoEliminar = false
-      btnEliminar.classList.remove("activo")
+    modoEliminar = false
+    btnEliminar.classList.remove("activo")
 
-    })
+    return
+  }
+
+  seleccionarAeronave(objetoAeronave)
+
+})
+
 
     aeronaves.push({
       callsign: data.id,
@@ -482,7 +488,7 @@ marker.on("drag", function(e){
 
 const nueva = {
   tipo,
-  callsign,
+  id: callsign,
   marker,
   ruta:null,
   puntosRuta:[],
@@ -556,16 +562,24 @@ socket.on("crearAeronave", data => {
     icon: crearIcono(data.id, data.tipo),
     interactive: false
   }).addTo(map)
-marker.on("click", function(){
+marker.on("click", function(event){
 
-  if (!modoEliminar) return
+  L.DomEvent.stopPropagation(event)
 
-  socket.emit("eliminarAeronave", data.id)
+  if (modoEliminar) {
 
-  modoEliminar = false
-  btnEliminar.classList.remove("activo")
+    socket.emit("eliminarAeronave", data.id) // o callsign si es local
+
+    modoEliminar = false
+    btnEliminar.classList.remove("activo")
+
+    return
+  }
+
+  seleccionarAeronave(objetoAeronave)
 
 })
+
 
   aeronaves.push({
     callsign: data.id,
@@ -577,7 +591,7 @@ marker.on("click", function(){
 })
 socket.on("actualizarAeronave", data => {
 
-  const avion = aeronaves.find(a => a.callsign === data.id);
+  const avion = aeronaves.find(a => a.id === data.id);
   if (!avion) return;
 
   avion.marker.setLatLng([data.lat, data.lng]);
@@ -594,14 +608,14 @@ socket.on("actualizarAeronave", data => {
 });
 socket.on("borrarAeronave", id => {
 
-  const aeronave = aeronaves.find(a => a.callsign === id);
-  if (!aeronave) return;
+  const avion = aeronaves.find(a => a.id === id)
+  if (!avion) return
 
-  map.removeLayer(aeronave.marker);
+  map.removeLayer(avion.marker)
+  aeronaves = aeronaves.filter(a => a.id !== id)
 
-  aeronaves = aeronaves.filter(a => a.callsign !== id);
+})
 
-});
 
 
 // ================= PANEL =================

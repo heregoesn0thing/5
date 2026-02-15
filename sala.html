@@ -145,6 +145,20 @@ socket.on("cargarAeronaves", lista => {
       interactive: false
     }).addTo(map)
 
+    // 🔴 AGREGAR ESTO
+    marker.on("click", function(event){
+
+      L.DomEvent.stopPropagation(event)
+
+      if (!modoEliminar) return
+
+      socket.emit("eliminarAeronave", data.id)
+
+      modoEliminar = false
+      btnEliminar.classList.remove("activo")
+
+    })
+
     aeronaves.push({
       callsign: data.id,
       tipo: data.tipo,
@@ -157,6 +171,7 @@ socket.on("cargarAeronaves", lista => {
   })
 
 })
+
 
 </script>
 <div id="menuAeronave">
@@ -448,14 +463,6 @@ const marker = L.marker([lat, lng], {
   icon: crearIcono(callsign, tipo),
   draggable: true
 }).addTo(map)
-marker.on("click", function(){
-
-  if (!modoEliminar) return;
-
-  socket.emit("eliminarAeronave", callsign);
-
-});
-
 
 marker.on("drag", function(e){
 
@@ -492,9 +499,25 @@ const nueva = {
   aeronaves.push(nueva)
 
   marker.on("click", function(event){
-    L.DomEvent.stopPropagation(event)
-    seleccionarAeronave(nueva)
-  })
+
+  L.DomEvent.stopPropagation(event)
+
+  // 🔴 Si está en modo eliminar → eliminar
+  if (modoEliminar) {
+
+    socket.emit("eliminarAeronave", callsign)
+
+    modoEliminar = false
+    btnEliminar.classList.remove("activo")
+
+    return
+  }
+
+  // 🟢 Si NO → seleccionar
+  seleccionarAeronave(nueva)
+
+})
+
 
   marker.on("dragstart", function(){
     if(nueva.rodando){
@@ -531,6 +554,16 @@ socket.on("crearAeronave", data => {
     icon: crearIcono(data.id, data.tipo),
     interactive: false
   }).addTo(map)
+marker.on("click", function(){
+
+  if (!modoEliminar) return
+
+  socket.emit("eliminarAeronave", data.id)
+
+  modoEliminar = false
+  btnEliminar.classList.remove("activo")
+
+})
 
   aeronaves.push({
     callsign: data.id,
@@ -1287,13 +1320,8 @@ function ajustarHora(){
   segundosTotales=parseInt(p[0])*3600+parseInt(p[1])*60+parseInt(p[2])
   actualizarReloj()
 }
-
 actualizarReloj()
-
 </script>
-
-
-
 </body>
 </html>
 

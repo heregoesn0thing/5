@@ -466,21 +466,22 @@ socket.on("crearAeronave", data => {
 })
 socket.on("actualizarAeronave", data => {
 
-  const avion = aeronaves.find(a => a.callsign === data.id)
-  if (!avion) return
+  const avion = aeronaves.find(a => a.callsign === data.id);
+  if (!avion) return;
 
-  avion.marker.setLatLng([data.lat, data.lng])
+  avion.marker.setLatLng([data.lat, data.lng]);
 
   if (data.angulo !== undefined) {
-    avion.angulo = data.angulo
-    actualizarRotacion(avion)
+    avion.angulo = data.angulo;
+    actualizarRotacion(avion);
   }
 
   if (data.altitud !== undefined) {
-    avion.altitud = data.altitud
+    avion.altitud = data.altitud;
   }
 
-})
+});
+
 
 // ================= PANEL =================
 
@@ -978,6 +979,15 @@ function moverPorPuntos(a){
       const lat=inicio.lat+(fin.lat-inicio.lat)*t
       const lng=inicio.lng+(fin.lng-inicio.lng)*t
       a.marker.setLatLng([lat,lng])
+
+socket.emit("actualizarAeronave", {
+  id: a.callsign,
+  lat: lat,
+  lng: lng,
+  altitud: a.altitud,
+  angulo: a.angulo
+})
+
     },30)
   }
   mover()
@@ -1105,7 +1115,13 @@ function iniciarCircuito(){
       actual.lat + deltaLat,
       actual.lng + deltaLng
     ])
-
+socket.emit("actualizarAeronave", {
+    id: a.callsign,
+    lat: lat,
+    lng: lng,
+    altitud: a.altitud,
+    angulo: a.angulo
+  })
   },50)
 }
 

@@ -1145,13 +1145,16 @@ function iniciarCircuito(){
       actual.lat + deltaLat,
       actual.lng + deltaLng
     ])
+const pos = a.marker.getLatLng()
+
 socket.emit("actualizarAeronave", {
     id: a.callsign,
-    lat: lat,
-    lng: lng,
+    lat: pos.lat,
+    lng: pos.lng,
     altitud: a.altitud,
     angulo: a.angulo
-  })
+})
+
   },50)
 }
 
@@ -1175,13 +1178,25 @@ function detenerCircuito(){
 // ================= REMOVE =================
 
 function eliminarSeleccionada(){
+
   if(!aeronaveSeleccionada) return
+
+  const id = aeronaveSeleccionada.callsign
+
+  // Avisar al servidor
+  socket.emit("eliminarAeronave", id)
+
+  // Eliminar localmente también
   detenerRodaje()
+
   map.removeLayer(aeronaveSeleccionada.marker)
-  aeronaves=aeronaves.filter(a=>a!==aeronaveSeleccionada)
-  aeronaveSeleccionada=null
-  modoRuta=false
-  rutaTemporal=[]
+
+  aeronaves = aeronaves.filter(a => a.callsign !== id)
+
+  aeronaveSeleccionada = null
+  modoRuta = false
+  rutaTemporal = []
+
   cerrarPanel()
 }
 

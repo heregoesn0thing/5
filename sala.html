@@ -144,7 +144,7 @@ socket.on("cargarAeronaves", lista => {
 
     const marker = L.marker([data.lat, data.lng], {
       icon: crearIcono(data.id, data.tipo),
-      interactive: false
+      interactive: true
     }).addTo(map)
 
     // 🔴 AGREGAR ESTO
@@ -563,38 +563,40 @@ socket.on("crearAeronave", data => {
 
   const marker = L.marker([data.lat, data.lng], {
     icon: crearIcono(data.id, data.tipo),
-    interactive: false
+    interactive: true
   }).addTo(map)
-marker.on("click", function(event){
 
-  L.DomEvent.stopPropagation(event)
-
-  if (modoEliminar) {
-
-    socket.emit("eliminarAeronave", data.id) // o callsign si es local
-
-    modoEliminar = false
-    btnEliminar.classList.remove("activo")
-
-    return
+  const nueva = {
+    id: data.id,
+    tipo: data.tipo,
+    marker: marker,
+    remoto: true,
+    altitud: data.altitud || 0,
+    angulo: data.angulo || 0
   }
 
-  seleccionarAeronave(nueva)
+  aeronaves.push(nueva)
+
+  marker.on("click", function(event){
+
+    L.DomEvent.stopPropagation(event)
+
+    if (modoEliminar) {
+
+      socket.emit("eliminarAeronave", nueva.id)
+
+      modoEliminar = false
+      btnEliminar.classList.remove("activo")
+
+      return
+    }
+
+    seleccionarAeronave(nueva)
+
+  })
 
 })
-const nueva = {
-  id: data.id,
-  tipo: data.tipo,
-  marker: marker,
-  remoto: true,
-  altitud: data.altitud || 0,
-  angulo: data.angulo || 0
-}
 
-aeronaves.push(nueva)
-
-
-})
 socket.on("actualizarAeronave", data => {
 
   const avion = aeronaves.find(a => a.id === data.id);

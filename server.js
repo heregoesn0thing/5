@@ -11,6 +11,15 @@ const PORT = process.env.PORT || 3000;
 // Sirve los archivos HTML desde la raíz del proyecto
 app.use(express.static(__dirname));
 
+app.get("/", (req, res) => {
+  res.sendFile(__dirname + "/index.html");
+});
+
+app.get("/sala", (req, res) => {
+  res.sendFile(__dirname + "/sala.html");
+});
+
+
 // 🔥 Almacén de salas en memoria
 let salas = {};
 const LIMITE_USUARIOS = 2;

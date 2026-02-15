@@ -147,42 +147,39 @@ socket.on("cargarAeronaves", lista => {
       interactive: true
     }).addTo(map)
 
-    // 🔴 AGREGAR ESTO
-   marker.on("click", function(event){
+    const nueva = {
+      id: data.id,
+      tipo: data.tipo,
+      marker: marker,
+      remoto: true,
+      altitud: data.altitud || 0,
+      angulo: data.angulo || 0,
+      velocidadObjetivo: 0
+    }
 
-  L.DomEvent.stopPropagation(event)
+    aeronaves.push(nueva)
 
-  if (modoEliminar) {
+    marker.on("click", function(event){
 
-    socket.emit("eliminarAeronave", data.id) // o callsign si es local
+      L.DomEvent.stopPropagation(event)
 
-    modoEliminar = false
-    btnEliminar.classList.remove("activo")
+      if (modoEliminar) {
 
-    return
-  }
+        socket.emit("eliminarAeronave", nueva.id)
 
-  seleccionarAeronave(nueva)
+        modoEliminar = false
+        btnEliminar.classList.remove("activo")
 
-})
+        return
+      }
 
+      seleccionarAeronave(nueva)
 
-  const nueva = {
-  id: data.id,
-  tipo: data.tipo,
-  marker: marker,
-  remoto: true,
-  altitud: data.altitud || 0,
-  angulo: data.angulo || 0
-}
-
-aeronaves.push(nueva)
-
+    })
 
   })
 
 })
-
 
 </script>
 <div id="menuAeronave">

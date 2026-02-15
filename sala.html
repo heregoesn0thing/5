@@ -1,64 +1,22 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Simulador ARP Pisco</title>
+<meta charset="UTF-8">
+<title>Mapa ARP Pisco</title>
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script src="/socket.io/socket.io.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-  <style>
-    body { margin: 0; }
-    #map { height: 100vh; }
-    .panel {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: rgba(0,0,0,0.8);
-      color: white;
-      padding: 10px;
-      border-radius: 8px;
-      font-family: monospace;
-      z-index: 1000;
-    }
-    button {
-      margin: 3px;
-    }
-  </style>
+<style>
+body { margin:0; }
+#map { height:100vh; }
+</style>
 </head>
 <body>
 
 <div id="map"></div>
-<div id="menuContextual" style="
-  position:absolute;
-  background:white;
-  border:1px solid #ccc;
-  border-radius:6px;
-  padding:5px;
-  display:none;
-  z-index:2000;
-  box-shadow:0 2px 6px rgba(0,0,0,0.2);
-">
-  <button onclick="agregarAeronave()">Agregar aeronave aquí</button>
-</div>
-
-<div class="panel">
-  <div>Velocidad: <span id="velocidad">0</span></div>
-  <div>Rumbo: <span id="rumbo">0</span>°</div>
-  <button onclick="acelerar()">Acelerar</button>
-  <button onclick="frenar()">Frenar</button>
-  <button onclick="girarIzquierda()">⬅</button>
-  <button onclick="girarDerecha()">➡</button>
-</div>
 
 <script>
-
-const socket = io();
-const urlParams = new URLSearchParams(window.location.search);
-const sala = urlParams.get("nombre");
-
-socket.emit("unirseSala", sala);
 
 // 📍 ARP Pisco
 const map = L.map('map').setView([-13.7448, -76.2204], 15);
@@ -67,135 +25,11 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
 }).addTo(map);
 
-// Left click
-let clickLatLng = null;
-const menu = document.getElementById("menuContextual");
-
-map.on("click", (e) => {
-  clickLatLng = e.latlng;
-  menu.style.left = e.originalEvent.pageX + "px";
-  menu.style.top = e.originalEvent.pageY + "px";
-  menu.style.display = "block";
-});
-
-map.on("movestart", function() {
-  menu.style.display = "none";
-});
-socket.on("nuevaAeronave", (data) => {
-
-  const icono = L.divIcon({
-    html: `
-      <img src="https://cdn-icons-png.flaticon.com/512/149/149059.png"
-        style="width:40px;height:40px;"
-      />
-    `,
-    className: "",
-    iconSize: [40, 40],
-    iconAnchor: [20, 20]
-  });
-
-  L.marker([data.lat, data.lng], { icon: icono }).addTo(map);
-});
-
-document.addEventListener("click", function(e) {
-  if (!menu.contains(e.target)) {
-    menu.style.display = "none";
-  }
-});
-
-// Icono avión
-const avionIcon = L.divIcon({
-  html: `
-    <img id="avionIcon" 
-      src="https://cdn-icons-png.flaticon.com/512/34/34627.png"
-      style="
-        width:50px;
-        height:50px;
-        transform: rotate(0deg);
-        transition: transform 0.1s linear;
-      "
-    />
-  `,
-  className: "",
-  iconSize: [50, 50],
-  iconAnchor: [25, 25]
-});
-
-
-let velocidad = 0;
-let rumbo = 0;
-let lat = -13.7448;
-let lng = -76.2204;
-
-const avion = L.marker([lat, lng], { icon: avionIcon }).addTo(map);
-function agregarAeronave() {
-
-  if (!clickLatLng) return;
-
-  socket.emit("crearAeronave", {
-    sala,
-    lat: clickLatLng.lat,
-    lng: clickLatLng.lng
-  });
-
-  menu.style.display = "none";
-}
-
-function actualizarPanel() {
-  document.getElementById("velocidad").innerText = velocidad;
-  document.getElementById("rumbo").innerText = rumbo;
-}
-
-function acelerar() {
-  velocidad += 1;
-  actualizarPanel();
-}
-
-function frenar() {
-  velocidad = Math.max(0, velocidad - 1);
-  actualizarPanel();
-}
-
-function girarIzquierda() {
-  rumbo -= 10;
-  actualizarPanel();
-}
-
-function girarDerecha() {
-  rumbo += 10;
-  actualizarPanel();
-}
-
-function moverAvion() {
-
-  const rad = rumbo * Math.PI / 180;
-
-  lat += velocidad * 0.00005 * Math.cos(rad);
-  lng += velocidad * 0.00005 * Math.sin(rad);
-document.getElementById("avionIcon").style.transform =
-  "rotate(" + rumbo + "deg)";
-
-  avion.setLatLng([lat, lng]);
-
-  socket.emit("moverAvion", {
-    sala,
-    lat,
-    lng,
-    rumbo
-  });
-}
-
-setInterval(moverAvion, 100);
-
-// Multiplayer
-socket.on("actualizarAvion", (data) => {
-  avion.setLatLng([data.lat, data.lng]);
-});
-
 </script>
 
 </body>
 </html>
+
 
 
 

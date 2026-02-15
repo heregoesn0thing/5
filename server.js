@@ -118,15 +118,7 @@ socket.on("eliminarAeronave", (id) => {
   // Enviar a TODOS en la sala (incluido quien lo eliminó)
   io.to(sala).emit("borrarAeronave", id);
 });
-socket.on("borrarAeronave", id => {
 
-  const index = aeronaves.findIndex(a => a.callsign === id);
-  if (index === -1) return;
-
-  map.removeLayer(aeronaves[index].marker);
-  aeronaves.splice(index, 1);
-
-});
 
 
   // ================= DESCONECTAR =================

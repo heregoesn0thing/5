@@ -409,10 +409,24 @@ function confirmarCreacion(){
     return
   }
 
-  const marker = L.marker(window.tempLatLng,{
-    icon:crearIcono(callsign,tipo),
-    draggable:true
-  }).addTo(map)
+ const marker = L.marker([lat, lng], {
+  icon: crearIcono(id, tipo),
+  draggable: true  
+}).addTo(map)
+
+marker.on("drag", function(e){
+
+  const pos = e.target.getLatLng()
+
+  socket.emit("actualizarAeronave", {
+    id: id,
+    lat: pos.lat,
+    lng: pos.lng,
+    altitud: 0,
+    angulo: 0
+  })
+
+})
 
 const nueva = {
   tipo,

@@ -18,13 +18,14 @@ app.get("/sala", (req, res) => {
   res.sendFile(__dirname + "/sala.html");
 });
 
-// 🔥 Solo estructura básica de salas
+// ================= SALAS =================
+
 let salas = {};
 
 function obtenerListaSalas() {
   return Object.keys(salas).map(nombre => ({
     nombre,
-    jugadores: salas[nombre].length
+    jugadores: salas[nombre].jugadores.length
   }));
 }
 
@@ -32,37 +33,77 @@ io.on("connection", (socket) => {
 
   console.log("Nuevo usuario:", socket.id);
 
-  // Enviar lista actual
   socket.emit("listaSalas", obtenerListaSalas());
 
-  // Crear sala
+  // ================= CREAR SALA =================
   socket.on("crearSala", (nombre) => {
+
     if (!salas[nombre]) {
-      salas[nombre] = [];
+      salas[nombre] = {
+        jugadores: [],
+        aeronaves: []
+      };
     }
 
     io.emit("listaSalas", obtenerListaSalas());
   });
 
-  // Unirse a sala
+  // ================= UNIRSE =================
   socket.on("unirseSala", (nombre) => {
 
     if (!salas[nombre]) return;
 
     socket.join(nombre);
+    socket.sala = nombre;
 
-    if (!salas[nombre].includes(socket.id)) {
-      salas[nombre].push(socket.id);
+    if (!salas[nombre].jugadores.includes(socket.id)) {
+      salas[nombre].jugadores.push(socket.id);
     }
+
+    // Enviar aeronaves existentes al nuevo usuario
+    socket.emit("cargarAeronaves", salas[nombre].aeronaves);
 
     io.emit("listaSalas", obtenerListaSalas());
   });
 
-  // Al desconectarse
+  // ================= CREAR AERONAVE =================
+  socket.on("crearAeronave", (data) => {
+
+    const sala = socket.sala;
+    if (!sala) return;
+
+    salas[sala].aeronaves.push(data);
+
+    io.to(sala).emit("crearAeronave", data);
+  });
+
+  // ================= ACTUALIZAR =================
+  socket.on("actualizarAeronave", (data) => {
+
+    const sala = socket.sala;
+    if (!sala) return;
+
+    io.to(sala).emit("actualizarAeronave", data);
+  });
+
+  // ================= ELIMINAR =================
+  socket.on("eliminarAeronave", (id) => {
+
+    const sala = socket.sala;
+    if (!sala) return;
+
+    salas[sala].aeronaves =
+      salas[sala].aeronaves.filter(a => a.id !== id);
+
+    io.to(sala).emit("borrarAeronave", id);
+  });
+
+  // ================= DESCONECTAR =================
   socket.on("disconnect", () => {
 
     for (let nombre in salas) {
-      salas[nombre] = salas[nombre].filter(id => id !== socket.id);
+      salas[nombre].jugadores =
+        salas[nombre].jugadores.filter(id => id !== socket.id);
     }
 
     io.emit("listaSalas", obtenerListaSalas());
@@ -73,6 +114,7 @@ io.on("connection", (socket) => {
 server.listen(PORT, () => {
   console.log("Servidor corriendo en puerto", PORT);
 });
+
 
 
 

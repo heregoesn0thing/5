@@ -829,13 +829,6 @@ socket.emit("actualizarAeronave", {
   angulo: a.angulo
   
 })
-socket.on("actualizarAeronave", data => {
-
-  const a = aeronaves.find(x => x.callsign === data.id)
-  if(!a) return
-
-  a.marker.setLatLng([data.lat, data.lng])
-})
 
   },50)
 }

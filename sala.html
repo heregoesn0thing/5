@@ -100,6 +100,26 @@ body{ margin:0; }
   z-index:3000;
   font-family:monospace;
 }
+<style>
+#btnEliminarModo {
+  position: absolute;
+  top: 80px;
+  left: 10px;
+  z-index: 1000;
+  width: 35px;
+  height: 35px;
+  border-radius: 6px;
+  border: none;
+  background: #222;
+  color: white;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+#btnEliminarModo.activo {
+  background: red;
+}
+</style>
 
 #relojHora{ font-size:20px; margin-bottom:8px; }
 </style>
@@ -287,6 +307,8 @@ let aeronaves = []
 let aeronaveSeleccionada = null
 let modoRuta = false
 let rutaTemporal = []
+let modoEliminar = false;
+
 const VELOCIDAD = 8
 const TIPOS = ["A320","A319","C172","AN32"]
 const RUMBO_PISTA_22 = 220
@@ -309,6 +331,19 @@ const LIB_MANDI = L.latLng(-12.389000, -76.758094)
 const RUMBO_LIB_MANDI = 140
 const TOLERANCIA_RUMBO = 15
 const DISTANCIA_LIB_MANDI = 2 * 1852   // 2 NM
+const btnEliminar = document.getElementById("btnEliminarModo");
+
+btnEliminar.addEventListener("click", () => {
+
+  modoEliminar = !modoEliminar;
+
+  if (modoEliminar) {
+    btnEliminar.classList.add("activo");
+  } else {
+    btnEliminar.classList.remove("activo");
+  }
+
+});
 
 // ================= ICON =================
 
@@ -416,6 +451,13 @@ const marker = L.marker([lat, lng], {
   icon: crearIcono(callsign, tipo),
   draggable: true
 }).addTo(map)
+marker.on("click", function(){
+
+  if (!modoEliminar) return;
+
+  socket.emit("eliminarAeronave", callsign);
+
+});
 
 
 marker.on("drag", function(e){

@@ -1,96 +1,128 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Simulador Aéreo</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <meta charset="UTF-8">
+  <title>Simulador ARP Pisco</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+
   <style>
-    #map { height: 90vh; }
+    body { margin: 0; }
+    #map { height: 100vh; }
+    .panel {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.8);
+      color: white;
+      padding: 10px;
+      border-radius: 8px;
+      font-family: monospace;
+      z-index: 1000;
+    }
+    button {
+      margin: 3px;
+    }
   </style>
 </head>
 <body>
 
-  <h2>Simulador Aéreo Multiplayer ✈</h2>
-  <div id="map"></div>
+<div id="map"></div>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<div class="panel">
+  <div>Velocidad: <span id="velocidad">0</span></div>
+  <div>Rumbo: <span id="rumbo">0</span>°</div>
+  <button onclick="acelerar()">Acelerar</button>
+  <button onclick="frenar()">Frenar</button>
+  <button onclick="girarIzquierda()">⬅</button>
+  <button onclick="girarDerecha()">➡</button>
+</div>
 
-  <script>
-    const socket = io();
-    const params = new URLSearchParams(window.location.search);
-    const sala = params.get("nombre");
+<script>
 
-    socket.emit("unirseSala", sala);
+const socket = io();
+const urlParams = new URLSearchParams(window.location.search);
+const sala = urlParams.get("nombre");
 
-    const map = L.map('map').setView([-13.7448, -76.2204], 13);
+socket.emit("unirseSala", sala);
 
+// 📍 ARP Pisco
+const map = L.map('map').setView([-13.7448, -76.2204], 15);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap'
-    }).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+}).addTo(map);
 
-    // ✈ Icono avión
-    const avionIcon = L.icon({
-      iconUrl: "https://cdn-icons-png.flaticon.com/512/34/34627.png",
-      iconSize: [32, 32]
-    });
+// Icono avión
+const avionIcon = L.divIcon({
+  html: "✈",
+  className: "",
+  iconSize: [30, 30]
+});
 
-    let aeronaves = {};
+let velocidad = 0;
+let rumbo = 0;
+let lat = -13.7448;
+let lng = -76.2204;
 
-    // ✈ Click para crear aeronave
-    map.on("click", function(e) {
-      const id = Date.now() + "_" + Math.random();
+const avion = L.marker([lat, lng], { icon: avionIcon }).addTo(map);
 
-      socket.emit("agregarAeronave", {
-        sala,
-        id,
-        lat: e.latlng.lat,
-        lng: e.latlng.lng
-      });
-    });
+function actualizarPanel() {
+  document.getElementById("velocidad").innerText = velocidad;
+  document.getElementById("rumbo").innerText = rumbo;
+}
 
-    // 🔥 Recibir estado inicial
-    socket.on("estadoAeronaves", (lista) => {
-      lista.forEach(crearAeronaveVisual);
-    });
+function acelerar() {
+  velocidad += 1;
+  actualizarPanel();
+}
 
-    // 🔥 Cuando alguien crea una aeronave
-    socket.on("aeronaveAgregada", (data) => {
-      crearAeronaveVisual(data);
-    });
+function frenar() {
+  velocidad = Math.max(0, velocidad - 1);
+  actualizarPanel();
+}
 
-    function crearAeronaveVisual(data) {
-      const marker = L.marker([data.lat, data.lng], {
-        icon: avionIcon,
-        draggable: true
-      }).addTo(map);
+function girarIzquierda() {
+  rumbo -= 10;
+  actualizarPanel();
+}
 
-      aeronaves[data.id] = marker;
+function girarDerecha() {
+  rumbo += 10;
+  actualizarPanel();
+}
 
-      // 🔥 Cuando se mueve
-      marker.on("dragend", function(e) {
-        const pos = e.target.getLatLng();
+function moverAvion() {
 
-        socket.emit("moverAeronave", {
-          sala,
-          id: data.id,
-          lat: pos.lat,
-          lng: pos.lng
-        });
-      });
-    }
+  const rad = rumbo * Math.PI / 180;
 
-    // 🔥 Cuando otro usuario mueve una aeronave
-    socket.on("aeronaveMovida", (data) => {
-      if (aeronaves[data.id]) {
-        aeronaves[data.id].setLatLng([data.lat, data.lng]);
-      }
-    });
+  lat += velocidad * 0.00005 * Math.cos(rad);
+  lng += velocidad * 0.00005 * Math.sin(rad);
 
-  </script>
+  avion.setLatLng([lat, lng]);
+
+  socket.emit("moverAvion", {
+    sala,
+    lat,
+    lng,
+    rumbo
+  });
+}
+
+setInterval(moverAvion, 100);
+
+// Multiplayer
+socket.on("actualizarAvion", (data) => {
+  avion.setLatLng([data.lat, data.lng]);
+});
+
+</script>
 
 </body>
 </html>
+
 
 
 

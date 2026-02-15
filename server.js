@@ -32,6 +32,9 @@ io.on("connection", (socket) => {
   console.log("Nuevo usuario:", socket.id);
 
   socket.emit("listaSalas", obtenerListaSalas());
+socket.on("moverAvion", (data) => {
+  socket.to(data.sala).emit("actualizarAvion", data);
+});
 
   socket.on("crearSala", (nombre) => {
     if (!salas[nombre]) {

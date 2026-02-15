@@ -409,17 +409,21 @@ function confirmarCreacion(){
     return
   }
 
- const marker = L.marker([lat, lng], {
-  icon: crearIcono(id, tipo),
-  draggable: true  
+const lat = window.tempLatLng.lat
+const lng = window.tempLatLng.lng
+
+const marker = L.marker([lat, lng], {
+  icon: crearIcono(callsign, tipo),
+  draggable: true
 }).addTo(map)
+
 
 marker.on("drag", function(e){
 
   const pos = e.target.getLatLng()
 
   socket.emit("actualizarAeronave", {
-    id: id,
+  id: callsign,
     lat: pos.lat,
     lng: pos.lng,
     altitud: 0,

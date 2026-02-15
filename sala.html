@@ -1,108 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Test Mapa</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<style>
+html, body {
+  margin:0;
+  padding:0;
+  height:100%;
+}
+#map {
+  width:100%;
+  height:100vh;
+}
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
 <script>
 
-const socket = io();
-const urlParams = new URLSearchParams(window.location.search);
-const sala = urlParams.get("nombre");
+console.log("Script cargado");
 
-socket.emit("unirseSala", sala);
-
-// 📍 ARP Pisco
-const map = L.map('map').setView([-13.7448, -76.2204], 15);
+const map = L.map('map').setView([-12.0464, -77.0428], 13);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
+  maxZoom: 19
 }).addTo(map);
 
-const marcadores = {};
-
-// Crear marcador
-function crearMarker(data) {
-
-  const icono = L.divIcon({
-    html: `
-      <img src="https://cdn-icons-png.flaticon.com/512/149/149059.png"
-        style="width:40px;height:40px;"
-      />
-    `,
-    className: "",
-    iconSize: [40, 40],
-    iconAnchor: [20, 20]
-  });
-
-  const marker = L.marker([data.lat, data.lng], {
-    icon: icono,
-    draggable: true
-  }).addTo(map);
-
-  marcadores[data.id] = marker;
-
-  // 🔥 Cuando se mueve
-  marker.on("dragend", function(e) {
-
-    const nuevaPos = e.target.getLatLng();
-
-    socket.emit("moverAeronave", {
-      sala,
-      id: data.id,
-      lat: nuevaPos.lat,
-      lng: nuevaPos.lng
-    });
-  });
-
-  // 🔥 Click derecho para eliminar
-  marker.on("contextmenu", function() {
-
-    socket.emit("eliminarAeronave", {
-      sala,
-      id: data.id
-    });
-  });
-}
-
-
-// Click en mapa para crear
-map.on("click", function(e) {
-
-  socket.emit("agregarAeronave", {
-    sala,
-    lat: e.latlng.lat,
-    lng: e.latlng.lng
-  });
-
-});
-
-
-// Estado inicial
-socket.on("estadoAeronaves", (aeronaves) => {
-  aeronaves.forEach(crearMarker);
-});
-
-
-// Nueva aeronave
-socket.on("aeronaveAgregada", (data) => {
-  crearMarker(data);
-});
-
-
-// Cuando se mueve
-socket.on("aeronaveMovida", (data) => {
-
-  if (marcadores[data.id]) {
-    marcadores[data.id].setLatLng([data.lat, data.lng]);
-  }
-});
-
-
-// Cuando se elimina
-socket.on("aeronaveEliminada", (id) => {
-
-  if (marcadores[id]) {
-    map.removeLayer(marcadores[id]);
-    delete marcadores[id];
-  }
-});
-
 </script>
+
+</body>
+</html>
 
 
 

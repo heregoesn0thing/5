@@ -432,11 +432,6 @@ const nueva = {
   faseStar:null,
   altitudObjetivo:null
 }
-
-
-
-
-
   aeronaves.push(nueva)
 
   marker.on("click", function(event){
@@ -503,6 +498,16 @@ socket.on("actualizarAeronave", data => {
   if (data.altitud !== undefined) {
     avion.altitud = data.altitud;
   }
+
+});
+socket.on("borrarAeronave", id => {
+
+  const aeronave = aeronaves.find(a => a.callsign === id);
+  if (!aeronave) return;
+
+  map.removeLayer(aeronave.marker);
+
+  aeronaves = aeronaves.filter(a => a.callsign !== id);
 
 });
 
@@ -1016,16 +1021,7 @@ socket.emit("actualizarAeronave", {
   }
   mover()
 }
-socket.on("borrarAeronave", id => {
 
-  const aeronave = aeronaves.find(a => a.callsign === id);
-  if (!aeronave) return;
-
-  map.removeLayer(aeronave.marker);
-
-  aeronaves = aeronaves.filter(a => a.callsign !== id);
-
-});
 
 function mostrarTaxiing(a,estado){
   const el=a.marker.getElement()

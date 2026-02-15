@@ -30,6 +30,18 @@
 <body>
 
 <div id="map"></div>
+<div id="menuContextual" style="
+  position:absolute;
+  background:white;
+  border:1px solid #ccc;
+  border-radius:6px;
+  padding:5px;
+  display:none;
+  z-index:2000;
+  box-shadow:0 2px 6px rgba(0,0,0,0.2);
+">
+  <button onclick="agregarAeronave()">Agregar aeronave aquí</button>
+</div>
 
 <div class="panel">
   <div>Velocidad: <span id="velocidad">0</span></div>
@@ -54,6 +66,42 @@ const map = L.map('map').setView([-13.7448, -76.2204], 15);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
 }).addTo(map);
+
+// Left click
+let clickLatLng = null;
+const menu = document.getElementById("menuContextual");
+
+map.on("click", (e) => {
+  clickLatLng = e.latlng;
+  menu.style.left = e.originalEvent.pageX + "px";
+  menu.style.top = e.originalEvent.pageY + "px";
+  menu.style.display = "block";
+});
+
+map.on("movestart", function() {
+  menu.style.display = "none";
+});
+socket.on("nuevaAeronave", (data) => {
+
+  const icono = L.divIcon({
+    html: `
+      <img src="https://cdn-icons-png.flaticon.com/512/149/149059.png"
+        style="width:40px;height:40px;"
+      />
+    `,
+    className: "",
+    iconSize: [40, 40],
+    iconAnchor: [20, 20]
+  });
+
+  L.marker([data.lat, data.lng], { icon: icono }).addTo(map);
+});
+
+document.addEventListener("click", function(e) {
+  if (!menu.contains(e.target)) {
+    menu.style.display = "none";
+  }
+});
 
 // Icono avión
 const avionIcon = L.divIcon({
@@ -80,6 +128,18 @@ let lat = -13.7448;
 let lng = -76.2204;
 
 const avion = L.marker([lat, lng], { icon: avionIcon }).addTo(map);
+function agregarAeronave() {
+
+  if (!clickLatLng) return;
+
+  socket.emit("crearAeronave", {
+    sala,
+    lat: clickLatLng.lat,
+    lng: clickLatLng.lng
+  });
+
+  menu.style.display = "none";
+}
 
 function actualizarPanel() {
   document.getElementById("velocidad").innerText = velocidad;

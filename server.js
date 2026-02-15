@@ -32,7 +32,12 @@ io.on("connection", (socket) => {
   console.log("Nuevo usuario:", socket.id);
 
   socket.emit("listaSalas", obtenerListaSalas());
-socket.on("moverAvion", (data) => {
+  socket.on("crearAeronave", (data) => {
+  io.to(data.sala).emit("nuevaAeronave", data);
+});
+
+
+  socket.on("moverAvion", (data) => {
   socket.to(data.sala).emit("actualizarAvion", data);
 });
 

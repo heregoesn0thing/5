@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Lobby</title>
+</head>
+<body>
+
+<h1>Salas</h1>
+
+<input id="nombreSala" placeholder="Nombre">
+<button onclick="crear()">Crear</button>
+
+<ul id="lista"></ul>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+const lista = document.getElementById("lista");
+
+socket.on("listaSalas", (salas) => {
+  lista.innerHTML = "";
+
+  salas.forEach(sala => {
+    const li = document.createElement("li");
+    const llena = sala.cantidad >= sala.limite;
+
+    li.innerHTML = `
+      ${sala.nombre} (${sala.cantidad}/${sala.limite})
+      <button ${llena ? "disabled" : ""}
+      onclick="entrar('${sala.nombre}')">
+      ${llena ? "Llena" : "Entrar"}
+      </button>
+    `;
+
+    lista.appendChild(li);
+  });
+});
+
+function crear() {
+  const nombre = document.getElementById("nombreSala").value;
+  socket.emit("crearSala", nombre);
+  document.getElementById("nombreSala").value = "";
+}
+
+function entrar(nombre) {
+  window.location.href = "/sala?nombre=" + nombre;
+}
+</script>
+
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+

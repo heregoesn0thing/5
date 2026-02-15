@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Sala</title>
+<style>
+body { margin: 0; }
+canvas { background: white; display: block; }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+const params = new URLSearchParams(window.location.search);
+const nombreSala = params.get("nombre");
+
+socket.emit("unirseSala", nombreSala);
+
+socket.on("salaLlena", () => {
+  alert("Sala llena");
+  window.location.href = "/";
+});
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let dibujando = false;
+let x0, y0;
+
+canvas.onmousedown = (e) => {
+  dibujando = true;
+  x0 = e.clientX;
+  y0 = e.clientY;
+};
+
+canvas.onmouseup = () => dibujando = false;
+
+canvas.onmousemove = (e) => {
+  if (!dibujando) return;
+
+  const x1 = e.clientX;
+  const y1 = e.clientY;
+
+  dibujar(x0, y0, x1, y1);
+  socket.emit("dibujar", { sala: nombreSala, x0, y0, x1, y1 });
+
+  x0 = x1;
+  y0 = y1;
+};
+
+socket.on("dibujar", ({ x0, y0, x1, y1 }) => {
+  dibujar(x0, y0, x1, y1);
+});
+
+function dibujar(x0, y0, x1, y1) {
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  ctx.lineTo(x1, y1);
+  ctx.stroke();
+}
+</script>
+
+</body>
+</html>
+
+
+
+
+
+
+
+
+

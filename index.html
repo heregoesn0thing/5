@@ -5,46 +5,51 @@
 </head>
 <body>
 
-  <h2>Lobby de Salas</h2>
+<h2>Crear sala</h2>
+<input type="text" id="nuevaSala" placeholder="Nombre sala">
+<button onclick="crearSala()">Crear</button>
 
-  <input id="nombreSala" placeholder="Nombre de sala">
-  <button onclick="crearSala()">Crear Sala</button>
+<h2>Salas disponibles</h2>
+<ul id="listaSalas"></ul>
 
-  <h3>Salas disponibles:</h3>
-  <ul id="listaSalas"></ul>
+<script src="/socket.io/socket.io.js"></script>
+<script>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const socket = io();
+const socket = io();
 
-    function crearSala() {
-      const nombre = document.getElementById("nombreSala").value;
-      if (!nombre) return;
+function crearSala() {
+  const nombre = document.getElementById("nuevaSala").value;
+  if (!nombre) return alert("Escribe un nombre");
+  socket.emit("crearSala", nombre);
+}
 
-      socket.emit("crearSala", nombre);
-    }
+socket.on("listaSalas", (salas) => {
 
-    socket.on("listaSalas", (salas) => {
-      const lista = document.getElementById("listaSalas");
-      lista.innerHTML = "";
+  const ul = document.getElementById("listaSalas");
+  ul.innerHTML = "";
 
-      salas.forEach(sala => {
-        const li = document.createElement("li");
-        li.innerHTML = `
-          ${sala.nombre} (${sala.jugadores} usuarios)
-          <button onclick="entrar('${sala.nombre}')">Entrar</button>
-        `;
-        lista.appendChild(li);
-      });
-    });
+  salas.forEach(sala => {
 
-    function entrar(nombre) {
-      window.location.href = "/sala?nombre=" + nombre;
-    }
-  </script>
+    const li = document.createElement("li");
+
+    li.innerHTML = `
+      ${sala.nombre} (${sala.jugadores} jugadores)
+      <button onclick="unirse('${sala.nombre}')">Unirse</button>
+    `;
+
+    ul.appendChild(li);
+  });
+});
+
+function unirse(nombre) {
+  window.location.href = "/sala?nombre=" + nombre;
+}
+
+</script>
 
 </body>
 </html>
+
 
 
 

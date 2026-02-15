@@ -1,5 +1,5 @@
 {
-  "name": "juego-turnos",
+  "name": "pizarra-multiplayer",
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {

@@ -67,24 +67,43 @@ io.on("connection", (socket) => {
   });
 
   // ================= CREAR AERONAVE =================
-  socket.on("crearAeronave", (data) => {
+socket.on("crearAeronave", (data) => {
 
-    const sala = socket.sala;
-    if (!sala) return;
+  const sala = socket.sala;
+  if (!sala) return;
 
-    salas[sala].aeronaves.push(data);
-
-    io.to(sala).emit("crearAeronave", data);
+  salas[sala].aeronaves.push({
+    id: data.id,
+    tipo: data.tipo,
+    lat: data.lat,
+    lng: data.lng,
+    altitud: 0,
+    angulo: 0
   });
 
-  // ================= ACTUALIZAR =================
-  socket.on("actualizarAeronave", (data) => {
+  socket.to(sala).emit("crearAeronave", data);
+});
 
-    const sala = socket.sala;
-    if (!sala) return;
 
-    io.to(sala).emit("actualizarAeronave", data);
-  });
+ // ================= ACTUALIZAR =================
+socket.on("actualizarAeronave", (data) => {
+
+  const sala = socket.sala;
+  if (!sala) return;
+
+  const aeronave = salas[sala].aeronaves.find(a => a.id === data.id);
+  if (!aeronave) return;
+
+  // Actualizar datos guardados en el servidor
+  aeronave.lat = data.lat;
+  aeronave.lng = data.lng;
+  aeronave.altitud = data.altitud;
+  aeronave.angulo = data.angulo;
+
+  // Enviar solo a los demás (no al emisor)
+  socket.to(sala).emit("actualizarAeronave", data);
+});
+
 
   // ================= ELIMINAR =================
   socket.on("eliminarAeronave", (id) => {

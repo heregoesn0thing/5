@@ -117,6 +117,30 @@ const nombreSala = params.get("nombre");
 
 // Unirse realmente a la room
 socket.emit("unirseSala", nombreSala);
+socket.on("cargarAeronaves", lista => {
+
+  lista.forEach(data => {
+
+    if (aeronaves.some(a => a.callsign === data.id)) return
+
+    const marker = L.marker([data.lat, data.lng], {
+      icon: crearIcono(data.id, data.tipo),
+      interactive: false
+    }).addTo(map)
+
+    aeronaves.push({
+      callsign: data.id,
+      tipo: data.tipo,
+      marker: marker,
+      remoto: true,
+      altitud: data.altitud || 0,
+      angulo: data.angulo || 0
+    })
+
+  })
+
+})
+
 </script>
 <div id="menuAeronave">
   <div id="panelHeader">

@@ -77,12 +77,13 @@ socket.on("crearAeronave", (data) => {
     tipo: data.tipo,
     lat: data.lat,
     lng: data.lng,
-    altitud: 0,
-    angulo: 0
+    altitud: data.altitud || 0,
+    angulo: data.angulo || 0
   });
 
   socket.to(sala).emit("crearAeronave", data);
 });
+
 
 
  // ================= ACTUALIZAR =================
@@ -106,16 +107,27 @@ socket.on("actualizarAeronave", (data) => {
 
 
   // ================= ELIMINAR =================
-  socket.on("eliminarAeronave", (id) => {
+socket.on("eliminarAeronave", (id) => {
 
-    const sala = socket.sala;
-    if (!sala) return;
+  const sala = socket.sala;
+  if (!sala) return;
 
-    salas[sala].aeronaves =
-      salas[sala].aeronaves.filter(a => a.id !== id);
+  salas[sala].aeronaves =
+    salas[sala].aeronaves.filter(a => a.id !== id);
 
-    io.to(sala).emit("borrarAeronave", id);
-  });
+  // Enviar a TODOS en la sala (incluido quien lo eliminó)
+  io.to(sala).emit("borrarAeronave", id);
+});
+socket.on("borrarAeronave", id => {
+
+  const index = aeronaves.findIndex(a => a.callsign === id);
+  if (index === -1) return;
+
+  map.removeLayer(aeronaves[index].marker);
+  aeronaves.splice(index, 1);
+
+});
+
 
   // ================= DESCONECTAR =================
   socket.on("disconnect", () => {

@@ -57,10 +57,22 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 // Icono avión
 const avionIcon = L.divIcon({
-  html: "✈",
+  html: `
+    <img id="avionIcon" 
+      src="https://cdn-icons-png.flaticon.com/512/34/34627.png"
+      style="
+        width:50px;
+        height:50px;
+        transform: rotate(0deg);
+        transition: transform 0.1s linear;
+      "
+    />
+  `,
   className: "",
-  iconSize: [30, 30]
+  iconSize: [50, 50],
+  iconAnchor: [25, 25]
 });
+
 
 let velocidad = 0;
 let rumbo = 0;
@@ -100,6 +112,8 @@ function moverAvion() {
 
   lat += velocidad * 0.00005 * Math.cos(rad);
   lng += velocidad * 0.00005 * Math.sin(rad);
+document.getElementById("avionIcon").style.transform =
+  "rotate(" + rumbo + "deg)";
 
   avion.setLatLng([lat, lng]);
 

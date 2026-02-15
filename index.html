@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lobby</title>
+  <title>Simulador Básico</title>
 
   <!-- Socket.IO se carga primero -->
   <script src="/socket.io/socket.io.js"></script>
@@ -153,7 +153,7 @@
 <body>
 
   <div class="container">
-    <h1>🎮 Lobby de Juego</h1>
+    <h1>✈️ Simulador Básico</h1>
 
     <div class="crear-sala">
       <input type="text" id="nuevaSala" placeholder="Nombre de la sala" />
@@ -212,7 +212,9 @@
 
           const info = document.createElement("div");
           info.className = "info";
-          info.textContent = `${sala.nombre} (${sala.jugadores} jugadores)`;
+          const cantidad = sala.jugadores;
+          const textoUsuarios = cantidad === 1 ? "usuario" : "usuarios";
+          info.textContent = `${sala.nombre} (${cantidad} ${textoUsuarios})`;
 
           const boton = document.createElement("button");
           boton.textContent = "Unirse";

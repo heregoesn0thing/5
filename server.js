@@ -8,7 +8,6 @@ const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
 
-// Sirve los archivos HTML desde la raíz del proyecto
 app.use(express.static(__dirname));
 
 app.get("/", (req, res) => {
@@ -19,12 +18,9 @@ app.get("/sala", (req, res) => {
   res.sendFile(__dirname + "/sala.html");
 });
 
-
-// 🔥 Almacén de salas en memoria
+// 🔥 Salas con aeronaves
 let salas = {};
-const LIMITE_USUARIOS = 2;
 
-// 📌 Devuelve la lista de salas con cantidad de jugadores
 function obtenerListaSalas() {
   return Object.keys(salas).map(nombre => ({
     nombre,
@@ -33,58 +29,62 @@ function obtenerListaSalas() {
 }
 
 io.on("connection", (socket) => {
-  console.log("Nuevo usuario conectado:", socket.id);
+  console.log("Nuevo usuario:", socket.id);
 
-  // 🔹 Enviar lista actual de salas al usuario nuevo
   socket.emit("listaSalas", obtenerListaSalas());
 
-  // 🔹 Crear sala
   socket.on("crearSala", (nombre) => {
     if (!salas[nombre]) {
-      salas[nombre] = { jugadores: [] };
-      console.log("Sala creada:", nombre);
+      salas[nombre] = {
+        jugadores: [],
+        aeronaves: [] // 🔥 estado persistente
+      };
     }
 
     io.emit("listaSalas", obtenerListaSalas());
   });
 
-  // 🔹 Unirse a sala
   socket.on("unirseSala", (nombre) => {
     if (!salas[nombre]) return;
 
-    const sala = salas[nombre];
-
-    // 🔥 Verificar límite
-    if (sala.jugadores.length >= LIMITE_USUARIOS) {
-      socket.emit("salaLlena");
-      return;
-    }
-
     socket.join(nombre);
 
-    if (!sala.jugadores.includes(socket.id)) {
-      sala.jugadores.push(socket.id);
+    if (!salas[nombre].jugadores.includes(socket.id)) {
+      salas[nombre].jugadores.push(socket.id);
     }
 
-    console.log(socket.id, "se unió a", nombre);
+    // 🔥 Enviar aeronaves existentes al nuevo usuario
+    socket.emit("estadoAeronaves", salas[nombre].aeronaves);
 
     io.emit("listaSalas", obtenerListaSalas());
   });
 
-  // 🔹 Dibujar en tiempo real
-  socket.on("dibujar", (data) => {
-    socket.to(data.sala).emit("dibujar", data);
+  // ✈ Agregar aeronave
+  socket.on("agregarAeronave", (data) => {
+    const { sala, lat, lng, id } = data;
+    if (!salas[sala]) return;
+
+    const nueva = { id, lat, lng };
+    salas[sala].aeronaves.push(nueva);
+
+    io.to(sala).emit("aeronaveAgregada", nueva);
   });
 
-  // 🔹 Limpiar pizarra
-  socket.on("limpiar", (nombre) => {
-    socket.to(nombre).emit("limpiar");
+  // ✈ Mover aeronave
+  socket.on("moverAeronave", (data) => {
+    const { sala, id, lat, lng } = data;
+    if (!salas[sala]) return;
+
+    const aeronave = salas[sala].aeronaves.find(a => a.id === id);
+    if (!aeronave) return;
+
+    aeronave.lat = lat;
+    aeronave.lng = lng;
+
+    socket.to(sala).emit("aeronaveMovida", { id, lat, lng });
   });
 
-  // 🔹 Desconexión
   socket.on("disconnect", () => {
-    console.log("Usuario desconectado:", socket.id);
-
     for (let nombre in salas) {
       salas[nombre].jugadores =
         salas[nombre].jugadores.filter(id => id !== socket.id);
@@ -94,10 +94,11 @@ io.on("connection", (socket) => {
   });
 });
 
-// 🚀 Servidor en puerto dinámico (PRODUCCIÓN)
 server.listen(PORT, () => {
   console.log("Servidor corriendo en puerto", PORT);
 });
+
+
 
 
 

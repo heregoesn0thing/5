@@ -1,74 +1,97 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>Sala</title>
-<style>
-body { margin: 0; }
-canvas { background: white; display: block; }
-</style>
+  <title>Simulador Aéreo</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    #map { height: 90vh; }
+  </style>
 </head>
 <body>
 
-<canvas id="canvas"></canvas>
+  <h2>Simulador Aéreo Multiplayer ✈</h2>
+  <div id="map"></div>
 
-<script src="/socket.io/socket.io.js"></script>
-<script>
-const socket = io();
-const params = new URLSearchParams(window.location.search);
-const nombreSala = params.get("nombre");
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-socket.emit("unirseSala", nombreSala);
+  <script>
+    const socket = io();
+    const params = new URLSearchParams(window.location.search);
+    const sala = params.get("nombre");
 
-socket.on("salaLlena", () => {
-  alert("Sala llena");
-  window.location.href = "/";
-});
+    socket.emit("unirseSala", sala);
 
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
+    const map = L.map('map').setView([0, 0], 2);
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
 
-let dibujando = false;
-let x0, y0;
+    // ✈ Icono avión
+    const avionIcon = L.icon({
+      iconUrl: "https://cdn-icons-png.flaticon.com/512/34/34627.png",
+      iconSize: [32, 32]
+    });
 
-canvas.onmousedown = (e) => {
-  dibujando = true;
-  x0 = e.clientX;
-  y0 = e.clientY;
-};
+    let aeronaves = {};
 
-canvas.onmouseup = () => dibujando = false;
+    // ✈ Click para crear aeronave
+    map.on("click", function(e) {
+      const id = Date.now() + "_" + Math.random();
 
-canvas.onmousemove = (e) => {
-  if (!dibujando) return;
+      socket.emit("agregarAeronave", {
+        sala,
+        id,
+        lat: e.latlng.lat,
+        lng: e.latlng.lng
+      });
+    });
 
-  const x1 = e.clientX;
-  const y1 = e.clientY;
+    // 🔥 Recibir estado inicial
+    socket.on("estadoAeronaves", (lista) => {
+      lista.forEach(crearAeronaveVisual);
+    });
 
-  dibujar(x0, y0, x1, y1);
-  socket.emit("dibujar", { sala: nombreSala, x0, y0, x1, y1 });
+    // 🔥 Cuando alguien crea una aeronave
+    socket.on("aeronaveAgregada", (data) => {
+      crearAeronaveVisual(data);
+    });
 
-  x0 = x1;
-  y0 = y1;
-};
+    function crearAeronaveVisual(data) {
+      const marker = L.marker([data.lat, data.lng], {
+        icon: avionIcon,
+        draggable: true
+      }).addTo(map);
 
-socket.on("dibujar", ({ x0, y0, x1, y1 }) => {
-  dibujar(x0, y0, x1, y1);
-});
+      aeronaves[data.id] = marker;
 
-function dibujar(x0, y0, x1, y1) {
-  ctx.beginPath();
-  ctx.moveTo(x0, y0);
-  ctx.lineTo(x1, y1);
-  ctx.stroke();
-}
-</script>
+      // 🔥 Cuando se mueve
+      marker.on("dragend", function(e) {
+        const pos = e.target.getLatLng();
+
+        socket.emit("moverAeronave", {
+          sala,
+          id: data.id,
+          lat: pos.lat,
+          lng: pos.lng
+        });
+      });
+    }
+
+    // 🔥 Cuando otro usuario mueve una aeronave
+    socket.on("aeronaveMovida", (data) => {
+      if (aeronaves[data.id]) {
+        aeronaves[data.id].setLatLng([data.lat, data.lng]);
+      }
+    });
+
+  </script>
 
 </body>
 </html>
+
+
 
 
 

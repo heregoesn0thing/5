@@ -1,55 +1,51 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>Lobby</title>
+  <title>Lobby</title>
 </head>
 <body>
 
-<h1>Salas</h1>
+  <h2>Lobby de Salas</h2>
 
-<input id="nombreSala" placeholder="Nombre">
-<button onclick="crear()">Crear</button>
+  <input id="nombreSala" placeholder="Nombre de sala">
+  <button onclick="crearSala()">Crear Sala</button>
 
-<ul id="lista"></ul>
+  <h3>Salas disponibles:</h3>
+  <ul id="listaSalas"></ul>
 
-<script src="/socket.io/socket.io.js"></script>
-<script>
-const socket = io();
-const lista = document.getElementById("lista");
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
 
-socket.on("listaSalas", (salas) => {
-  lista.innerHTML = "";
+    function crearSala() {
+      const nombre = document.getElementById("nombreSala").value;
+      if (!nombre) return;
 
-  salas.forEach(sala => {
-    const li = document.createElement("li");
-    const llena = sala.cantidad >= sala.limite;
+      socket.emit("crearSala", nombre);
+    }
 
-    li.innerHTML = `
-      ${sala.nombre} (${sala.cantidad}/${sala.limite})
-      <button ${llena ? "disabled" : ""}
-      onclick="entrar('${sala.nombre}')">
-      ${llena ? "Llena" : "Entrar"}
-      </button>
-    `;
+    socket.on("listaSalas", (salas) => {
+      const lista = document.getElementById("listaSalas");
+      lista.innerHTML = "";
 
-    lista.appendChild(li);
-  });
-});
+      salas.forEach(sala => {
+        const li = document.createElement("li");
+        li.innerHTML = `
+          ${sala.nombre} (${sala.jugadores} usuarios)
+          <button onclick="entrar('${sala.nombre}')">Entrar</button>
+        `;
+        lista.appendChild(li);
+      });
+    });
 
-function crear() {
-  const nombre = document.getElementById("nombreSala").value;
-  socket.emit("crearSala", nombre);
-  document.getElementById("nombreSala").value = "";
-}
-
-function entrar(nombre) {
-  window.location.href = "/sala?nombre=" + nombre;
-}
-</script>
+    function entrar(nombre) {
+      window.location.href = "/sala?nombre=" + nombre;
+    }
+  </script>
 
 </body>
 </html>
+
 
 
 

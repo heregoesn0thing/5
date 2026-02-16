@@ -754,9 +754,6 @@ socket.on("borrarAeronave", id => {
 // ================= PANEL =================
 
 function seleccionarAeronave(obj){
-if(a.modoManual){
-  document.getElementById("panelRumbo").classList.remove("oculto")
-}
 
   aeronaveSeleccionada = obj
 
@@ -765,11 +762,22 @@ if(a.modoManual){
   actualizarPanelInfo(obj)
 
   document.getElementById("menuAeronave").style.display = "block"
+
   document.getElementById("speedSlider").value = obj.velocidadObjetivo || 0
-document.getElementById("speedValue").innerText = obj.velocidadObjetivo || 0
-actualizarBotonTaxi()
+  document.getElementById("speedValue").innerText = obj.velocidadObjetivo || 0
+
+  actualizarBotonTaxi()
+
+  // ✅ Mostrar panel manual solo si está activo
+  if(obj.modoManual){
+    document.getElementById("panelRumbo").classList.remove("oculto")
+    actualizarHeadingDisplay(obj)
+  }else{
+    document.getElementById("panelRumbo").classList.add("oculto")
+  }
 
 }
+
 function eliminarRuta(avion){
 
   if (avion.ruta){
@@ -937,6 +945,12 @@ function activarModoManual(){
 
   a.modoManual = true
 
+  // ✅ Mostrar panel
+  document.getElementById("panelRumbo").classList.remove("oculto")
+
+  // ✅ Actualizar heading visual inmediatamente
+  actualizarHeadingDisplay(a)
+
   if(a.intervaloManual){
     clearInterval(a.intervaloManual)
   }
@@ -945,16 +959,12 @@ function activarModoManual(){
 
     if(a.velocidadObjetivo <= 0) return
 
-    // giro suave hacia su propio heading
-    a.angulo = girarSuavemente(a, a.angulo || 0, a.angulo)
-    actualizarRotacion(a)
-
     const mps = a.velocidadObjetivo * 0.514444
     const headingRad = a.angulo * Math.PI/180
     const actual = a.marker.getLatLng()
 
     const deltaLat = (Math.cos(headingRad)*mps)/111320
-    const deltaLng = (Math.sin(headingRad)*mps)/
+    const deltaLng = (Math.sin(headingRad)*mps) /
       (111320*Math.cos(actual.lat*Math.PI/180))
 
     const nuevaLat = actual.lat + deltaLat
@@ -971,9 +981,9 @@ function activarModoManual(){
     })
 
   },50)
-document.getElementById("panelRumbo").classList.remove("oculto")
 
 }
+
 function detenerModoManual(){
 
   if(!aeronaveSeleccionada) return
@@ -985,6 +995,7 @@ function detenerModoManual(){
     clearInterval(a.intervaloManual)
     a.intervaloManual = null
   }
+document.getElementById("panelRumbo").classList.add("oculto")
 
 }
 

@@ -154,7 +154,9 @@ socket.on("cargarAeronaves", lista => {
       remoto: true,
       altitud: data.altitud || 0,
       angulo: data.angulo || 0,
-      velocidadObjetivo: 0
+      velocidadObjetivo: 0,
+      ruta: null,        
+      puntosRuta: []
     }
 
     aeronaves.push(nueva)
@@ -190,7 +192,7 @@ socket.on("cargarAeronaves", lista => {
   <div id="panelBody">
     <div id="aircraftInfo"></div>
     <button onclick="activarModoRuta()">Create Route</button>
-<button onclick="iniciarRodaje()">Start Taxi</button>
+<button id="btnTaxi" onclick="iniciarRodaje()" disabled>Start Taxi</button>
 <button onclick="detenerRodaje()">Stop Taxi</button>
 <button onclick="despegar()">Takeoff</button>
 <button onclick="iniciarCircuito()">Traffic Pattern</button>
@@ -533,10 +535,9 @@ const nueva = {
       return
     }
     if(nueva.ruta){
-      map.removeLayer(nueva.ruta)
-      nueva.ruta=null
-      nueva.puntosRuta=[]
-    }
+  eliminarRuta(nueva)
+}
+
     modoRuta=false
   })
 
@@ -569,7 +570,9 @@ socket.on("crearAeronave", data => {
     marker: marker,
     remoto: true,
     altitud: data.altitud || 0,
-    angulo: data.angulo || 0
+    angulo: data.angulo || 0,
+    ruta: null,       
+  puntosRuta: []
   }
 
   aeronaves.push(nueva)
@@ -616,11 +619,22 @@ socket.on("borrarAeronave", id => {
   const avion = aeronaves.find(a => a.id === id)
   if (!avion) return
 
+  // 🔴 eliminar ruta si existe
+  if(avion.ruta){
+    map.removeLayer(avion.ruta)
+  }
+
   map.removeLayer(avion.marker)
+
   aeronaves = aeronaves.filter(a => a.id !== id)
 
-})
+  if(aeronaveSeleccionada && aeronaveSeleccionada.id === id){
+    aeronaveSeleccionada = null
+    actualizarBotonTaxi()
+    cerrarPanel()
+  }
 
+})
 
 
 // ================= PANEL =================
@@ -636,8 +650,40 @@ function seleccionarAeronave(obj){
   document.getElementById("menuAeronave").style.display = "block"
   document.getElementById("speedSlider").value = obj.velocidadObjetivo || 0
 document.getElementById("speedValue").innerText = obj.velocidadObjetivo || 0
+actualizarBotonTaxi()
 
 }
+function eliminarRuta(avion){
+
+  if (avion.ruta){
+    map.removeLayer(avion.ruta)
+    avion.ruta = null
+    avion.puntosRuta = []
+  }
+
+  if (avion === aeronaveSeleccionada){
+    actualizarBotonTaxi()
+  }
+
+}
+function actualizarBotonTaxi(){
+
+  const btn = document.getElementById("btnTaxi")
+
+  if (!aeronaveSeleccionada ||
+      !aeronaveSeleccionada.ruta ||
+      aeronaveSeleccionada.puntosRuta.length === 0){
+
+    btn.disabled = true
+    btn.style.opacity = "0.4"
+    return
+  }
+
+  btn.disabled = false
+  btn.style.opacity = "1"
+
+}
+
 function actualizarPanelInfo(a){
 
   let estado = "ON GROUND"
@@ -702,26 +748,42 @@ function activarModoRuta(){
   rutaTemporal=[pos]
   aeronaveSeleccionada.puntosRuta=rutaTemporal
   aeronaveSeleccionada.ruta=L.polyline(rutaTemporal,{color:"yellow"}).addTo(map)
+  actualizarBotonTaxi()
+
 }
 
 function agregarPuntoRuta(latlng){
   if(!aeronaveSeleccionada || aeronaveSeleccionada.rodando) return
   rutaTemporal.push(latlng)
   aeronaveSeleccionada.ruta.setLatLngs(rutaTemporal)
+  actualizarBotonTaxi()
+
 }
 
 // ================= TAXI =================
 
 function iniciarRodaje(){
+
   if(!aeronaveSeleccionada) return
-  if(aeronaveSeleccionada.puntosRuta.length<2) return
-  aeronaveSeleccionada.rodando=true
+
+  if(!aeronaveSeleccionada.ruta ||
+     !aeronaveSeleccionada.puntosRuta ||
+     aeronaveSeleccionada.puntosRuta.length < 2){
+    return
+  }
+
+  aeronaveSeleccionada.rodando = true
   aeronaveSeleccionada.marker.dragging.disable()
-  mostrarTaxiing(aeronaveSeleccionada,true)
+
+  mostrarTaxiing(aeronaveSeleccionada, true)
+
   moverPorPuntos(aeronaveSeleccionada)
+
   actualizarPanelInfo(aeronaveSeleccionada)
+  actualizarBotonTaxi()
 
 }
+
 
 function detenerRodaje(){
   if(!aeronaveSeleccionada) return
@@ -742,6 +804,7 @@ aeronaveSeleccionada.marker.dragging.enable()
   aeronaveSeleccionada.puntosRuta=[]
   mostrarTaxiing(aeronaveSeleccionada,false)
   actualizarPanelInfo(aeronaveSeleccionada)
+actualizarBotonTaxi()
 
 }
 function iniciarSTAR(){
@@ -1294,22 +1357,10 @@ function eliminarSeleccionada(){
 
   const id = aeronaveSeleccionada.id
 
-  // Avisar al servidor
   socket.emit("eliminarAeronave", id)
 
-  // Eliminar localmente también
-  detenerRodaje()
-
-  map.removeLayer(aeronaveSeleccionada.marker)
-
-  aeronaves = aeronaves.filter(a => a.id !== id)
-
-  aeronaveSeleccionada = null
-  modoRuta = false
-  rutaTemporal = []
-
-  cerrarPanel()
 }
+
 
 // ================= CLOCK =================
 

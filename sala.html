@@ -733,6 +733,28 @@ socket.on("borrarAeronave", id => {
   const avion = aeronaves.find(a => a.id === id)
   if (!avion) return
 
+  // 🔴 DETENER TODO ANTES DE ELIMINAR
+
+  if(avion.intervaloManual){
+    clearInterval(avion.intervaloManual)
+    avion.intervaloManual = null
+  }
+
+  if(avion.intervaloMovimiento){
+    clearInterval(avion.intervaloMovimiento)
+    avion.intervaloMovimiento = null
+  }
+
+  if(avion.intervaloVuelo){
+    clearInterval(avion.intervaloVuelo)
+    avion.intervaloVuelo = null
+  }
+
+  if(avion.intervaloCircuito){
+    clearInterval(avion.intervaloCircuito)
+    avion.intervaloCircuito = null
+  }
+
   // 🔴 eliminar ruta si existe
   if(avion.ruta){
     map.removeLayer(avion.ruta)
@@ -749,6 +771,7 @@ socket.on("borrarAeronave", id => {
   }
 
 })
+
 
 
 // ================= PANEL =================
@@ -1591,11 +1614,21 @@ function eliminarSeleccionada(){
 
   if(!aeronaveSeleccionada) return
 
-  const id = aeronaveSeleccionada.id
+  const a = aeronaveSeleccionada
 
-  socket.emit("eliminarAeronave", id)
+  // 🔴 detener manual si está activo
+  if(a.modoManual){
+    a.modoManual = false
+    if(a.intervaloManual){
+      clearInterval(a.intervaloManual)
+      a.intervaloManual = null
+    }
+  }
+
+  socket.emit("eliminarAeronave", a.id)
 
 }
+
 
 
 // ================= CLOCK =================

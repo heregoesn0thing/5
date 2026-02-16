@@ -151,6 +151,72 @@ body{ margin:0; }
   color: #00e0ff;
 }
 
+#panelRumbo{
+  position: fixed;
+  bottom: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15,20,30,0.95);
+  padding: 12px 16px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  z-index: 10000;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+#panelRumbo button{
+  background: #1e2f45;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.2s;
+  font-size: 14px;
+}
+
+#panelRumbo button:hover{
+  background: #2e4766;
+}
+
+#headingDisplay{
+  font-size: 18px;
+  font-weight: bold;
+  width: 70px;
+  text-align: center;
+  color: #00e0ff;
+}
+
+.oculto{
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 20px);
+}
+
+/* 📱 RESPONSIVE MÓVIL */
+@media (max-width: 600px){
+
+  #panelRumbo{
+    bottom: 10px;
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
+  #panelRumbo button{
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  #headingDisplay{
+    font-size: 14px;
+    width: 55px;
+  }
+
+}
 
 #btnEliminarModo.activo {
   background: red;
@@ -688,6 +754,9 @@ socket.on("borrarAeronave", id => {
 // ================= PANEL =================
 
 function seleccionarAeronave(obj){
+if(a.modoManual){
+  document.getElementById("panelRumbo").classList.remove("oculto")
+}
 
   aeronaveSeleccionada = obj
 
@@ -902,6 +971,7 @@ function activarModoManual(){
     })
 
   },50)
+document.getElementById("panelRumbo").classList.remove("oculto")
 
 }
 function detenerModoManual(){
@@ -1542,13 +1612,14 @@ function ajustarHora(){
 }
 actualizarReloj()
 </script>
-<div id="panelRumbo">
+<div id="panelRumbo" class="oculto">
   <button onclick="cambiarRumbo(-10)">« 10°</button>
   <button onclick="cambiarRumbo(-1)">‹ 1°</button>
   <div id="headingDisplay">000°</div>
   <button onclick="cambiarRumbo(1)">1° ›</button>
   <button onclick="cambiarRumbo(10)">10° »</button>
 </div>
+
 
 </body>
 </html>

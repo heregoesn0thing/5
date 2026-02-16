@@ -114,6 +114,43 @@ body{ margin:0; }
   cursor: pointer;
   font-size: 16px;
 }
+#panelRumbo{
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(20,20,25,0.95);
+  padding: 12px 18px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 6px 25px rgba(0,0,0,0.4);
+  z-index: 10000;
+}
+
+
+#panelRumbo button{
+  background: #1e2a38;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.2s;
+}
+#panelRumbo button:hover{
+  background: #2f4257;
+}
+#headingDisplay{
+  font-size: 18px;
+  font-weight: bold;
+  width: 70px;
+  text-align: center;
+  color: #00e0ff;
+}
+
 
 #btnEliminarModo.activo {
   background: red;
@@ -195,9 +232,14 @@ socket.on("cargarAeronaves", lista => {
 <button id="btnTaxi" onclick="iniciarRodaje()" disabled>Start Taxi</button>
 <button onclick="detenerRodaje()">Stop Taxi</button>
 <button onclick="despegar()">Takeoff</button>
+
+<button onclick="activarModoManual()">Manual Control</button>
+<button onclick="detenerModoManual()">Stop Manual</button>
 <button onclick="iniciarCircuito()">Traffic Pattern</button>
 <button onclick="detenerCircuito()">Stop Pattern</button>
+
 <button onclick="eliminarSeleccionada()">Remove Aircraft</button>
+
 </div><select id="sidSelect" style="width:100%;margin-bottom:8px;">
   <option value="">Select SID</option>
   <option value="KOPRA1">KOPRA 1</option>
@@ -504,7 +546,10 @@ const nueva = {
   star:null,
   starActivo:false,
   faseStar:null,
-  altitudObjetivo:null
+  altitudObjetivo:null,
+  modoManual:false,
+intervaloManual:null
+
 }
   aeronaves.push(nueva)
 
@@ -572,7 +617,10 @@ socket.on("crearAeronave", data => {
     altitud: data.altitud || 0,
     angulo: data.angulo || 0,
     ruta: null,       
-  puntosRuta: []
+   puntosRuta: [],
+   modoManual:false,
+   intervaloManual:null
+
   }
 
   aeronaves.push(nueva)
@@ -807,6 +855,70 @@ aeronaveSeleccionada.marker.dragging.enable()
 actualizarBotonTaxi()
 
 }
+function activarModoManual(){
+
+  if(!aeronaveSeleccionada) return
+  const a = aeronaveSeleccionada
+
+  if(a.modoManual) return
+  if(a.rodando || a.enVuelo || a.circuitoActivo){
+    alert("Cannot activate manual during automatic modes")
+    return
+  }
+
+  a.modoManual = true
+
+  if(a.intervaloManual){
+    clearInterval(a.intervaloManual)
+  }
+
+  a.intervaloManual = setInterval(()=>{
+
+    if(a.velocidadObjetivo <= 0) return
+
+    // giro suave hacia su propio heading
+    a.angulo = girarSuavemente(a, a.angulo || 0, a.angulo)
+    actualizarRotacion(a)
+
+    const mps = a.velocidadObjetivo * 0.514444
+    const headingRad = a.angulo * Math.PI/180
+    const actual = a.marker.getLatLng()
+
+    const deltaLat = (Math.cos(headingRad)*mps)/111320
+    const deltaLng = (Math.sin(headingRad)*mps)/
+      (111320*Math.cos(actual.lat*Math.PI/180))
+
+    const nuevaLat = actual.lat + deltaLat
+    const nuevaLng = actual.lng + deltaLng
+
+    a.marker.setLatLng([nuevaLat, nuevaLng])
+
+    socket.emit("actualizarAeronave", {
+      id:a.id,
+      lat:nuevaLat,
+      lng:nuevaLng,
+      altitud:a.altitud,
+      angulo:a.angulo
+    })
+
+  },50)
+
+}
+function detenerModoManual(){
+
+  if(!aeronaveSeleccionada) return
+  const a = aeronaveSeleccionada
+
+  a.modoManual = false
+
+  if(a.intervaloManual){
+    clearInterval(a.intervaloManual)
+    a.intervaloManual = null
+  }
+
+}
+
+
 function iniciarSTAR(){
 
   if(!aeronaveSeleccionada) return
@@ -1347,7 +1459,43 @@ function detenerCircuito(){
   a.circuitoActivo = false
 }
 
+// ================= FREE NAVIGATION =================
+function cambiarRumbo(valor){
 
+  if(!aeronaveSeleccionada) return
+  const a = aeronaveSeleccionada
+
+  if(!a.modoManual) return
+
+  a.angulo += valor
+
+  if(a.angulo < 0) a.angulo += 360
+  if(a.angulo >= 360) a.angulo -= 360
+
+  actualizarRotacion(a)
+  actualizarHeadingDisplay(a)
+
+  socket.emit("actualizarAeronave", {
+    id:a.id,
+    lat:a.marker.getLatLng().lat,
+    lng:a.marker.getLatLng().lng,
+    altitud:a.altitud,
+    angulo:a.angulo
+  })
+
+}
+function actualizarHeadingDisplay(a){
+
+  const display = document.getElementById("headingDisplay")
+  if(!display) return
+
+  let rumbo = Math.round(a.angulo)
+  if(rumbo < 10) rumbo = "00" + rumbo
+  else if(rumbo < 100) rumbo = "0" + rumbo
+
+  display.innerText = rumbo + "°"
+
+}
 
 // ================= REMOVE =================
 
@@ -1394,6 +1542,14 @@ function ajustarHora(){
 }
 actualizarReloj()
 </script>
+<div id="panelRumbo">
+  <button onclick="cambiarRumbo(-10)">« 10°</button>
+  <button onclick="cambiarRumbo(-1)">‹ 1°</button>
+  <div id="headingDisplay">000°</div>
+  <button onclick="cambiarRumbo(1)">1° ›</button>
+  <button onclick="cambiarRumbo(10)">10° »</button>
+</div>
+
 </body>
 </html>
 

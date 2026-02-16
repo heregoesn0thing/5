@@ -217,6 +217,75 @@ body{ margin:0; }
   }
 
 }
+#menuAeronave{
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 300px;
+  background: rgba(15,15,15,0.97);
+  border: 1px solid #2f2f2f;
+  border-radius: 12px;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+  backdrop-filter: blur(6px);
+  z-index: 9999;
+  display: none;
+  transition: all 0.3s ease;
+}
+
+/* HEADER */
+#panelHeader{
+  padding: 8px;
+  background: #1c1c1c;
+  border-bottom: 1px solid #333;
+  font-size: 13px;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: move;
+  letter-spacing: 1px;
+}
+
+/* BODY */
+#panelBody{
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* BOTONES */
+#panelBody button{
+  padding: 6px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+/* SELECTS */
+#panelBody select{
+  width: 100%;
+  padding: 5px;
+  border-radius: 6px;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px){
+
+  #menuAeronave{
+    width: 95%;
+    left: 2.5%;
+    right: auto;
+    bottom: 10px;
+  }
+
+  #panelBody{
+    gap: 6px;
+  }
+
+  #panelBody button{
+    font-size: 13px;
+  }
+}
 
 #btnEliminarModo.activo {
   background: red;
@@ -1661,6 +1730,61 @@ function ajustarHora(){
   segundosTotales=parseInt(p[0])*3600+parseInt(p[1])*60+parseInt(p[2])
   actualizarReloj()
 }
+/* ===== PANEL ARRASTRABLE ===== */
+(function(){
+
+  const panel = document.getElementById("menuAeronave")
+  const header = document.getElementById("panelHeader")
+
+  if(!panel || !header) return
+
+  let isDragging = false
+  let offsetX = 0
+  let offsetY = 0
+
+  function startDrag(e){
+    if(e.target.tagName === "SPAN") return // evita conflicto con botón ✖
+
+    isDragging = true
+
+    const rect = panel.getBoundingClientRect()
+
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY
+
+    offsetX = clientX - rect.left
+    offsetY = clientY - rect.top
+
+    panel.style.bottom = "auto"
+    panel.style.right = "auto"
+    panel.style.position = "absolute"
+  }
+
+  function drag(e){
+    if(!isDragging) return
+
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY
+
+    panel.style.left = (clientX - offsetX) + "px"
+    panel.style.top = (clientY - offsetY) + "px"
+  }
+
+  function stopDrag(){
+    isDragging = false
+  }
+
+  header.addEventListener("mousedown", startDrag)
+  document.addEventListener("mousemove", drag)
+  document.addEventListener("mouseup", stopDrag)
+
+  header.addEventListener("touchstart", startDrag)
+  document.addEventListener("touchmove", drag)
+  document.addEventListener("touchend", stopDrag)
+
+})()
+/* ===== FIN PANEL ARRASTRABLE ===== */
+
 actualizarReloj()
 </script>
 <div id="panelRumbo" class="oculto">

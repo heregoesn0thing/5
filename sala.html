@@ -944,6 +944,13 @@ function activarModoManual(){
   }
 
   a.modoManual = true
+// Si no tiene ángulo definido, usar el actual o 0
+if(a.angulo === undefined || a.angulo === null){
+  a.angulo = 0
+}
+
+// Forzar que el icono apunte al rumbo actual
+actualizarRotacion(a)
 
   // ✅ Mostrar panel
   document.getElementById("panelRumbo").classList.remove("oculto")

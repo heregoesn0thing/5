@@ -67,19 +67,16 @@ function obtenerHoraActualSala(nombre) {
   const reloj = relojesSalas[nombre];
   if (!reloj) return null;
 
-  let segundosTranscurridos;
-
   if (reloj.pausado) {
-    segundosTranscurridos = reloj.tiempoPausado;
-  } else {
-    segundosTranscurridos =
-      (Date.now() - reloj.momentoInicio) / 1000 * reloj.velocidad;
+    return formatearHora(reloj.tiempoBase);
   }
 
-  const total = reloj.tiempoInicio + segundosTranscurridos;
+  const ahora = Date.now();
+  const delta = (ahora - reloj.timestampBase) / 1000 * reloj.velocidad;
 
-  return formatearHora(total);
+  return formatearHora(reloj.tiempoBase + delta);
 }
+
 
 
 // ================== SOCKET ==================
@@ -109,7 +106,6 @@ io.on("connection", (socket) => {
   momentoInicio: Date.now(),
   velocidad: 1,
   pausado: false,
-  tiempoPausado: 0
 };
 
 
@@ -127,13 +123,12 @@ socket.on("cambiarHora", ({ hora }) => {
 
   const segundos = convertirHoraASegundos(hora);
 
-  reloj.tiempoInicio = segundos;
-  reloj.momentoInicio = Date.now();
-  reloj.pausado = false;
-  reloj.tiempoPausado = 0;
+  reloj.tiempoBase = segundos;
+  reloj.timestampBase = Date.now();
 
   io.to(sala).emit("horaSala", formatearHora(segundos));
 });
+
 
 
   // ===== UNIRSE A SALA =====
@@ -215,32 +210,30 @@ socket.on("cambiarHora", ({ hora }) => {
   const reloj = relojesSalas[sala];
   if (!reloj) return;
 
-  const horaActual = obtenerHoraActualSala(sala);
-
-  const segundosActuales =
-    parseInt(horaActual.horas) * 3600 +
-    parseInt(horaActual.minutos) * 60 +
-    parseInt(horaActual.segundos);
-
-  if (accion === "pausar" && !reloj.pausado) {
-    reloj.pausado = true;
-    reloj.tiempoPausado =
-      (Date.now() - reloj.momentoInicio) / 1000 * reloj.velocidad;
+  // Guardamos tiempo actual antes de cambiar estado
+  if (!reloj.pausado) {
+    const ahora = Date.now();
+    const delta = (ahora - reloj.timestampBase) / 1000 * reloj.velocidad;
+    reloj.tiempoBase += delta;
+    reloj.timestampBase = ahora;
   }
 
-  if (accion === "reanudar" && reloj.pausado) {
+  if (accion === "pausar") {
+    reloj.pausado = true;
+  }
+
+  if (accion === "reanudar") {
     reloj.pausado = false;
-    reloj.tiempoInicio = segundosActuales;
-    reloj.momentoInicio = Date.now();
+    reloj.timestampBase = Date.now();
   }
 
   if (accion === "velocidad") {
-    reloj.tiempoInicio = segundosActuales;
-    reloj.momentoInicio = Date.now();
     reloj.velocidad = valor;
+    reloj.timestampBase = Date.now();
   }
 
 });
+
 
 
   // ===== DESCONECTAR =====

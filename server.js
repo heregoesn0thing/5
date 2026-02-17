@@ -52,18 +52,22 @@ function obtenerListaSalas() {
 
 function iniciarRelojSala(nombre) {
 
-  // Evitar duplicados
   if (intervalosSalas[nombre]) return;
 
   intervalosSalas[nombre] = setInterval(() => {
 
-    const hora = obtenerHoraActualSala(nombre);
-    if (!hora) return;
+    const reloj = relojesSalas[nombre];
+    if (!reloj) return;
 
-    io.to(nombre).emit("horaSala", hora);
+    if (!reloj.pausado) {
+      reloj.tiempoBase += 1;
+    }
+
+    io.to(nombre).emit("horaSala", formatearHora(reloj.tiempoBase));
 
   }, 1000);
 }
+
 
 
 
@@ -109,7 +113,6 @@ io.on("connection", (socket) => {
 relojesSalas[nombre] = {
   tiempoBase: segundosIniciales,
   timestampBase: Date.now(),
-  velocidad: 1,
   pausado: false,
 };
 
@@ -127,13 +130,11 @@ socket.on("cambiarHora", ({ hora }) => {
   const reloj = relojesSalas[sala];
   if (!reloj) return;
 
-  const segundos = convertirHoraASegundos(hora);
+  reloj.tiempoBase = convertirHoraASegundos(hora);
 
-  reloj.tiempoBase = segundos;
-  reloj.timestampBase = Date.now();
-
-  io.to(sala).emit("horaSala", formatearHora(segundos));
+  io.to(sala).emit("horaSala", formatearHora(reloj.tiempoBase));
 });
+
 
 
 
@@ -209,7 +210,7 @@ socket.on("cambiarHora", ({ hora }) => {
   });
 
   // ===== CONTROL DEL TIEMPO =====
-socket.on("controlTiempo", ({ accion, valor }) => {
+socket.on("controlTiempo", ({ accion }) => {
 
   const sala = socket.sala;
   if (!sala) return;
@@ -217,29 +218,20 @@ socket.on("controlTiempo", ({ accion, valor }) => {
   const reloj = relojesSalas[sala];
   if (!reloj) return;
 
-  if (!reloj.pausado) {
-    const ahora = Date.now();
-    const delta = (ahora - reloj.timestampBase) / 1000 * reloj.velocidad;
-    reloj.tiempoBase += delta;
-    reloj.timestampBase = ahora;
-  }
-
   if (accion === "pausar") {
     reloj.pausado = true;
   }
 
   if (accion === "reanudar") {
     reloj.pausado = false;
-    reloj.timestampBase = Date.now();
   }
 
-
-  // 🔥 NUEVO
   io.to(sala).emit("estadoTiempo", {
     pausado: reloj.pausado
   });
 
 });
+
 // ==== ACTIVAR PELIGRO =====
 socket.on("activarPeligroSala", () => {
 

@@ -361,6 +361,59 @@ html, body{
   border-radius:6px;
   cursor:pointer;
 }
+#panelTiempo{
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(15,23,42,0.95);
+  padding: 10px 14px;
+  border-radius: 12px;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+  z-index: 9999;
+}
+
+#relojGlobal{
+  font-family: monospace;
+  font-size: 20px;
+  letter-spacing: 2px;
+  color: #38bdf8;
+}
+
+#timeControls{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#timeControls button{
+  background: #1e293b;
+  border: none;
+  color: white;
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.2s;
+}
+
+#timeControls button:hover{
+  background: #334155;
+  transform: scale(1.05);
+}
+
+#timeControls input{
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: white;
+  padding: 6px;
+  border-radius: 6px;
+}
 
 </style>
 </head>
@@ -485,18 +538,40 @@ socket.on("horaSala", data => {
 
   </div>
 </div>
-<div id="relojGlobal"></div>
-<div id="timeControls">
-  <button onclick="pausarTiempo()">Pause</button>
-  <button onclick="reanudarTiempo()">Resume</button>
-  <button onclick="cambiarVelocidadTiempo(2)">x2</button>
-  <button onclick="cambiarVelocidadTiempo(4)">x4</button>
-  <button onclick="cambiarVelocidadTiempo(8)">x8</button>
+<div id="panelTiempo">
+  
+  <div id="relojGlobal">00:00:00</div>
 
-  <!-- NUEVO -->
-  <input type="time" id="inputHora" step="1">
-  <button onclick="cambiarHora()">Set</button>
+  <div id="timeControls">
+    <button id="btnPlayPause" onclick="toggleTiempo()" title="Pausar / Reanudar">
+      
+      <!-- Icono PLAY por defecto -->
+      <svg id="iconPlay" viewBox="0 0 24 24" width="18" height="18">
+        <polygon points="6,4 20,12 6,20" fill="currentColor"/>
+      </svg>
+
+      <!-- Icono PAUSE -->
+      <svg id="iconPause" viewBox="0 0 24 24" width="18" height="18" style="display:none;">
+        <rect x="6" y="4" width="4" height="16" fill="currentColor"/>
+        <rect x="14" y="4" width="4" height="16" fill="currentColor"/>
+      </svg>
+
+    </button>
+
+    <input type="time" id="inputHora" step="1">
+
+    <button onclick="cambiarHora()" title="Establecer hora">
+      <svg viewBox="0 0 24 24" width="18" height="18">
+        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none"/>
+        <line x1="12" y1="7" x2="12" y2="12" stroke="currentColor" stroke-width="2"/>
+        <line x1="12" y1="12" x2="16" y2="14" stroke="currentColor" stroke-width="2"/>
+      </svg>
+    </button>
+
+  </div>
+
 </div>
+
 
 
 
@@ -659,6 +734,28 @@ btnEliminar.addEventListener("click", () => {
   }
 
 });
+
+// ================= TIEMPO =================
+let pausado = false;
+
+function toggleTiempo() {
+
+  const iconPlay = document.getElementById("iconPlay");
+  const iconPause = document.getElementById("iconPause");
+
+  if (pausado) {
+    socket.emit("controlTiempo", { accion: "reanudar" });
+    iconPlay.style.display = "none";
+    iconPause.style.display = "block";
+  } else {
+    socket.emit("controlTiempo", { accion: "pausar" });
+    iconPlay.style.display = "block";
+    iconPause.style.display = "none";
+  }
+
+  pausado = !pausado;
+}
+
 
 // ================= ICON =================
 

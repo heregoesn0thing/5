@@ -329,66 +329,7 @@ html, body{
 #relojHora{ font-size:20px; margin-bottom:8px; }
 
 
-#timeControls button{
-  background:#1e2f45;
-  color:white;
-  border:none;
-  padding:6px 8px;
-  border-radius:6px;
-  cursor:pointer;
-}
-#panelTiempo{
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: rgba(15,23,42,0.95);
-  padding: 10px 14px;
-  border-radius: 12px;
-  backdrop-filter: blur(6px);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.4);
-  z-index: 9999;
-}
 
-#relojGlobal{
-  font-family: monospace;
-  font-size: 20px;
-  letter-spacing: 2px;
-  color: #38bdf8;
-}
-
-
-#timeControls{
-  position: fixed;
-  top: 70px;
-  right: 20px;
-  z-index: 9999;
-  display: flex;
-  gap: 6px;
-  background: rgba(0,0,0,0.8);
-  padding: 8px;
-  border-radius: 8px;
-}
-
-#timeControls button{
-  background: #1e293b;
-  border: none;
-  color: white;
-  padding: 8px;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: 0.2s;
-}
-
-#timeControls button:hover{
-  background: #334155;
-  transform: scale(1.05);
-}
 
 #timeControls input{
   background: #0f172a;
@@ -397,34 +338,8 @@ html, body{
   padding: 6px;
   border-radius: 6px;
 }
-#configHora{
-  position: absolute;
-  top: 60px;
-  right: 0;
-  background: rgba(15,23,42,0.98);
-  padding: 10px;
-  border-radius: 10px;
-  display: flex;
-  gap: 8px;
-  opacity: 0;
-  transform: translateY(-10px);
-  pointer-events: none;
-  transition: 0.25s ease;
-}
+/* ===== PANEL TIEMPO LIMPIO ===== */
 
-#configHora.activo{
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
-}
-
-#configHora input{
-  background: #0f172a;
-  border: 1px solid #334155;
-  color: white;
-  padding: 6px;
-  border-radius: 6px;
-}
 #panelTiempo{
   position: fixed;
   top: 20px;
@@ -446,6 +361,7 @@ html, body{
   font-size: 18px;
   font-weight: bold;
   letter-spacing: 1px;
+  color: #38bdf8;
 }
 
 #timeControls{
@@ -465,9 +381,11 @@ html, body{
 
 #timeControls button:hover{
   background: #334155;
+  transform: scale(1.05);
 }
 
-/* 🔥 DROPDOWN LATERAL */
+/* ===== DROPDOWN LATERAL REAL ===== */
+
 #configHora{
   position: absolute;
   top: 0;
@@ -486,7 +404,6 @@ html, body{
   transition: 0.25s ease;
 }
 
-/* ACTIVO */
 #configHora.activo{
   transform: translateX(0);
   opacity: 1;
@@ -500,6 +417,10 @@ html, body{
   padding: 6px;
   border-radius: 6px;
 }
+
+
+
+
 
 </style>
 </head>

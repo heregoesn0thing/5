@@ -500,6 +500,27 @@ html, body{
   font-size: 13px;
   cursor: pointer;
 }
+#btnDanger{
+  position:fixed;
+  bottom:15px;
+  right:15px;
+  width:40px;
+  height:40px;
+  border-radius:50%;
+  border:none;
+  background:#b91c1c;
+  color:white;
+  font-size:18px;
+  cursor:pointer;
+  box-shadow:0 4px 10px rgba(0,0,0,0.3);
+  z-index:1000;
+  transition:0.2s;
+}
+
+#btnDanger:hover{
+  background:#dc2626;
+  transform:scale(1.1);
+}
 
 </style>
 </head>
@@ -857,12 +878,14 @@ let aeronaveSeleccionada = null
 let modoRuta = false
 let rutaTemporal = []
 let modoEliminar = false;
+let marcadorPeligro = null;
 
 const VELOCIDAD = 8
 const TIPOS = ["A320","A319","C172","AN32"]
 const RUMBO_PISTA_22 = 220
 const DISTANCIA_FADE = 80 * 1852      // 80 NM
 const DISTANCIA_REMOVE = 85 * 1852    // 85 NM
+const ARP_SPSO = [-13.7449, -76.2203];
 
 const PERFORMANCE = {
   A320: { VR:145, CLIMB:250, ACC:1.2 },
@@ -902,6 +925,25 @@ btnEliminar.addEventListener("click", () => {
   }
 
 });
+const PASSWORD_PELIGRO = "0223"; // cámbiala
+
+function activarModoPeligro(){
+
+  const clave = prompt("Enter password to activate EMERGENCY MODE:");
+
+  if(clave === null) return;
+
+  if(!/^\d+$/.test(clave)){
+    alert("only numbers allowed");
+    return;
+  }
+
+  if(clave === PASSWORD_PELIGRO){
+    activarEmergencia();
+  }else{
+    alert("Don't try again please ☠️");
+  }
+}
 
 // ================= TIEMPO =================
 let pausado = false;
@@ -2326,7 +2368,38 @@ document.addEventListener("click", function(e){
     config.classList.remove("activo");
   }
 });
+function activarEmergencia(){
 
+  if(marcadorPeligro) return; // evita duplicados
+
+  const iconoPeligro = L.icon({
+    iconUrl: "img/incursion.svg",
+    iconSize: [60, 120],
+    iconAnchor: [60, 60] // centra la imagen en el ARP
+  });
+
+  marcadorPeligro = L.marker(ARP_SPSO, {
+    icon: iconoPeligro,
+    zIndexOffset: 1000
+  }).addTo(map);
+
+}
+function desactivarEmergencia(){
+
+  if(!marcadorPeligro) return;
+
+  map.removeLayer(marcadorPeligro);
+  marcadorPeligro = null;
+}
+function obtenerBoundsImagen(lat, lng, tamañoMetros){
+
+  const delta = tamañoMetros / 111320; // aproximación grados
+
+  return [
+    [lat - delta, lng - delta],
+    [lat + delta, lng + delta]
+  ];
+}
 
 
 </script>
@@ -2338,6 +2411,9 @@ document.addEventListener("click", function(e){
   <button onclick="cambiarRumbo(10)">10° »</button>
 </div>
 
+<button id="btnDanger" onclick="activarModoPeligro()">
+  ⚠
+</button>
 
 </body>
 </html>

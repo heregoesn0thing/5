@@ -417,10 +417,74 @@ html, body{
   padding: 6px;
   border-radius: 6px;
 }
+#createAircraftPanel{
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.95);
+  width: 340px;
+  background: rgba(15,23,42,0.97);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+  z-index: 10000;
+  color: #e2e8f0;
+  opacity: 0;
+  pointer-events: none;
+  transition: 0.25s ease;
+}
 
+#createAircraftPanel.activo{
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, -50%) scale(1);
+}
 
+#createAircraftPanel .panelBody{
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
 
+#createAircraftPanel label{
+  font-size: 12px;
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
 
+#createAircraftPanel select,
+#createAircraftPanel input{
+  width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: white;
+  font-size: 13px;
+}
+
+#createAircraftPanel select:focus,
+#createAircraftPanel input:focus{
+  outline: none;
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 2px rgba(56,189,248,0.3);
+}
+
+.btnPrimary{
+  background: #0ea5e9;
+  border: none;
+  padding: 9px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.btnPrimary:hover{
+  background: #0284c7;
+  transform: translateY(-2px);
+}
 
 </style>
 </head>
@@ -603,6 +667,38 @@ socket.on("horaSala", data => {
     <div><strong>Initial Altitude:</strong> <span id="depAltitud">-</span></div>
     <div><strong>Squawk:</strong> <span id="depSquawk">-</span></div>
   </div>
+</div>
+<div id="createAircraftPanel" class="panelOculto">
+
+  <div class="panelHeader">
+    <span>New Aircraft</span>
+    <span onclick="cerrarCrearPanel()" style="cursor:pointer;color:#f87171;">✖</span>
+  </div>
+
+  <div class="panelBody">
+
+    <div class="formSection">
+      <label>Aircraft Type</label>
+      <select id="tipoSelect">
+        <option value="A320">A320</option>
+        <option value="A319">A319</option>
+        <option value="C172">C172</option>
+        <option value="AN32">AN32</option>
+      </select>
+    </div>
+
+    <div class="formSection">
+      <label>Callsign</label>
+      <input id="callsignInput"
+             placeholder="PER123"
+             maxlength="8"
+             autocomplete="off">
+    </div>
+
+    <button class="btnPrimary" onclick="confirmarCreacion()">Create Aircraft</button>
+
+  </div>
+
 </div>
 
 
@@ -804,42 +900,14 @@ map.on("click", function(e){
 
 function mostrarSelectorTipo(latlng){
 
-  // Evitar múltiples paneles
-  if(document.getElementById("selectorTipo")) return
-
-  const contenedor = document.createElement("div")
-  contenedor.style.position = "fixed"
-  contenedor.style.top = "40%"
-  contenedor.style.left = "50%"
-  contenedor.style.transform = "translate(-50%,-50%)"
-  contenedor.style.background = "#111"
-  contenedor.style.padding = "20px"
-  contenedor.style.borderRadius = "8px"
-  contenedor.style.color = "white"
-  contenedor.style.zIndex = 5000
-  contenedor.id = "selectorTipo"
-
-  contenedor.innerHTML = `
-    <div style="margin-bottom:10px;">Select Aircraft Type</div>
-    <select id="tipoSelect" style="width:100%;margin-bottom:10px;">
-      <option value="A320">A320</option>
-      <option value="A319">A319</option>
-      <option value="C172">C172</option>
-      <option value="AN32">AN32</option>
-    </select>
-    <input id="callsignInput" placeholder="Enter Callsign"
-           style="width:100%;margin-bottom:10px;padding:4px;" />
-    <button onclick="confirmarCreacion()" style="width:100%;">Create</button>
-  `
-
-  document.body.appendChild(contenedor)
   window.tempLatLng = latlng
 
-  // 🔹 Cerrar al hacer click fuera
-  setTimeout(() => {
-    document.addEventListener("click", cerrarSiClickFuera)
-  }, 0)
+  const panel = document.getElementById("createAircraftPanel")
+  panel.classList.add("activo")
+
+  document.getElementById("callsignInput").value = ""
 }
+
 function cerrarSiClickFuera(e){
 
   const panel = document.getElementById("selectorTipo")
@@ -950,7 +1018,8 @@ intervaloManual:null
     marker.dragging.enable()
   })
 
-  document.getElementById("selectorTipo").remove()
+  cerrarCrearPanel()
+
   document.removeEventListener("click", cerrarSiClickFuera)
 socket.emit("crearAeronave", {
   id: callsign,

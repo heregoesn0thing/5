@@ -133,6 +133,20 @@ socket.on("eliminarAeronave", (id) => {
   });
 
 });
+// ================= HORA SERVIDOR =================
+setInterval(() => {
+
+  const ahora = new Date()
+
+  const horaUTC = {
+    horas: ahora.getUTCHours().toString().padStart(2,'0'),
+    minutos: ahora.getUTCMinutes().toString().padStart(2,'0'),
+    segundos: ahora.getUTCSeconds().toString().padStart(2,'0')
+  }
+
+  io.emit("horaServidor", horaUTC)
+
+}, 1000)
 
 server.listen(PORT, () => {
   console.log("Servidor corriendo en puerto", PORT);

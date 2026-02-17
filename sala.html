@@ -8,8 +8,22 @@
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <style>
-body{ margin:0; }
-#map{ height:100vh; width:100vw; }
+  *{
+  box-sizing:border-box;
+}
+
+html, body{
+  margin:0;
+  padding:0;
+  height:100%;
+  overflow:hidden;
+}
+
+#map{
+  height:100vh;
+  width:100%;
+}
+
 
 .icon-wrapper{
   width:70px;
@@ -286,11 +300,57 @@ body{ margin:0; }
     font-size: 13px;
   }
 }
+#departurePanel{
+  position:absolute;
+  top:100px;
+  right:20px;
+  width:280px;
+  background: rgba(15,15,15,0.97);
+  border: 1px solid #2f2f2f;
+  border-radius: 12px;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+  backdrop-filter: blur(6px);
+  z-index: 9999;
+  display:none;
+  color:white;
+  font-size:13px;
+}
+
+.panelHeader{
+  background:#1c1c1c;
+  padding:8px;
+  font-weight:bold;
+  cursor:move;
+  display:flex;
+  justify-content:space-between;
+}
+
+.panelBody{
+  padding:10px;
+}
+
+.panelOculto{
+  display:none;
+}
 
 #btnEliminarModo.activo {
   background: red;
 }
 #relojHora{ font-size:20px; margin-bottom:8px; }
+#relojGlobal{
+  position:absolute;
+  top:15px;
+  right:20px;
+  background:rgba(0,0,0,0.7);
+  color:#00ffcc;
+  font-family:monospace;
+  font-size:18px;
+  padding:8px 14px;
+  border-radius:8px;
+  letter-spacing:2px;
+  box-shadow:0 0 10px rgba(0,255,200,0.4);
+}
+
 </style>
 </head>
 
@@ -354,6 +414,12 @@ socket.on("cargarAeronaves", lista => {
   })
 
 })
+socket.on("horaServidor", data => {
+
+  const reloj = document.getElementById("relojGlobal")
+  reloj.textContent = `${data.horas}:${data.minutos}:${data.segundos} UTC`
+
+})
 
 </script>
 <div id="menuAeronave">
@@ -361,40 +427,68 @@ socket.on("cargarAeronaves", lista => {
     <span id="aircraftTitle">Aircraft</span>
     <span onclick="cerrarPanel()" style="cursor:pointer;color:red;">✖</span>
   </div>
+
   <div id="panelBody">
+
     <div id="aircraftInfo"></div>
+
     <button onclick="activarModoRuta()">Create Route</button>
-<button id="btnTaxi" onclick="iniciarRodaje()" disabled>Start Taxi</button>
-<button onclick="detenerRodaje()">Stop Taxi</button>
-<button onclick="despegar()">Takeoff</button>
+    <button id="btnTaxi" onclick="iniciarRodaje()" disabled>Start Taxi</button>
+    <button onclick="detenerRodaje()">Stop Taxi</button>
+    <button onclick="despegar()">Takeoff</button>
 
-<button onclick="activarModoManual()">Manual Control</button>
-<button onclick="detenerModoManual()">Stop Manual</button>
-<button onclick="iniciarCircuito()">Traffic Pattern</button>
-<button onclick="detenerCircuito()">Stop Pattern</button>
+    <button onclick="activarModoManual()">Manual Control</button>
+    <button onclick="detenerModoManual()">Stop Manual</button>
+    <button onclick="iniciarCircuito()">Traffic Pattern</button>
+    <button onclick="detenerCircuito()">Stop Pattern</button>
 
-<button onclick="eliminarSeleccionada()">Remove Aircraft</button>
+    <button onclick="eliminarSeleccionada()">Remove Aircraft</button>
 
-</div><select id="sidSelect" style="width:100%;margin-bottom:8px;">
-  <option value="">Select SID</option>
-  <option value="KOPRA1">KOPRA 1</option>
-  <option value="TELOT1">TELOT 1</option>
-</select>
-<select id="starSelect" style="width:100%;margin-bottom:8px;">
-  <option value="">Select STAR</option>
-  <option value="GEBED3">GEBED 3 RWY 22</option>
-</select>
+    <select id="sidSelect">
+      <option value="">Select SID</option>
+      <option value="KOPRA1">KOPRA 1</option>
+      <option value="TELOT1">TELOT 1</option>
+    </select>
 
-<button onclick="iniciarSTAR()">Start STAR</button>
+    <select id="starSelect">
+      <option value="">Select STAR</option>
+      <option value="GEBED3">GEBED 3 RWY 22</option>
+    </select>
 
-<div style="margin-top:10px;">
-  <div style="font-size:12px;margin-bottom:4px;">Speed: <span id="speedValue">0</span> kt</div>
-  <input type="range" id="speedSlider"
-         min="0" max="250" value="0"
-         style="width:100%;"
-         oninput="cambiarVelocidad(this.value)">
+    <button onclick="iniciarSTAR()">Start STAR</button>
+
+    <div style="margin-top:10px;">
+      <div style="font-size:12px;margin-bottom:4px;">
+        Speed: <span id="speedValue">0</span> kt
+      </div>
+      <input type="range"
+             id="speedSlider"
+             min="0"
+             max="250"
+             value="0"
+             oninput="cambiarVelocidad(this.value)">
+    </div>
+
+  </div>
 </div>
+<div id="relojGlobal"></div>
 
+
+<div id="departurePanel" class="panelOculto">
+  <div class="panelHeader">
+    <span>Departure Information</span>
+    <span onclick="cerrarDeparture()" style="cursor:pointer;color:red;">✖</span>
+  </div>
+
+  <div class="panelBody">
+    <div><strong>Callsign:</strong> <span id="depCallsign">-</span></div>
+    <div><strong>Aircraft:</strong> <span id="depTipo">-</span></div>
+    <div><strong>Stand:</strong> <span id="depStand">-</span></div>
+    <div><strong>Runway:</strong> <span id="depRunway">-</span></div>
+    <div><strong>SID:</strong> <span id="depSID">-</span></div>
+    <div><strong>Initial Altitude:</strong> <span id="depAltitud">-</span></div>
+    <div><strong>Squawk:</strong> <span id="depSquawk">-</span></div>
+  </div>
 </div>
 
 <div id="relojPanel">
@@ -860,15 +954,16 @@ function seleccionarAeronave(obj){
 
   actualizarBotonTaxi()
 
-  // ✅ Mostrar panel manual solo si está activo
+  actualizarDepartureInfo(obj)   // ← SIN IF
+
   if(obj.modoManual){
     document.getElementById("panelRumbo").classList.remove("oculto")
     actualizarHeadingDisplay(obj)
   }else{
     document.getElementById("panelRumbo").classList.add("oculto")
   }
-
 }
+
 
 function eliminarRuta(avion){
 
@@ -1354,6 +1449,58 @@ socket.emit("actualizarAeronave", {
 
   },50)
 }
+
+// ================= DEPARTURE INFO =================
+function actualizarDepartureInfo(a){
+
+  if(!a) return
+
+  document.getElementById("depCallsign").textContent = a.id
+  document.getElementById("depTipo").textContent = a.tipo
+  document.getElementById("depStand").textContent = "N/A"
+  document.getElementById("depRunway").textContent = "RWY 22"
+  document.getElementById("depSID").textContent = a.sid || "NONE"
+
+  let altitudTexto = "0 ft"
+
+  if(a.altitud){
+    if(a.altitud <= 3000){
+      altitudTexto = Math.round(a.altitud) + " ft"
+    }else{
+      const FL = Math.round(a.altitud / 100)
+      altitudTexto = "FL" + String(FL).padStart(3,'0')
+    }
+  }
+
+  document.getElementById("depAltitud").textContent = altitudTexto
+
+  if(!a.squawk){
+    a.squawk = generarSquawk()
+  }
+
+  document.getElementById("depSquawk").textContent = a.squawk
+
+  // ✔ usar clase en vez de style directo
+  document.getElementById("departurePanel")
+          .classList.remove("panelOculto")
+}
+function cerrarDeparture(){
+  document.getElementById("departurePanel")
+          .classList.add("panelOculto")
+}
+function generarSquawk(){
+
+  const digitos = []
+
+  for(let i=0;i<4;i++){
+    digitos.push(Math.floor(Math.random()*8)) // solo 0-7 realista
+  }
+
+  return digitos.join("")
+}
+
+
+// ================= LÓGICA DE DESPEGUE LIB MANDI=================
 function puedeDespegarDesdeLIB(a){
 
   const distancia = map.distance(

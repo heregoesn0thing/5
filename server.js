@@ -5,6 +5,7 @@ const { Server } = require("socket.io");
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
+const relojesSalas = {}
 
 const PORT = process.env.PORT || 3000;
 
@@ -51,20 +52,43 @@ io.on("connection", (socket) => {
   // ================= UNIRSE =================
   socket.on("unirseSala", (nombre) => {
 
-    if (!salas[nombre]) return;
+  if (!salas[nombre]) return;
 
-    socket.join(nombre);
-    socket.sala = nombre;
+  socket.join(nombre);
+  socket.sala = nombre;
 
-    if (!salas[nombre].jugadores.includes(socket.id)) {
-      salas[nombre].jugadores.push(socket.id);
-    }
+  if (!salas[nombre].jugadores.includes(socket.id)) {
+    salas[nombre].jugadores.push(socket.id);
+  }
 
-    // Enviar aeronaves existentes al nuevo usuario
-    socket.emit("cargarAeronaves", salas[nombre].aeronaves);
+  // Enviar aeronaves existentes
+  socket.emit("cargarAeronaves", salas[nombre].aeronaves);
 
-    io.emit("listaSalas", obtenerListaSalas());
-  });
+  // ================= RELOJ POR SALA =================
+  if (!relojesSalas[nombre]) {
+
+    relojesSalas[nombre] = {
+      intervalo: null
+    };
+
+    relojesSalas[nombre].intervalo = setInterval(() => {
+
+      const ahora = new Date();
+
+      const horaUTC = {
+        horas: ahora.getUTCHours().toString().padStart(2,'0'),
+        minutos: ahora.getUTCMinutes().toString().padStart(2,'0'),
+        segundos: ahora.getUTCSeconds().toString().padStart(2,'0')
+      };
+
+      io.to(nombre).emit("horaSala", horaUTC);
+
+    }, 1000);
+  }
+
+  io.emit("listaSalas", obtenerListaSalas());
+});
+
 
   // ================= CREAR AERONAVE =================
 socket.on("crearAeronave", (data) => {
@@ -133,20 +157,7 @@ socket.on("eliminarAeronave", (id) => {
   });
 
 });
-// ================= HORA SERVIDOR =================
-setInterval(() => {
 
-  const ahora = new Date()
-
-  const horaUTC = {
-    horas: ahora.getUTCHours().toString().padStart(2,'0'),
-    minutos: ahora.getUTCMinutes().toString().padStart(2,'0'),
-    segundos: ahora.getUTCSeconds().toString().padStart(2,'0')
-  }
-
-  io.emit("horaServidor", horaUTC)
-
-}, 1000)
 
 server.listen(PORT, () => {
   console.log("Servidor corriendo en puerto", PORT);

@@ -414,12 +414,11 @@ socket.on("cargarAeronaves", lista => {
   })
 
 })
-socket.on("horaServidor", data => {
-
+socket.on("horaSala", data => {
   const reloj = document.getElementById("relojGlobal")
   reloj.textContent = `${data.horas}:${data.minutos}:${data.segundos} UTC`
-
 })
+
 
 </script>
 <div id="menuAeronave">

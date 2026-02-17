@@ -187,7 +187,11 @@
           alert("Escribe un nombre");
           return;
         }
-        socket.emit("crearSala", nombre);
+        socket.emit("crearSala", {
+  nombre: nombre,
+  horaInicial: "00:00:00"
+});
+
         input.value = "";
       }
 

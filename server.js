@@ -71,6 +71,17 @@ io.on("connection", (socket) => {
   if (!salas[nombre]) return;
 
   socket.join(nombre);
+  const reloj = relojesSalas[nombre];
+
+if (reloj) {
+  const ahora = Date.now();
+  const delta = (ahora - reloj.timestampBase)/1000 * reloj.velocidad;
+  const tiempoActual = reloj.tiempoBase + delta;
+
+  const horaFormateada = formatearHora(tiempoActual);
+  socket.emit("horaSala", horaFormateada);
+}
+
   socket.sala = nombre;
 
   if (!salas[nombre].jugadores.includes(socket.id)) {
@@ -204,14 +215,17 @@ function iniciarRelojSala(nombre){
 
     const ahora = Date.now()
     const delta = (ahora - reloj.timestampBase)/1000 * reloj.velocidad
-    const tiempoActual = reloj.tiempoBase + delta
 
-    const horaFormateada = formatearHora(tiempoActual)
+    reloj.tiempoBase += delta
+    reloj.timestampBase = ahora
+
+    const horaFormateada = formatearHora(reloj.tiempoBase)
 
     io.to(nombre).emit("horaSala", horaFormateada)
 
   },1000)
 }
+
 
 
 

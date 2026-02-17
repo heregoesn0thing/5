@@ -596,6 +596,22 @@ socket.on("horaSala", data => {
     reloj.textContent = texto;
   }
 });
+socket.on("estadoTiempo", (data) => {
+
+  pausado = data.pausado;
+
+  const iconPlay = document.getElementById("iconPlay");
+  const iconPause = document.getElementById("iconPause");
+
+  if (pausado) {
+    iconPlay.style.display = "block";
+    iconPause.style.display = "none";
+  } else {
+    iconPlay.style.display = "none";
+    iconPause.style.display = "block";
+  }
+
+});
 
 
 
@@ -851,17 +867,13 @@ let pausado = false;
 
 function toggleTiempo() {
 
-  const iconPlay = document.getElementById("iconPlay");
-  const iconPause = document.getElementById("iconPause");
 
   if (pausado) {
     socket.emit("controlTiempo", { accion: "reanudar" });
-    iconPlay.style.display = "none";
-    iconPause.style.display = "block";
+    
   } else {
     socket.emit("controlTiempo", { accion: "pausar" });
-    iconPlay.style.display = "block";
-    iconPause.style.display = "none";
+    
   }
 
   pausado = !pausado;

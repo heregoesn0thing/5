@@ -209,7 +209,7 @@ socket.on("cambiarHora", ({ hora }) => {
   });
 
   // ===== CONTROL DEL TIEMPO =====
-  socket.on("controlTiempo", ({ accion, valor }) => {
+socket.on("controlTiempo", ({ accion, valor }) => {
 
   const sala = socket.sala;
   if (!sala) return;
@@ -217,7 +217,6 @@ socket.on("cambiarHora", ({ hora }) => {
   const reloj = relojesSalas[sala];
   if (!reloj) return;
 
-  // Guardamos tiempo actual antes de cambiar estado
   if (!reloj.pausado) {
     const ahora = Date.now();
     const delta = (ahora - reloj.timestampBase) / 1000 * reloj.velocidad;
@@ -239,7 +238,13 @@ socket.on("cambiarHora", ({ hora }) => {
     reloj.timestampBase = Date.now();
   }
 
+  // 🔥 NUEVO
+  io.to(sala).emit("estadoTiempo", {
+    pausado: reloj.pausado
+  });
+
 });
+
 
 
 

@@ -1883,6 +1883,16 @@ function ajustarHora(){
   segundosTotales=parseInt(p[0])*3600+parseInt(p[1])*60+parseInt(p[2])
   actualizarReloj()
 }
+function cambiarHora() {
+
+  const nuevaHora = document.getElementById("inputHora").value;
+
+  socket.emit("cambiarHora", {
+    hora: nuevaHora
+  });
+
+}
+
 /* ===== PANEL ARRASTRABLE ===== */
 (function(){
 

@@ -117,6 +117,26 @@ io.on("connection", (socket) => {
 
     io.emit("listaSalas", obtenerListaSalas());
   });
+socket.on("cambiarHora", ({ hora }) => {
+
+  const sala = socket.sala;
+  if (!sala) return;
+
+  const reloj = relojesSalas[sala];
+  if (!reloj) return;
+
+  const segundos = convertirHoraASegundos(hora);
+
+  // Reiniciar base absoluta
+  reloj.horaInicio = segundos;
+  reloj.timestampInicio = Date.now();
+  reloj.pausaAcumulada = 0;
+
+  // Emitir inmediatamente a todos
+  const nuevaHora = formatearHora(segundos);
+  io.to(sala).emit("horaSala", nuevaHora);
+
+});
 
   // ===== UNIRSE A SALA =====
   socket.on("unirseSala", (nombre) => {

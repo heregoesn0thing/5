@@ -25,12 +25,9 @@ html, body{
   z-index: 1;
 }
 
-
-
-
 .icon-wrapper{
-  width:70px;
-  height:60px;
+  width:80px;
+  height:70px;
   display:flex;
   flex-direction:column;
   align-items:center;
@@ -41,6 +38,9 @@ html, body{
 .icon-aircraft{
   font-size:26px;
   transform-origin:center center;
+  transition: transform 0.08s linear;
+  display:block;
+  margin:auto;
 }
 
 .callsign-label{
@@ -535,6 +535,23 @@ const socket = io()
 const params = new URLSearchParams(window.location.search);
 const nombreSala = params.get("nombre");
 
+// Icono para C172
+const iconoC172 = L.divIcon({
+  className: "icon-wrapper",
+  html: `
+    <img src="img/c172.svg"
+         style="
+           width:40px;
+           transform: rotate(0deg);
+           transform-origin: center;
+         "
+         class="icono-avion"
+    />
+  `,
+  iconSize: [40, 40],
+  iconAnchor: [20, 20]
+});
+
 // Unirse realmente a la room
 socket.emit("unirseSala", nombreSala);
 socket.on("cargarAeronaves", lista => {
@@ -842,6 +859,15 @@ const CLIMB_RATE = {
   AN32: 2000,
   C172: 700
 }
+// ===== CONFIGURACIÓN ORIENTACIÓN SVG =====
+const ORIENTACION_MODELOS = {
+  C172: -45,
+  AN32: 0,
+  A319: 0,
+  A320: 0,
+  DEFAULT: 0
+};
+
 const LIB_MANDI = L.latLng(-12.389000, -76.758094)
 const RUMBO_LIB_MANDI = 140
 const TOLERANCIA_RUMBO = 15
@@ -878,21 +904,62 @@ function toggleTiempo() {
 
 
 // ================= ICON =================
+function crearIcono(callsign, tipo){
 
-function crearIcono(callsign,tipo){
+  let contenidoAvion;
+
+  if(tipo === "C172"){
+    contenidoAvion = `
+      <img src="img/c172.svg"
+           class="icon-aircraft"
+           style="width:28px;">
+    `;
+  } 
+  else if(tipo === "AN32"){
+    contenidoAvion = `
+      <img src="img/a320.svg"
+           class="icon-aircraft"
+           style="width:32px;">
+    `;
+  }
+  else if(tipo === "A319"){
+    contenidoAvion = `
+      <img src="img/a320.svg"
+           class="icon-aircraft"
+           style="width:38px;">
+    `;
+  }
+  else if(tipo === "A320"){
+    contenidoAvion = `
+      <img src="img/a320.svg"
+           class="icon-aircraft"
+           style="width:40px;">
+    `;
+  }
+  else {
+    contenidoAvion = `
+      <div class="icon-aircraft" style="font-size:26px;">
+        ✈
+      </div>
+    `;
+  }
+
   return L.divIcon({
     className:"",
-    iconSize:[70,60],
-    iconAnchor:[35,30],
+    iconSize:[80,70],
+    iconAnchor:[40,35],
     html:`
       <div class="icon-wrapper">
         <div class="status-label">TAXIING</div>
-        <div class="icon-aircraft">✈</div>
+        ${contenidoAvion}
         <div class="callsign-label">${callsign} (${tipo})</div>
       </div>
     `
-  })
+  });
 }
+
+
+
 
 // ================= CREATE AIRCRAFT =================
 
@@ -1810,13 +1877,18 @@ function distanciaDesdeVOR(a){
 
 function actualizarRotacion(a){
 
-  const el = a.marker.getElement()
-  if(!el) return
+  if(!a || !a.marker) return;
 
-  const icono = el.querySelector(".icon-aircraft")
-  if(!icono) return
+  const el = a.marker.getElement();
+  if(!el) return;
 
-  icono.style.transform = `rotate(${a.angulo - 90}deg)`
+  const icon = el.querySelector(".icon-aircraft");
+  if(!icon) return;
+
+  // Obtener offset según tipo
+  const offset = ORIENTACION_MODELOS[a.tipo] || ORIENTACION_MODELOS.DEFAULT;
+
+  icon.style.transform = `rotate(${a.angulo + offset}deg)`;
 }
 
 

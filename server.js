@@ -37,17 +37,33 @@ io.on("connection", (socket) => {
   socket.emit("listaSalas", obtenerListaSalas());
 
   // ================= CREAR SALA =================
-  socket.on("crearSala", (nombre) => {
+  socket.on("crearSala", ({ nombre, horaInicial }) => {
 
-    if (!salas[nombre]) {
-      salas[nombre] = {
-        jugadores: [],
-        aeronaves: []
-      };
-    }
+  if (!salas[nombre]) {
 
-    io.emit("listaSalas", obtenerListaSalas());
-  });
+    const segundosIniciales = horaInicial
+      ? convertirHoraASegundos(horaInicial)
+      : 0;
+
+    salas[nombre] = {
+      jugadores: [],
+      aeronaves: []
+    };
+
+    relojesSalas[nombre] = {
+      tiempoBase: segundosIniciales,
+      timestampBase: Date.now(),
+      velocidad: 1,
+      pausado: false,
+      intervalo: null
+    };
+
+    iniciarRelojSala(nombre);
+  }
+
+  io.emit("listaSalas", obtenerListaSalas());
+});
+
 
   // ================= UNIRSE =================
   socket.on("unirseSala", (nombre) => {
@@ -162,6 +178,62 @@ socket.on("eliminarAeronave", (id) => {
 server.listen(PORT, () => {
   console.log("Servidor corriendo en puerto", PORT);
 });
+function convertirHoraASegundos(horaStr){
+  const [h,m,s] = horaStr.split(":").map(Number)
+  return h*3600 + m*60 + (s || 0)
+}
+
+function formatearHora(segundosTotales){
+
+  segundosTotales = Math.floor(segundosTotales % 86400)
+
+  const h = Math.floor(segundosTotales/3600).toString().padStart(2,'0')
+  const m = Math.floor((segundosTotales%3600)/60).toString().padStart(2,'0')
+  const s = Math.floor(segundosTotales%60).toString().padStart(2,'0')
+
+  return { horas:h, minutos:m, segundos:s }
+}
+
+function iniciarRelojSala(nombre){
+
+  const reloj = relojesSalas[nombre]
+
+  reloj.intervalo = setInterval(()=>{
+
+    if(reloj.pausado) return
+
+    const ahora = Date.now()
+    const delta = (ahora - reloj.timestampBase)/1000 * reloj.velocidad
+    const tiempoActual = reloj.tiempoBase + delta
+
+    const horaFormateada = formatearHora(tiempoActual)
+
+    io.to(nombre).emit("horaSala", horaFormateada)
+
+  },1000)
+}
+socket.on("controlTiempo", ({ sala, accion, valor }) => {
+
+  const reloj = relojesSalas[sala]
+  if(!reloj) return
+
+  const ahora = Date.now()
+  const delta = (ahora - reloj.timestampBase)/1000 * reloj.velocidad
+  reloj.tiempoBase += delta
+  reloj.timestampBase = ahora
+
+  if(accion === "pausar"){
+    reloj.pausado = true
+  }
+
+  if(accion === "reanudar"){
+    reloj.pausado = false
+  }
+
+  if(accion === "velocidad"){
+    reloj.velocidad = valor
+  }
+})
 
 
 

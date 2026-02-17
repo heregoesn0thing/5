@@ -471,6 +471,13 @@ socket.on("horaSala", data => {
   </div>
 </div>
 <div id="relojGlobal"></div>
+<div id="timeControls">
+  <button onclick="pausarTiempo()">Pause</button>
+  <button onclick="reanudarTiempo()">Resume</button>
+  <button onclick="cambiarVelocidad(2)">x2</button>
+  <button onclick="cambiarVelocidad(4)">x4</button>
+  <button onclick="cambiarVelocidad(8)">x8</button>
+</div>
 
 
 <div id="departurePanel" class="panelOculto">
@@ -1930,6 +1937,27 @@ function ajustarHora(){
 
 })()
 /* ===== FIN PANEL ARRASTRABLE ===== */
+function pausarTiempo(){
+  socket.emit("controlTiempo", {
+    sala: nombreSalaActual,
+    accion:"pausar"
+  })
+}
+
+function reanudarTiempo(){
+  socket.emit("controlTiempo", {
+    sala: nombreSalaActual,
+    accion:"reanudar"
+  })
+}
+
+function cambiarVelocidad(v){
+  socket.emit("controlTiempo", {
+    sala: nombreSalaActual,
+    accion:"velocidad",
+    valor:v
+  })
+}
 
 actualizarReloj()
 </script>

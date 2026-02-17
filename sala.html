@@ -487,6 +487,19 @@ html, body{
   background: #0284c7;
   transform: translateY(-2px);
 }
+.taxi-controls{
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.taxi-controls button{
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
 
 </style>
 </head>
@@ -644,8 +657,12 @@ socket.on("estadoTiempo", (data) => {
     <div id="aircraftInfo"></div>
 
     <button onclick="activarModoRuta()">Create Route</button>
-    <button id="btnTaxi" onclick="iniciarRodaje()" disabled>Start Taxi</button>
-    <button onclick="detenerRodaje()">Stop Taxi</button>
+    <div class="taxi-controls">
+  <button onclick="iniciarRodaje()">▶ Taxi</button>
+  <button onclick="detenerRodaje()">⏸ Pause</button>
+  <button onclick="eliminarRuta()">🗑 Delete</button>
+</div>
+
     <button onclick="despegar()">Takeoff</button>
 
     <button onclick="activarModoManual()">Manual Control</button>
@@ -1068,7 +1085,9 @@ const nueva = {
   faseStar:null,
   altitudObjetivo:null,
   modoManual:false,
-intervaloManual:null
+  intervaloManual:null,
+  indiceRuta: 0,
+  taxiPausado: false,
 
 }
   aeronaves.push(nueva)
@@ -1140,7 +1159,9 @@ socket.on("crearAeronave", data => {
     ruta: null,       
    puntosRuta: [],
    modoManual:false,
-   intervaloManual:null
+   intervaloManual:null,
+   indiceRuta: 0,
+   taxiPausado: false
 
   }
 
@@ -1363,6 +1384,32 @@ function agregarPuntoRuta(latlng){
   actualizarBotonTaxi()
 
 }
+function eliminarRuta(){
+
+  if(!aeronaveSeleccionada) return
+
+  const a = aeronaveSeleccionada
+
+  // Detener movimiento si está rodando
+  if(a.intervaloMovimiento){
+    clearInterval(a.intervaloMovimiento)
+    a.intervaloMovimiento = null
+  }
+
+  a.rodando = false
+  a.taxiPausado = false
+  a.indiceRuta = 0
+
+  // Eliminar línea del mapa
+  if(a.ruta){
+    map.removeLayer(a.ruta)
+    a.ruta = null
+  }
+
+  a.puntosRuta = []
+
+  mostrarTaxiing(a,false)
+}
 
 // ================= TAXI =================
 
@@ -1370,47 +1417,54 @@ function iniciarRodaje(){
 
   if(!aeronaveSeleccionada) return
 
-  if(!aeronaveSeleccionada.ruta ||
-     !aeronaveSeleccionada.puntosRuta ||
-     aeronaveSeleccionada.puntosRuta.length < 2){
+  const a = aeronaveSeleccionada
+
+  if(!a.ruta || !a.puntosRuta || a.puntosRuta.length < 2){
     return
   }
 
-  aeronaveSeleccionada.rodando = true
-  aeronaveSeleccionada.marker.dragging.disable()
+  // Si estaba pausado → solo reanudar
+  if(a.taxiPausado){
+    a.taxiPausado = false
+    moverPorPuntos(a)
+    mostrarTaxiing(a, true)
+    return
+  }
 
-  mostrarTaxiing(aeronaveSeleccionada, true)
+  // Inicio normal
+  a.rodando = true
+  a.taxiPausado = false
+  a.indiceRuta = 0
 
-  moverPorPuntos(aeronaveSeleccionada)
+  a.marker.dragging.disable()
+  mostrarTaxiing(a, true)
 
-  actualizarPanelInfo(aeronaveSeleccionada)
+  moverPorPuntos(a)
+
+  actualizarPanelInfo(a)
   actualizarBotonTaxi()
-
 }
+
 
 
 function detenerRodaje(){
+
   if(!aeronaveSeleccionada) return
 
-  aeronaveSeleccionada.rodando=false
-  modoRuta=false
-aeronaveSeleccionada.marker.dragging.enable()
-  if(aeronaveSeleccionada.intervaloMovimiento){
-    clearInterval(aeronaveSeleccionada.intervaloMovimiento)
-    aeronaveSeleccionada.intervaloMovimiento=null
+  const a = aeronaveSeleccionada
+
+  a.taxiPausado = true
+  a.rodando = false
+
+  if(a.intervaloMovimiento){
+    clearInterval(a.intervaloMovimiento)
+    a.intervaloMovimiento = null
   }
 
-  if(aeronaveSeleccionada.ruta){
-    map.removeLayer(aeronaveSeleccionada.ruta)
-    aeronaveSeleccionada.ruta=null
-  }
-
-  aeronaveSeleccionada.puntosRuta=[]
-  mostrarTaxiing(aeronaveSeleccionada,false)
-  actualizarPanelInfo(aeronaveSeleccionada)
-actualizarBotonTaxi()
-
+  mostrarTaxiing(a, false)
+  actualizarPanelInfo(a)
 }
+
 function activarModoManual(){
 
   if(!aeronaveSeleccionada) return
@@ -1893,50 +1947,79 @@ function actualizarRotacion(a){
 
 
 function moverPorPuntos(a){
-  let i=0
-  const ruta=a.puntosRuta
+
+  let i = a.indiceRuta || 0
+  const ruta = a.puntosRuta
 
   function mover(){
-    if(i>=ruta.length-1){
-      detenerRodaje()
+
+    if(a.taxiPausado) return
+
+    if(i >= ruta.length - 1){
+      a.rodando = false
+      mostrarTaxiing(a,false)
       return
     }
 
-    const inicio=ruta[i]
-    const fin=ruta[i+1]
+    const inicio = a.marker.getLatLng()
+    const fin = ruta[i+1]
 
-    a.angulo=calcularBearing(inicio,fin)
+    a.angulo = calcularBearing(inicio, fin)
     actualizarRotacion(a)
 
-    const dist=map.distance(inicio,fin)
-    const dur=(dist/VELOCIDAD)*1000
-    const start=Date.now()
+    const dist = map.distance(inicio, fin)
+    const dur = (dist / VELOCIDAD) * 1000
+    const start = Date.now()
 
-    a.intervaloMovimiento=setInterval(()=>{
-      const t=(Date.now()-start)/dur
-      if(t>=1){
-        a.marker.setLatLng(fin)
+    a.intervaloMovimiento = setInterval(()=>{
+
+  if(a.taxiPausado){
         clearInterval(a.intervaloMovimiento)
-        i++
-        mover()
+        a.indiceRuta = i
         return
-      }
-      const lat=inicio.lat+(fin.lat-inicio.lat)*t
-      const lng=inicio.lng+(fin.lng-inicio.lng)*t
-      a.marker.setLatLng([lat,lng])
+  }
 
-socket.emit("actualizarAeronave", {
-  id: a.id,
-  lat: lat,
-  lng: lng,
-  altitud: a.altitud,
-  angulo: a.angulo
-})
+  const t = (Date.now() - start) / dur
+
+  if(t >= 1){
+
+  a.marker.setLatLng(fin)
+  clearInterval(a.intervaloMovimiento)
+
+  // 🔥 Eliminar punto ya recorrido
+  a.puntosRuta.shift()
+
+  // 🔥 Actualizar línea visible
+  if(a.ruta){
+    a.ruta.setLatLngs(a.puntosRuta)
+  }
+
+  i = 0
+  a.indiceRuta = 0
+
+  mover()
+  return
+}
+
+
+      const lat = inicio.lat + (fin.lat - inicio.lat) * t
+      const lng = inicio.lng + (fin.lng - inicio.lng) * t
+      a.marker.setLatLng([lat, lng])
+
+      socket.emit("actualizarAeronave", {
+        id: a.id,
+        lat: lat,
+        lng: lng,
+        altitud: a.altitud,
+        angulo: a.angulo
+      })
 
     },30)
   }
+
   mover()
 }
+
 
 
 function mostrarTaxiing(a,estado){

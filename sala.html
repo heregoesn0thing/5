@@ -414,6 +414,34 @@ html, body{
   padding: 6px;
   border-radius: 6px;
 }
+#configHora{
+  position: absolute;
+  top: 60px;
+  right: 0;
+  background: rgba(15,23,42,0.98);
+  padding: 10px;
+  border-radius: 10px;
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  transform: translateY(-10px);
+  pointer-events: none;
+  transition: 0.25s ease;
+}
+
+#configHora.activo{
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+#configHora input{
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: white;
+  padding: 6px;
+  border-radius: 6px;
+}
 
 </style>
 </head>
@@ -539,38 +567,42 @@ socket.on("horaSala", data => {
   </div>
 </div>
 <div id="panelTiempo">
-  
+
   <div id="relojGlobal">00:00:00</div>
 
   <div id="timeControls">
+
+    <!-- PLAY / PAUSE -->
     <button id="btnPlayPause" onclick="toggleTiempo()" title="Pausar / Reanudar">
-      
-      <!-- Icono PLAY por defecto -->
       <svg id="iconPlay" viewBox="0 0 24 24" width="18" height="18">
         <polygon points="6,4 20,12 6,20" fill="currentColor"/>
       </svg>
-
-      <!-- Icono PAUSE -->
       <svg id="iconPause" viewBox="0 0 24 24" width="18" height="18" style="display:none;">
         <rect x="6" y="4" width="4" height="16" fill="currentColor"/>
         <rect x="14" y="4" width="4" height="16" fill="currentColor"/>
       </svg>
-
     </button>
 
-    <input type="time" id="inputHora" step="1">
-
-    <button onclick="cambiarHora()" title="Establecer hora">
+    <!-- BOTÓN CONFIGURACIÓN -->
+    <button onclick="toggleConfig()" title="Configurar hora">
       <svg viewBox="0 0 24 24" width="18" height="18">
-        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none"/>
-        <line x1="12" y1="7" x2="12" y2="12" stroke="currentColor" stroke-width="2"/>
-        <line x1="12" y1="12" x2="16" y2="14" stroke="currentColor" stroke-width="2"/>
+        <circle cx="12" cy="12" r="3" fill="currentColor"/>
+        <path d="M19.4 15a7.9 7.9 0 0 0 .1-2l2-1.5-2-3.5-2.3.5a7.9 7.9 0 0 0-1.7-1l-.3-2.4h-4l-.3 2.4a7.9 7.9 0 0 0-1.7 1l-2.3-.5-2 3.5 2 1.5a7.9 7.9 0 0 0 0 2l-2 1.5 2 3.5 2.3-.5a7.9 7.9 0 0 0 1.7 1l.3 2.4h4l.3-2.4a7.9 7.9 0 0 0 1.7-1l2.3.5 2-3.5-2-1.5z" fill="none" stroke="currentColor" stroke-width="1.5"/>
       </svg>
     </button>
 
   </div>
 
+  <!-- PANEL DESPLEGABLE -->
+  <div id="configHora">
+    <input type="time" id="inputHora" step="1">
+    <button onclick="cambiarHora()" title="Aplicar">
+      ✔
+    </button>
+  </div>
+
 </div>
+
 
 
 
@@ -1982,6 +2014,10 @@ function cambiarHora() {
     hora: nuevaHora
   });
 
+}
+function toggleConfig(){
+  const panel = document.getElementById("configHora");
+  panel.classList.toggle("activo");
 }
 
 /* ===== PANEL ARRASTRABLE ===== */

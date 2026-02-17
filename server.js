@@ -241,15 +241,21 @@ socket.on("controlTiempo", ({ accion, valor }) => {
 
 });
 // ==== ACTIVAR PELIGRO =====
-socket.on("activarPeligroSala", ({ sala }) => {
+socket.on("activarPeligroSala", () => {
 
-  io.to(sala).emit("peligroActivado")
+  const sala = socket.sala;
+  if (!sala) return;
 
+  // Activar peligro
+  io.to(sala).emit("peligroActivado");
+
+  // Desactivar después de 1 minuto
   setTimeout(() => {
-    io.to(sala).emit("peligroDesactivado")
-  }, 60000)
+    io.to(sala).emit("peligroDesactivado");
+  }, 60000);
 
-})
+});
+
 
 
 

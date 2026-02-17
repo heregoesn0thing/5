@@ -603,15 +603,13 @@ socket.on("estadoTiempo", (data) => {
   const iconPlay = document.getElementById("iconPlay");
   const iconPause = document.getElementById("iconPause");
 
-  if (pausado) {
-    iconPlay.style.display = "block";
-    iconPause.style.display = "none";
-  } else {
-    iconPlay.style.display = "none";
-    iconPause.style.display = "block";
-  }
+  if(!iconPlay || !iconPause) return;
+
+  iconPlay.style.display = pausado ? "block" : "none";
+  iconPause.style.display = pausado ? "none" : "block";
 
 });
+
 
 
 
@@ -876,7 +874,6 @@ function toggleTiempo() {
     
   }
 
-  pausado = !pausado;
 }
 
 

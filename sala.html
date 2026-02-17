@@ -27,6 +27,7 @@ html, body{
 
 
 
+
 .icon-wrapper{
   width:70px;
   height:60px;
@@ -427,11 +428,12 @@ html, body{
   backdrop-filter: blur(10px);
   border-radius: 16px;
   box-shadow: 0 20px 50px rgba(0,0,0,0.6);
-  z-index: 10000;
+  z-index: 99999;
   color: #e2e8f0;
   opacity: 0;
   pointer-events: none;
   transition: 0.25s ease;
+  display: block;
 }
 
 #createAircraftPanel.activo{
@@ -492,6 +494,38 @@ html, body{
 <body>
 
 <div id="map"></div>
+<div id="createAircraftPanel">
+
+  <div class="panelHeader">
+    <span>New Aircraft</span>
+    <span onclick="cerrarCrearPanel()" style="cursor:pointer;color:#f87171;">✖</span>
+  </div>
+
+  <div class="panelBody">
+
+    <div class="formSection">
+      <label>Aircraft Type</label>
+      <select id="tipoSelect">
+        <option value="A320">A320</option>
+        <option value="A319">A319</option>
+        <option value="C172">C172</option>
+        <option value="AN32">AN32</option>
+      </select>
+    </div>
+
+    <div class="formSection">
+      <label>Callsign</label>
+      <input id="callsignInput"
+             placeholder="PER123"
+             maxlength="8"
+             autocomplete="off">
+    </div>
+
+    <button class="btnPrimary" onclick="confirmarCreacion()">Create Aircraft</button>
+
+  </div>
+
+</div>
 <button id="btnEliminarModo">🗑</button>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -668,38 +702,7 @@ socket.on("horaSala", data => {
     <div><strong>Squawk:</strong> <span id="depSquawk">-</span></div>
   </div>
 </div>
-<div id="createAircraftPanel" class="panelOculto">
 
-  <div class="panelHeader">
-    <span>New Aircraft</span>
-    <span onclick="cerrarCrearPanel()" style="cursor:pointer;color:#f87171;">✖</span>
-  </div>
-
-  <div class="panelBody">
-
-    <div class="formSection">
-      <label>Aircraft Type</label>
-      <select id="tipoSelect">
-        <option value="A320">A320</option>
-        <option value="A319">A319</option>
-        <option value="C172">C172</option>
-        <option value="AN32">AN32</option>
-      </select>
-    </div>
-
-    <div class="formSection">
-      <label>Callsign</label>
-      <input id="callsignInput"
-             placeholder="PER123"
-             maxlength="8"
-             autocomplete="off">
-    </div>
-
-    <button class="btnPrimary" onclick="confirmarCreacion()">Create Aircraft</button>
-
-  </div>
-
-</div>
 
 
 
@@ -900,13 +903,26 @@ map.on("click", function(e){
 
 function mostrarSelectorTipo(latlng){
 
-  window.tempLatLng = latlng
+  window.tempLatLng = latlng;
 
-  const panel = document.getElementById("createAircraftPanel")
-  panel.classList.add("activo")
+  const panel = document.getElementById("createAircraftPanel");
+  panel.classList.add("activo");
 
-  document.getElementById("callsignInput").value = ""
+  document.getElementById("callsignInput").value = "";
 }
+function cerrarCrearPanel(){
+
+  const panel = document.getElementById("createAircraftPanel");
+
+  panel.classList.remove("activo");
+
+  // limpiar input
+  document.getElementById("callsignInput").value = "";
+
+  // limpiar posición temporal
+  window.tempLatLng = null;
+}
+
 
 function cerrarSiClickFuera(e){
 

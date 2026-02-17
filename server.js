@@ -80,27 +80,6 @@ io.on("connection", (socket) => {
   // Enviar aeronaves existentes
   socket.emit("cargarAeronaves", salas[nombre].aeronaves);
 
-  // ================= RELOJ POR SALA =================
-  if (!relojesSalas[nombre]) {
-
-    relojesSalas[nombre] = {
-      intervalo: null
-    };
-
-    relojesSalas[nombre].intervalo = setInterval(() => {
-
-      const ahora = new Date();
-
-      const horaUTC = {
-        horas: ahora.getUTCHours().toString().padStart(2,'0'),
-        minutos: ahora.getUTCMinutes().toString().padStart(2,'0'),
-        segundos: ahora.getUTCSeconds().toString().padStart(2,'0')
-      };
-
-      io.to(nombre).emit("horaSala", horaUTC);
-
-    }, 1000);
-  }
 
   io.emit("listaSalas", obtenerListaSalas());
 });
@@ -158,7 +137,28 @@ socket.on("eliminarAeronave", (id) => {
   // Enviar a TODOS en la sala (incluido quien lo eliminó)
   io.to(sala).emit("borrarAeronave", id);
 });
+socket.on("controlTiempo", ({ sala, accion, valor }) => {
 
+  const reloj = relojesSalas[sala]
+  if(!reloj) return
+
+  const ahora = Date.now()
+  const delta = (ahora - reloj.timestampBase)/1000 * reloj.velocidad
+  reloj.tiempoBase += delta
+  reloj.timestampBase = ahora
+
+  if(accion === "pausar"){
+    reloj.pausado = true
+  }
+
+  if(accion === "reanudar"){
+    reloj.pausado = false
+  }
+
+  if(accion === "velocidad"){
+    reloj.velocidad = valor
+  }
+})
 
 
   // ================= DESCONECTAR =================
@@ -212,28 +212,7 @@ function iniciarRelojSala(nombre){
 
   },1000)
 }
-socket.on("controlTiempo", ({ sala, accion, valor }) => {
 
-  const reloj = relojesSalas[sala]
-  if(!reloj) return
-
-  const ahora = Date.now()
-  const delta = (ahora - reloj.timestampBase)/1000 * reloj.velocidad
-  reloj.tiempoBase += delta
-  reloj.timestampBase = ahora
-
-  if(accion === "pausar"){
-    reloj.pausado = true
-  }
-
-  if(accion === "reanudar"){
-    reloj.pausado = false
-  }
-
-  if(accion === "velocidad"){
-    reloj.velocidad = valor
-  }
-})
 
 
 

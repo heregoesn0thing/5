@@ -879,6 +879,9 @@ let modoRuta = false
 let rutaTemporal = []
 let modoEliminar = false;
 let marcadorPeligro = null;
+let imagenPeligro = null;
+let temporizadorPeligro = null;
+
 
 const VELOCIDAD = 8
 const TIPOS = ["A320","A319","C172","AN32"]
@@ -2382,6 +2385,12 @@ function activarEmergencia(){
     icon: iconoPeligro,
     zIndexOffset: 1000
   }).addTo(map);
+  temporizadorPeligro = setTimeout(() => {
+    if (imagenPeligro) {
+      map.removeLayer(imagenPeligro);
+      imagenPeligro = null;
+    }
+  }, 60000);
 
 }
 function desactivarEmergencia(){

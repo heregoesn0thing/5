@@ -492,7 +492,7 @@ html, body{
   gap: 8px;
   justify-content: center;
   align-items: center;
-  margin-top: 10px;
+  margin-top: -12px;
 }
 
 .taxi-controls button{
@@ -1986,20 +1986,19 @@ function moverPorPuntos(a){
   a.marker.setLatLng(fin)
   clearInterval(a.intervaloMovimiento)
 
-  // 🔥 Eliminar punto ya recorrido
-  a.puntosRuta.shift()
+  i++
+  a.indiceRuta = i
 
-  // 🔥 Actualizar línea visible
+  // 🔥 Actualizar línea visible sin destruir el array
   if(a.ruta){
-    a.ruta.setLatLngs(a.puntosRuta)
+    const restante = a.puntosRuta.slice(i)
+    a.ruta.setLatLngs(restante)
   }
-
-  i = 0
-  a.indiceRuta = 0
 
   mover()
   return
 }
+
 
 
       const lat = inicio.lat + (fin.lat - inicio.lat) * t

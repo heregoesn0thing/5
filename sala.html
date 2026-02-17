@@ -102,18 +102,6 @@ html, body{
   border-radius:4px;
 }
 
-#relojPanel{
-  position:fixed;
-  top:15px;
-  right:15px;
-  background:rgba(0,0,0,0.85);
-  color:white;
-  padding:12px;
-  border-radius:8px;
-  text-align:center;
-  z-index:3000;
-  font-family:monospace;
-}
 #btnEliminarModo {
   position: absolute;
   top: 80px;
@@ -497,12 +485,7 @@ socket.on("horaSala", data => {
   </div>
 </div>
 
-<div id="relojPanel">
-  <div id="relojHora">00:00:00</div>
-  <button onclick="iniciarReloj()">▶</button>
-  <button onclick="pausarReloj()">⏸</button>
-  <button onclick="ajustarHora()">✏</button>
-</div>
+
 
 <script>
 
@@ -1855,34 +1838,6 @@ function eliminarSeleccionada(){
 
 // ================= CLOCK =================
 
-let segundosTotales=0
-let intervaloReloj=null
-
-function actualizarReloj(){
-  let h=Math.floor(segundosTotales/3600)
-  let m=Math.floor((segundosTotales%3600)/60)
-  let s=segundosTotales%60
-  document.getElementById("relojHora").innerText=
-    `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
-}
-
-function iniciarReloj(){
-  if(intervaloReloj) return
-  intervaloReloj=setInterval(()=>{segundosTotales++;actualizarReloj()},1000)
-}
-
-function pausarReloj(){
-  clearInterval(intervaloReloj)
-  intervaloReloj=null
-}
-
-function ajustarHora(){
-  const t=prompt("Enter time HH:MM:SS")
-  if(!t) return
-  const p=t.split(":")
-  segundosTotales=parseInt(p[0])*3600+parseInt(p[1])*60+parseInt(p[2])
-  actualizarReloj()
-}
 function cambiarHora() {
 
   const nuevaHora = document.getElementById("inputHora").value;
@@ -1949,27 +1904,25 @@ function cambiarHora() {
 /* ===== FIN PANEL ARRASTRABLE ===== */
 function pausarTiempo(){
   socket.emit("controlTiempo", {
-    sala: nombreSalaActual,
     accion:"pausar"
   })
 }
 
 function reanudarTiempo(){
   socket.emit("controlTiempo", {
-    sala: nombreSalaActual,
     accion:"reanudar"
   })
 }
 
-function cambiarVelocidad(v){
+function cambiarVelocidadTiempo(v){
   socket.emit("controlTiempo", {
-    sala: nombreSalaActual,
     accion:"velocidad",
     valor:v
   })
 }
 
-actualizarReloj()
+
+
 </script>
 <div id="panelRumbo" class="oculto">
   <button onclick="cambiarRumbo(-10)">« 10°</button>

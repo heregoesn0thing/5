@@ -127,16 +127,14 @@ socket.on("cambiarHora", ({ hora }) => {
 
   const segundos = convertirHoraASegundos(hora);
 
-  // Reiniciar base absoluta
-  reloj.horaInicio = segundos;
-  reloj.timestampInicio = Date.now();
-  reloj.pausaAcumulada = 0;
+  reloj.tiempoInicio = segundos;
+  reloj.momentoInicio = Date.now();
+  reloj.pausado = false;
+  reloj.tiempoPausado = 0;
 
-  // Emitir inmediatamente a todos
-  const nuevaHora = formatearHora(segundos);
-  io.to(sala).emit("horaSala", nuevaHora);
-
+  io.to(sala).emit("horaSala", formatearHora(segundos));
 });
+
 
   // ===== UNIRSE A SALA =====
   socket.on("unirseSala", (nombre) => {

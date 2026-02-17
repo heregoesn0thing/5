@@ -426,11 +426,12 @@ socket.on("cargarAeronaves", lista => {
 
 })
 socket.on("horaSala", data => {
-  const reloj = document.getElementById("relojGlobal")
-  if(!reloj) return
+  const reloj = document.getElementById("relojGlobal");
+  if(!reloj) return;
   reloj.textContent =
-    `${data.horas}:${data.minutos}:${data.segundos} UTC`
-})
+    `${data.horas}:${data.minutos}:${data.segundos}`;
+});
+
 
 
 

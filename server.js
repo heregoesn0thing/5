@@ -233,10 +233,6 @@ socket.on("controlTiempo", ({ accion, valor }) => {
     reloj.timestampBase = Date.now();
   }
 
-  if (accion === "velocidad") {
-    reloj.velocidad = valor;
-    reloj.timestampBase = Date.now();
-  }
 
   // 🔥 NUEVO
   io.to(sala).emit("estadoTiempo", {

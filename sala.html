@@ -2164,12 +2164,6 @@ function reanudarTiempo(){
   })
 }
 
-function cambiarVelocidadTiempo(v){
-  socket.emit("controlTiempo", {
-    accion:"velocidad",
-    valor:v
-  })
-}
 document.addEventListener("click", function(e){
   const panel = document.getElementById("panelTiempo");
   const config = document.getElementById("configHora");

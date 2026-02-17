@@ -425,6 +425,81 @@ html, body{
   padding: 6px;
   border-radius: 6px;
 }
+#panelTiempo{
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  background: rgba(15,23,42,0.95);
+  backdrop-filter: blur(8px);
+  padding: 12px 14px;
+  border-radius: 14px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: monospace;
+  color: #e2e8f0;
+}
+
+#relojGlobal{
+  font-size: 18px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+#timeControls{
+  display: flex;
+  gap: 6px;
+}
+
+#timeControls button{
+  background: #1e293b;
+  border: none;
+  color: white;
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+#timeControls button:hover{
+  background: #334155;
+}
+
+/* 🔥 DROPDOWN LATERAL */
+#configHora{
+  position: absolute;
+  top: 0;
+  right: 100%;
+  margin-right: 10px;
+
+  background: rgba(15,23,42,0.98);
+  padding: 10px;
+  border-radius: 12px;
+  display: flex;
+  gap: 8px;
+
+  transform: translateX(20px);
+  opacity: 0;
+  pointer-events: none;
+  transition: 0.25s ease;
+}
+
+/* ACTIVO */
+#configHora.activo{
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#configHora input{
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: white;
+  padding: 6px;
+  border-radius: 6px;
+}
 
 </style>
 </head>
@@ -563,7 +638,6 @@ socket.on("horaSala", data => {
 
   <div id="timeControls">
 
-    <!-- PLAY / PAUSE -->
     <button id="btnPlayPause" onclick="toggleTiempo()" title="Pausar / Reanudar">
       <svg id="iconPlay" viewBox="0 0 24 24" width="18" height="18">
         <polygon points="6,4 20,12 6,20" fill="currentColor"/>
@@ -574,25 +648,19 @@ socket.on("horaSala", data => {
       </svg>
     </button>
 
-    <!-- BOTÓN CONFIGURACIÓN -->
     <button onclick="toggleConfig()" title="Configurar hora">
-      <svg viewBox="0 0 24 24" width="18" height="18">
-        <circle cx="12" cy="12" r="3" fill="currentColor"/>
-        <path d="M19.4 15a7.9 7.9 0 0 0 .1-2l2-1.5-2-3.5-2.3.5a7.9 7.9 0 0 0-1.7-1l-.3-2.4h-4l-.3 2.4a7.9 7.9 0 0 0-1.7 1l-2.3-.5-2 3.5 2 1.5a7.9 7.9 0 0 0 0 2l-2 1.5 2 3.5 2.3-.5a7.9 7.9 0 0 0 1.7 1l.3 2.4h4l.3-2.4a7.9 7.9 0 0 0 1.7-1l2.3.5 2-3.5-2-1.5z" fill="none" stroke="currentColor" stroke-width="1.5"/>
-      </svg>
+      ⚙
     </button>
 
   </div>
 
-  <!-- PANEL DESPLEGABLE -->
   <div id="configHora">
     <input type="time" id="inputHora" step="1">
-    <button onclick="cambiarHora()" title="Aplicar">
-      ✔
-    </button>
+    <button onclick="cambiarHora()">✔</button>
   </div>
 
 </div>
+
 
 
 
@@ -2087,6 +2155,14 @@ function cambiarVelocidadTiempo(v){
     valor:v
   })
 }
+document.addEventListener("click", function(e){
+  const panel = document.getElementById("panelTiempo");
+  const config = document.getElementById("configHora");
+
+  if(!panel.contains(e.target)){
+    config.classList.remove("activo");
+  }
+});
 
 
 

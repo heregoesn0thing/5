@@ -101,12 +101,13 @@ io.on("connection", (socket) => {
       aeronaves: []
     };
 
-   relojesSalas[nombre] = {
-  tiempoInicio: segundosIniciales,
-  momentoInicio: Date.now(),
+relojesSalas[nombre] = {
+  tiempoBase: segundosIniciales,
+  timestampBase: Date.now(),
   velocidad: 1,
   pausado: false,
 };
+
 
 
     iniciarRelojSala(nombre);
@@ -128,6 +129,7 @@ socket.on("cambiarHora", ({ hora }) => {
 
   io.to(sala).emit("horaSala", formatearHora(segundos));
 });
+
 
 
 

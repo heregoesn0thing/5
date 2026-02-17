@@ -51,39 +51,36 @@ function obtenerListaSalas() {
 
 function iniciarRelojSala(nombre) {
 
-  const reloj = relojesSalas[nombre];
+  setInterval(() => {
 
-  reloj.intervalo = setInterval(() => {
+    const hora = obtenerHoraActualSala(nombre);
+    if (!hora) return;
 
-    if (reloj.pausado) return;
-
-    const ahora = Date.now();
-    const delta = (ahora - reloj.timestampBase) / 1000 * reloj.velocidad;
-
-    reloj.tiempoBase += delta;
-    reloj.timestampBase = ahora;
-
-    const horaFormateada = formatearHora(reloj.tiempoBase);
-
-    io.to(nombre).emit("horaSala", horaFormateada);
+    io.to(nombre).emit("horaSala", hora);
 
   }, 1000);
 }
 
+
 function obtenerHoraActualSala(nombre) {
+
   const reloj = relojesSalas[nombre];
   if (!reloj) return null;
 
+  let segundosTranscurridos;
+
   if (reloj.pausado) {
-    return formatearHora(reloj.tiempoBase);
+    segundosTranscurridos = reloj.tiempoPausado;
+  } else {
+    segundosTranscurridos =
+      (Date.now() - reloj.momentoInicio) / 1000 * reloj.velocidad;
   }
 
-  const ahora = Date.now();
-  const delta = (ahora - reloj.timestampBase) / 1000 * reloj.velocidad;
-  const tiempoActual = reloj.tiempoBase + delta;
+  const total = reloj.tiempoInicio + segundosTranscurridos;
 
-  return formatearHora(tiempoActual);
+  return formatearHora(total);
 }
+
 
 // ================== SOCKET ==================
 
@@ -107,13 +104,14 @@ io.on("connection", (socket) => {
       aeronaves: []
     };
 
-    relojesSalas[nombre] = {
-      tiempoBase: segundosIniciales,
-      timestampBase: Date.now(),
-      velocidad: 1,
-      pausado: false,
-      intervalo: null
-    };
+   relojesSalas[nombre] = {
+  tiempoInicio: segundosIniciales,
+  momentoInicio: Date.now(),
+  velocidad: 1,
+  pausado: false,
+  tiempoPausado: 0
+};
+
 
     iniciarRelojSala(nombre);
 
@@ -193,24 +191,39 @@ io.on("connection", (socket) => {
   // ===== CONTROL DEL TIEMPO =====
   socket.on("controlTiempo", ({ accion, valor }) => {
 
-    const sala = socket.sala;
-    if (!sala) return;
+  const sala = socket.sala;
+  if (!sala) return;
 
-    const reloj = relojesSalas[sala];
-    if (!reloj) return;
+  const reloj = relojesSalas[sala];
+  if (!reloj) return;
 
-    const ahora = Date.now();
-    const delta = (ahora - reloj.timestampBase) / 1000 * reloj.velocidad;
+  const horaActual = obtenerHoraActualSala(sala);
 
-    reloj.tiempoBase += delta;
-    reloj.timestampBase = ahora;
+  const segundosActuales =
+    parseInt(horaActual.horas) * 3600 +
+    parseInt(horaActual.minutos) * 60 +
+    parseInt(horaActual.segundos);
 
-    if (accion === "pausar") reloj.pausado = true;
-    if (accion === "reanudar") reloj.pausado = false;
-    if (accion === "velocidad") reloj.velocidad = valor;
+  if (accion === "pausar" && !reloj.pausado) {
+    reloj.pausado = true;
+    reloj.tiempoPausado =
+      (Date.now() - reloj.momentoInicio) / 1000 * reloj.velocidad;
+  }
 
-    io.to(sala).emit("horaSala", formatearHora(reloj.tiempoBase));
-  });
+  if (accion === "reanudar" && reloj.pausado) {
+    reloj.pausado = false;
+    reloj.tiempoInicio = segundosActuales;
+    reloj.momentoInicio = Date.now();
+  }
+
+  if (accion === "velocidad") {
+    reloj.tiempoInicio = segundosActuales;
+    reloj.momentoInicio = Date.now();
+    reloj.velocidad = valor;
+  }
+
+});
+
 
   // ===== DESCONECTAR =====
   socket.on("disconnect", () => {
@@ -230,7 +243,6 @@ io.on("connection", (socket) => {
 server.listen(PORT, () => {
   console.log("Servidor corriendo en puerto", PORT);
 });
-
 
 
 

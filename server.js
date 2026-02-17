@@ -5,7 +5,6 @@ const { Server } = require("socket.io");
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
-const relojesSalas = {}
 
 const PORT = process.env.PORT || 3000;
 
@@ -19,9 +18,27 @@ app.get("/sala", (req, res) => {
   res.sendFile(__dirname + "/sala.html");
 });
 
-// ================= SALAS =================
+// ================== ESTRUCTURAS ==================
 
 let salas = {};
+let relojesSalas = {};
+
+// ================== UTILIDADES ==================
+
+function convertirHoraASegundos(horaStr) {
+  const [h, m, s] = horaStr.split(":").map(Number);
+  return h * 3600 + m * 60 + (s || 0);
+}
+
+function formatearHora(segundosTotales) {
+  segundosTotales = Math.floor(segundosTotales % 86400);
+
+  const h = Math.floor(segundosTotales / 3600).toString().padStart(2, "0");
+  const m = Math.floor((segundosTotales % 3600) / 60).toString().padStart(2, "0");
+  const s = Math.floor(segundosTotales % 60).toString().padStart(2, "0");
+
+  return { horas: h, minutos: m, segundos: s };
+}
 
 function obtenerListaSalas() {
   return Object.keys(salas).map(nombre => ({
@@ -30,16 +47,56 @@ function obtenerListaSalas() {
   }));
 }
 
+// ================== RELOJ POR SALA ==================
+
+function iniciarRelojSala(nombre) {
+
+  const reloj = relojesSalas[nombre];
+
+  reloj.intervalo = setInterval(() => {
+
+    if (reloj.pausado) return;
+
+    const ahora = Date.now();
+    const delta = (ahora - reloj.timestampBase) / 1000 * reloj.velocidad;
+
+    reloj.tiempoBase += delta;
+    reloj.timestampBase = ahora;
+
+    const horaFormateada = formatearHora(reloj.tiempoBase);
+
+    io.to(nombre).emit("horaSala", horaFormateada);
+
+  }, 1000);
+}
+
+function obtenerHoraActualSala(nombre) {
+  const reloj = relojesSalas[nombre];
+  if (!reloj) return null;
+
+  if (reloj.pausado) {
+    return formatearHora(reloj.tiempoBase);
+  }
+
+  const ahora = Date.now();
+  const delta = (ahora - reloj.timestampBase) / 1000 * reloj.velocidad;
+  const tiempoActual = reloj.tiempoBase + delta;
+
+  return formatearHora(tiempoActual);
+}
+
+// ================== SOCKET ==================
+
 io.on("connection", (socket) => {
 
   console.log("Nuevo usuario:", socket.id);
 
   socket.emit("listaSalas", obtenerListaSalas());
 
-  // ================= CREAR SALA =================
+  // ===== CREAR SALA =====
   socket.on("crearSala", ({ nombre, horaInicial }) => {
 
-  if (!salas[nombre]) {
+    if (salas[nombre]) return;
 
     const segundosIniciales = horaInicial
       ? convertirHoraASegundos(horaInicial)
@@ -59,120 +116,103 @@ io.on("connection", (socket) => {
     };
 
     iniciarRelojSala(nombre);
-  }
 
-  io.emit("listaSalas", obtenerListaSalas());
-});
-
-
-  // ================= UNIRSE =================
-  socket.on("unirseSala", (nombre) => {
-
-  if (!salas[nombre]) return;
-
-  socket.join(nombre);
-  const reloj = relojesSalas[nombre];
-
-if (reloj) {
-  const ahora = Date.now();
-  const delta = (ahora - reloj.timestampBase)/1000 * reloj.velocidad;
-  const tiempoActual = reloj.tiempoBase + delta;
-
-  const horaFormateada = formatearHora(tiempoActual);
-  socket.emit("horaSala", horaFormateada);
-}
-
-  socket.sala = nombre;
-
-  if (!salas[nombre].jugadores.includes(socket.id)) {
-    salas[nombre].jugadores.push(socket.id);
-  }
-
-  // Enviar aeronaves existentes
-  socket.emit("cargarAeronaves", salas[nombre].aeronaves);
-
-
-  io.emit("listaSalas", obtenerListaSalas());
-});
-
-
-  // ================= CREAR AERONAVE =================
-socket.on("crearAeronave", (data) => {
-
-  const sala = socket.sala;
-  if (!sala) return;
-
-  salas[sala].aeronaves.push({
-    id: data.id,
-    tipo: data.tipo,
-    lat: data.lat,
-    lng: data.lng,
-    altitud: data.altitud || 0,
-    angulo: data.angulo || 0
+    io.emit("listaSalas", obtenerListaSalas());
   });
 
-  socket.to(sala).emit("crearAeronave", data);
-});
+  // ===== UNIRSE A SALA =====
+  socket.on("unirseSala", (nombre) => {
 
+    if (!salas[nombre]) return;
 
+    socket.join(nombre);
+    socket.sala = nombre;
 
- // ================= ACTUALIZAR =================
-socket.on("actualizarAeronave", (data) => {
+    if (!salas[nombre].jugadores.includes(socket.id)) {
+      salas[nombre].jugadores.push(socket.id);
+    }
 
-  const sala = socket.sala;
-  if (!sala) return;
+    socket.emit("cargarAeronaves", salas[nombre].aeronaves);
 
-  const aeronave = salas[sala].aeronaves.find(a => a.id === data.id);
-  if (!aeronave) return;
+    // 🔥 SINCRONIZAR INMEDIATAMENTE
+    const horaActual = obtenerHoraActualSala(nombre);
+    if (horaActual) {
+      socket.emit("horaSala", horaActual);
+    }
 
-  // Actualizar datos guardados en el servidor
-  aeronave.lat = data.lat;
-  aeronave.lng = data.lng;
-  aeronave.altitud = data.altitud;
-  aeronave.angulo = data.angulo;
+    io.emit("listaSalas", obtenerListaSalas());
+  });
 
-  // Enviar solo a los demás (no al emisor)
-  socket.to(sala).emit("actualizarAeronave", data);
-});
+  // ===== CREAR AERONAVE =====
+  socket.on("crearAeronave", (data) => {
 
+    const sala = socket.sala;
+    if (!sala) return;
 
-  // ================= ELIMINAR =================
-socket.on("eliminarAeronave", (id) => {
+    salas[sala].aeronaves.push({
+      id: data.id,
+      tipo: data.tipo,
+      lat: data.lat,
+      lng: data.lng,
+      altitud: data.altitud || 0,
+      angulo: data.angulo || 0
+    });
 
-  const sala = socket.sala;
-  if (!sala) return;
+    socket.to(sala).emit("crearAeronave", data);
+  });
 
-  salas[sala].aeronaves =
-    salas[sala].aeronaves.filter(a => a.id !== id);
+  // ===== ACTUALIZAR AERONAVE =====
+  socket.on("actualizarAeronave", (data) => {
 
-  // Enviar a TODOS en la sala (incluido quien lo eliminó)
-  io.to(sala).emit("borrarAeronave", id);
-});
-socket.on("controlTiempo", ({ sala, accion, valor }) => {
+    const sala = socket.sala;
+    if (!sala) return;
 
-  const reloj = relojesSalas[sala]
-  if(!reloj) return
+    const aeronave = salas[sala].aeronaves.find(a => a.id === data.id);
+    if (!aeronave) return;
 
-  const ahora = Date.now()
-  const delta = (ahora - reloj.timestampBase)/1000 * reloj.velocidad
-  reloj.tiempoBase += delta
-  reloj.timestampBase = ahora
+    aeronave.lat = data.lat;
+    aeronave.lng = data.lng;
+    aeronave.altitud = data.altitud;
+    aeronave.angulo = data.angulo;
 
-  if(accion === "pausar"){
-    reloj.pausado = true
-  }
+    socket.to(sala).emit("actualizarAeronave", data);
+  });
 
-  if(accion === "reanudar"){
-    reloj.pausado = false
-  }
+  // ===== ELIMINAR AERONAVE =====
+  socket.on("eliminarAeronave", (id) => {
 
-  if(accion === "velocidad"){
-    reloj.velocidad = valor
-  }
-})
+    const sala = socket.sala;
+    if (!sala) return;
 
+    salas[sala].aeronaves =
+      salas[sala].aeronaves.filter(a => a.id !== id);
 
-  // ================= DESCONECTAR =================
+    io.to(sala).emit("borrarAeronave", id);
+  });
+
+  // ===== CONTROL DEL TIEMPO =====
+  socket.on("controlTiempo", ({ accion, valor }) => {
+
+    const sala = socket.sala;
+    if (!sala) return;
+
+    const reloj = relojesSalas[sala];
+    if (!reloj) return;
+
+    const ahora = Date.now();
+    const delta = (ahora - reloj.timestampBase) / 1000 * reloj.velocidad;
+
+    reloj.tiempoBase += delta;
+    reloj.timestampBase = ahora;
+
+    if (accion === "pausar") reloj.pausado = true;
+    if (accion === "reanudar") reloj.pausado = false;
+    if (accion === "velocidad") reloj.velocidad = valor;
+
+    io.to(sala).emit("horaSala", formatearHora(reloj.tiempoBase));
+  });
+
+  // ===== DESCONECTAR =====
   socket.on("disconnect", () => {
 
     for (let nombre in salas) {
@@ -185,46 +225,12 @@ socket.on("controlTiempo", ({ sala, accion, valor }) => {
 
 });
 
+// ================== INICIAR SERVIDOR ==================
 
 server.listen(PORT, () => {
   console.log("Servidor corriendo en puerto", PORT);
 });
-function convertirHoraASegundos(horaStr){
-  const [h,m,s] = horaStr.split(":").map(Number)
-  return h*3600 + m*60 + (s || 0)
-}
 
-function formatearHora(segundosTotales){
-
-  segundosTotales = Math.floor(segundosTotales % 86400)
-
-  const h = Math.floor(segundosTotales/3600).toString().padStart(2,'0')
-  const m = Math.floor((segundosTotales%3600)/60).toString().padStart(2,'0')
-  const s = Math.floor(segundosTotales%60).toString().padStart(2,'0')
-
-  return { horas:h, minutos:m, segundos:s }
-}
-
-function iniciarRelojSala(nombre){
-
-  const reloj = relojesSalas[nombre]
-
-  reloj.intervalo = setInterval(()=>{
-
-    if(reloj.pausado) return
-
-    const ahora = Date.now()
-    const delta = (ahora - reloj.timestampBase)/1000 * reloj.velocidad
-
-    reloj.tiempoBase += delta
-    reloj.timestampBase = ahora
-
-    const horaFormateada = formatearHora(reloj.tiempoBase)
-
-    io.to(nombre).emit("horaSala", horaFormateada)
-
-  },1000)
-}
 
 
 

@@ -921,14 +921,22 @@ btnEliminar.addEventListener("click", () => {
 
   modoEliminar = !modoEliminar;
 
-  if (modoEliminar) {
-    btnEliminar.classList.add("activo");
-  } else {
-    btnEliminar.classList.remove("activo");
+  btnEliminar.classList.toggle("activo");
+
+  // 🔴 Si hay emergencia activa → cancelarla
+  if(imagenPeligro){
+    map.removeLayer(imagenPeligro);
+    imagenPeligro = null;
+  }
+
+  if(temporizadorPeligro){
+    clearTimeout(temporizadorPeligro);
+    temporizadorPeligro = null;
   }
 
 });
-const PASSWORD_PELIGRO = "0223"; // cámbiala
+
+const PASSWORD_PELIGRO = "0223"; // Password hardcoded
 
 function activarModoPeligro(){
 
@@ -937,7 +945,7 @@ function activarModoPeligro(){
   if(clave === null) return;
 
   if(!/^\d+$/.test(clave)){
-    alert("only numbers allowed");
+    alert("Only numbers allowed ☠️");
     return;
   }
 
@@ -2373,26 +2381,36 @@ document.addEventListener("click", function(e){
 });
 function activarEmergencia(){
 
-  if(marcadorPeligro) return; // evita duplicados
+  // Evitar duplicados
+  if(imagenPeligro) return;
 
-  const iconoPeligro = L.icon({
-    iconUrl: "img/incursion.svg",
-    iconSize: [60, 120],
-    iconAnchor: [60, 60] // centra la imagen en el ARP
-  });
-
-  marcadorPeligro = L.marker(ARP_SPSO, {
-    icon: iconoPeligro,
-    zIndexOffset: 1000
+  imagenPeligro = L.marker(ARP_SPSO, {
+    icon: L.icon({
+      iconUrl: "img/incursion.svg",
+      iconSize: [60,120],
+      iconAnchor: [60,60]
+    }),
+    interactive: false
   }).addTo(map);
+
+  // 🔴 Activar botón rojo
+  const btn = document.getElementById("btnDanger");
+  btn.classList.add("activo");
+
+  // ⏳ AUTO DESACTIVAR EN 1 MINUTO
   temporizadorPeligro = setTimeout(() => {
-    if (imagenPeligro) {
+
+    if(imagenPeligro){
       map.removeLayer(imagenPeligro);
       imagenPeligro = null;
     }
-  }, 60000);
 
+    btn.classList.remove("activo");
+    temporizadorPeligro = null;
+
+  }, 60000); // 60 segundos
 }
+
 function desactivarEmergencia(){
 
   if(!marcadorPeligro) return;

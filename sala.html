@@ -327,31 +327,7 @@ html, body{
   background: red;
 }
 #relojHora{ font-size:20px; margin-bottom:8px; }
-#relojGlobal{
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 9999;
-  background: black;
-  color: lime;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-family: monospace;
-  font-size: 18px;
-  transition: opacity 0.2s ease;
-}
 
-#timeControls{
-  position: fixed;
-  top: 70px;
-  right: 20px;
-  z-index: 9999;
-  display: flex;
-  gap: 6px;
-  background: rgba(0,0,0,0.8);
-  padding: 8px;
-  border-radius: 8px;
-}
 
 #timeControls button{
   background:#1e2f45;
@@ -383,10 +359,17 @@ html, body{
   color: #38bdf8;
 }
 
+
 #timeControls{
+  position: fixed;
+  top: 70px;
+  right: 20px;
+  z-index: 9999;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  gap: 6px;
+  background: rgba(0,0,0,0.8);
+  padding: 8px;
+  border-radius: 8px;
 }
 
 #timeControls button{
@@ -509,9 +492,17 @@ socket.on("cargarAeronaves", lista => {
 socket.on("horaSala", data => {
   const reloj = document.getElementById("relojGlobal");
   if(!reloj) return;
-  reloj.textContent =
-    `${data.horas}:${data.minutos}:${data.segundos}`;
+
+  const texto =
+    `${String(data.horas).padStart(2,"0")}:` +
+    `${String(data.minutos).padStart(2,"0")}:` +
+    `${String(data.segundos).padStart(2,"0")}`;
+
+  if(reloj.textContent !== texto){
+    reloj.textContent = texto;
+  }
 });
+
 
 
 
@@ -2010,11 +2001,15 @@ function cambiarHora() {
 
   const nuevaHora = document.getElementById("inputHora").value;
 
+  if(!nuevaHora) return;
+
   socket.emit("cambiarHora", {
     hora: nuevaHora
   });
 
+  document.getElementById("configHora").classList.remove("activo");
 }
+
 function toggleConfig(){
   const panel = document.getElementById("configHora");
   panel.classList.toggle("activo");

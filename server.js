@@ -22,6 +22,7 @@ app.get("/sala", (req, res) => {
 
 let salas = {};
 let relojesSalas = {};
+let intervalosSalas = {};
 
 // ================== UTILIDADES ==================
 
@@ -51,7 +52,10 @@ function obtenerListaSalas() {
 
 function iniciarRelojSala(nombre) {
 
-  setInterval(() => {
+  // Evitar duplicados
+  if (intervalosSalas[nombre]) return;
+
+  intervalosSalas[nombre] = setInterval(() => {
 
     const hora = obtenerHoraActualSala(nombre);
     if (!hora) return;
@@ -60,6 +64,7 @@ function iniciarRelojSala(nombre) {
 
   }, 1000);
 }
+
 
 
 function obtenerHoraActualSala(nombre) {

@@ -19,10 +19,12 @@ html, body{
   overflow:hidden;
 }
 
-#map{
-  height:100vh;
-  width:100%;
+#map {
+  height: 100vh;
+  width: 100%;
+  z-index: 1;
 }
+
 
 
 .icon-wrapper{
@@ -337,6 +339,18 @@ html, body{
   border-radius:8px;
   letter-spacing:2px;
   box-shadow:0 0 10px rgba(0,255,200,0.4);
+}
+#relojGlobal {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  background: black;
+  color: lime;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 18px;
 }
 
 </style>

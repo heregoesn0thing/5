@@ -181,19 +181,24 @@
       const ul = document.getElementById("listaSalas");
       const mensajeVacio = document.getElementById("mensajeVacio");
 
-      function crearSala() {
-        const nombre = input.value.trim();
-        if (!nombre) {
-          alert("Escribe un nombre");
-          return;
-        }
-        socket.emit("crearSala", {
-  nombre: nombre,
-  horaInicial: "00:00:00"
+  function crearSala() {
+  const nombre = input.value.trim();
+  if (!nombre) {
+    alert("Escribe un nombre");
+    return;
+  }
+
+  socket.emit("crearSala", {
+    nombre,
+    horaInicial: "00:00:00"
+  });
+
+  input.value = "";
+}
+socket.on("errorSala", (msg) => {
+  alert(msg);
 });
 
-        input.value = "";
-      }
 
       function unirse(nombre) {
         window.location.href = "/sala?nombre=" + encodeURIComponent(nombre);
@@ -230,6 +235,9 @@
           ul.appendChild(li);
         });
       });
+socket.on("errorSala", (msg) => {
+  alert(msg);
+});
 
       // =========================
       // TESTS BÁSICOS EN CONSOLA

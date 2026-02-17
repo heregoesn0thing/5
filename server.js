@@ -240,7 +240,16 @@ socket.on("controlTiempo", ({ accion, valor }) => {
   });
 
 });
+// ==== ACTIVAR PELIGRO =====
+socket.on("activarPeligroSala", ({ sala }) => {
 
+  io.to(sala).emit("peligroActivado")
+
+  setTimeout(() => {
+    io.to(sala).emit("peligroDesactivado")
+  }, 60000)
+
+})
 
 
 

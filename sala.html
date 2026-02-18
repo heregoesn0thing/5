@@ -1444,6 +1444,39 @@ function cambiarVelocidad(valor){
 
   document.getElementById("speedValue").innerText = valor
 }
+function agregarAeronave(data, esRemota = true) {
+
+  if(aeronaves.some(a => a.id === data.id)) return
+
+  const marker = L.marker([data.lat, data.lng], {
+    icon: crearIcono(data.id, data.tipo),
+    interactive: true
+  }).addTo(map)
+
+  const nueva = {
+    id: data.id,
+    tipo: data.tipo,
+    marker: marker,
+    remoto: esRemota,
+    altitud: data.altitud || 0,
+    angulo: data.angulo || 0,
+    ruta: null,
+    puntosRuta: [],
+    modoManual:false,
+    intervaloManual:null,
+    indiceRuta: 0,
+    taxiPausado: false
+  }
+
+  aeronaves.push(nueva)
+}
+socket.on("crearAeronave", data => {
+  agregarAeronave(data, true)
+})
+
+socket.on("cargarAeronaves", lista => {
+  lista.forEach(data => agregarAeronave(data, true))
+})
 
 // ================= ROUTE =================
 

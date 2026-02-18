@@ -236,6 +236,13 @@ socket.on("errorSala", (msg) => {
         });
       });
 
+      // =========================
+      // TESTS BÁSICOS EN CONSOLA
+      // =========================
+      console.assert(typeof socket !== "undefined", "❌ Socket no fue inicializado");
+      console.assert(typeof crearSala === "function", "❌ crearSala no está definida");
+      console.assert(typeof unirse === "function", "❌ unirse no está definida");
+      console.log("✅ Lobby inicializado correctamente");
     });
   </script>
 

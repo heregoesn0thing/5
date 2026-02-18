@@ -196,6 +196,7 @@ socket.on("crearAeronave", (data) => {
     angulo: data.angulo || 0
   });
 
+  socket.to(sala).emit("crearAeronave", data);
   io.to(sala).emit("crearAeronave", data);
 
 
@@ -297,32 +298,3 @@ socket.on("desactivarPeligroSala", () => {
 server.listen(PORT, () => {
   console.log("Servidor corriendo en puerto", PORT);
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

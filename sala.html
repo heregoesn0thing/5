@@ -2079,59 +2079,56 @@ function moverPorPuntos(a){
       return
     }
 
-    const inicio = a.marker.getLatLng()
-    const fin = ruta[i+1]
+  const inicio = L.latLng(ruta[i].lat, ruta[i].lng)
+const fin = ruta[i+1]
 
-    a.angulo = calcularBearing(inicio, fin)
-    actualizarRotacion(a)
+a.angulo = calcularBearing(inicio, fin)
+actualizarRotacion(a)
 
-    const dist = map.distance(inicio, fin)
-    const dur = (dist / VELOCIDAD) * 1000
-    const start = Date.now()
+const dist = map.distance(inicio, fin)
+const dur = (dist / VELOCIDAD) * 1000
+const start = Date.now()
 
-    a.intervaloMovimiento = setInterval(()=>{
+a.intervaloMovimiento = setInterval(()=>{
 
   if(a.taxiPausado){
-        clearInterval(a.intervaloMovimiento)
-        a.indiceRuta = i
-        return
+    clearInterval(a.intervaloMovimiento)
+    a.indiceRuta = i
+    return
   }
 
   const t = (Date.now() - start) / dur
 
   if(t >= 1){
+    a.marker.setLatLng(fin)
+    clearInterval(a.intervaloMovimiento)
+    i++
+    a.indiceRuta = i
 
-  a.marker.setLatLng(fin)
-  clearInterval(a.intervaloMovimiento)
+    if(a.ruta){
+      const restante = a.puntosRuta.slice(i)
+      a.ruta.setLatLngs(restante)
+    }
 
-  i++
-  a.indiceRuta = i
-
-  // 🔥 Actualizar línea visible sin destruir el array
-  if(a.ruta){
-    const restante = a.puntosRuta.slice(i)
-    a.ruta.setLatLngs(restante)
+    mover()
+    return
   }
 
-  mover()
-  return
-}
+  const lat = inicio.lat + (fin.lat - inicio.lat) * t
+  const lng = inicio.lng + (fin.lng - inicio.lng) * t
 
+  a.marker.setLatLng([lat, lng])
 
+  socket.emit("actualizarAeronave", {
+    id: a.id,
+    lat: lat,
+    lng: lng,
+    altitud: a.altitud,
+    angulo: a.angulo
+  })
 
-      const lat = inicio.lat + (fin.lat - inicio.lat) * t
-      const lng = inicio.lng + (fin.lng - inicio.lng) * t
-      a.marker.setLatLng([lat, lng])
+},30)
 
-      socket.emit("actualizarAeronave", {
-        id: a.id,
-        lat: lat,
-        lng: lng,
-        altitud: a.altitud,
-        angulo: a.angulo
-      })
-
-    },30)
   }
 
   mover()

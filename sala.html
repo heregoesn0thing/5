@@ -569,6 +569,14 @@ const socket = io()
 const params = new URLSearchParams(window.location.search);
 const nombreSala = params.get("nombre");
 
+if(!nombreSala){
+  alert("No room specified");
+  window.location.href = "/";
+}else{
+  socket.emit("unirseSala", nombreSala);
+}
+
+
 // Icono para C172
 const iconoC172 = L.divIcon({
   className: "icon-wrapper",

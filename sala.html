@@ -683,6 +683,8 @@ socket.on("estadoTiempo", (data) => {
   <div id="panelBody">
 
     <div id="aircraftInfo"></div>
+<div id="controlesEdicion">
+ 
 
     <button onclick="activarModoRuta()">Create Route</button>
     <div class="taxi-controls">
@@ -724,7 +726,7 @@ socket.on("estadoTiempo", (data) => {
              value="0"
              oninput="cambiarVelocidad(this.value)">
     </div>
-
+</div>
   </div>
 </div>
 <div id="panelTiempo">
@@ -1368,32 +1370,8 @@ function seleccionarAeronave(obj){
   }else{
     document.getElementById("panelRumbo").classList.add("oculto")
   }
-  aplicarPermisos(obj)
-
-}
-function aplicarPermisos(a){
-
-  const botones = document.querySelectorAll(
-    "#panelBody button, #panelBody select, #speedSlider"
-  )
-
-  if(a.remoto){
-
-    botones.forEach(el=>{
-      el.disabled = true
-      el.style.opacity = "0.4"
-      el.style.pointerEvents = "none"
-    })
-
-  }else{
-
-    botones.forEach(el=>{
-      el.disabled = false
-      el.style.opacity = "1"
-      el.style.pointerEvents = "auto"
-    })
-
-  }
+document.getElementById("controlesEdicion").style.display =
+  a.remoto ? "none" : "block"
 }
 
 

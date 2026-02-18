@@ -218,7 +218,7 @@ socket.on("crearAeronave", (data) => {
     aeronave.altitud = data.altitud;
     aeronave.angulo = data.angulo;
 
-    io.to(sala).emit("actualizarAeronave", data);
+    socket.to(sala).emit("actualizarAeronave", data);
 
   });
 

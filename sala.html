@@ -613,9 +613,10 @@ socket.on("cargarAeronaves", lista => {
       remoto: true,
       altitud: data.altitud || 0,
       angulo: data.angulo || 0,
-      velocidadObjetivo: 0,
-      ruta: null,        
-      puntosRuta: []
+      estado: "idle",
+      indiceRuta: 0,
+      animFrame: null,
+      puntosRuta: [],
     }
 
     aeronaves.push(nueva)
@@ -1176,7 +1177,9 @@ function confirmarCreacion(){
     sid: null,
     altitud: 0,
     velocidad: 0,
-    velocidadObjetivo: 0,
+    estado: "idle",
+    indiceRuta: 0,
+    animFrame: null,
     star: null,
     starActivo: false,
     faseStar: null,
@@ -1545,35 +1548,15 @@ function iniciarRodaje(){
     return;
   }
 
-  // 🔥 Si estaba pausado → continuar
-  if(a.taxiPausado){
-    a.taxiPausado = false;
-    a.rodando = true;
-    moverPorPuntos(a);
-    mostrarTaxiing(a,true);
-    actualizarPanelInfo(a);
-    return;
-  }
+  if(a.estado === "taxi") return;
 
-  // 🔥 Si ya estaba rodando → no hacer nada
-  if(a.rodando) return;
+  a.estado = "taxi";
 
-  // 🔥 Inicio normal
-  a.rodando = true;
-  a.taxiPausado = false;
-
-  // SOLO iniciar índice si es primera vez
-  if(a.indiceRuta === undefined){
-    a.indiceRuta = 0;
-  }
-
-  moverPorPuntos(a);
   mostrarTaxiing(a,true);
   actualizarPanelInfo(a);
+
+  moverPorPuntos(a);
 }
-
-
-
 
 function detenerRodaje(){
 
@@ -1581,18 +1564,16 @@ function detenerRodaje(){
 
   const a = aeronaveSeleccionada;
 
-  a.taxiPausado = true;
-  a.rodando = false;
+  a.estado = "idle";
 
-  if(a.intervaloMovimiento){
-    clearInterval(a.intervaloMovimiento);
-    a.intervaloMovimiento = null;
+  if(a.animFrame){
+    cancelAnimationFrame(a.animFrame);
+    a.animFrame = null;
   }
 
   mostrarTaxiing(a,false);
   actualizarPanelInfo(a);
 }
-
 
 function activarModoManual(){
 
@@ -2077,73 +2058,46 @@ function actualizarRotacion(a){
 
 function moverPorPuntos(a){
 
-  let i = a.indiceRuta || 0
-  const ruta = a.puntosRuta
+  if(a.estado !== "taxi") return;
 
-  function mover(){
+  if(!a.puntosRuta || a.puntosRuta.length < 2) return;
 
-    if(a.taxiPausado) return
-
-    if(i >= ruta.length - 1){
-      a.rodando = false
-      mostrarTaxiing(a,false)
-      return
-    }
-
-  const inicio = L.latLng(ruta[i].lat, ruta[i].lng)
-const fin = ruta[i+1]
-
-a.angulo = calcularBearing(inicio, fin)
-actualizarRotacion(a)
-
-const dist = map.distance(inicio, fin)
-const dur = (dist / VELOCIDAD) * 1000
-const start = Date.now()
-
-a.intervaloMovimiento = setInterval(()=>{
-
-  if(a.taxiPausado){
-    clearInterval(a.intervaloMovimiento)
-    a.indiceRuta = i
-    return
+  if(a.indiceRuta >= a.puntosRuta.length - 1){
+    a.estado = "idle";
+    mostrarTaxiing(a,false);
+    return;
   }
 
-  const t = (Date.now() - start) / dur
+  const actual = L.latLng(a.marker.getLatLng());
+  const destino = L.latLng(a.puntosRuta[a.indiceRuta + 1]);
 
-  if(t >= 1){
-    a.marker.setLatLng(fin)
-    clearInterval(a.intervaloMovimiento)
-    i++
-    a.indiceRuta = i
+  const distancia = actual.distanceTo(destino);
 
-    if(a.ruta){
-      const restante = a.puntosRuta.slice(i)
-      a.ruta.setLatLngs(restante)
-    }
-
-    mover()
-    return
+  if(distancia < 0.5){
+    a.indiceRuta++;
+    moverPorPuntos(a);
+    return;
   }
 
-  const lat = inicio.lat + (fin.lat - inicio.lat) * t
-  const lng = inicio.lng + (fin.lng - inicio.lng) * t
+  const velocidad = 8; // metros por frame ajustable
+  const fraccion = velocidad / distancia;
 
-  a.marker.setLatLng([lat, lng])
+  const nuevaLat = actual.lat + (destino.lat - actual.lat) * fraccion;
+  const nuevaLng = actual.lng + (destino.lng - actual.lng) * fraccion;
+
+  a.marker.setLatLng([nuevaLat, nuevaLng]);
 
   socket.emit("actualizarAeronave", {
     id: a.id,
-    lat: lat,
-    lng: lng,
+    lat: nuevaLat,
+    lng: nuevaLng,
     altitud: a.altitud,
     angulo: a.angulo
-  })
+  });
 
-},16)
-
-  }
-
-  mover()
+  a.animFrame = requestAnimationFrame(() => moverPorPuntos(a));
 }
+
 
 
 

@@ -935,7 +935,29 @@ btnEliminar.addEventListener("click", () => {
   }
 
 });
+socket.on("peligroActivado", () => {
 
+  if(imagenPeligro) return
+
+  imagenPeligro = L.marker(ARP_SPSO, {
+    icon: L.icon({
+      iconUrl: "img/peligro.png",
+      iconSize: [120,120],
+      iconAnchor: [60,60]
+    }),
+    interactive:false
+  }).addTo(map)
+
+})
+
+socket.on("peligroDesactivado", () => {
+
+  if(imagenPeligro){
+    map.removeLayer(imagenPeligro)
+    imagenPeligro = null
+  }
+
+})
 const PASSWORD_PELIGRO = "0223"; // Password hardcoded
 
 function activarModoPeligro(){
@@ -950,7 +972,11 @@ function activarModoPeligro(){
   }
 
   if(clave === PASSWORD_PELIGRO){
-    activarEmergencia();
+    activarEmergencia()
+    socket.emit("activarPeligroSala", {
+  sala: nombreSala
+})
+;
   }else{
     alert("Don't try again please ☠️");
   }

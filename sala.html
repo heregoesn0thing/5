@@ -683,7 +683,7 @@ socket.on("estadoTiempo", (data) => {
   <div id="panelBody">
 
     <div id="aircraftInfo"></div>
-<div id="controlesEdicion">
+
  
 
     <button onclick="activarModoRuta()">Create Route</button>
@@ -726,7 +726,7 @@ socket.on("estadoTiempo", (data) => {
              value="0"
              oninput="cambiarVelocidad(this.value)">
     </div>
-</div>
+
   </div>
 </div>
 <div id="panelTiempo">
@@ -1370,8 +1370,6 @@ function seleccionarAeronave(obj){
   }else{
     document.getElementById("panelRumbo").classList.add("oculto")
   }
-document.getElementById("controlesEdicion").style.display =
-  obj.remoto ? "none" : "block"
 }
 
 
@@ -1538,35 +1536,20 @@ function eliminarRuta(){
 
 function iniciarRodaje(){
 
-  if(!aeronaveSeleccionada) return
+  if(!aeronaveSeleccionada) return;
 
-  const a = aeronaveSeleccionada
-
-  if(!a.ruta || !a.puntosRuta || a.puntosRuta.length < 2){
-    return
+  // Si no tiene ruta, no hacer nada
+  if(!aeronaveSeleccionada.puntosRuta ||
+     aeronaveSeleccionada.puntosRuta.length === 0){
+    alert("No route created");
+    return;
   }
 
-  // Si estaba pausado → solo reanudar
-  if(a.taxiPausado){
-    a.taxiPausado = false
-    moverPorPuntos(a)
-    mostrarTaxiing(a, true)
-    return
-  }
+  // Si ya estaba en taxi → solo reanudar
+  aeronaveSeleccionada.velocidadObjetivo = 15; // o tu velocidad taxi
 
-  // Inicio normal
-  a.rodando = true
-  a.taxiPausado = false
-  a.indiceRuta = 0
-
-  a.marker.dragging.disable()
-  mostrarTaxiing(a, true)
-
-  moverPorPuntos(a)
-
-  actualizarPanelInfo(a)
-  actualizarBotonTaxi()
 }
+
 
 
 

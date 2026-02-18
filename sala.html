@@ -935,30 +935,8 @@ btnEliminar.addEventListener("click", () => {
   }
 
 });
-socket.on("peligroActivado", () => {
 
-  if(imagenPeligro) return
-
-  imagenPeligro = L.marker(ARP_SPSO, {
-    icon: L.icon({
-      iconUrl: "img/peligro.png",
-      iconSize: [120,120],
-      iconAnchor: [60,60]
-    }),
-    interactive:false
-  }).addTo(map)
-
-})
-
-socket.on("peligroDesactivado", () => {
-
-  if(imagenPeligro){
-    map.removeLayer(imagenPeligro)
-    imagenPeligro = null
-  }
-
-})
-const PASSWORD_PELIGRO = "0223"; // Password hardcoded
+const PASSWORD_PELIGRO = "0223"; // cámbiala
 
 function activarModoPeligro(){
 
@@ -967,16 +945,12 @@ function activarModoPeligro(){
   if(clave === null) return;
 
   if(!/^\d+$/.test(clave)){
-    alert("Only numbers allowed ☠️");
+    alert("only numbers allowed");
     return;
   }
 
   if(clave === PASSWORD_PELIGRO){
-    activarEmergencia()
-    socket.emit("activarPeligroSala", {
-  sala: nombreSala
-})
-;
+    activarEmergencia();
   }else{
     alert("Don't try again please ☠️");
   }
@@ -2413,7 +2387,7 @@ function activarEmergencia(){
   imagenPeligro = L.marker(ARP_SPSO, {
     icon: L.icon({
       iconUrl: "img/incursion.svg",
-      iconSize: [60,120],
+      iconSize: [120,120],
       iconAnchor: [60,60]
     }),
     interactive: false

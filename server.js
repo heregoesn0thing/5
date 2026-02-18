@@ -177,7 +177,8 @@ socket.on("cambiarHora", ({ hora }) => {
       angulo: data.angulo || 0
     });
 
-    socket.to(sala).emit("crearAeronave", data);
+    io.to(sala).emit("crearAeronave", data);
+
   });
 
   // ===== ACTUALIZAR AERONAVE =====
@@ -194,7 +195,7 @@ socket.on("cambiarHora", ({ hora }) => {
     aeronave.altitud = data.altitud;
     aeronave.angulo = data.angulo;
 
-    socket.to(sala).emit("actualizarAeronave", data);
+    io.to(sala).emit("actualizarAeronave", data);
   });
 
   // ===== ELIMINAR AERONAVE =====

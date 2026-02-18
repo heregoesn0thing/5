@@ -594,8 +594,7 @@ const iconoC172 = L.divIcon({
   iconAnchor: [20, 20]
 });
 
-// Unirse realmente a la room
-socket.emit("unirseSala", nombreSala);
+// Unirse realmente a la sala
 socket.on("cargarAeronaves", lista => {
 
   lista.forEach(data => {

@@ -1538,16 +1538,38 @@ function iniciarRodaje(){
 
   if(!aeronaveSeleccionada) return;
 
-  // Si no tiene ruta, no hacer nada
-  if(!aeronaveSeleccionada.puntosRuta ||
-     aeronaveSeleccionada.puntosRuta.length === 0){
+  const a = aeronaveSeleccionada;
+
+  if(!a.puntosRuta || a.puntosRuta.length < 2){
     alert("No route created");
     return;
   }
 
-  // Si ya estaba en taxi → solo reanudar
-  aeronaveSeleccionada.velocidadObjetivo = 15; // o tu velocidad taxi
+  // 🔥 Si estaba pausado → continuar
+  if(a.taxiPausado){
+    a.taxiPausado = false;
+    a.rodando = true;
+    moverPorPuntos(a);
+    mostrarTaxiing(a,true);
+    actualizarPanelInfo(a);
+    return;
+  }
 
+  // 🔥 Si ya estaba rodando → no hacer nada
+  if(a.rodando) return;
+
+  // 🔥 Inicio normal
+  a.rodando = true;
+  a.taxiPausado = false;
+
+  // SOLO iniciar índice si es primera vez
+  if(a.indiceRuta === undefined){
+    a.indiceRuta = 0;
+  }
+
+  moverPorPuntos(a);
+  mostrarTaxiing(a,true);
+  actualizarPanelInfo(a);
 }
 
 
@@ -1555,21 +1577,22 @@ function iniciarRodaje(){
 
 function detenerRodaje(){
 
-  if(!aeronaveSeleccionada) return
+  if(!aeronaveSeleccionada) return;
 
-  const a = aeronaveSeleccionada
+  const a = aeronaveSeleccionada;
 
-  a.taxiPausado = true
-  a.rodando = false
+  a.taxiPausado = true;
+  a.rodando = false;
 
   if(a.intervaloMovimiento){
-    clearInterval(a.intervaloMovimiento)
-    a.intervaloMovimiento = null
+    clearInterval(a.intervaloMovimiento);
+    a.intervaloMovimiento = null;
   }
 
-  mostrarTaxiing(a, false)
-  actualizarPanelInfo(a)
+  mostrarTaxiing(a,false);
+  actualizarPanelInfo(a);
 }
+
 
 function activarModoManual(){
 

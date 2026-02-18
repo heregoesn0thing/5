@@ -948,8 +948,8 @@ socket.on("peligroActivado", () => {
 
   imagenPeligro = L.marker(ARP_SPSO, {
     icon: L.icon({
-      iconUrl: "img/peligro.png",
-      iconSize: [120,120],
+      iconUrl: "img/incursion.svg",
+      iconSize: [60,120],
       iconAnchor: [60,60]
     }),
     interactive:false
@@ -1476,13 +1476,6 @@ function agregarAeronave(data, esRemota = true) {
 
   aeronaves.push(nueva)
 }
-socket.on("crearAeronave", data => {
-  agregarAeronave(data, true)
-})
-
-socket.on("cargarAeronaves", lista => {
-  lista.forEach(data => agregarAeronave(data, true))
-})
 
 // ================= ROUTE =================
 
@@ -1645,7 +1638,7 @@ actualizarRotacion(a)
       angulo:a.angulo
     })
 
-  },50)
+  }, 100)
 
 }
 
@@ -1918,7 +1911,7 @@ socket.emit("actualizarAeronave", {
 
 })
 
-  },50)
+  },100)
 }
 
 // ================= DEPARTURE INFO =================
@@ -2278,7 +2271,7 @@ socket.emit("actualizarAeronave", {
     angulo: a.angulo
 })
 
-  },50)
+  },100)
 }
 
 

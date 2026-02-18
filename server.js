@@ -196,8 +196,8 @@ socket.on("crearAeronave", (data) => {
     angulo: data.angulo || 0
   });
 
-  socket.to(sala).emit("crearAeronave", data);
   io.to(sala).emit("crearAeronave", data);
+
 
 
 });
@@ -274,7 +274,7 @@ socket.on("controlTiempo", ({ accion, valor }) => {
 socket.on("desactivarPeligroSala", () => {
   const sala = socket.sala;
   if (!sala) return;
-
+ peligroSalas[sala] = false;
   io.to(sala).emit("peligroDesactivado");
 });
 

@@ -168,6 +168,9 @@ socket.on("cambiarHora", ({ hora }) => {
     }
 
     socket.emit("cargarAeronaves", salas[nombre].aeronaves);
+if (peligroSalas[nombre]) {
+  socket.emit("peligroActivado");
+}
 
     // 🔥 SINCRONIZAR INMEDIATAMENTE
     const horaActual = obtenerHoraActualSala(nombre);
@@ -193,7 +196,8 @@ socket.on("cambiarHora", ({ hora }) => {
       angulo: data.angulo || 0
     });
 
-    socket.to(sala).emit("crearAeronave", data);
+    io.to(sala).emit("crearAeronave", data);
+
   });
 
   // ===== ACTUALIZAR AERONAVE =====
@@ -210,7 +214,8 @@ socket.on("cambiarHora", ({ hora }) => {
     aeronave.altitud = data.altitud;
     aeronave.angulo = data.angulo;
 
-    socket.to(sala).emit("actualizarAeronave", data);
+    io.to(sala).emit("actualizarAeronave", data);
+
   });
 
   // ===== ELIMINAR AERONAVE =====
@@ -261,12 +266,7 @@ socket.on("controlTiempo", ({ accion, valor }) => {
   });
 
 });
-socket.on("activarPeligroSala", () => {
-  const sala = socket.sala;
-  if (!sala) return;
 
-  io.to(sala).emit("peligroActivado");
-});
 socket.on("desactivarPeligroSala", () => {
   const sala = socket.sala;
   if (!sala) return;

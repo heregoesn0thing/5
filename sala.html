@@ -595,52 +595,6 @@ const iconoC172 = L.divIcon({
 });
 let aeronaves = []
 // Unirse realmente a la sala
-socket.on("cargarAeronaves", lista => {
-
-  lista.forEach(data => {
-
-    if (aeronaves.some(a => a.id === data.id)) return
-
-    const marker = L.marker([data.lat, data.lng], {
-      icon: crearIcono(data.id, data.tipo),
-      interactive: true
-    }).addTo(map)
-
-    const nueva = {
-      id: data.id,
-      tipo: data.tipo,
-      marker: marker,
-      remoto: true,
-      altitud: data.altitud || 0,
-      angulo: data.angulo || 0,
-      velocidadObjetivo: 0,
-      ruta: null,        
-      puntosRuta: []
-    }
-
-    aeronaves.push(nueva)
-
-    marker.on("click", function(event){
-
-      L.DomEvent.stopPropagation(event)
-
-      if (modoEliminar) {
-
-        socket.emit("eliminarAeronave", nueva.id)
-
-        modoEliminar = false
-        btnEliminar.classList.remove("activo")
-
-        return
-      }
-
-      seleccionarAeronave(nueva)
-
-    })
-
-  })
-
-})
 socket.on("horaSala", data => {
   const reloj = document.getElementById("relojGlobal");
   if(!reloj) return;
@@ -1226,52 +1180,7 @@ socket.emit("crearAeronave", {
 })
 
 }
-socket.on("crearAeronave", data => {
 
-  if(aeronaves.some(a => a.id === data.id)) return
-
-  const marker = L.marker([data.lat, data.lng], {
-    icon: crearIcono(data.id, data.tipo),
-    interactive: true
-  }).addTo(map)
-
-  const nueva = {
-    id: data.id,
-    tipo: data.tipo,
-    marker: marker,
-    remoto: true,
-    altitud: data.altitud || 0,
-    angulo: data.angulo || 0,
-    ruta: null,       
-   puntosRuta: [],
-   modoManual:false,
-   intervaloManual:null,
-   indiceRuta: 0,
-   taxiPausado: false
-
-  }
-
-  aeronaves.push(nueva)
-
-  marker.on("click", function(event){
-
-    L.DomEvent.stopPropagation(event)
-
-    if (modoEliminar) {
-
-      socket.emit("eliminarAeronave", nueva.id)
-
-      modoEliminar = false
-      btnEliminar.classList.remove("activo")
-
-      return
-    }
-
-    seleccionarAeronave(nueva)
-
-  })
-
-})
 
 socket.on("actualizarAeronave", data => {
 

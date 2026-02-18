@@ -593,7 +593,7 @@ const iconoC172 = L.divIcon({
   iconSize: [40, 40],
   iconAnchor: [20, 20]
 });
-
+let aeronaves = []
 // Unirse realmente a la sala
 socket.on("cargarAeronaves", lista => {
 
@@ -880,7 +880,7 @@ crearVOR("SCO VOR", -13.738556, -76.212750)
 
 // ================= VARIABLES =================
 
-let aeronaves = []
+
 let aeronaveSeleccionada = null
 let modoRuta = false
 let rutaTemporal = []

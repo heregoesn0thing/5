@@ -182,25 +182,24 @@ if (peligroSalas[nombre]) {
   });
 
   // ===== CREAR AERONAVE =====
- socket.on("crearAeronave", (data) => {
+socket.on("crearAeronave", (data) => {
 
   const sala = socket.sala;
   if (!sala) return;
 
-  const nueva = {
+  salas[sala].aeronaves.push({
     id: data.id,
     tipo: data.tipo,
     lat: data.lat,
     lng: data.lng,
     altitud: data.altitud || 0,
     angulo: data.angulo || 0
-  };
+  });
 
-  salas[sala].aeronaves.push(nueva);
-
-  io.to(sala).emit("crearAeronave", nueva);
+  socket.to(sala).emit("crearAeronave", data);
 
 });
+
 
 
   // ===== ACTUALIZAR AERONAVE =====

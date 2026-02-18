@@ -936,7 +936,7 @@ btnEliminar.addEventListener("click", () => {
 
 });
 
-const PASSWORD_PELIGRO = "0223"; // cámbiala
+const PASSWORD_PELIGRO = "0223"; // Password hardcoded
 
 function activarModoPeligro(){
 
@@ -945,7 +945,7 @@ function activarModoPeligro(){
   if(clave === null) return;
 
   if(!/^\d+$/.test(clave)){
-    alert("only numbers allowed");
+    alert("Only numbers allowed ☠️");
     return;
   }
 
@@ -2387,7 +2387,7 @@ function activarEmergencia(){
   imagenPeligro = L.marker(ARP_SPSO, {
     icon: L.icon({
       iconUrl: "img/incursion.svg",
-      iconSize: [120,120],
+      iconSize: [60,120],
       iconAnchor: [60,60]
     }),
     interactive: false

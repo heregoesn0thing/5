@@ -233,6 +233,10 @@ socket.on("controlTiempo", ({ accion, valor }) => {
     reloj.timestampBase = Date.now();
   }
 
+  if (accion === "velocidad") {
+    reloj.velocidad = valor;
+    reloj.timestampBase = Date.now();
+  }
 
   // 🔥 NUEVO
   io.to(sala).emit("estadoTiempo", {
@@ -240,16 +244,6 @@ socket.on("controlTiempo", ({ accion, valor }) => {
   });
 
 });
-// ==== ACTIVAR PELIGRO =====
-socket.on("activarPeligroSala", ({ sala }) => {
-
-  io.to(sala).emit("peligroActivado")
-
-  setTimeout(() => {
-    io.to(sala).emit("peligroDesactivado")
-  }, 60000)
-
-})
 
 
 

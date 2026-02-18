@@ -1165,6 +1165,7 @@ function confirmarCreacion(){
     tipo,
     id: callsign,
     marker,
+    remoto: false, 
     ruta: null,
     puntosRuta: [],
     rodando: false,
@@ -1366,6 +1367,32 @@ function seleccionarAeronave(obj){
     actualizarHeadingDisplay(obj)
   }else{
     document.getElementById("panelRumbo").classList.add("oculto")
+  }
+  aplicarPermisos(obj)
+
+}
+function aplicarPermisos(a){
+
+  const botones = document.querySelectorAll(
+    "#panelBody button, #panelBody select, #speedSlider"
+  )
+
+  if(a.remoto){
+
+    botones.forEach(el=>{
+      el.disabled = true
+      el.style.opacity = "0.4"
+      el.style.pointerEvents = "none"
+    })
+
+  }else{
+
+    botones.forEach(el=>{
+      el.disabled = false
+      el.style.opacity = "1"
+      el.style.pointerEvents = "auto"
+    })
+
   }
 }
 

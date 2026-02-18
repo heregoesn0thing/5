@@ -52,22 +52,18 @@ function obtenerListaSalas() {
 
 function iniciarRelojSala(nombre) {
 
+  // Evitar duplicados
   if (intervalosSalas[nombre]) return;
 
   intervalosSalas[nombre] = setInterval(() => {
 
-    const reloj = relojesSalas[nombre];
-    if (!reloj) return;
+    const hora = obtenerHoraActualSala(nombre);
+    if (!hora) return;
 
-    if (!reloj.pausado) {
-      reloj.tiempoBase += 1;
-    }
-
-    io.to(nombre).emit("horaSala", formatearHora(reloj.tiempoBase));
+    io.to(nombre).emit("horaSala", hora);
 
   }, 1000);
 }
-
 
 
 
@@ -113,6 +109,7 @@ io.on("connection", (socket) => {
 relojesSalas[nombre] = {
   tiempoBase: segundosIniciales,
   timestampBase: Date.now(),
+  velocidad: 1,
   pausado: false,
 };
 
@@ -130,11 +127,13 @@ socket.on("cambiarHora", ({ hora }) => {
   const reloj = relojesSalas[sala];
   if (!reloj) return;
 
-  reloj.tiempoBase = convertirHoraASegundos(hora);
+  const segundos = convertirHoraASegundos(hora);
 
-  io.to(sala).emit("horaSala", formatearHora(reloj.tiempoBase));
+  reloj.tiempoBase = segundos;
+  reloj.timestampBase = Date.now();
+
+  io.to(sala).emit("horaSala", formatearHora(segundos));
 });
-
 
 
 
@@ -177,8 +176,7 @@ socket.on("cambiarHora", ({ hora }) => {
       angulo: data.angulo || 0
     });
 
-    io.to(sala).emit("crearAeronave", data);
-
+    socket.to(sala).emit("crearAeronave", data);
   });
 
   // ===== ACTUALIZAR AERONAVE =====
@@ -195,7 +193,7 @@ socket.on("cambiarHora", ({ hora }) => {
     aeronave.altitud = data.altitud;
     aeronave.angulo = data.angulo;
 
-    io.to(sala).emit("actualizarAeronave", data);
+    socket.to(sala).emit("actualizarAeronave", data);
   });
 
   // ===== ELIMINAR AERONAVE =====
@@ -211,7 +209,7 @@ socket.on("cambiarHora", ({ hora }) => {
   });
 
   // ===== CONTROL DEL TIEMPO =====
-socket.on("controlTiempo", ({ accion }) => {
+socket.on("controlTiempo", ({ accion, valor }) => {
 
   const sala = socket.sala;
   if (!sala) return;
@@ -219,36 +217,39 @@ socket.on("controlTiempo", ({ accion }) => {
   const reloj = relojesSalas[sala];
   if (!reloj) return;
 
+  if (!reloj.pausado) {
+    const ahora = Date.now();
+    const delta = (ahora - reloj.timestampBase) / 1000 * reloj.velocidad;
+    reloj.tiempoBase += delta;
+    reloj.timestampBase = ahora;
+  }
+
   if (accion === "pausar") {
     reloj.pausado = true;
   }
 
   if (accion === "reanudar") {
     reloj.pausado = false;
+    reloj.timestampBase = Date.now();
   }
 
+
+  // 🔥 NUEVO
   io.to(sala).emit("estadoTiempo", {
     pausado: reloj.pausado
   });
 
 });
-
 // ==== ACTIVAR PELIGRO =====
-socket.on("activarPeligroSala", () => {
+socket.on("activarPeligroSala", ({ sala }) => {
 
-  const sala = socket.sala;
-  if (!sala) return;
+  io.to(sala).emit("peligroActivado")
 
-  // Activar peligro
-  io.to(sala).emit("peligroActivado");
-
-  // Desactivar después de 1 minuto
   setTimeout(() => {
-    io.to(sala).emit("peligroDesactivado");
-  }, 60000);
+    io.to(sala).emit("peligroDesactivado")
+  }, 60000)
 
-});
-
+})
 
 
 

@@ -83,14 +83,6 @@ function obtenerHoraActualSala(nombre) {
 
   return formatearHora(reloj.tiempoBase + delta);
 }
-const btnVor = document.getElementById("btnVor")
-
-let circuloVor = null
-
-const vorPisco = [-13.744, -76.220]
-const radio5NM = 5 * 1852  // 9260 metros
-
-
 
 
 
@@ -145,6 +137,9 @@ socket.on("cambiarHora", ({ hora }) => {
 
   io.to(sala).emit("horaSala", formatearHora(segundos));
 });
+
+
+
 
   // ===== UNIRSE A SALA =====
   socket.on("unirseSala", (nombre) => {

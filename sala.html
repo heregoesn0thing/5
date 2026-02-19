@@ -967,6 +967,7 @@ function agregarAeronave(data, esRemota = true) {
     altitud: data.altitud || 0,
     angulo: data.angulo || 0,
     ruta: null,
+    rutaRecorrida: null,
     puntosRuta: [],
     modoManual:false,
     intervaloManual:null,
@@ -1828,18 +1829,25 @@ function finalizarTaxi(a){
 
 function sincronizarMovimiento(a, lat, lng){
 
+  if(a.remoto) return
+
   const ahora = Date.now()
 
   if(!a.ultimoSync) a.ultimoSync = 0
-
   if(ahora - a.ultimoSync < 80) return
 
   a.ultimoSync = ahora
 
-  const pos = a.marker.getLatLng()
-sincronizarMovimiento(a, pos.lat, pos.lng)
-
+  socket.emit("actualizarAeronave", {
+    id: a.id,
+    lat,
+    lng,
+    altitud: a.altitud,
+    angulo: a.angulo
+  })
 }
+
+
 
 function mostrarTaxiing(a,estado){
   const el = a.marker.getElement()
@@ -2000,9 +2008,8 @@ a.estado = "circuito"
       actual.lng + deltaLng
     ])
 const pos = a.marker.getLatLng()
-
-const pos = a.marker.getLatLng()
 sincronizarMovimiento(a, pos.lat, pos.lng)
+
 
 
   },50)

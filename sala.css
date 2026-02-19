@@ -511,3 +511,20 @@ html, body{
   background:#dc2626;
   transform:scale(1.1);
 }
+.btn-vor{
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 8px;
+  border: none;
+  background: #1e293b;
+  color: white;
+  cursor: pointer;
+  z-index: 999;
+}
+
+.btn-vor.activo{
+  background: #22c55e;
+}

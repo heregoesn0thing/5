@@ -2305,83 +2305,77 @@ function puntoPlano(origen, rumbo, distanciaMetros){
   }
 }
 
+
 function dibujarCircuitoHipodromo(){
-if(patronLayer){
-  map.removeLayer(patronLayer)
-  patronLayer = null
-}
 
-  const rwy04 = { lat: -13.755327, lng: -76.229306 }
-const rwy22 = { lat: -13.734272, lng: -76.211517 }
+  if(patronLayer){
+    map.removeLayer(patronLayer)
+    patronLayer = null
+  }
+
+  const NM = 1852
+
+  const distanciaCrosswind = 2 * NM
+  const separacionLateral  = 1.5 * NM
+  const distanciaBase      = 1.5 * NM
+
+  // Umbral salida RWY 22
+  const umbral = rwy22
+
+  // Rumbo pista 22→04
   const rumboPista = calcularBearing(rwy22, rwy04)
-  const lado = -90
-  const radioGiro = 0.4 * 1852 // 0.4 NM radio giro realista
 
-  const salida = rwy22
+  // ========================
+  // PUNTOS GEOMÉTRICOS
+  // ========================
 
-  const upwind = puntoPlano(salida, rumboPista, 2 * 1852)
-  const cross = puntoPlano(upwind, rumboPista + lado, 1.5 * 1852)
-  const downwind = puntoPlano(cross, rumboPista + 180, 2 * 1852)
-  const base = puntoPlano(downwind, rumboPista - lado, 1.5 * 1852)
+  // 1️⃣ Punto crosswind (2 NM adelante)
+  const puntoCrosswind = puntoPlano(umbral, rumboPista, distanciaCrosswind)
 
-  let puntos = []
+  // 2️⃣ Punto downwind (1.5 NM lateral izquierda)
+  const rumboIzquierda = (rumboPista - 90 + 360) % 360
+  const puntoDownwindInicio = puntoPlano(puntoCrosswind, rumboIzquierda, separacionLateral)
 
-  // Tramo salida
-  puntos.push([salida.lat, salida.lng])
-  puntos.push([upwind.lat, upwind.lng])
+  // 3️⃣ Punto base (1.5 NM hacia atrás paralelo a pista)
+  const rumboContrario = (rumboPista + 180) % 360
+  const puntoBase = puntoPlano(puntoDownwindInicio, rumboContrario, distanciaBase)
 
-  // Giro UPWIND → CROSSWIND
-  const arco1 = generarArco(
-    upwind,
-    radioGiro,
-    rumboPista,
-    rumboPista + lado
-  )
-  puntos = puntos.concat(arco1)
+  // 4️⃣ Punto final (alineado con pista)
+  const puntoFinal = puntoPlano(puntoBase, (rumboIzquierda + 180) % 360, separacionLateral)
 
-  // Tramo cross
-  puntos.push([cross.lat, cross.lng])
+  // ========================
+  // CONSTRUIR HIPÓDROMO
+  // ========================
 
-  // Giro CROSS → DOWNWIND
-  const arco2 = generarArco(
-    cross,
-    radioGiro,
-    rumboPista + lado,
-    rumboPista + 180
-  )
-  puntos = puntos.concat(arco2)
+  const puntos = []
 
-  // Tramo downwind
-  puntos.push([downwind.lat, downwind.lng])
+  // Salida
+  puntos.push([umbral.lat, umbral.lng])
 
-  // Giro DOWNWIND → BASE
-  const arco3 = generarArco(
-    downwind,
-    radioGiro,
-    rumboPista + 180,
-    rumboPista - lado
-  )
-  puntos = puntos.concat(arco3)
+  // Upwind
+  puntos.push([puntoCrosswind.lat, puntoCrosswind.lng])
 
-  // Tramo base
-  puntos.push([base.lat, base.lng])
+  // Downwind
+  puntos.push([puntoDownwindInicio.lat, puntoDownwindInicio.lng])
 
-  // Giro BASE → FINAL
-  const arco4 = generarArco(
-    base,
-    radioGiro,
-    rumboPista - lado,
-    rumboPista
-  )
-  puntos = puntos.concat(arco4)
+  // Base
+  puntos.push([puntoBase.lat, puntoBase.lng])
+
+  // Final
+  puntos.push([puntoFinal.lat, puntoFinal.lng])
+
+  // Cerrar circuito
+  puntos.push([umbral.lat, umbral.lng])
 
   patronLayer = L.polyline(puntos, {
-
     color: "#22c55e",
     weight: 2,
-    dashArray: "8 8"
+    dashArray: "8 8",
+    lineJoin: "round"
   }).addTo(map)
+
 }
+
 
 // ================= FREE NAVIGATION =================
 function cambiarRumbo(valor){

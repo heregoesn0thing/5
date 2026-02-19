@@ -1601,9 +1601,14 @@ function moverPorPuntos(a){
 
     const dx = destino.lng - actual.lng
     const dy = destino.lat - actual.lat
+const anguloRad = Math.atan2(dx, dy)
+const anguloDeg = anguloRad * (180 / Math.PI)
+
+a.angulo = anguloDeg
+actualizarRotacion(a)
 
     const distancia = Math.sqrt(dx*dx + dy*dy)
-    const velocidad = 0.00005
+    const velocidad = 0.000005
 
     if(distancia < velocidad){
 

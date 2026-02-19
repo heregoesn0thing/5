@@ -1193,6 +1193,18 @@ a.estado = "idle"
 document.getElementById("panelRumbo").classList.add("oculto")
 
 }
+function actualizarInteraccion(a){
+
+  if(a.estado === "idle"){
+    a.marker.dragging.enable()
+    const el = a.marker.getElement()
+    if(el) el.style.pointerEvents = "auto"
+  } else {
+    a.marker.dragging.disable()
+    const el = a.marker.getElement()
+    if(el) el.style.pointerEvents = "none"
+  }
+}
 
 
 function iniciarSTAR(){

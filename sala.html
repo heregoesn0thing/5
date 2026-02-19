@@ -2281,52 +2281,54 @@ function dibujarCircuito() {
   const umbral04 = L.latLng(-13.755327, -76.229306)
   const umbral22 = L.latLng(-13.734272, -76.211517)
 
-  const rumboPista = 40 // 040°
+  const ejePista = 40
+  const ejeInverso = 220
 
-  // Centro real de la pista
-  const centro = L.latLng(
-    (umbral04.lat + umbral22.lat) / 2,
-    (umbral04.lng + umbral22.lng) / 2
-  )
+  const offsetNM = 1.5
+  const extensionNM = 2
 
-  // ================= DIMENSIONES =================
-  const extensionLongitudinalNM = 6   // 3 NM antes y después
-  const extensionLateralNM = 4        // 2 NM a cada lado
+  const offsetM = offsetNM * 1852
+  const extensionM = extensionNM * 1852
 
-  const largoM = extensionLongitudinalNM * 1852
-  const anchoM = extensionLateralNM * 1852
+  // ================= PUNTOS CLAVE =================
 
-  const a = largoM / 2
-  const b = anchoM / 2
+  // 1️⃣ Punto crosswind (2 NM desde umbral 04)
+  const puntoCrosswind = puntoPlano(umbral04, ejePista, extensionM)
 
-  const n = 4   // squircle suave
-  const pasos = 220
+  // 2️⃣ Punto base (2 NM desde umbral 22 hacia atrás)
+  const puntoBaseEje = puntoPlano(umbral22, ejeInverso, extensionM)
+
+  // 3️⃣ Offset lateral izquierdo (lado NE)
+  const rumboIzquierda = 130
+
+  const crosswindOffset = puntoPlano(puntoCrosswind, rumboIzquierda, offsetM)
+  const downwindInicio = puntoPlano(umbral04, rumboIzquierda, offsetM)
+  const downwindFin = puntoPlano(umbral22, rumboIzquierda, offsetM)
+  const baseOffset = puntoPlano(puntoBaseEje, rumboIzquierda, offsetM)
 
   const puntos = []
 
-  for (let i = 0; i <= pasos; i++) {
+  // ================= TRAZADO =================
 
-    const t = (i / pasos) * 2 * Math.PI
+  // Final → Umbral 22
+  puntos.push(umbral22)
 
-    const cosT = Math.cos(t)
-    const sinT = Math.sin(t)
+  // Subir por eje hasta punto base eje
+  puntos.push(puntoBaseEje)
 
-    const x = a * Math.sign(cosT) * Math.pow(Math.abs(cosT), 2/n)
-    const y = b * Math.sign(sinT) * Math.pow(Math.abs(sinT), 2/n)
+  // Base hacia lateral
+  puntos.push(baseOffset)
 
-    const headingRad = rumboPista * Math.PI / 180
+  // Downwind completo paralelo
+  puntos.push(downwindFin)
+  puntos.push(downwindInicio)
 
-    // Rotación correcta respecto al eje de pista
-    const xr = x * Math.cos(headingRad) - y * Math.sin(headingRad)
-    const yr = x * Math.sin(headingRad) + y * Math.cos(headingRad)
+  // Crosswind
+  puntos.push(crosswindOffset)
 
-    const distancia = Math.sqrt(xr * xr + yr * yr)
-    const rumbo = Math.atan2(yr, xr) * 180 / Math.PI
-
-    const punto = puntoPlano(centro, rumbo, distancia)
-
-    puntos.push([punto.lat, punto.lng])
-  }
+  // Regresar al eje
+  puntos.push(puntoCrosswind)
+  puntos.push(umbral22)
 
   patronLayer = L.polyline(puntos, {
     color: "#00ffff",
@@ -2334,6 +2336,7 @@ function dibujarCircuito() {
     dashArray: "8 8"
   }).addTo(map)
 }
+
 
 
 

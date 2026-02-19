@@ -1622,11 +1622,43 @@ function actualizarRotacion(a){
   const icon = el.querySelector(".icon-aircraft");
   if(!icon) return;
 
-  // Obtener offset según tipo
-  const offset = ORIENTACION_MODELOS[a.tipo] || ORIENTACION_MODELOS.DEFAULT;
+  const zoom = map.getZoom();
 
+  // 🔥 Escala controlada
+  const escala = Math.max(
+    0.5,
+    Math.min(1.2, Math.pow(1.15, zoom - 15))
+  );
+
+  // 🔹 Escalar el contenedor
+  el.style.transform = `scale(${escala})`;
+  el.style.transformOrigin = "center";
+
+  // 🔹 Rotar solo el icono interno
+  const offset = ORIENTACION_MODELOS[a.tipo] || ORIENTACION_MODELOS.DEFAULT;
   icon.style.transform = `rotate(${a.angulo + offset}deg)`;
 }
+map.on("zoom", () => {
+  aeronaves.forEach(a => actualizarRotacion(a))
+});
+
+
+function actualizarEscalaIconos(){
+
+  const zoom = map.getZoom()
+
+  // Ajusta estos valores a tu gusto
+  const escala = Math.max(0.6, zoom / 18)
+
+  aeronaves.forEach(a => {
+    const el = a.marker.getElement()
+    if(el){
+      el.style.transform = `scale(${escala}) rotate(${a.angulo || 0}deg)`
+      el.style.transformOrigin = "center"
+    }
+  })
+}
+
 function interpolarRemoto(avion, latDestino, lngDestino){
 
   const inicio = avion.marker.getLatLng();

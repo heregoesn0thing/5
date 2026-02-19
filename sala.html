@@ -1984,26 +1984,45 @@ function iniciarCircuito(){
 
   if(a.estado === "circuito") return
 
-  // ================= CONFIGURACIÓN =================
+  // ================= UMBRALES REALES =================
 
-  const rumboPista = 220               // CAMBIA esto según pista
-  const lado = "izquierda"             // "izquierda" o "derecha"
+  const rwy04 = { lat: -13.755327, lng: -76.229306 }
+  const rwy22 = { lat: -13.734272, lng: -76.211517 }
+
+  // Detectar pista activa según posición más cercana
+  const actualPos = a.marker.getLatLng()
+
+  const dist04 = map.distance(actualPos, rwy04)
+  const dist22 = map.distance(actualPos, rwy22)
+
+  let umbralSalida, umbralLlegada
+
+  if(dist22 < dist04){
+    // Despegando por 22
+    umbralSalida = rwy22
+    umbralLlegada = rwy04
+  } else {
+    // Despegando por 04
+    umbralSalida = rwy04
+    umbralLlegada = rwy22
+  }
+
+  const rumboPista = calcularBearing(umbralSalida, umbralLlegada)
+
+  const lado = "izquierda"
   const offset = lado === "izquierda" ? -90 : 90
 
-  const velocidad = 60                 // 60 KTAS
-  const patronAltitud = 1500           // 1500 ft AGL
-  const climbFPM = 700                 // ft/min real C172
-  const descensoFPM = 500              // ft/min aproximación
+  const velocidad = 60
+  const patronAltitud = 1500
+  const climbFPM = 700
+  const descensoFPM = 500
 
   const climbFPS = climbFPM / 60
   const descensoFPS = descensoFPM / 60
 
-  const distUpwind   = 1 * 1852
-  const distCross    = 1 * 1852
+  const distCross = 1 * 1852
   const distDownwind = 2 * 1852
-  const distBase     = 1 * 1852
-
-  // ================= ESTADO INICIAL =================
+  const distBase = 1 * 1852
 
   a.estado = "circuito"
   a.altitud = 0
@@ -2013,12 +2032,10 @@ function iniciarCircuito(){
   let puntoInicioFase = a.marker.getLatLng()
   let ultimoTiempo = performance.now()
 
-  // ================= LOOP =================
-
   a.intervaloCircuito = setInterval(()=>{
 
     const ahora = performance.now()
-    const delta = (ahora - ultimoTiempo) / 1000
+    const delta = (ahora - ultimoTiempo)/1000
     ultimoTiempo = ahora
 
     const actual = a.marker.getLatLng()
@@ -2036,15 +2053,16 @@ function iniciarCircuito(){
       a.altitud -= descensoFPS * delta
       if(a.altitud < 0) a.altitud = 0
     }
+const distanciaUmbral = map.distance(actual, umbralSalida)
 
-    // ================= CAMBIO DE FASE =================
+// ================= CAMBIO DE FASE =================
 
-    switch(fase){
+switch(fase){
 
   case "UPWIND":
 
-    // Mantener rumbo pista hasta 500 ft
-    if(a.altitud >= 1500 && distancia >= distUpwind){
+    // Virar a crosswind a 2 NM del umbral
+    if(distanciaUmbral >= 3704){
       fase = "CROSSWIND"
       puntoInicioFase = actual
     }
@@ -2053,8 +2071,8 @@ function iniciarCircuito(){
 
   case "CROSSWIND":
 
-    // No entrar a downwind hasta alcanzar altitud patrón
-    if(a.altitud >= patronAltitud && distancia >= distCross){
+    // Mantener 1.5 NM lateral
+    if(distancia >= 2778){
       fase = "DOWNWIND"
       puntoInicioFase = actual
     }
@@ -2063,7 +2081,8 @@ function iniciarCircuito(){
 
   case "DOWNWIND":
 
-    if(distancia >= distDownwind){
+    // Cuando estés nuevamente a 2 NM del umbral (abeam)
+    if(distanciaUmbral >= 3704){
       fase = "BASE"
       puntoInicioFase = actual
     }
@@ -2072,7 +2091,8 @@ function iniciarCircuito(){
 
   case "BASE":
 
-    if(distancia >= distBase){
+    // Base de 1.5 NM
+    if(distancia >= 2778){
       fase = "FINAL"
       puntoInicioFase = actual
     }
@@ -2095,44 +2115,39 @@ function iniciarCircuito(){
     let headingObjetivo
 
     switch(fase){
-      case "UPWIND":    headingObjetivo = rumboPista; break
+      case "UPWIND": headingObjetivo = rumboPista; break
       case "CROSSWIND": headingObjetivo = rumboPista + offset; break
-      case "DOWNWIND":  headingObjetivo = rumboPista + 180; break
-      case "BASE":      headingObjetivo = rumboPista - offset; break
-      case "FINAL":     headingObjetivo = rumboPista; break
+      case "DOWNWIND": headingObjetivo = rumboPista + 180; break
+      case "BASE": headingObjetivo = rumboPista - offset; break
+      case "FINAL": headingObjetivo = rumboPista; break
     }
 
-    // Normalizar 0–360
     headingObjetivo = (headingObjetivo + 360) % 360
-
-    // ================= GIRO SUAVE =================
 
     a.angulo = girarSuavemente(a, a.angulo, headingObjetivo)
     actualizarRotacion(a)
 
-    // ================= MOVIMIENTO REAL =================
+    // ================= MOVIMIENTO =================
 
     const mps = velocidad * 0.514444
     const distanciaFrame = mps * delta
     const headingRad = a.angulo * Math.PI/180
 
-    const deltaLat = (Math.cos(headingRad) * distanciaFrame) / 111320
-    const deltaLng = (Math.sin(headingRad) * distanciaFrame) /
-      (111320 * Math.cos(actual.lat * Math.PI/180))
+    const deltaLat = (Math.cos(headingRad) * distanciaFrame)/111320
+    const deltaLng = (Math.sin(headingRad) * distanciaFrame)/
+      (111320*Math.cos(actual.lat*Math.PI/180))
 
     a.marker.setLatLng([
       actual.lat + deltaLat,
       actual.lng + deltaLng
     ])
 
-    // ================= MULTIPLAYER =================
-
     const pos = a.marker.getLatLng()
-
     sincronizarMovimiento(a, pos.lat, pos.lng)
 
-  }, 50)
+  },50)
 }
+
 function girarSuavemente(a, actual, objetivo){
   let diff = ((objetivo - actual + 540) % 360) - 180
   return actual + diff * 0.05

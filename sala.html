@@ -1834,43 +1834,48 @@ function actualizarRutaRecorrida(a){
 
 function finalizarTaxi(a){
 
-  // 🔥 Cambiar estado
+  if(a.puntosRuta && a.puntosRuta.length >= 2){
+
+    const penultimo = a.puntosRuta[a.puntosRuta.length - 2]
+    const ultimo = a.puntosRuta[a.puntosRuta.length - 1]
+
+    const rumboFinal = calcularBearing(penultimo, ultimo)
+
+    a.angulo = rumboFinal
+    actualizarRotacion(a)
+  }
+
   a.estado = "idle"
   actualizarInteraccion(a)
-
   mostrarTaxiing(a, false)
 
-  // 🔥 Detener motor físico
   if(a.motorTaxi){
     clearInterval(a.motorTaxi)
     a.motorTaxi = null
   }
 
-  // 🔥 Detener animación visual de la ruta
   if(a.animRutaFrame){
     cancelAnimationFrame(a.animRutaFrame)
     a.animRutaFrame = null
   }
 
-  // 🔥 Eliminar ruta futura
   if(a.ruta){
     map.removeLayer(a.ruta)
     a.ruta = null
   }
 
-  // 🔥 Eliminar ruta recorrida
   if(a.rutaRecorrida){
     map.removeLayer(a.rutaRecorrida)
     a.rutaRecorrida = null
   }
 
-  // 🔥 Limpiar datos internos
   a.puntosRuta = []
   a.indiceRuta = 0
 
   actualizarPanelInfo(a)
   actualizarBotonTaxi()
 }
+
 
 function sincronizarMovimiento(a, lat, lng){
 

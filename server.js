@@ -189,7 +189,6 @@ socket.on("crearAeronave", (data) => {
 
 
   io.to(sala).emit("crearAeronave", data);
-  socket.to(sala).emit("crearAeronave", data);
 
 
 });

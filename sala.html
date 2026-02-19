@@ -2281,24 +2281,26 @@ function dibujarCircuito() {
   const umbral04 = L.latLng(-13.755327, -76.229306)
   const umbral22 = L.latLng(-13.734272, -76.211517)
 
-  const rumboPista = 40
+  const rumboPista = 40 // 040°
 
+  // Centro real de la pista
   const centro = L.latLng(
     (umbral04.lat + umbral22.lat) / 2,
     (umbral04.lng + umbral22.lng) / 2
   )
 
-  const largoNM = 4
-  const anchoNM = 4   // 2 NM a cada lado
+  // ================= DIMENSIONES =================
+  const extensionLongitudinalNM = 6   // 3 NM antes y después
+  const extensionLateralNM = 4        // 2 NM a cada lado
 
-  const largoM = largoNM * 1852
-  const anchoM = anchoNM * 1852
+  const largoM = extensionLongitudinalNM * 1852
+  const anchoM = extensionLateralNM * 1852
 
   const a = largoM / 2
   const b = anchoM / 2
 
-  const n = 4
-  const pasos = 180
+  const n = 4   // squircle suave
+  const pasos = 220
 
   const puntos = []
 
@@ -2314,16 +2316,16 @@ function dibujarCircuito() {
 
     const headingRad = rumboPista * Math.PI / 180
 
+    // Rotación correcta respecto al eje de pista
     const xr = x * Math.cos(headingRad) - y * Math.sin(headingRad)
     const yr = x * Math.sin(headingRad) + y * Math.cos(headingRad)
 
-    const punto = L.GeometryUtil.destination(
-      centro,
-      Math.atan2(yr, xr) * 180 / Math.PI,
-      Math.sqrt(xr*xr + yr*yr)
-    )
+    const distancia = Math.sqrt(xr * xr + yr * yr)
+    const rumbo = Math.atan2(yr, xr) * 180 / Math.PI
 
-    puntos.push(punto)
+    const punto = puntoPlano(centro, rumbo, distancia)
+
+    puntos.push([punto.lat, punto.lng])
   }
 
   patronLayer = L.polyline(puntos, {
@@ -2332,6 +2334,7 @@ function dibujarCircuito() {
     dashArray: "8 8"
   }).addTo(map)
 }
+
 
 
 

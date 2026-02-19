@@ -1187,14 +1187,10 @@ function actualizarInteraccion(a){
 
   if(!a || !a.marker) return
 
-  const el = a.marker.getElement()
-
   if(a.estado === "idle"){
     a.marker.dragging.enable()
-    if(el) el.style.pointerEvents = "auto"
   } else {
     a.marker.dragging.disable()
-    if(el) el.style.pointerEvents = "none"
   }
 }
 
@@ -1694,9 +1690,6 @@ actualizarInteraccion(a)
 
   mostrarTaxiing(a,false)
 
-  // Reactivar interacción
-  const el = a.marker.getElement()
-  if(el) el.style.pointerEvents = "auto"
 
   // 🔥 Detener animación de ruta
   if(a.animRutaFrame){

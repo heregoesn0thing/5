@@ -147,25 +147,6 @@ socket.on("cambiarHora", ({ hora }) => {
 });
 
 
-btnVor.addEventListener("click", () => {
-
-  if(circuloVor){
-    map.removeLayer(circuloVor)
-    circuloVor = null
-    btnVor.classList.remove("activo")
-    return
-  }
-
-  circuloVor = L.circle(vorPisco, {
-    radius: radio5NM,
-    color: "#ffffff",
-    weight: 2,
-    dashArray: "6 8",
-    fill: false
-  }).addTo(map)
-
-  btnVor.classList.add("activo")
-})
 
   // ===== UNIRSE A SALA =====
   socket.on("unirseSala", (nombre) => {

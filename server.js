@@ -200,7 +200,6 @@ socket.on("crearAeronave", (data) => {
   socket.to(sala).emit("crearAeronave", data);
 
 
-
 });
 
 

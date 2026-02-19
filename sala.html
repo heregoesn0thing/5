@@ -689,7 +689,7 @@ animFrame: null,
 
   marker.on("dragstart", function(){
 
-    if(a.estado === "taxi")
+    if(nueva.estado === "taxi")
 {
       marker.dragging.disable()
       return
@@ -1079,9 +1079,10 @@ function iniciarRodaje(){
   if(!a.puntosRuta || a.puntosRuta.length < 2) return
 
   a.estado = "taxi"
+actualizarInteraccion(a)
+
   a.indiceRuta = 0
 
-  a.marker.dragging.disable()
 
   const el = a.marker.getElement()
   if(el) el.style.pointerEvents = "none"
@@ -1104,6 +1105,8 @@ function detenerRodaje(){
   if(a.estado !== "taxi") return
 
   a.estado = "idle"
+actualizarInteraccion(a)
+
 
 
   mostrarTaxiing(a, false)
@@ -1180,6 +1183,7 @@ actualizarRotacion(a)
 
 function detenerModoManual(){
 a.estado = "idle"
+actualizarInteraccion(a)
 
   if(!aeronaveSeleccionada) return
   const a = aeronaveSeleccionada
@@ -1195,13 +1199,15 @@ document.getElementById("panelRumbo").classList.add("oculto")
 }
 function actualizarInteraccion(a){
 
+  if(!a || !a.marker) return
+
+  const el = a.marker.getElement()
+
   if(a.estado === "idle"){
     a.marker.dragging.enable()
-    const el = a.marker.getElement()
     if(el) el.style.pointerEvents = "auto"
   } else {
     a.marker.dragging.disable()
-    const el = a.marker.getElement()
     if(el) el.style.pointerEvents = "none"
   }
 }
@@ -1698,6 +1704,7 @@ function moverPorPuntos(a){
 function finalizarTaxi(a){
 
   a.estado = "idle"
+actualizarInteraccion(a)
 
   mostrarTaxiing(a,false)
 
@@ -1909,6 +1916,8 @@ function detenerCircuito(){
   }
 
   a.estado = "idle"
+  actualizarInteraccion(a)
+
 }
 
 // ================= FREE NAVIGATION =================

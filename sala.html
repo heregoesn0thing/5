@@ -631,13 +631,6 @@ function confirmarCreacion(){
     draggable: true
   }).addTo(map)
 
-  marker.on("drag", function(e){
-
-  const pos = e.target.getLatLng()
-
-  sincronizarMovimiento(nueva, pos.lat, pos.lng)
-})
-
 
   const nueva = {
     tipo,
@@ -662,6 +655,12 @@ animFrame: null,
     modoManual: false,
     intervaloManual: null
   }
+marker.on("drag", function(e){
+
+  const pos = e.target.getLatLng()
+
+  sincronizarMovimiento(nueva, pos.lat, pos.lng)
+})
 
   aeronaves.push(nueva)
 actualizarInteraccion(nueva)
@@ -765,22 +764,20 @@ socket.on("actualizarAeronave", data => {
 
   const avion = aeronaves.find(a => a.id === data.id);
   if (!avion) return;
-
   if (!avion.remoto) return;
 
-  if (avion.remoto) {
-  interpolarRemoto(avion, data.lat, data.lng);
-}
-  if (data.angulo !== undefined) {
-    avion.angulo = data.angulo;
-    actualizarRotacion(avion);
-  }
+  interpolarRemoto(
+    avion,
+    data.lat,
+    data.lng,
+    data.angulo
+  );
 
   if (data.altitud !== undefined) {
     avion.altitud = data.altitud;
   }
-
 });
+
 
 socket.on("borrarAeronave", id => {
 
@@ -1644,14 +1641,15 @@ map.on("zoom", () => {
   aeronaves.forEach(a => actualizarRotacion(a))
 });
 
-
-function interpolarRemoto(avion, latDestino, lngDestino){
+function interpolarRemoto(avion, latDestino, lngDestino, anguloDestino){
 
   if(avion.animRemoto){
     cancelAnimationFrame(avion.animRemoto);
   }
 
   const inicio = avion.marker.getLatLng();
+  const anguloInicio = avion.angulo || 0;
+
   const duracion = 100;
   const startTime = performance.now();
 
@@ -1659,10 +1657,19 @@ function interpolarRemoto(avion, latDestino, lngDestino){
 
     const t = Math.min((now - startTime) / duracion, 1);
 
+    // Posición
     const lat = inicio.lat + (latDestino - inicio.lat) * t;
     const lng = inicio.lng + (lngDestino - inicio.lng) * t;
-
     avion.marker.setLatLng([lat, lng]);
+
+    // 🔥 Interpolación angular correcta
+    let deltaAng = (anguloDestino ?? anguloInicio) - anguloInicio;
+
+    if(deltaAng > 180) deltaAng -= 360;
+    if(deltaAng < -180) deltaAng += 360;
+
+    avion.angulo = anguloInicio + deltaAng * t;
+    actualizarRotacion(avion);
 
     if(t < 1){
       avion.animRemoto = requestAnimationFrame(animar);
@@ -1833,7 +1840,6 @@ function sincronizarMovimiento(a, lat, lng){
 sincronizarMovimiento(a, pos.lat, pos.lng)
 
 }
-
 
 function mostrarTaxiing(a,estado){
   const el = a.marker.getElement()

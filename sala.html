@@ -613,10 +613,9 @@ socket.on("cargarAeronaves", lista => {
       remoto: true,
       altitud: data.altitud || 0,
       angulo: data.angulo || 0,
-      estado: "idle",
-      indiceRuta: 0,
-      animFrame: null,
-      puntosRuta: [],
+      velocidadObjetivo: 0,
+      ruta: null,        
+      puntosRuta: []
     }
 
     aeronaves.push(nueva)
@@ -684,8 +683,8 @@ socket.on("estadoTiempo", (data) => {
   <div id="panelBody">
 
     <div id="aircraftInfo"></div>
+<div id="controlesEdicion">
 
- 
 
     <button onclick="activarModoRuta()">Create Route</button>
     <div class="taxi-controls">
@@ -727,7 +726,7 @@ socket.on("estadoTiempo", (data) => {
              value="0"
              oninput="cambiarVelocidad(this.value)">
     </div>
-
+</div>
   </div>
 </div>
 <div id="panelTiempo">
@@ -1177,9 +1176,7 @@ function confirmarCreacion(){
     sid: null,
     altitud: 0,
     velocidad: 0,
-    estado: "idle",
-    indiceRuta: 0,
-    animFrame: null,
+    velocidadObjetivo: 0,
     star: null,
     starActivo: false,
     faseStar: null,
@@ -1373,6 +1370,9 @@ function seleccionarAeronave(obj){
   }else{
     document.getElementById("panelRumbo").classList.add("oculto")
   }
+document.getElementById("controlesEdicion").style.display =
+  a.remoto ? "none" : "block"
+  obj.remoto ? "none" : "block"
 }
 
 
@@ -1539,40 +1539,54 @@ function eliminarRuta(){
 
 function iniciarRodaje(){
 
-  if(!aeronaveSeleccionada) return;
+  if(!aeronaveSeleccionada) return
 
-  const a = aeronaveSeleccionada;
+  const a = aeronaveSeleccionada
 
-  if(!a.puntosRuta || a.puntosRuta.length < 2){
-    alert("No route created");
-    return;
+  if(!a.ruta || !a.puntosRuta || a.puntosRuta.length < 2){
+    return
   }
 
-  if(a.estado === "taxi") return;
+  // Si estaba pausado → solo reanudar
+  if(a.taxiPausado){
+    a.taxiPausado = false
+    moverPorPuntos(a)
+    mostrarTaxiing(a, true)
+    return
+  }
 
-  a.estado = "taxi";
+  // Inicio normal
+  a.rodando = true
+  a.taxiPausado = false
+  a.indiceRuta = 0
 
-  mostrarTaxiing(a,true);
-  actualizarPanelInfo(a);
+  a.marker.dragging.disable()
+  mostrarTaxiing(a, true)
 
-  moverPorPuntos(a);
+  moverPorPuntos(a)
+
+  actualizarPanelInfo(a)
+  actualizarBotonTaxi()
 }
+
+
 
 function detenerRodaje(){
 
-  if(!aeronaveSeleccionada) return;
+  if(!aeronaveSeleccionada) return
 
-  const a = aeronaveSeleccionada;
+  const a = aeronaveSeleccionada
 
-  a.estado = "idle";
+  a.taxiPausado = true
+  a.rodando = false
 
-  if(a.animFrame){
-    cancelAnimationFrame(a.animFrame);
-    a.animFrame = null;
+  if(a.intervaloMovimiento){
+    clearInterval(a.intervaloMovimiento)
+    a.intervaloMovimiento = null
   }
 
-  mostrarTaxiing(a,false);
-  actualizarPanelInfo(a);
+  mostrarTaxiing(a, false)
+  actualizarPanelInfo(a)
 }
 
 function activarModoManual(){
@@ -2058,46 +2072,73 @@ function actualizarRotacion(a){
 
 function moverPorPuntos(a){
 
-  if(a.estado !== "taxi") return;
+  let i = a.indiceRuta || 0
+  const ruta = a.puntosRuta
 
-  if(!a.puntosRuta || a.puntosRuta.length < 2) return;
+  function mover(){
 
-  if(a.indiceRuta >= a.puntosRuta.length - 1){
-    a.estado = "idle";
-    mostrarTaxiing(a,false);
-    return;
+    if(a.taxiPausado) return
+
+    if(i >= ruta.length - 1){
+      a.rodando = false
+      mostrarTaxiing(a,false)
+      return
+    }
+
+  const inicio = L.latLng(ruta[i].lat, ruta[i].lng)
+const fin = ruta[i+1]
+
+a.angulo = calcularBearing(inicio, fin)
+actualizarRotacion(a)
+
+const dist = map.distance(inicio, fin)
+const dur = (dist / VELOCIDAD) * 1000
+const start = Date.now()
+
+a.intervaloMovimiento = setInterval(()=>{
+
+  if(a.taxiPausado){
+    clearInterval(a.intervaloMovimiento)
+    a.indiceRuta = i
+    return
   }
 
-  const actual = L.latLng(a.marker.getLatLng());
-  const destino = L.latLng(a.puntosRuta[a.indiceRuta + 1]);
+  const t = (Date.now() - start) / dur
 
-  const distancia = actual.distanceTo(destino);
+  if(t >= 1){
+    a.marker.setLatLng(fin)
+    clearInterval(a.intervaloMovimiento)
+    i++
+    a.indiceRuta = i
 
-  if(distancia < 0.5){
-    a.indiceRuta++;
-    moverPorPuntos(a);
-    return;
+    if(a.ruta){
+      const restante = a.puntosRuta.slice(i)
+      a.ruta.setLatLngs(restante)
+    }
+
+    mover()
+    return
   }
 
-  const velocidad = 8; // metros por frame ajustable
-  const fraccion = velocidad / distancia;
+  const lat = inicio.lat + (fin.lat - inicio.lat) * t
+  const lng = inicio.lng + (fin.lng - inicio.lng) * t
 
-  const nuevaLat = actual.lat + (destino.lat - actual.lat) * fraccion;
-  const nuevaLng = actual.lng + (destino.lng - actual.lng) * fraccion;
-
-  a.marker.setLatLng([nuevaLat, nuevaLng]);
+  a.marker.setLatLng([lat, lng])
 
   socket.emit("actualizarAeronave", {
     id: a.id,
-    lat: nuevaLat,
-    lng: nuevaLng,
+    lat: lat,
+    lng: lng,
     altitud: a.altitud,
     angulo: a.angulo
-  });
+  })
 
-  a.animFrame = requestAnimationFrame(() => moverPorPuntos(a));
+},16)
+
+  }
+
+  mover()
 }
-
 
 
 
@@ -2471,20 +2512,3 @@ function obtenerBoundsImagen(lat, lng, tamañoMetros){
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

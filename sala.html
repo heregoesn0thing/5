@@ -2280,6 +2280,9 @@ function dibujarCircuito(){
   }
 
   const NM = 1852
+  const largo = 2 * NM
+  const lateral = 1.5 * NM
+  const radio = 600   // radio suave de giro (~25° bank aprox)
 
   const rwy22 = { lat:-13.734272, lng:-76.211517 }
   const rwy04 = { lat:-13.755328, lng:-76.229306 }
@@ -2304,35 +2307,59 @@ function dibujarCircuito(){
   const eje = { x:Math.sin(rumboRad), y:Math.cos(rumboRad) }
   const perp = { x:-eje.y, y:eje.x }
 
-  const largo = 2 * NM
-  const lateral = 1.5 * NM
+  const puntos = []
 
-  // PUNTOS DEL RECTÁNGULO
+  // ---- PUNTOS BASE RECTÁNGULO ----
 
-  const p1 = { x:0, y:0 } // Umbral 22
+  const A = { x:0, y:0 }
+  const B = { x:eje.x*largo, y:eje.y*largo }
+  const C = { x:eje.x*largo + perp.x*lateral, y:eje.y*largo + perp.y*lateral }
+  const D = { x:perp.x*lateral, y:perp.y*lateral }
 
-  const p2 = {
-    x:eje.x * largo,
-    y:eje.y * largo
+  // ---- FUNCIÓN PARA ARCO 90° ----
+
+  function arco(centro, angInicio, angFin){
+    for(let a=angInicio; a<=angFin; a+=3){
+      const ang = a * Math.PI/180
+      const x = centro.x + radio*Math.cos(ang)
+      const y = centro.y + radio*Math.sin(ang)
+      puntos.push(toLatLng(x,y))
+    }
   }
 
-  const p3 = {
-    x:eje.x * largo + perp.x * lateral,
-    y:eje.y * largo + perp.y * lateral
-  }
+  // ---- UPWIND ----
+  puntos.push(toLatLng(A.x, A.y))
+  puntos.push(toLatLng(B.x - eje.x*radio, B.y - eje.y*radio))
 
-  const p4 = {
-    x:perp.x * lateral,
-    y:perp.y * lateral
+  // ---- GIRO 1 ----
+  const centro1 = {
+    x:B.x - eje.x*radio + perp.x*radio,
+    y:B.y - eje.y*radio + perp.y*radio
   }
+  arco(centro1, rumbo + 180, rumbo + 270)
 
-  const puntos = [
-    toLatLng(p1.x,p1.y),
-    toLatLng(p2.x,p2.y),
-    toLatLng(p3.x,p3.y),
-    toLatLng(p4.x,p4.y),
-    toLatLng(p1.x,p1.y)
-  ]
+  // ---- DOWNWIND ----
+  puntos.push(toLatLng(C.x - perp.x*radio, C.y - perp.y*radio))
+
+  // ---- GIRO 2 ----
+  const centro2 = {
+    x:C.x - perp.x*radio - eje.x*radio,
+    y:C.y - perp.y*radio - eje.y*radio
+  }
+  arco(centro2, rumbo + 270, rumbo + 360)
+
+  // ---- BASE ----
+  puntos.push(toLatLng(D.x + eje.x*radio, D.y + eje.y*radio))
+
+  // ---- GIRO 3 ----
+  const centro3 = {
+    x:D.x + eje.x*radio - perp.x*radio,
+    y:D.y + eje.y*radio - perp.y*radio
+  }
+  arco(centro3, rumbo, rumbo + 90)
+
+  // ---- FINAL ----
+  puntos.push(toLatLng(A.x, A.y))
 
   patronLayer = L.polyline(puntos,{
     color:"#22c55e",

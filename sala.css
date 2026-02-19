@@ -525,6 +525,26 @@ html, body{
   z-index: 999;
 }
 
-.btn-vor.activo{
-  background: #22c55e;
+.panel-capas{
+  position: absolute;
+  bottom: 60px;
+  left: 20px;
+  background: #0f172a;
+  padding: 10px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  z-index: 999;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.4);
 }
+
+.panel-capas.oculto{
+  display: none;
+}
+
+.panel-capas label{
+  cursor: pointer;
+}
+

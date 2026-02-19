@@ -44,7 +44,14 @@
 
 </div>
 <button id="btnEliminarModo">🗑</button>
-<button id="btnVor" class="btn-vor">5NM</button>
+<button id="btnCapas" class="btn-vor">Capas</button>
+
+<div id="panelCapas" class="panel-capas oculto">
+  <label><input type="checkbox" id="chkVor"> 5NM VOR</label>
+  <label><input type="checkbox" id="chkEje"> Eje pista</label>
+  <label><input type="checkbox" id="chkPatron"> Patrón tráfico</label>
+</div>
+
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
@@ -1587,32 +1594,100 @@ function puedeDespegarDesdeLIB(a){
 
   return true
 }
+// ================= Lineas punteadas =================
+const btnCapas = document.getElementById("btnCapas")
+const panelCapas = document.getElementById("panelCapas")
 
-const btnVor = document.getElementById("btnVor")
+const chkVor = document.getElementById("chkVor")
+const chkEje = document.getElementById("chkEje")
+const chkPatron = document.getElementById("chkPatron")
 
 let circuloVor = null
+let ejePista = null
+let patronLayer = null
 
+// Coordenadas reales
 const vorPisco = [-13.744, -76.220]
-const radio5NM = 5 * 1852  // 9260 metros
+const radio5NM = 5 * 1852
 
-btnVor.addEventListener("click", () => {
+const rwy04 = [-13.755327, -76.229306]
+const rwy22 = [-13.734272, -76.211517]
 
-  if(circuloVor){
-    map.removeLayer(circuloVor)
-    circuloVor = null
-    btnVor.classList.remove("activo")
-    return
+// Mostrar / ocultar panel
+btnCapas.addEventListener("click", () => {
+  panelCapas.classList.toggle("oculto")
+})
+
+/* =======================
+   5NM VOR
+======================= */
+
+chkVor.addEventListener("change", () => {
+
+  if(chkVor.checked){
+
+    circuloVor = L.circle(vorPisco, {
+      radius: radio5NM,
+      color: "#ffffff",
+      weight: 2,
+      dashArray: "6 8",
+      fill: false
+    }).addTo(map)
+
+  } else {
+    if(circuloVor){
+      map.removeLayer(circuloVor)
+      circuloVor = null
+    }
   }
 
-  circuloVor = L.circle(vorPisco, {
-    radius: radio5NM,
-    color: "#ffffff",
-    weight: 2,
-    dashArray: "6 8",
-    fill: false
-  }).addTo(map)
+})
 
-  btnVor.classList.add("activo")
+/* =======================
+   EJE PISTA
+======================= */
+
+chkEje.addEventListener("change", () => {
+
+  if(chkEje.checked){
+
+    ejePista = L.polyline([rwy04, rwy22], {
+      color: "#00ffff",
+      weight: 2,
+      dashArray: "4 6"
+    }).addTo(map)
+
+  } else {
+    if(ejePista){
+      map.removeLayer(ejePista)
+      ejePista = null
+    }
+  }
+
+})
+
+/* =======================
+   PATRÓN (placeholder)
+======================= */
+
+chkPatron.addEventListener("change", () => {
+
+  if(chkPatron.checked){
+
+    patronLayer = L.circle(vorPisco, {
+      radius: 3000,
+      color: "#22c55e",
+      dashArray: "3 6",
+      fill: false
+    }).addTo(map)
+
+  } else {
+    if(patronLayer){
+      map.removeLayer(patronLayer)
+      patronLayer = null
+    }
+  }
+
 })
 
 

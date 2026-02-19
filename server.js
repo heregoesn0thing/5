@@ -315,17 +315,6 @@ socket.on("disconnect", () => {
       salas[nombre].jugadores.filter(id => id !== socket.id);
 
     
-    if (salas[nombre].jugadores.length === 0) {
-
-      if (intervalosSalas[nombre]) {
-        clearInterval(intervalosSalas[nombre]);
-        delete intervalosSalas[nombre];
-      }
-
-      delete salas[nombre];
-      delete relojesSalas[nombre];
-      delete peligroSalas[nombre];
-    }
   }
 
   io.emit("listaSalas", obtenerListaSalas());

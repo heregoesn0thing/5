@@ -651,6 +651,7 @@ function confirmarCreacion(){
     marker,
     remoto: false, 
     ruta: null,
+    rutaRecorrida: null,
     puntosRuta: [],
     angulo: 0,
     sid: null,
@@ -735,6 +736,7 @@ socket.on("crearAeronave", data => {
   altitud: data.altitud || 0,
   angulo: data.angulo || 0,
   ruta: null,
+  rutaRecorrida: null,
   puntosRuta: [],
   estado: "idle",
   indiceRuta: 0,
@@ -980,7 +982,6 @@ function agregarAeronave(data, esRemota = true) {
 }
 
 // ================= ROUTE =================
-
 function activarModoRuta(){
 
   if(!aeronaveSeleccionada) return
@@ -992,35 +993,44 @@ function activarModoRuta(){
     return
   }
 
-  // 🔥 Eliminar ruta anterior correctamente
-  if(a.animRutaFrame){
-    cancelAnimationFrame(a.animRutaFrame)
-    a.animRutaFrame = null
-  }
-
+  // 🔥 Limpiar rutas anteriores
   if(a.ruta){
     map.removeLayer(a.ruta)
     a.ruta = null
   }
 
-  // 🔥 Crear nueva ruta independiente
+  if(a.rutaRecorrida){
+    map.removeLayer(a.rutaRecorrida)
+    a.rutaRecorrida = null
+  }
+
   modoRuta = true
 
   const pos = a.marker.getLatLng()
 
-  a.puntosRuta = [pos]   // ← YA NO usamos rutaTemporal global
+  rutaTemporal = [pos]
+  a.puntosRuta = rutaTemporal
 
-  a.ruta = L.polyline(a.puntosRuta, {
+  // 🟢 Ruta futura (punteada animada)
+  a.ruta = L.polyline(rutaTemporal, {
     color: "#21bd21",
     weight: 3,
     dashArray: "6 12",
     dashOffset: "0"
   }).addTo(map)
 
+  // ⚪ Ruta recorrida (inicialmente vacía)
+  a.rutaRecorrida = L.polyline([], {
+    color: "#21bd21",
+    weight: 3,
+    opacity: 0.15
+  }).addTo(map)
+
   animarRuta(a)
 
   actualizarBotonTaxi()
 }
+
 
 
 function agregarPuntoRuta(latlng){
@@ -1657,6 +1667,8 @@ function moverPorPuntos(a){
       const nuevoLng = actual.lng + (destino.lng - actual.lng) * ratio
 
       a.marker.setLatLng([nuevoLat, nuevoLng])
+      actualizarRutaRecorrida(a)
+
     }
 
     // 🔥 Rotación correcta basada en destino
@@ -1685,28 +1697,62 @@ function moverPorPuntos(a){
 
   requestAnimationFrame(mover)
 }
+function actualizarRutaRecorrida(a){
+
+  if(!a.ruta || !a.rutaRecorrida) return
+
+  const posActual = a.marker.getLatLng()
+
+  const puntosRestantes = a.puntosRuta.slice(a.indiceRuta)
+  const puntosRecorridos = a.puntosRuta.slice(0, a.indiceRuta)
+
+  // Actualizar línea recorrida
+  a.rutaRecorrida.setLatLngs([
+    ...puntosRecorridos,
+    posActual
+  ])
+
+  // Actualizar línea restante
+  a.ruta.setLatLngs([
+    posActual,
+    ...puntosRestantes.slice(1)
+  ])
+
+  // Opcional: efecto fade progresivo
+  const progreso = a.indiceRuta / a.puntosRuta.length
+  const nuevaOpacidad = 0.15 + progreso * 0.5
+
+  a.rutaRecorrida.setStyle({
+    opacity: nuevaOpacidad
+  })
+}
 
 function finalizarTaxi(a){
 
   a.estado = "idle"
-actualizarInteraccion(a)
+  actualizarInteraccion(a)
 
-  mostrarTaxiing(a,false)
+  mostrarTaxiing(a, false)
 
-
-  // 🔥 Detener animación de ruta
+  //  Detener animación punteada
   if(a.animRutaFrame){
     cancelAnimationFrame(a.animRutaFrame)
     a.animRutaFrame = null
   }
 
-  // 🔥 Eliminar línea visual
+  //  Eliminar ruta futura
   if(a.ruta){
     map.removeLayer(a.ruta)
     a.ruta = null
   }
 
-  // 🔥 Limpiar datos
+  //  Eliminar ruta recorrida
+  if(a.rutaRecorrida){
+    map.removeLayer(a.rutaRecorrida)
+    a.rutaRecorrida = null
+  }
+
+  //  Limpiar datos internos
   a.puntosRuta = []
   a.indiceRuta = 0
 

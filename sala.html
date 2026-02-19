@@ -1641,6 +1641,11 @@ function interpolarRemoto(avion, latDestino, lngDestino){
 
 function moverPorPuntos(a){
 
+  if(a.motorTaxi){
+    clearInterval(a.motorTaxi)
+    a.motorTaxi = null
+  }
+
   let i = a.indiceRuta || 0
   const ruta = a.puntosRuta
 
@@ -1648,12 +1653,12 @@ function moverPorPuntos(a){
   const metrosPorSegundo = taxiKnots * 0.514444
 
   let ultimoTiempo = performance.now()
-  let ultimoEnvio = 0
 
-  function mover(ahora){
+  function motor(){
 
     if(a.estado !== "taxi") return
 
+    const ahora = performance.now()
     const deltaTime = (ahora - ultimoTiempo) / 1000
     ultimoTiempo = ahora
 
@@ -1670,7 +1675,6 @@ function moverPorPuntos(a){
     if(distanciaMetros === 0){
       i++
       a.indiceRuta = i
-      requestAnimationFrame(mover)
       return
     }
 
@@ -1691,35 +1695,25 @@ function moverPorPuntos(a){
 
       a.marker.setLatLng([nuevoLat, nuevoLng])
       actualizarRutaRecorrida(a)
-
     }
 
-    // 🔥 Rotación correcta basada en destino
-    const bearing = calcularBearing(actual, destino)
+    // 🔥 Rotación exacta desde posición actual
+    const nuevaPos = a.marker.getLatLng()
+    const bearing = calcularBearing(nuevaPos, destino)
+
     a.angulo = bearing
     actualizarRotacion(a)
 
-    // 🔥 Emitir cada 100ms
-    if(!a.remoto && ahora - ultimoEnvio > 100){
-
-      const pos = a.marker.getLatLng()
-
-      socket.emit("actualizarAeronave", {
-        id: a.id,
-        lat: pos.lat,
-        lng: pos.lng,
-        altitud: a.altitud,
-        angulo: a.angulo
-      })
-
-      ultimoEnvio = ahora
+    // 🔥 Sincronización profesional
+    if(!a.remoto){
+      sincronizarMovimiento(a, nuevaPos.lat, nuevaPos.lng)
     }
-
-    requestAnimationFrame(mover)
   }
 
-  requestAnimationFrame(mover)
+  a.motorTaxi = setInterval(motor, 16)
 }
+
+
 function actualizarRutaRecorrida(a){
 
   if(!a.ruta || !a.rutaRecorrida) return
@@ -1752,35 +1746,61 @@ function actualizarRutaRecorrida(a){
 
 function finalizarTaxi(a){
 
+  // 🔥 Cambiar estado
   a.estado = "idle"
   actualizarInteraccion(a)
 
   mostrarTaxiing(a, false)
 
-  //  Detener animación punteada
+  // 🔥 Detener motor físico
+  if(a.motorTaxi){
+    clearInterval(a.motorTaxi)
+    a.motorTaxi = null
+  }
+
+  // 🔥 Detener animación visual de la ruta
   if(a.animRutaFrame){
     cancelAnimationFrame(a.animRutaFrame)
     a.animRutaFrame = null
   }
 
-  //  Eliminar ruta futura
+  // 🔥 Eliminar ruta futura
   if(a.ruta){
     map.removeLayer(a.ruta)
     a.ruta = null
   }
 
-  //  Eliminar ruta recorrida
+  // 🔥 Eliminar ruta recorrida
   if(a.rutaRecorrida){
     map.removeLayer(a.rutaRecorrida)
     a.rutaRecorrida = null
   }
 
-  //  Limpiar datos internos
+  // 🔥 Limpiar datos internos
   a.puntosRuta = []
   a.indiceRuta = 0
 
   actualizarPanelInfo(a)
   actualizarBotonTaxi()
+}
+
+function sincronizarMovimiento(a, lat, lng){
+
+  const ahora = Date.now()
+
+  if(!a.ultimoSync) a.ultimoSync = 0
+
+  if(ahora - a.ultimoSync < 80) return
+
+  a.ultimoSync = ahora
+
+  socket.emit("actualizarAeronave", {
+    id: a.id,
+    lat,
+    lng,
+    altitud: a.altitud,
+    angulo: a.angulo
+  })
 }
 
 

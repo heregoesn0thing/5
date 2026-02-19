@@ -92,6 +92,9 @@ socket.on("cargarAeronaves", lista => {
     const nueva = {
       id: data.id,
       tipo: data.tipo,
+      estado: "idle",
+      indiceRuta: 0,
+      rutaRecorrida: null,
       marker: marker,
       remoto: true,
       altitud: data.altitud || 0,
@@ -170,8 +173,8 @@ socket.on("estadoTiempo", (data) => {
     <button onclick="activarModoRuta()">Create Route</button>
     <div class="taxi-controls">
     <button id="btnTaxi" onclick="iniciarRodaje()">▶ Taxi</button>
-    <button onclick="detenerRodaje()">⏸ Pause</button>
-    <button onclick="eliminarRuta()">🗑 Delete</button>
+    <button onclick="detenerRodaje(aeronaveSeleccionada)">⏸ Pause</button>
+    <button onclick="eliminarRuta(aeronaveSeleccionada)">🗑 Delete</button>
 </div>
 
     <button onclick="despegar()">Takeoff</button>
@@ -684,17 +687,18 @@ actualizarInteraccion(nueva)
 
   marker.on("dragstart", function(){
 
-    if(nueva.estado === "taxi")
-{      alert("Can't move while taxiing")
-      return
-    }
+  if(nueva.estado !== "idle"){
+    nueva.marker.dragging.disable()
+    return
+  }
 
-    if(nueva.ruta){
-      eliminarRuta(nueva)
-    }
+  if(nueva.ruta){
+    eliminarRuta(nueva)
+  }
 
-    modoRuta = false
-  })
+  nueva.modoRuta = false
+})
+
 
 
   cerrarCrearPanel()
@@ -1050,37 +1054,30 @@ function agregarPuntoRuta(latlng){
   actualizarBotonTaxi()
 }
 
-function eliminarRuta(){
+function eliminarRuta(a){
 
-  if(!aeronaveSeleccionada) return
+  if(!a) return
 
-  const a = aeronaveSeleccionada
+  if(a.estado === "taxi") return
 
-  // 🔥 Detener animación de línea punteada
   if(a.animRutaFrame){
     cancelAnimationFrame(a.animRutaFrame)
     a.animRutaFrame = null
   }
 
-  // 🔥 Eliminar ruta principal
   if(a.ruta){
     map.removeLayer(a.ruta)
     a.ruta = null
   }
 
-  // 🔥 Eliminar ruta recorrida (si existe)
   if(a.rutaRecorrida){
     map.removeLayer(a.rutaRecorrida)
     a.rutaRecorrida = null
   }
 
-  // 🔥 Reset datos internos
   a.puntosRuta = []
   a.indiceRuta = 0
-
-  actualizarBotonTaxi()
 }
-
 
 
 // ================= TAXI =================
@@ -1111,11 +1108,9 @@ function iniciarRodaje(){
 
 }
 
-function detenerRodaje(){
+function detenerRodaje(a){
 
-  if(!aeronaveSeleccionada) return
-  const a = aeronaveSeleccionada
-
+  if(!a) return
   if(a.estado !== "taxi") return
 
   if(a.motorTaxi){
@@ -1125,10 +1120,8 @@ function detenerRodaje(){
 
   a.estado = "idle"
   actualizarInteraccion(a)
-
   mostrarTaxiing(a, false)
 
-  //  LIMPIAR MODO RUTA
   modoRuta = false
   rutaTemporal = []
 
@@ -1465,6 +1458,7 @@ function despegar(){
       map.removeLayer(a.marker)
       aeronaves = aeronaves.filter(x=>x!==a)
       cerrarPanel()
+        socket.emit("eliminarAeronave", a.id)
     }
 
     // ================= ACTUALIZAR PANEL =================

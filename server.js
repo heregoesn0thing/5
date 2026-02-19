@@ -196,6 +196,7 @@ socket.on("crearAeronave", (data) => {
     angulo: data.angulo || 0
   });
 
+  io.to(sala).emit("crearAeronave", data);
   socket.to(sala).emit("crearAeronave", data);
 
 

@@ -200,7 +200,7 @@ socket.on("estadoTiempo", (data) => {
 
     <button onclick="activarModoManual()">Manual Control</button>
     <button onclick="detenerModoManual()">Stop Manual</button>
-    <button onclick="iniciarCircuitoFisico()">Traffic Pattern</button>
+    <button onclick="iniciarCircuito()">Traffic Pattern</button>
     <button onclick="detenerCircuito()">Stop Pattern</button>
 
     <button onclick="eliminarSeleccionada()">Remove Aircraft</button>
@@ -2071,150 +2071,132 @@ function proyectarPunto(lat, lng, rumbo, distanciaKm){
 
 // ================= LEFT TRAFFIC PATTERN RWY 22 =================
 
-function iniciarCircuitoFisico(){
+function iniciarCircuito() {
 
-  if(!aeronaveSeleccionada) return
+  if (!aeronaveSeleccionada) return
   const a = aeronaveSeleccionada
 
-  if(a.tipo !== "C172"){
-    alert("Traffic pattern available only for C172")
+  if (a.tipo !== "C172") {
+    alert("Only C172 allowed")
     return
   }
 
-  if(a.estado === "circuito") return
+  if (a.intervaloCircuito) clearInterval(a.intervaloCircuito)
 
-  a.estado = "circuito"
-  a.altitud = 0
+  const umbral04 = L.latLng(-13.755327, -76.229306)
+  const umbral22 = L.latLng(-13.734272, -76.211517)
 
-  // =====================
-  // CONFIGURACIÓN
-  // =====================
+  const ejePista = 40
+  const ejeInverso = 220
+
+  const offsetNM = 1.5
+  const extensionNM = 2
+
+  const offsetM = offsetNM * 1852
+  const extensionM = extensionNM * 1852
 
   const velocidadKT = 90
-  const velocidadMS = velocidadKT * 0.514444
-  const dt = 0.05
+  const velocidadMPS = velocidadKT * 0.514444
 
-  const patronAltitud = 1500
-  const climbFPM = 700
-  const descensoFPM = 500
+  const bankRad = 25 * Math.PI / 180
+  const g = 9.81
 
-  const climbFPS = climbFPM / 60
-  const descensoFPS = descensoFPM / 60
+  const radioViraje = (velocidadMPS ** 2) / (g * Math.tan(bankRad))
 
-  // =====================
-  // UMBRALES REALES PISCO
-  // =====================
+  const rumboIzquierda = 130
 
-  const umbral22 = L.latLng(-13.734272, -76.211517)
-  const umbral04 = L.latLng(-13.755328, -76.229306)
+  // ===== PUNTOS BASE =====
 
-  let fase = "UPWIND"
-  let headingObjetivo = 220
+  const puntoCrossEje = puntoPlano(umbral04, ejePista, extensionM)
+  const puntoBaseEje = puntoPlano(umbral22, ejeInverso, extensionM)
 
-  if(a.intervaloCircuito) clearInterval(a.intervaloCircuito)
+  const downwindInicio = puntoPlano(umbral04, rumboIzquierda, offsetM)
+  const downwindFin = puntoPlano(umbral22, rumboIzquierda, offsetM)
 
-  a.intervaloCircuito = setInterval(()=>{
+  const crosswindOffset = puntoPlano(puntoCrossEje, rumboIzquierda, offsetM)
+  const baseOffset = puntoPlano(puntoBaseEje, rumboIzquierda, offsetM)
 
-    const actual = a.marker.getLatLng()
+  // ===== CONSTRUIR RUTA CON ARCOS =====
 
-    // =====================
-    // CONTROL DE ALTITUD
-    // =====================
+  let ruta = []
 
-    if(fase === "UPWIND" || fase === "CROSSWIND"){
-      if(a.altitud < patronAltitud){
-        a.altitud += climbFPS * dt
-      }
+  function agregarSegmento(p1, p2, pasos = 30) {
+    for (let i = 0; i <= pasos; i++) {
+      const t = i / pasos
+      ruta.push([
+        p1.lat + (p2.lat - p1.lat) * t,
+        p1.lng + (p2.lng - p1.lng) * t
+      ])
     }
+  }
 
-    if(fase === "BASE" || fase === "FINAL"){
-      if(a.altitud > 0){
-        a.altitud -= descensoFPS * dt
-        if(a.altitud < 0) a.altitud = 0
-      }
+  function agregarArco(centro, inicioAng, finAng, pasos = 40) {
+    for (let i = 0; i <= pasos; i++) {
+      const t = i / pasos
+      const ang = inicioAng + (finAng - inicioAng) * t
+      const punto = puntoPlano(centro, ang, radioViraje)
+      ruta.push([punto.lat, punto.lng])
     }
+  }
 
-    // =====================
-    // DISTANCIAS A UMBRALES
-    // =====================
+  // FINAL
+  agregarSegmento(umbral22, puntoBaseEje)
 
-    const dist04 = map.distance(actual, umbral04)
-    const dist22 = map.distance(actual, umbral22)
+  // BASE
+  agregarSegmento(puntoBaseEje, baseOffset)
 
-    // =====================
-    // CAMBIO DE FASES
-    // =====================
+  // DOWNWIND
+  agregarSegmento(baseOffset, downwindInicio)
 
-    switch(fase){
+  // CROSSWIND
+  agregarSegmento(downwindInicio, crosswindOffset)
 
-      case "UPWIND":
-        if(dist04 >= 2 * 1852){
-          fase = "CROSSWIND"
-          headingObjetivo = 130
-        }
-      break
+  // UPWIND
+  agregarSegmento(crosswindOffset, umbral22)
 
-      case "CROSSWIND":
-        // Mantiene rumbo hasta quedar paralelo
-        if(a.altitud >= patronAltitud - 50){
-          fase = "DOWNWIND"
-          headingObjetivo = 40
-        }
-      break
+  // ===== DIBUJO =====
 
-      case "DOWNWIND":
-        // Base inicia a 2NM del umbral 22
-        if(dist22 <= 2 * 1852){
-          fase = "BASE"
-          headingObjetivo = 310
-        }
-      break
+  if (patronLayer) map.removeLayer(patronLayer)
 
-      case "BASE":
-        // Final cuando esté alineado al eje
-        if(dist22 <= 2 * 1852){
-          fase = "FINAL"
-          headingObjetivo = 220
-        }
-      break
+  patronLayer = L.polyline(ruta, {
+    color: "#00ffff",
+    weight: 2,
+    dashArray: "8 8"
+  }).addTo(map)
 
-      case "FINAL":
-        if(a.altitud <= 5){
-          // Touch & Go limpio
-          fase = "UPWIND"
-          headingObjetivo = 220
-        }
-      break
-    }
+  a.rutaCircuito = ruta
 
-    // =====================
-    // GIRO SUAVE (≈25°)
-    // =====================
-
-    a.angulo = girarSuavemente(a, a.angulo || 220, headingObjetivo)
-    actualizarRotacion(a)
-
-    // =====================
-    // MOVIMIENTO
-    // =====================
-
-    const headingRad = a.angulo * Math.PI / 180
-
-    const deltaLat = (Math.cos(headingRad) * velocidadMS * dt) / 111320
-    const deltaLng = (Math.sin(headingRad) * velocidadMS * dt) /
-      (111320 * Math.cos(actual.lat * Math.PI/180))
-
-    const nuevaLat = actual.lat + deltaLat
-    const nuevaLng = actual.lng + deltaLng
-
-    a.marker.setLatLng([nuevaLat, nuevaLng])
-
-    sincronizarMovimiento(a, nuevaLat, nuevaLng)
-
-  }, 50)
+  moverAvionEnRuta(a, velocidadMPS)
 }
 
 
+function moverAvionEnRuta(a, velocidadMPS) {
+
+  let i = 0
+
+  a.intervaloCircuito = setInterval(() => {
+
+    if (!a.rutaCircuito || i >= a.rutaCircuito.length - 1) {
+      i = 0
+    }
+
+    const actual = a.rutaCircuito[i]
+    const siguiente = a.rutaCircuito[i + 1]
+
+    a.marker.setLatLng(actual)
+
+    const dx = siguiente[1] - actual[1]
+    const dy = siguiente[0] - actual[0]
+
+    a.angulo = Math.atan2(dx, dy) * 180 / Math.PI
+    actualizarRotacion(a)
+
+    sincronizarMovimiento(a, actual[0], actual[1])
+
+    i++
+
+  }, 50)
+}
 
 function detenerCircuito(){
 

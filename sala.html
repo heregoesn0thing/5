@@ -682,15 +682,13 @@ socket.on("estadoTiempo", (data) => {
 
   <div id="panelBody">
 
-    <div id="aircraftInfo"></div>
-<div id="controlesEdicion">
-
+  <div id="aircraftInfo"></div>
 
     <button onclick="activarModoRuta()">Create Route</button>
     <div class="taxi-controls">
-  <button onclick="iniciarRodaje()">▶ Taxi</button>
-  <button onclick="detenerRodaje()">⏸ Pause</button>
-  <button onclick="eliminarRuta()">🗑 Delete</button>
+    <button onclick="iniciarRodaje()">▶ Taxi</button>
+    <button onclick="detenerRodaje()">⏸ Pause</button>
+    <button onclick="eliminarRuta()">🗑 Delete</button>
 </div>
 
     <button onclick="despegar()">Takeoff</button>
@@ -726,7 +724,7 @@ socket.on("estadoTiempo", (data) => {
              value="0"
              oninput="cambiarVelocidad(this.value)">
     </div>
-</div>
+
   </div>
 </div>
 <div id="panelTiempo">
@@ -1370,8 +1368,7 @@ function seleccionarAeronave(obj){
   }else{
     document.getElementById("panelRumbo").classList.add("oculto")
   }
-document.getElementById("controlesEdicion").style.display =
-  obj.remoto ? "none" : "block"
+
 }
 
 

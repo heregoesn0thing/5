@@ -112,13 +112,22 @@ socket.on("cargarAeronaves", lista => {
 
       if (modoEliminar) {
 
-        socket.emit("eliminarAeronave", nueva.id)
+  if(nueva.estado !== "idle"){
+    alert("Cannot remove aircraft while operating")
+    return
+  }
 
-        modoEliminar = false
-        btnEliminar.classList.remove("activo")
+  const confirmar = confirm("Remove aircraft " + nueva.id + "?")
+  if(!confirmar) return
 
-        return
-      }
+  socket.emit("eliminarAeronave", nueva.id)
+
+  modoEliminar = false
+  btnEliminar.classList.remove("activo")
+
+  return
+}
+
 
       seleccionarAeronave(nueva)
 

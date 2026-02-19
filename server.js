@@ -120,21 +120,6 @@ relojesSalas[nombre] = {
 
     io.emit("listaSalas", obtenerListaSalas());
   });
-  socket.on("activarPeligroSala", () => {
-  const sala = socket.sala;
-  if (!sala) return;
-
-  if (peligroSalas[sala]) return; // ya activo
-
-  peligroSalas[sala] = true;
-
-  io.to(sala).emit("peligroActivado");
-
-  setTimeout(() => {
-    peligroSalas[sala] = false;
-    io.to(sala).emit("peligroDesactivado");
-  }, 60000);
-});
 
 socket.on("cambiarHora", ({ hora }) => {
 
@@ -188,13 +173,16 @@ socket.on("crearAeronave", (data) => {
   if (!sala) return;
 
   salas[sala].aeronaves.push({
-    id: data.id,
-    tipo: data.tipo,
-    lat: data.lat,
-    lng: data.lng,
-    altitud: data.altitud || 0,
-    angulo: data.angulo || 0
-  });
+  id: data.id,
+  owner: socket.id,
+  tipo: data.tipo,
+  lat: data.lat,
+  lng: data.lng,
+  altitud: data.altitud || 0,
+  angulo: data.angulo || 0,
+  estado: "idle"
+});
+
 
   io.to(sala).emit("crearAeronave", data);
   socket.to(sala).emit("crearAeronave", data);
@@ -205,22 +193,38 @@ socket.on("crearAeronave", (data) => {
 
 
   // ===== ACTUALIZAR AERONAVE =====
-  socket.on("actualizarAeronave", (data) => {
+socket.on("actualizarAeronave", (data) => {
 
-    const sala = socket.sala;
-    if (!sala) return;
+  const sala = socket.sala;
+  if (!sala) return;
 
-    const aeronave = salas[sala].aeronaves.find(a => a.id === data.id);
-    if (!aeronave) return;
+  const aeronave = salas[sala].aeronaves.find(a => a.id === data.id);
+  if (!aeronave) return;
 
-    aeronave.lat = data.lat;
-    aeronave.lng = data.lng;
-    aeronave.altitud = data.altitud;
-    aeronave.angulo = data.angulo;
+  // 🔒 Solo el dueño puede actualizar
+  if (aeronave.owner !== socket.id) return;
 
-    socket.to(sala).emit("actualizarAeronave", data);
+  // 🛡 Validación básica de datos
+  if (typeof data.lat !== "number") return;
+  if (typeof data.lng !== "number") return;
+  if (typeof data.altitud !== "number") return;
+  if (typeof data.angulo !== "number") return;
 
+  aeronave.lat = data.lat;
+  aeronave.lng = data.lng;
+  aeronave.altitud = data.altitud;
+  aeronave.angulo = data.angulo;
+
+  socket.to(sala).emit("actualizarAeronave", {
+    id: aeronave.id,
+    lat: aeronave.lat,
+    lng: aeronave.lng,
+    altitud: aeronave.altitud,
+    angulo: aeronave.angulo
   });
+
+});
+
 
   // ===== ELIMINAR AERONAVE =====
   socket.on("eliminarAeronave", (id) => {
@@ -279,28 +283,54 @@ socket.on("desactivarPeligroSala", () => {
 });
 const PASSWORD = "0223";
 
-socket.on("activarPeligroSala", data => {
+socket.on("activarPeligroSala", ({ clave }) => {
 
-  if(data.clave !== PASSWORD){
+  const sala = socket.sala;
+  if (!sala) return;
+
+  if(clave !== PASSWORD){
     socket.emit("errorPeligro", "Incorrect password");
     return;
   }
 
-  io.to(data.sala).emit("activarPeligroGlobal");
+  if(peligroSalas[sala]) return;
+
+  peligroSalas[sala] = true;
+
+  io.to(sala).emit("peligroActivado");
+
+  setTimeout(() => {
+    peligroSalas[sala] = false;
+    io.to(sala).emit("peligroDesactivado");
+  }, 60000);
+
 });
 
-
-
   // ===== DESCONECTAR =====
-  socket.on("disconnect", () => {
+socket.on("disconnect", () => {
 
-    for (let nombre in salas) {
-      salas[nombre].jugadores =
-        salas[nombre].jugadores.filter(id => id !== socket.id);
+  for (let nombre in salas) {
+
+    salas[nombre].jugadores =
+      salas[nombre].jugadores.filter(id => id !== socket.id);
+
+    
+    if (salas[nombre].jugadores.length === 0) {
+
+      if (intervalosSalas[nombre]) {
+        clearInterval(intervalosSalas[nombre]);
+        delete intervalosSalas[nombre];
+      }
+
+      delete salas[nombre];
+      delete relojesSalas[nombre];
+      delete peligroSalas[nombre];
     }
+  }
 
-    io.emit("listaSalas", obtenerListaSalas());
-  });
+  io.emit("listaSalas", obtenerListaSalas());
+});
+
 
 });
 

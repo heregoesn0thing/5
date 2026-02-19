@@ -690,8 +690,7 @@ animFrame: null,
   marker.on("dragstart", function(){
 
     if(nueva.estado === "taxi")
-{
-      marker.dragging.disable()
+{      alert("Can't move while taxiing")
       return
     }
 
@@ -702,9 +701,6 @@ animFrame: null,
     modoRuta = false
   })
 
-  marker.on("dragend", function(){
-    marker.dragging.enable()
-  })
 
   cerrarCrearPanel()
   document.removeEventListener("click", cerrarSiClickFuera)
@@ -1083,10 +1079,6 @@ actualizarInteraccion(a)
 
   a.indiceRuta = 0
 
-
-  const el = a.marker.getElement()
-  if(el) el.style.pointerEvents = "none"
-
   mostrarTaxiing(a, true)
 
   moverPorPuntos(a)
@@ -1107,13 +1099,7 @@ function detenerRodaje(){
   a.estado = "idle"
 actualizarInteraccion(a)
 
-
-
   mostrarTaxiing(a, false)
-
-  // 🔥 Reactivar interacción
-  const el = a.marker.getElement()
-  if(el) el.style.pointerEvents = "auto"
 
   actualizarPanelInfo(a)
   actualizarBotonTaxi()

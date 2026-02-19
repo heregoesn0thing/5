@@ -1728,12 +1728,18 @@ function animarRuta(a){
   if(!a.ruta) return
 
   let offset = 0
+  let ultimoTiempo = performance.now()
 
-  function animar(){
+  function animar(ahora){
 
     if(!a.ruta) return
 
-    offset -= 1
+    const deltaTime = (ahora - ultimoTiempo) / 1000
+    ultimoTiempo = ahora
+
+    const velocidadVisual = 20   // ↓ baja este valor para más lento
+
+    offset -= velocidadVisual * deltaTime
 
     a.ruta.setStyle({
       dashOffset: offset
@@ -1742,8 +1748,9 @@ function animarRuta(a){
     a.animRutaFrame = requestAnimationFrame(animar)
   }
 
-  animar()
+  a.animRutaFrame = requestAnimationFrame(animar)
 }
+
 
 
 

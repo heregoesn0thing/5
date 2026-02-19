@@ -772,11 +772,11 @@ socket.on("actualizarAeronave", data => {
   const avion = aeronaves.find(a => a.id === data.id);
   if (!avion) return;
 
-  // 🔥 PROTECCIÓN PROFESIONAL
   if (!avion.remoto) return;
 
-  avion.marker.setLatLng([data.lat, data.lng]);
-
+  if (avion.remoto) {
+  interpolarRemoto(avion, data.lat, data.lng);
+}
   if (data.angulo !== undefined) {
     avion.angulo = data.angulo;
     actualizarRotacion(avion);
@@ -1613,6 +1613,29 @@ function actualizarRotacion(a){
   const offset = ORIENTACION_MODELOS[a.tipo] || ORIENTACION_MODELOS.DEFAULT;
 
   icon.style.transform = `rotate(${a.angulo + offset}deg)`;
+}
+function interpolarRemoto(avion, latDestino, lngDestino){
+
+  const inicio = avion.marker.getLatLng();
+  const duracion = 100; // mismo intervalo que emisión (100ms)
+
+  const startTime = performance.now();
+
+  function animar(now){
+
+    const t = Math.min((now - startTime) / duracion, 1);
+
+    const lat = inicio.lat + (latDestino - inicio.lat) * t;
+    const lng = inicio.lng + (lngDestino - inicio.lng) * t;
+
+    avion.marker.setLatLng([lat, lng]);
+
+    if(t < 1){
+      requestAnimationFrame(animar);
+    }
+  }
+
+  requestAnimationFrame(animar);
 }
 
 

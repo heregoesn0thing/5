@@ -94,8 +94,6 @@ socket.on("cargarAeronaves", lista => {
       tipo: data.tipo,
       estado: "idle",
       indiceRuta: 0,
-      modoRuta: false,
-  rutaTemporal: [],
       rutaRecorrida: null,
       marker: marker,
       remoto: true,
@@ -451,7 +449,6 @@ socket.on("peligroDesactivado", () => {
   }
 
 })
-d
 
 function activarModoPeligro(){
 
@@ -550,7 +547,8 @@ function crearIcono(callsign, tipo){
 map.on("click", function(e){
 
   // Si estamos creando ruta
-  if(modoRuta){
+  if(aeronaveSeleccionada && aeronaveSeleccionada.modoRuta){
+
     if (aeronaveSeleccionada && aeronaveSeleccionada.estado !== "taxi") {
 
       agregarPuntoRuta(e.latlng)
@@ -701,8 +699,7 @@ actualizarInteraccion(nueva)
 
   cerrarCrearPanel()
   document.removeEventListener("click", cerrarSiClickFuera)
-modoRuta = false
-rutaTemporal = []
+
 
   // 🚀 Emitir al servidor
   socket.emit("crearAeronave", {
@@ -991,6 +988,8 @@ function agregarAeronave(data, esRemota = true) {
     angulo: data.angulo || 0,
     ruta: null,
     rutaRecorrida: null,
+    modoRuta: false,
+    rutaTemporal: [],
     puntosRuta: [],
     modoManual:false,
     intervaloManual:null,
@@ -1114,7 +1113,7 @@ function iniciarRodaje(){
   a.indiceRuta = 0
 
   mostrarTaxiing(a, true)
-  modoRuta = false
+  a.modoRuta = false
 
   moverPorPuntos(a)
   actualizarPanelInfo(a)
@@ -1139,8 +1138,8 @@ function detenerRodaje(a){
   actualizarInteraccion(a)
   mostrarTaxiing(a, false)
 
-  modoRuta = false
-  rutaTemporal = []
+  a.modoRuta = false
+  a.rutaTemporal = []
 
   actualizarPanelInfo(a)
   actualizarBotonTaxi()
@@ -2227,10 +2226,10 @@ function activarEmergencia(){
 
 function desactivarEmergencia(){
 
-  if(!marcadorPeligro) return;
+  if(!imagenPeligro) return;
 
-  map.removeLayer(marcadorPeligro);
-  marcadorPeligro = null;
+  map.removeLayer(imagenPeligro);
+  imagenPeligro = null;
 }
 function obtenerBoundsImagen(lat, lng, tamañoMetros){
 

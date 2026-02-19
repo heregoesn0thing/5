@@ -2073,157 +2073,109 @@ function proyectarPunto(lat, lng, rumbo, distanciaKm){
 
 // ================= REALISTIC LEFT TRAFFIC PATTERN RWY 22 =================
 
-function iniciarCircuito(){
+function iniciarCircuitoFisico(){
 
   if(!aeronaveSeleccionada) return
   const a = aeronaveSeleccionada
 
-  if(a.tipo !== "C172"){
-    alert("Traffic pattern available only for C172")
-    return
-  }
-
-  if(a.estado === "circuito") return
-
-  const rwy04 = { lat: -13.755327, lng: -76.229306 }
-  const rwy22 = { lat: -13.734272, lng: -76.211517 }
-
-  const actualPos = a.marker.getLatLng()
-
-  const dist04 = map.distance(actualPos, rwy04)
-  const dist22 = map.distance(actualPos, rwy22)
-
-  let umbralSalida, umbralLlegada
-
-  if(dist22 < dist04){
-    umbralSalida = rwy22
-    umbralLlegada = rwy04
-  } else {
-    umbralSalida = rwy04
-    umbralLlegada = rwy22
-  }
-
-  const rumboPista = calcularBearing(umbralSalida, umbralLlegada)
-
-  const velocidad = 60
-  const patronAltitud = 1500
-
-  const climbFPM = 700
-  const descensoFPM = 500
-
-  const climbFPS = climbFPM / 60
-  const descensoFPS = descensoFPM / 60
-
   const NM = 1852
+  const velocidadKT = 60
+  const V = velocidadKT * 0.514444
 
-  const distUpwind = 2 * NM
-  const distCross  = 1.5 * NM
-  const distDown   = 2 * NM
-  const distBase   = 1.5 * NM
+  const bank = 25 * Math.PI/180
+  const g = 9.81
 
-  a.estado = "circuito"
-  a.altitud = 0
-  a.angulo = rumboPista
+  const R = (V*V)/(g*Math.tan(bank))   // ~650 m
+  const omega = V / R                  // rad/s
+
+  const rwy22 = { lat:-13.734272, lng:-76.211517 }
+  const rwy04 = { lat:-13.755327, lng:-76.229306 }
+
+  const rumbo = calcularBearing(rwy22, rwy04)
+  const rumboRad = rumbo * Math.PI/180
+
+  // ===== SISTEMA LOCAL =====
+  function toXY(p){
+    return {
+      x: (p.lng - rwy22.lng)*111320*Math.cos(rwy22.lat*Math.PI/180),
+      y: (p.lat - rwy22.lat)*111320
+    }
+  }
+
+  function toLatLng(x,y){
+    return [
+      rwy22.lat + y/111320,
+      rwy22.lng + x/(111320*Math.cos(rwy22.lat*Math.PI/180))
+    ]
+  }
+
+  const eje = {
+    x: Math.sin(rumboRad),
+    y: Math.cos(rumboRad)
+  }
+
+  const ejePerp = {
+    x: -eje.y,
+    y: eje.x
+  }
 
   let fase = "UPWIND"
-  let puntoInicioFase = a.marker.getLatLng()
+  let enViraje = false
+  let sentidoGiro = 1
+
   let ultimoTiempo = performance.now()
 
   a.intervaloCircuito = setInterval(()=>{
 
     const ahora = performance.now()
-    const delta = (ahora - ultimoTiempo)/1000
+    const dt = (ahora - ultimoTiempo)/1000
     ultimoTiempo = ahora
 
-    const actual = a.marker.getLatLng()
-    const distancia = map.distance(puntoInicioFase, actual)
+    const pos = toXY(a.marker.getLatLng())
 
-    // ===== ALTITUD =====
-    if(fase === "UPWIND" || fase === "CROSSWIND"){
-      if(a.altitud < patronAltitud){
-        a.altitud += climbFPS * delta
+    // PROYECCIÓN LONGITUDINAL
+    const s = pos.x*eje.x + pos.y*eje.y
+
+    // OFFSET LATERAL
+    const d = pos.x*ejePerp.x + pos.y*ejePerp.y
+
+    // ===== LÓGICA DE FASES =====
+
+    if(fase==="UPWIND"){
+      if(s >= map.distance(rwy22,rwy04) + 2*NM){
+        fase="CROSS_TURN"
+        enViraje=true
+        sentidoGiro=1
       }
     }
 
-    if(fase === "BASE" || fase === "FINAL"){
-      a.altitud -= descensoFPS * delta
-      if(a.altitud < 0) a.altitud = 0
+    if(fase==="DOWNWIND"){
+      if(s <= 2*NM){
+        fase="BASE_TURN"
+        enViraje=true
+        sentidoGiro=1
+      }
     }
 
-    // ===== CAMBIO DE FASE =====
-    switch(fase){
+    // ===== DINÁMICA =====
 
-      case "UPWIND":
-        if(distancia >= distUpwind){
-          fase = "CROSSWIND"
-          puntoInicioFase = actual
-        }
-      break
-
-      case "CROSSWIND":
-        if(distancia >= distCross){
-          fase = "DOWNWIND"
-          puntoInicioFase = actual
-        }
-      break
-
-      case "DOWNWIND":
-        if(distancia >= distDown){
-          fase = "BASE"
-          puntoInicioFase = actual
-        }
-      break
-
-      case "BASE":
-        if(distancia >= distBase){
-          fase = "FINAL"
-          puntoInicioFase = actual
-        }
-      break
-
-      case "FINAL":
-        if(a.altitud <= 0){
-          fase = "UPWIND"
-          puntoInicioFase = actual
-        }
-      break
+    if(enViraje){
+      a.angulo += (omega*dt*sentidoGiro)*(180/Math.PI)
     }
 
-    // ===== HEADING =====
-    let headingObjetivo
+    const headingRad = a.angulo*Math.PI/180
 
-    switch(fase){
-      case "UPWIND":   headingObjetivo = rumboPista; break
-      case "CROSSWIND":headingObjetivo = rumboPista - 90; break
-      case "DOWNWIND": headingObjetivo = rumboPista + 180; break
-      case "BASE":     headingObjetivo = rumboPista + 90; break
-      case "FINAL":    headingObjetivo = rumboPista; break
-    }
+    pos.x += V*dt*Math.sin(headingRad)
+    pos.y += V*dt*Math.cos(headingRad)
 
-    headingObjetivo = (headingObjetivo + 360) % 360
+    const latlng = toLatLng(pos.x,pos.y)
+    a.marker.setLatLng(latlng)
 
-    a.angulo = girarSuavemente(a, a.angulo, headingObjetivo)
-    actualizarRotacion(a)
-
-    // ===== MOVIMIENTO =====
-    const mps = velocidad * 0.514444
-    const distanciaFrame = mps * delta
-    const headingRad = a.angulo * Math.PI/180
-
-    const deltaLat = (Math.cos(headingRad) * distanciaFrame)/111320
-    const deltaLng = (Math.sin(headingRad) * distanciaFrame) /
-      (111320*Math.cos(actual.lat*Math.PI/180))
-
-    a.marker.setLatLng([
-      actual.lat + deltaLat,
-      actual.lng + deltaLng
-    ])
-
-    const pos = a.marker.getLatLng()
-    sincronizarMovimiento(a, pos.lat, pos.lng)
+    sincronizarMovimiento(a, latlng[0], latlng[1])
 
   },50)
 }
+
 
 function detenerCircuito(){
 

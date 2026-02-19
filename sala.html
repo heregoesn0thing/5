@@ -2280,16 +2280,19 @@ function dibujarCircuitoHipodromo(){
   }
 
   const NM = 1852
-  const V = 60 * 0.514444
-  const bank = 25 * Math.PI/180
-  const g = 9.81
-  const R = (V*V)/(g*Math.tan(bank)) // radio físico real
+
+  // =========================
+  // UMBRALES REALES PISCO
+  // =========================
 
   const rwy22 = { lat:-13.734272, lng:-76.211517 }
-  const rwy04 = { lat:-13.755327, lng:-76.229306 }
+  const rwy04 = { lat:-13.755328, lng:-76.229306 }
 
-  const rumbo = calcularBearing(rwy22, rwy04)
-  const rumboRad = rumbo * Math.PI/180
+  const pistaLength = map.distance(rwy22, rwy04)
+
+  // =========================
+  // CONVERSIÓN A PLANO LOCAL
+  // =========================
 
   function toXY(p){
     return {
@@ -2305,90 +2308,78 @@ function dibujarCircuitoHipodromo(){
     ]
   }
 
+  const rumbo = calcularBearing(rwy22, rwy04)
+  const rumboRad = rumbo * Math.PI/180
+
   const eje = { x:Math.sin(rumboRad), y:Math.cos(rumboRad) }
   const perp = { x:-eje.y, y:eje.x }
 
-  const pistaLength = map.distance(rwy22, rwy04)
+  // =========================
+  // PARÁMETROS DEL CIRCUITO
+  // =========================
 
-  const crossLong = pistaLength + 2*NM
-  const baseLong  = 2*NM
-  const lateral   = 1.5*NM
+  const crossDist = pistaLength + 2*NM   // 2NM después del 04
+  const baseDist  = 2*NM                 // 2NM antes del 22
+  const lateral   = 1.5*NM               // 1.5NM separación
 
   const puntos = []
 
-  // =====================
-  // UPWIND
-  // =====================
+  // =========================
+  // 1️⃣ UPWIND
+  // =========================
 
   const upStart = { x:0, y:0 }
+
   const upEnd = {
-    x:eje.x*crossLong,
-    y:eje.y*crossLong
+    x:eje.x * crossDist,
+    y:eje.y * crossDist
   }
 
   puntos.push(toLatLng(upStart.x, upStart.y))
   puntos.push(toLatLng(upEnd.x, upEnd.y))
 
-  // =====================
-  // ARCO A CROSSWIND (90° izquierda)
-  // =====================
+  // =========================
+  // 2️⃣ CROSSWIND (90° izquierda)
+  // =========================
 
-  const centro1 = {
-    x: upEnd.x + perp.x*R,
-    y: upEnd.y + perp.y*R
+  const crossEnd = {
+    x: upEnd.x + perp.x * lateral,
+    y: upEnd.y + perp.y * lateral
   }
 
-  for(let ang=0; ang<=90; ang+=3){
+  puntos.push(toLatLng(crossEnd.x, crossEnd.y))
 
-    const theta = rumboRad + Math.PI/2 - ang*Math.PI/180
-
-    const x = centro1.x + R*Math.cos(theta)
-    const y = centro1.y + R*Math.sin(theta)
-
-    puntos.push(toLatLng(x,y))
-  }
-
-  // =====================
-  // DOWNWIND PARALELO
-  // =====================
-
-  const downStart = {
-    x: eje.x*crossLong + perp.x*lateral,
-    y: eje.y*crossLong + perp.y*lateral
-  }
+  // =========================
+  // 3️⃣ DOWNWIND PARALELO
+  // =========================
 
   const downEnd = {
-    x: eje.x*baseLong + perp.x*lateral,
-    y: eje.y*baseLong + perp.y*lateral
+    x: eje.x * baseDist + perp.x * lateral,
+    y: eje.y * baseDist + perp.y * lateral
   }
 
-  puntos.push(toLatLng(downStart.x, downStart.y))
   puntos.push(toLatLng(downEnd.x, downEnd.y))
 
-  // =====================
-  // ARCO A BASE (90° izquierda)
-  // =====================
+  // =========================
+  // 4️⃣ BASE (90° izquierda)
+  // =========================
 
-  const centro2 = {
-    x: downEnd.x - perp.x*R,
-    y: downEnd.y - perp.y*R
+  const baseEnd = {
+    x: eje.x * baseDist,
+    y: eje.y * baseDist
   }
 
-  for(let ang=0; ang<=90; ang+=3){
+  puntos.push(toLatLng(baseEnd.x, baseEnd.y))
 
-    const theta = rumboRad + Math.PI - ang*Math.PI/180
-
-    const x = centro2.x + R*Math.cos(theta)
-    const y = centro2.y + R*Math.sin(theta)
-
-    puntos.push(toLatLng(x,y))
-  }
-
-  // =====================
-  // FINAL
-  // =====================
+  // =========================
+  // 5️⃣ FINAL
+  // =========================
 
   puntos.push(toLatLng(0,0))
+
+  // =========================
+  // DIBUJO
+  // =========================
 
   patronLayer = L.polyline(puntos,{
     color:"#22c55e",
@@ -2396,6 +2387,7 @@ function dibujarCircuitoHipodromo(){
     dashArray:"8 8"
   }).addTo(map)
 }
+
 
 
 // ================= FREE NAVIGATION =================

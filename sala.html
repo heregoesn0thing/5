@@ -2225,10 +2225,7 @@ function iniciarCircuito(){
   },50)
 }
 
-
-
 function detenerCircuito(){
-
 
   if(!aeronaveSeleccionada) return
   const a = aeronaveSeleccionada
@@ -2292,66 +2289,89 @@ function dibujarCircuitoHipodromo(){
 
   const NM = 1852
 
-  const distanciaCrosswind = 2 * NM
-  const separacionLateral  = 1.5 * NM
-  const distanciaBase      = 1.5 * NM
+  const distCross = 2 * NM
+  const separacion = 1.5 * NM
+  const distBase = 1.5 * NM
 
-  // Umbral salida RWY 22
-  const umbral = rwy22
+  const umbral = {
+    lat: rwy22[0],
+    lng: rwy22[1]
+  }
 
-  // Rumbo pista 22→04
-  const rumboPista = calcularBearing(rwy22, rwy04)
+  const rumboPista = calcularBearing(
+    {lat:rwy22[0],lng:rwy22[1]},
+    {lat:rwy04[0],lng:rwy04[1]}
+  )
 
-  // ========================
-  // PUNTOS GEOMÉTRICOS
-  // ========================
-
-  // 1️⃣ Punto crosswind (2 NM adelante)
-  const puntoCrosswind = puntoPlano(umbral, rumboPista, distanciaCrosswind)
-
-  // 2️⃣ Punto downwind (1.5 NM lateral izquierda)
-  const rumboIzquierda = (rumboPista - 90 + 360) % 360
-  const puntoDownwindInicio = puntoPlano(puntoCrosswind, rumboIzquierda, separacionLateral)
-
-  // 3️⃣ Punto base (1.5 NM hacia atrás paralelo a pista)
+  const rumboIzq = (rumboPista - 90 + 360) % 360
   const rumboContrario = (rumboPista + 180) % 360
-  const puntoBase = puntoPlano(puntoDownwindInicio, rumboContrario, distanciaBase)
-
-  // 4️⃣ Punto final (alineado con pista)
-  const puntoFinal = puntoPlano(puntoBase, (rumboIzquierda + 180) % 360, separacionLateral)
-
-  // ========================
-  // CONSTRUIR HIPÓDROMO
-  // ========================
 
   const puntos = []
 
-  // Salida
+  // =================
+  // UPWIND
+  // =================
+  const puntoCross = puntoPlano(umbral, rumboPista, distCross)
   puntos.push([umbral.lat, umbral.lng])
+  puntos.push([puntoCross.lat, puntoCross.lng])
 
-  // Upwind
-  puntos.push([puntoCrosswind.lat, puntoCrosswind.lng])
+  // =================
+  // ARCO A DOWNWIND
+  // =================
+  const centroArco1 = puntoPlano(puntoCross, rumboIzq, separacion)
 
-  // Downwind
-  puntos.push([puntoDownwindInicio.lat, puntoDownwindInicio.lng])
+  const arco1 = generarArco(
+    centroArco1,
+    separacion,
+    rumboPista,
+    rumboContrario,
+    30
+  )
 
-  // Base
+  puntos.push(...arco1)
+
+  // =================
+  // DOWNWIND
+  // =================
+  const puntoDownwindInicio = arco1[arco1.length - 1]
+
+  const puntoBase = puntoPlano(
+    {lat:puntoDownwindInicio[0], lng:puntoDownwindInicio[1]},
+    rumboContrario,
+    distBase
+  )
+
   puntos.push([puntoBase.lat, puntoBase.lng])
 
-  // Final
-  puntos.push([puntoFinal.lat, puntoFinal.lng])
+  // =================
+  // ARCO A FINAL
+  // =================
+  const centroArco2 = puntoPlano(
+    puntoBase,
+    (rumboIzq + 180) % 360,
+    separacion
+  )
 
-  // Cerrar circuito
+  const arco2 = generarArco(
+    centroArco2,
+    separacion,
+    rumboContrario,
+    rumboPista,
+    30
+  )
+
+  puntos.push(...arco2)
+
+  // Cierre final
   puntos.push([umbral.lat, umbral.lng])
 
   patronLayer = L.polyline(puntos, {
     color: "#22c55e",
     weight: 2,
-    dashArray: "8 8",
-    lineJoin: "round"
+    dashArray: "8 8"
   }).addTo(map)
-
 }
+
 
 
 // ================= FREE NAVIGATION =================

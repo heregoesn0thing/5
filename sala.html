@@ -1100,23 +1100,27 @@ function iniciarRodaje(){
 
 }
 
-
 function detenerRodaje(){
 
   if(!aeronaveSeleccionada) return
-
   const a = aeronaveSeleccionada
 
   if(a.estado !== "taxi") return
 
+  if(a.motorTaxi){
+    clearInterval(a.motorTaxi)
+    a.motorTaxi = null
+  }
+
   a.estado = "idle"
-actualizarInteraccion(a)
+  actualizarInteraccion(a)
 
   mostrarTaxiing(a, false)
 
   actualizarPanelInfo(a)
   actualizarBotonTaxi()
 }
+
 
 
 function activarModoManual(){
@@ -1181,11 +1185,12 @@ actualizarRotacion(a)
 }
 
 function detenerModoManual(){
-a.estado = "idle"
-actualizarInteraccion(a)
 
   if(!aeronaveSeleccionada) return
   const a = aeronaveSeleccionada
+
+  a.estado = "idle"
+  actualizarInteraccion(a)
 
   a.modoManual = false
 
@@ -1193,9 +1198,10 @@ actualizarInteraccion(a)
     clearInterval(a.intervaloManual)
     a.intervaloManual = null
   }
-document.getElementById("panelRumbo").classList.add("oculto")
 
+  document.getElementById("panelRumbo").classList.add("oculto")
 }
+
 function actualizarInteraccion(a){
 
   if(!a || !a.marker) return

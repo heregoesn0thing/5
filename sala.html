@@ -2041,42 +2041,54 @@ function iniciarCircuito(){
 
     switch(fase){
 
-      case "UPWIND":
-        if(distancia >= distUpwind){
-          fase = "CROSSWIND"
-          puntoInicioFase = actual
-        }
-      break
+  case "UPWIND":
 
-      case "CROSSWIND":
-        if(distancia >= distCross){
-          fase = "DOWNWIND"
-          puntoInicioFase = actual
-        }
-      break
-
-      case "DOWNWIND":
-        if(distancia >= distDownwind){
-          fase = "BASE"
-          puntoInicioFase = actual
-        }
-      break
-
-      case "BASE":
-        if(distancia >= distBase){
-          fase = "FINAL"
-          puntoInicioFase = actual
-        }
-      break
-
-      case "FINAL":
-        if(a.altitud <= 0){
-          // Touch & Go
-          fase = "UPWIND"
-          puntoInicioFase = actual
-        }
-      break
+    // Mantener rumbo pista hasta 500 ft
+    if(a.altitud >= 1500 && distancia >= distUpwind){
+      fase = "CROSSWIND"
+      puntoInicioFase = actual
     }
+
+  break
+
+  case "CROSSWIND":
+
+    // No entrar a downwind hasta alcanzar altitud patrón
+    if(a.altitud >= patronAltitud && distancia >= distCross){
+      fase = "DOWNWIND"
+      puntoInicioFase = actual
+    }
+
+  break
+
+  case "DOWNWIND":
+
+    if(distancia >= distDownwind){
+      fase = "BASE"
+      puntoInicioFase = actual
+    }
+
+  break
+
+  case "BASE":
+
+    if(distancia >= distBase){
+      fase = "FINAL"
+      puntoInicioFase = actual
+    }
+
+  break
+
+  case "FINAL":
+
+    if(a.altitud <= 0){
+      fase = "UPWIND"
+      puntoInicioFase = actual
+    }
+
+  break
+}
+
 
     // ================= HEADING OBJETIVO =================
 

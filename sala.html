@@ -670,13 +670,23 @@ actualizarInteraccion(nueva)
 
     if (modoEliminar) {
 
-      socket.emit("eliminarAeronave", callsign)
+  // 🚫 No permitir borrar si no está en idle
+  if(nueva.estado !== "idle"){
+    alert("Cannot remove aircraft while operating")
+    return
+  }
 
-      modoEliminar = false
-      btnEliminar.classList.remove("activo")
+  const confirmar = confirm("Remove aircraft " + nueva.id + "?")
+  if(!confirmar) return
 
-      return
-    }
+  socket.emit("eliminarAeronave", nueva.id)
+
+  modoEliminar = false
+  btnEliminar.classList.remove("activo")
+
+  return
+}
+
 
     seleccionarAeronave(nueva)
   })
@@ -1471,10 +1481,8 @@ function despegar(){
     if(distanciaSalida >= DISTANCIA_REMOVE){
 
       clearInterval(a.intervaloVuelo)
-      map.removeLayer(a.marker)
-      aeronaves = aeronaves.filter(x=>x!==a)
-      cerrarPanel()
-        socket.emit("eliminarAeronave", a.id)
+socket.emit("eliminarAeronave", a.id)
+
     }
 
     // ================= ACTUALIZAR PANEL =================
@@ -1736,6 +1744,7 @@ function moverPorPuntos(a){
     if(distanciaMetros <= pasoMetros){
 
       a.marker.setLatLng(destino)
+      actualizarRutaRecorrida(a)
       i++
       a.indiceRuta = i
 
@@ -1841,7 +1850,8 @@ function sincronizarMovimiento(a, lat, lng){
 
   if(a.remoto) return
 
-  const ahora = Date.now()
+  const ahora = performance.now()
+
 
   if(!a.ultimoSync) a.ultimoSync = 0
   if(ahora - a.ultimoSync < 80) return
@@ -2038,6 +2048,8 @@ function detenerCircuito(){
 
   a.estado = "idle"
   actualizarInteraccion(a)
+actualizarPanelInfo(a)
+actualizarBotonTaxi()
 
 }
 

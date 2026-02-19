@@ -192,8 +192,10 @@
     horaInicial: "00:00:00"
   });
 
-  input.value = "";
+  // 🔥 REDIRECCIÓN INMEDIATA
+  window.location.href = "/sala?nombre=" + encodeURIComponent(nombre);
 }
+
 socket.on("errorSala", (msg) => {
   alert(msg);
 });

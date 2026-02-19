@@ -1649,22 +1649,25 @@ function actualizarRotacion(a){
   const icon = el.querySelector(".icon-aircraft");
   if(!icon) return;
 
+  const wrapper = el.querySelector(".icon-wrapper");
+  if(!wrapper) return;
+
   const zoom = map.getZoom();
 
   const escala = Math.max(
-  0.55,
-  Math.min(1.1, Math.pow(1.12, zoom - 15))
-);
+    0.55,
+    Math.min(1.1, Math.pow(1.12, zoom - 15))
+  );
 
+  // ESCALAR SOLO EL WRAPPER (NO EL MARKER)
+  wrapper.style.transform = `scale(${escala})`;
+  wrapper.style.transformOrigin = "center";
 
-  // 🔹 Escalar el contenedor
-  el.style.transform = `scale(${escala})`;
-  el.style.transformOrigin = "center";
-
-  // 🔹 Rotar solo el icono interno
+  //ROTAR SOLO EL ICONO
   const offset = ORIENTACION_MODELOS[a.tipo] || ORIENTACION_MODELOS.DEFAULT;
   icon.style.transform = `rotate(${a.angulo + offset}deg)`;
 }
+
 map.on("zoom", () => {
   aeronaves.forEach(a => actualizarRotacion(a))
 });

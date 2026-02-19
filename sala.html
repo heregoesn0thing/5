@@ -984,37 +984,66 @@ function agregarAeronave(data, esRemota = true) {
 // ================= ROUTE =================
 
 function activarModoRuta(){
-  if(!aeronaveSeleccionada) return
-  if(aeronaveSeleccionada.estado === "taxi"){
 
+  if(!aeronaveSeleccionada) return
+
+  const a = aeronaveSeleccionada
+
+  if(a.estado === "taxi"){
     alert("Aircraft is taxiing")
     return
   }
- if(aeronaveSeleccionada.ruta){
-    map.removeLayer(aeronaveSeleccionada.ruta)
-  }
-  modoRuta=true
-  const pos=aeronaveSeleccionada.marker.getLatLng()
-  rutaTemporal=[pos]
-  aeronaveSeleccionada.puntosRuta=rutaTemporal
-  aeronaveSeleccionada.ruta = L.polyline(rutaTemporal, {
-  color: "#21bd21",
-  weight: 3,
-  dashArray: "6 12",
-  dashOffset: "0"
-}).addTo(map)
-animarRuta(aeronaveSeleccionada)
-  actualizarBotonTaxi()
 
+  // 🔥 Eliminar ruta anterior correctamente
+  if(a.animRutaFrame){
+    cancelAnimationFrame(a.animRutaFrame)
+    a.animRutaFrame = null
+  }
+
+  if(a.ruta){
+    map.removeLayer(a.ruta)
+    a.ruta = null
+  }
+
+  // 🔥 Crear nueva ruta independiente
+  modoRuta = true
+
+  const pos = a.marker.getLatLng()
+
+  a.puntosRuta = [pos]   // ← YA NO usamos rutaTemporal global
+
+  a.ruta = L.polyline(a.puntosRuta, {
+    color: "#21bd21",
+    weight: 3,
+    dashArray: "6 12",
+    dashOffset: "0"
+  }).addTo(map)
+
+  animarRuta(a)
+
+  actualizarBotonTaxi()
 }
+
 
 function agregarPuntoRuta(latlng){
-  if(!aeronaveSeleccionada || aeronaveSeleccionada.estado === "taxi") return
-  rutaTemporal.push(latlng)
-  aeronaveSeleccionada.ruta.setLatLngs(rutaTemporal)
-  actualizarBotonTaxi()
 
+  if(!aeronaveSeleccionada) return
+
+  const a = aeronaveSeleccionada
+
+  if(a.estado === "taxi") return
+
+  if(!a.puntosRuta) return
+
+  a.puntosRuta.push(latlng)
+
+  if(a.ruta){
+    a.ruta.setLatLngs(a.puntosRuta)
+  }
+
+  actualizarBotonTaxi()
 }
+
 function eliminarRuta(){
 
   if(!aeronaveSeleccionada) return

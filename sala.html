@@ -997,7 +997,13 @@ function activarModoRuta(){
   const pos=aeronaveSeleccionada.marker.getLatLng()
   rutaTemporal=[pos]
   aeronaveSeleccionada.puntosRuta=rutaTemporal
-  aeronaveSeleccionada.ruta=L.polyline(rutaTemporal,{color:"yellow"}).addTo(map)
+  aeronaveSeleccionada.ruta = L.polyline(rutaTemporal, {
+  color: "#00ffff",
+  weight: 3,
+  dashArray: "6 12",
+  dashOffset: "0"
+}).addTo(map)
+animarRuta(aeronaveSeleccionada)
   actualizarBotonTaxi()
 
 }
@@ -1015,18 +1021,20 @@ function eliminarRuta(){
 
   const a = aeronaveSeleccionada
 
-  a.indiceRuta = 0
+  // 🔥 Detener animación si existe
+  if(a.animRutaFrame){
+    cancelAnimationFrame(a.animRutaFrame)
+    a.animRutaFrame = null
+  }
 
-  // Eliminar línea del mapa
+  // 🔥 Eliminar polyline del mapa
   if(a.ruta){
     map.removeLayer(a.ruta)
     a.ruta = null
   }
 
-  a.puntosRuta = []
-
-  mostrarTaxiing(a,false)
 }
+
 
 // ================= TAXI =================
 
@@ -1581,10 +1589,16 @@ function moverPorPuntos(a){
   mostrarTaxiing(a,false)
 
   // 🔥 ELIMINAR RUTA VISUAL
-  if(a.ruta){
-    map.removeLayer(a.ruta)
-    a.ruta = null
-  }
+  if(a.animRutaFrame){
+  cancelAnimationFrame(a.animRutaFrame)
+  a.animRutaFrame = null
+}
+
+if(a.ruta){
+  map.removeLayer(a.ruta)
+  a.ruta = null
+}
+
 
   // 🔥 LIMPIAR PUNTOS
   a.puntosRuta = []
@@ -1671,6 +1685,27 @@ function mostrarTaxiing(a,estado){
   if(!label) return
 
   label.style.display = estado ? "block" : "none"
+}
+function animarRuta(a){
+
+  if(!a.ruta) return
+
+  let offset = 0
+
+  function animar(){
+
+    if(!a.ruta) return
+
+    offset -= 1
+
+    a.ruta.setStyle({
+      dashOffset: offset
+    })
+
+    a.animRutaFrame = requestAnimationFrame(animar)
+  }
+
+  animar()
 }
 
 

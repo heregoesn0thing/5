@@ -635,13 +635,8 @@ function confirmarCreacion(){
 
     const pos = e.target.getLatLng()
 
-    socket.emit("actualizarAeronave", {
-      id: callsign,
-      lat: pos.lat,
-      lng: pos.lng,
-      altitud: 0,
-      angulo: 0
-    })
+    sincronizarMovimiento(a, lat, lng)
+
 
   })
 
@@ -1179,13 +1174,8 @@ actualizarRotacion(a)
 
     a.marker.setLatLng([nuevaLat, nuevaLng])
 
-    socket.emit("actualizarAeronave", {
-      id:a.id,
-      lat:nuevaLat,
-      lng:nuevaLng,
-      altitud:a.altitud,
-      angulo:a.angulo
-    })
+    sincronizarMovimiento(a, lat, lng)
+
 
   }, 50)
 
@@ -1467,14 +1457,8 @@ function despegar(){
     if(aeronaveSeleccionada === a){
       actualizarPanelInfo(a)
     }
-socket.emit("actualizarAeronave", {
-  id: a.id,
-  lat: a.marker.getLatLng().lat,
-  lng: a.marker.getLatLng().lng,
-  altitud: a.altitud,
-  angulo: a.angulo
+sincronizarMovimiento(a, lat, lng)
 
-})
 
   },50)
 }
@@ -1624,64 +1608,51 @@ function actualizarRotacion(a){
 
   const zoom = map.getZoom();
 
-  // 🔥 Escala controlada
   const escala = Math.max(
-    0.5,
-    Math.min(1.2, Math.pow(1.15, zoom - 15))
+    0.55,
+    Math.min(1.1, Math.pow(1.12, zoom - 15))
   );
 
-  // 🔹 Escalar el contenedor
+  // 🔹 Escala contenedor
   el.style.transform = `scale(${escala})`;
   el.style.transformOrigin = "center";
 
-  // 🔹 Rotar solo el icono interno
+  // 🔹 Rotación icono interno
   const offset = ORIENTACION_MODELOS[a.tipo] || ORIENTACION_MODELOS.DEFAULT;
   icon.style.transform = `rotate(${a.angulo + offset}deg)`;
 }
+
 map.on("zoom", () => {
   aeronaves.forEach(a => actualizarRotacion(a))
 });
 
-
-function actualizarEscalaIconos(){
-
-  const zoom = map.getZoom()
-
-  // Ajusta estos valores a tu gusto
-  const escala = Math.max(0.6, zoom / 18)
-
-  aeronaves.forEach(a => {
-    const el = a.marker.getElement()
-    if(el){
-      el.style.transform = `scale(${escala}) rotate(${a.angulo || 0}deg)`
-      el.style.transformOrigin = "center"
-    }
-  })
-}
-
 function interpolarRemoto(avion, latDestino, lngDestino){
 
-  const inicio = avion.marker.getLatLng();
-  const duracion = 100; // mismo intervalo que emisión (100ms)
+  if(avion.animRemoto){
+    cancelAnimationFrame(avion.animRemoto)
+  }
 
-  const startTime = performance.now();
+  const inicio = avion.marker.getLatLng()
+  const duracion = 100
+  const startTime = performance.now()
 
   function animar(now){
 
-    const t = Math.min((now - startTime) / duracion, 1);
+    const t = Math.min((now - startTime) / duracion, 1)
 
-    const lat = inicio.lat + (latDestino - inicio.lat) * t;
-    const lng = inicio.lng + (lngDestino - inicio.lng) * t;
+    const lat = inicio.lat + (latDestino - inicio.lat) * t
+    const lng = inicio.lng + (lngDestino - inicio.lng) * t
 
-    avion.marker.setLatLng([lat, lng]);
+    avion.marker.setLatLng([lat, lng])
 
     if(t < 1){
-      requestAnimationFrame(animar);
+      avion.animRemoto = requestAnimationFrame(animar)
     }
   }
 
-  requestAnimationFrame(animar);
+  avion.animRemoto = requestAnimationFrame(animar)
 }
+
 
 
 function moverPorPuntos(a){
@@ -1839,13 +1810,8 @@ function sincronizarMovimiento(a, lat, lng){
 
   a.ultimoSync = ahora
 
-  socket.emit("actualizarAeronave", {
-    id: a.id,
-    lat,
-    lng,
-    altitud: a.altitud,
-    angulo: a.angulo
-  })
+  sincronizarMovimiento(a, lat, lng)
+
 }
 
 
@@ -2009,13 +1975,8 @@ a.estado = "circuito"
     ])
 const pos = a.marker.getLatLng()
 
-socket.emit("actualizarAeronave", {
-    id: a.id,
-    lat: pos.lat,
-    lng: pos.lng,
-    altitud: a.altitud,
-    angulo: a.angulo
-})
+sincronizarMovimiento(a, lat, lng)
+
 
   },50)
 }
@@ -2052,13 +2013,8 @@ function cambiarRumbo(valor){
   actualizarRotacion(a)
   actualizarHeadingDisplay(a)
 
-  socket.emit("actualizarAeronave", {
-    id:a.id,
-    lat:a.marker.getLatLng().lat,
-    lng:a.marker.getLatLng().lng,
-    altitud:a.altitud,
-    angulo:a.angulo
-  })
+  sincronizarMovimiento(a, lat, lng)
+
 
 }
 function actualizarHeadingDisplay(a){

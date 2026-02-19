@@ -24,6 +24,7 @@ let salas = {};
 let relojesSalas = {};
 let intervalosSalas = {};
 let peligroSalas = {};
+let timeoutsSalas = {};
 
 // ================== UTILIDADES ==================
 
@@ -151,7 +152,10 @@ socket.on("cambiarHora", ({ hora }) => {
     if (!salas[nombre].jugadores.includes(socket.id)) {
       salas[nombre].jugadores.push(socket.id);
     }
-
+if (timeoutsSalas[nombre]) {
+  clearTimeout(timeoutsSalas[nombre]);
+  delete timeoutsSalas[nombre];
+}
     socket.emit("cargarAeronaves", salas[nombre].aeronaves);
 if (peligroSalas[nombre]) {
   socket.emit("peligroActivado");
@@ -314,11 +318,41 @@ socket.on("disconnect", () => {
     salas[nombre].jugadores =
       salas[nombre].jugadores.filter(id => id !== socket.id);
 
-    
+    // 🟡 Si quedó vacía, iniciar countdown
+    if (salas[nombre].jugadores.length === 0) {
+
+      // Evitar múltiples timeouts
+      if (timeoutsSalas[nombre]) return;
+
+      console.log(`⏳ Sala ${nombre} vacía. Eliminando en 5 minutos si nadie entra.`);
+
+      timeoutsSalas[nombre] = setTimeout(() => {
+
+        // Verificar nuevamente antes de borrar
+        if (salas[nombre] && salas[nombre].jugadores.length === 0) {
+
+          console.log(`🗑 Eliminando sala ${nombre} por inactividad.`);
+
+          if (intervalosSalas[nombre]) {
+            clearInterval(intervalosSalas[nombre]);
+            delete intervalosSalas[nombre];
+          }
+
+          delete salas[nombre];
+          delete relojesSalas[nombre];
+          delete peligroSalas[nombre];
+          delete timeoutsSalas[nombre];
+
+          io.emit("listaSalas", obtenerListaSalas());
+        }
+
+      }, 5 * 60 * 1000); // 5 minutos
+    }
   }
 
   io.emit("listaSalas", obtenerListaSalas());
 });
+
 
 
 });

@@ -1,0 +1,513 @@
+*{
+  box-sizing:border-box;
+}
+
+html, body{
+  margin:0;
+  padding:0;
+  height:100%;
+  overflow:hidden;
+}
+
+#map {
+  height: 100vh;
+  width: 100%;
+  z-index: 1;
+}
+
+.icon-wrapper{
+  width:80px;
+  height:70px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  position:relative;
+}
+
+.icon-aircraft{
+  font-size:26px;
+  transform-origin:center center;
+  transition: transform 0.08s linear;
+  display:block;
+  margin:auto;
+}
+
+.callsign-label{
+  position:absolute;
+  bottom:-18px;
+  font-size:11px;
+  font-weight:bold;
+  color:white;
+  background:black;
+  padding:2px 5px;
+  border-radius:4px;
+  white-space:nowrap;
+}
+
+.status-label{
+  position:absolute;
+  top:-16px;
+  font-size:10px;
+  font-weight:bold;
+  color:white;
+  background:blue;
+  padding:2px 4px;
+  border-radius:4px;
+  display:none;
+}
+
+#menuAeronave{
+  position:fixed;
+  top:120px;
+  left:20px;
+  background:rgba(20,20,20,0.95);
+  color:white;
+  border-radius:8px;
+  display:none;
+  z-index:2000;
+  width:260px;
+  font-family:monospace;
+}
+
+#panelHeader{
+  background:#111;
+  padding:8px;
+  cursor:move;
+  display:flex;
+  justify-content:space-between;
+}
+
+#panelBody{ padding:10px; }
+
+#panelBody button{
+  width:100%;
+  margin-top:6px;
+  padding:6px;
+  cursor:pointer;
+}
+
+#aircraftInfo{
+  font-size:12px;
+  margin-bottom:10px;
+  background:#000;
+  padding:6px;
+  border-radius:4px;
+}
+
+#btnEliminarModo {
+  position: absolute;
+  top: 80px;
+  left: 10px;
+  z-index: 1000;
+  width: 35px;
+  height: 35px;
+  border-radius: 6px;
+  border: none;
+  background: #222;
+  color: white;
+  cursor: pointer;
+  font-size: 16px;
+}
+#panelRumbo{
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(20,20,25,0.95);
+  padding: 12px 18px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 6px 25px rgba(0,0,0,0.4);
+  z-index: 10000;
+}
+
+
+#panelRumbo button{
+  background: #1e2a38;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.2s;
+}
+#panelRumbo button:hover{
+  background: #2f4257;
+}
+#headingDisplay{
+  font-size: 18px;
+  font-weight: bold;
+  width: 70px;
+  text-align: center;
+  color: #00e0ff;
+}
+
+#panelRumbo{
+  position: fixed;
+  bottom: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15,20,30,0.95);
+  padding: 12px 16px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  z-index: 10000;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+#panelRumbo button{
+  background: #1e2f45;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.2s;
+  font-size: 14px;
+}
+
+#panelRumbo button:hover{
+  background: #2e4766;
+}
+
+#headingDisplay{
+  font-size: 18px;
+  font-weight: bold;
+  width: 70px;
+  text-align: center;
+  color: #00e0ff;
+}
+
+.oculto{
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 20px);
+}
+
+/* 📱 RESPONSIVE MÓVIL */
+@media (max-width: 600px){
+
+  #panelRumbo{
+    bottom: 10px;
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
+  #panelRumbo button{
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  #headingDisplay{
+    font-size: 14px;
+    width: 55px;
+  }
+
+}
+#menuAeronave{
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 300px;
+  background: rgba(15,15,15,0.97);
+  border: 1px solid #2f2f2f;
+  border-radius: 12px;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+  backdrop-filter: blur(6px);
+  z-index: 9999;
+  display: none;
+  transition: all 0.3s ease;
+}
+
+/* HEADER */
+#panelHeader{
+  padding: 8px;
+  background: #1c1c1c;
+  border-bottom: 1px solid #333;
+  font-size: 13px;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: move;
+  letter-spacing: 1px;
+}
+
+/* BODY */
+#panelBody{
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* BOTONES */
+#panelBody button{
+  padding: 6px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+/* SELECTS */
+#panelBody select{
+  width: 100%;
+  padding: 5px;
+  border-radius: 6px;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px){
+
+  #menuAeronave{
+    width: 95%;
+    left: 2.5%;
+    right: auto;
+    bottom: 10px;
+  }
+
+  #panelBody{
+    gap: 6px;
+  }
+
+  #panelBody button{
+    font-size: 13px;
+  }
+}
+#departurePanel{
+  position:absolute;
+  top:100px;
+  right:20px;
+  width:280px;
+  background: rgba(15,15,15,0.97);
+  border: 1px solid #2f2f2f;
+  border-radius: 12px;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+  backdrop-filter: blur(6px);
+  z-index: 9999;
+  display:none;
+  color:white;
+  font-size:13px;
+}
+
+.panelHeader{
+  background:#1c1c1c;
+  padding:8px;
+  font-weight:bold;
+  cursor:move;
+  display:flex;
+  justify-content:space-between;
+}
+
+.panelBody{
+  padding:10px;
+}
+
+.panelOculto{
+  display:none;
+}
+
+#btnEliminarModo.activo {
+  background: red;
+}
+#relojHora{ font-size:20px; margin-bottom:8px; }
+
+
+
+
+#timeControls input{
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: white;
+  padding: 6px;
+  border-radius: 6px;
+}
+/* ===== PANEL TIEMPO LIMPIO ===== */
+
+#panelTiempo{
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  background: rgba(15,23,42,0.95);
+  backdrop-filter: blur(8px);
+  padding: 12px 14px;
+  border-radius: 14px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: monospace;
+  color: #e2e8f0;
+}
+
+#relojGlobal{
+  font-size: 18px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  color: #38bdf8;
+}
+
+#timeControls{
+  display: flex;
+  gap: 6px;
+}
+
+#timeControls button{
+  background: #1e293b;
+  border: none;
+  color: white;
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+#timeControls button:hover{
+  background: #334155;
+  transform: scale(1.05);
+}
+
+/* ===== DROPDOWN LATERAL REAL ===== */
+
+#configHora{
+  position: absolute;
+  top: 0;
+  right: 100%;
+  margin-right: 10px;
+
+  background: rgba(15,23,42,0.98);
+  padding: 10px;
+  border-radius: 12px;
+  display: flex;
+  gap: 8px;
+
+  transform: translateX(20px);
+  opacity: 0;
+  pointer-events: none;
+  transition: 0.25s ease;
+}
+
+#configHora.activo{
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#configHora input{
+  background: #ffffff;
+  border: 1px solid #334155;
+  color: rgb(0, 0, 0);
+  padding: 6px;
+  border-radius: 6px;
+}
+#createAircraftPanel{
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.95);
+  width: 340px;
+  background: rgba(15,23,42,0.97);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+  z-index: 99999;
+  color: #e2e8f0;
+  opacity: 0;
+  pointer-events: none;
+  transition: 0.25s ease;
+  display: block;
+}
+
+#createAircraftPanel.activo{
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+#createAircraftPanel .panelBody{
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+#createAircraftPanel label{
+  font-size: 12px;
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
+
+#createAircraftPanel select,
+#createAircraftPanel input{
+  width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: white;
+  font-size: 13px;
+}
+
+#createAircraftPanel select:focus,
+#createAircraftPanel input:focus{
+  outline: none;
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 2px rgba(56,189,248,0.3);
+}
+
+.btnPrimary{
+  background: #0ea5e9;
+  border: none;
+  padding: 9px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.btnPrimary:hover{
+  background: #0284c7;
+  transform: translateY(-2px);
+}
+.taxi-controls{
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  margin-top: -12px;
+}
+
+.taxi-controls button{
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+#btnDanger{
+  position:fixed;
+  bottom:15px;
+  right:15px;
+  width:40px;
+  height:40px;
+  border-radius:50%;
+  border:none;
+  background:#b91c1c;
+  color:white;
+  font-size:18px;
+  cursor:pointer;
+  box-shadow:0 4px 10px rgba(0,0,0,0.3);
+  z-index:1000;
+  transition:0.2s;
+}
+
+#btnDanger:hover{
+  background:#dc2626;
+  transform:scale(1.1);
+}

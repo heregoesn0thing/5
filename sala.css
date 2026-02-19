@@ -529,7 +529,7 @@ html, body{
   position: absolute;
   bottom: 60px;
   left: 20px;
-  background: #0f172a;
+  background: #5b76b3;
   padding: 10px;
   border-radius: 10px;
   display: flex;
@@ -537,7 +537,7 @@ html, body{
   gap: 6px;
   font-size: 13px;
   z-index: 999;
-  box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+  box-shadow: 0 10px 20px rgba(37, 65, 209, 0.4);
 }
 
 .panel-capas.oculto{

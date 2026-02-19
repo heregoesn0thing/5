@@ -2249,11 +2249,6 @@ switch(fase){
   },50)
 }
 
-function girarSuavemente(a, actual, objetivo){
-  let diff = ((objetivo - actual + 540) % 360) - 180
-  return actual + diff * 0.05
-}
-
 
 function detenerCircuito(){
 
@@ -2311,6 +2306,10 @@ function puntoPlano(origen, rumbo, distanciaMetros){
 }
 
 function dibujarCircuitoHipodromo(){
+if(patronLayer){
+  map.removeLayer(patronLayer)
+  patronLayer = null
+}
 
   const rwy04 = { lat: -13.755327, lng: -76.229306 }
 const rwy22 = { lat: -13.734272, lng: -76.211517 }
@@ -2376,7 +2375,8 @@ const rwy22 = { lat: -13.734272, lng: -76.211517 }
   )
   puntos = puntos.concat(arco4)
 
-  circuitoLayer = L.polyline(puntos, {
+  patronLayer = L.polyline(puntos, {
+
     color: "#22c55e",
     weight: 2,
     dashArray: "8 8"

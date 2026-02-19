@@ -94,6 +94,8 @@ socket.on("cargarAeronaves", lista => {
       tipo: data.tipo,
       estado: "idle",
       indiceRuta: 0,
+      modoRuta: false,
+  rutaTemporal: [],
       rutaRecorrida: null,
       marker: marker,
       remoto: true,
@@ -368,8 +370,6 @@ crearVOR("SCO VOR", -13.738556, -76.212750)
 
 let aeronaves = []
 let aeronaveSeleccionada = null
-let modoRuta = false
-let rutaTemporal = []
 let modoEliminar = false;
 let marcadorPeligro = null;
 let imagenPeligro = null;
@@ -451,29 +451,24 @@ socket.on("peligroDesactivado", () => {
   }
 
 })
-const PASSWORD_PELIGRO = "0223"; // Password hardcoded
+d
 
 function activarModoPeligro(){
 
-  const clave = prompt("Enter password to activate EMERGENCY MODE:");
-
+  const clave = prompt("Enter emergency password:");
   if(clave === null) return;
 
   if(!/^\d+$/.test(clave)){
-    alert("Only numbers allowed ☠️");
+    alert("Only numbers allowed");
     return;
   }
 
-  if(clave === PASSWORD_PELIGRO){
-    activarEmergencia()
-    socket.emit("activarPeligroSala", {
-  sala: nombreSala
-})
-;
-  }else{
-    alert("Don't try again please ☠️");
-  }
+  socket.emit("activarPeligroSala", {
+    sala: nombreSala,
+    clave: clave
+  });
 }
+
 
 // ================= TIEMPO =================
 let pausado = false;
@@ -643,6 +638,9 @@ function confirmarCreacion(){
     ruta: null,
     rutaRecorrida: null,
     puntosRuta: [],
+    indiceRuta: 0,
+modoRuta: false,
+  rutaTemporal: [],
     angulo: 0,
     sid: null,
     altitud: 0,
@@ -652,7 +650,7 @@ function confirmarCreacion(){
     starActivo: false,
     faseStar: null,
     estado: "idle",
-indiceRuta: 0,
+
 animFrame: null,
     altitudObjetivo: null,
     modoManual: false,
@@ -737,7 +735,9 @@ socket.on("crearAeronave", data => {
   puntosRuta: [],
   estado: "idle",
   indiceRuta: 0,
-  animFrame: null
+  animFrame: null,
+  modoRuta: false,
+  rutaTemporal: [],
 }
 
 
@@ -788,7 +788,7 @@ socket.on("borrarAeronave", id => {
   const avion = aeronaves.find(a => a.id === id)
   if (!avion) return
 
-  // 🔴 DETENER TODO ANTES DE ELIMINAR
+  // 🔴 DETENER TODOS LOS MOTORES
 
   if(avion.intervaloManual){
     clearInterval(avion.intervaloManual)
@@ -804,21 +804,40 @@ socket.on("borrarAeronave", id => {
     clearInterval(avion.intervaloCircuito)
     avion.intervaloCircuito = null
   }
-if(avion.animRemoto){
-  cancelAnimationFrame(avion.animRemoto)
-}
-if(avion.motorTaxi){
-  clearInterval(avion.motorTaxi)
-}
 
-  // 🔴 eliminar ruta si existe
-  if(avion.ruta){
-    map.removeLayer(avion.ruta)
+  if(avion.motorTaxi){
+    clearInterval(avion.motorTaxi)
+    avion.motorTaxi = null
   }
 
-  map.removeLayer(avion.marker)
+  if(avion.animRemoto){
+    cancelAnimationFrame(avion.animRemoto)
+    avion.animRemoto = null
+  }
+
+  // 🔴 ELIMINAR RUTAS
+
+  if(avion.ruta){
+    map.removeLayer(avion.ruta)
+    avion.ruta = null
+  }
+
+  if(avion.rutaRecorrida){
+    map.removeLayer(avion.rutaRecorrida)
+    avion.rutaRecorrida = null
+  }
+
+  // 🔴 ELIMINAR MARKER SEGURO
+
+  if(map.hasLayer(avion.marker)){
+    map.removeLayer(avion.marker)
+  }
+
+  // 🔴 ELIMINAR DEL ARRAY
 
   aeronaves = aeronaves.filter(a => a.id !== id)
+
+  // 🔴 LIMPIAR UI
 
   if(aeronaveSeleccionada && aeronaveSeleccionada.id === id){
     aeronaveSeleccionada = null
@@ -986,9 +1005,8 @@ function agregarAeronave(data, esRemota = true) {
 // ================= ROUTE =================
 function activarModoRuta(){
 
-  if(!aeronaveSeleccionada) return
-
   const a = aeronaveSeleccionada
+  if(!a) return
 
   if(a.estado === "taxi"){
     alert("Aircraft is taxiing")
@@ -1006,15 +1024,17 @@ function activarModoRuta(){
     a.rutaRecorrida = null
   }
 
-  modoRuta = true
+  // 🔥 AHORA ES PROPIEDAD DEL OBJETO
+  a.modoRuta = true
 
   const pos = a.marker.getLatLng()
 
-  rutaTemporal = [pos]
-  a.puntosRuta = rutaTemporal
+  // 🔥 Ruta temporal ahora es del objeto
+  a.rutaTemporal = [pos]
+  a.puntosRuta = a.rutaTemporal
 
   // 🟢 Ruta futura (punteada animada)
-  a.ruta = L.polyline(rutaTemporal, {
+  a.ruta = L.polyline(a.rutaTemporal, {
     color: "#21bd21",
     weight: 3,
     dashArray: "6 12",
@@ -1034,25 +1054,19 @@ function activarModoRuta(){
 }
 
 
-
 function agregarPuntoRuta(latlng){
 
-  if(!aeronaveSeleccionada) return
-
   const a = aeronaveSeleccionada
-
+  if(!a) return
+  if(!a.modoRuta) return
   if(a.estado === "taxi") return
 
-  if(!a.puntosRuta) return
-
-  a.puntosRuta.push(latlng)
-
-  if(a.ruta){
-    a.ruta.setLatLngs(a.puntosRuta)
-  }
+  a.rutaTemporal.push(latlng)
+  a.ruta.setLatLngs(a.rutaTemporal)
 
   actualizarBotonTaxi()
 }
+
 
 function eliminarRuta(a){
 
@@ -1075,8 +1089,11 @@ function eliminarRuta(a){
     a.rutaRecorrida = null
   }
 
-  a.puntosRuta = []
-  a.indiceRuta = 0
+  a.modoRuta = false
+a.rutaTemporal = []
+a.puntosRuta = []
+a.indiceRuta = 0
+  actualizarBotonTaxi()
 }
 
 

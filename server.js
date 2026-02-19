@@ -277,6 +277,17 @@ socket.on("desactivarPeligroSala", () => {
  peligroSalas[sala] = false;
   io.to(sala).emit("peligroDesactivado");
 });
+const PASSWORD = "0223";
+
+socket.on("activarPeligroSala", data => {
+
+  if(data.clave !== PASSWORD){
+    socket.emit("errorPeligro", "Incorrect password");
+    return;
+  }
+
+  io.to(data.sala).emit("activarPeligroGlobal");
+});
 
 
 

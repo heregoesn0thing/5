@@ -1577,24 +1577,33 @@ function moverPorPuntos(a){
 
     if(i >= ruta.length - 1){
 
-      a.estado = "idle"
-      a.indiceRuta = 0
+  cambiarEstado(a,"idle")
+  mostrarTaxiing(a,false)
 
-      mostrarTaxiing(a,false)
+  // 🔥 ELIMINAR RUTA VISUAL
+  if(a.ruta){
+    map.removeLayer(a.ruta)
+    a.ruta = null
+  }
 
-      modoRuta = false
-      rutaTemporal = []
+  // 🔥 LIMPIAR PUNTOS
+  a.puntosRuta = []
+  a.indiceRuta = 0
 
-      a.marker.dragging.enable()
+  // 🔥 LIMPIAR RUTA TEMPORAL GLOBAL
+  if(rutaTemporal){
+    map.removeLayer(rutaTemporal)
+    rutaTemporal = null
+  }
 
-      const el = a.marker.getElement()
-      if (el) el.style.pointerEvents = "auto"
+  modoRuta = false
 
-      actualizarPanelInfo(a)
-      actualizarBotonTaxi()
+  actualizarPanelInfo(a)
+  actualizarBotonTaxi()
 
-      return
-    }
+  return
+}
+
 
     const actual = a.marker.getLatLng()
     const destino = ruta[i + 1]

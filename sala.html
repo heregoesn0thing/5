@@ -1630,70 +1630,14 @@ function moverPorPuntos(a){
   requestAnimationFrame(mover)
 }
 
-
-
-  const inicio = L.latLng(ruta[i].lat, ruta[i].lng)
-const fin = ruta[i+1]
-
-a.angulo = calcularBearing(inicio, fin)
-actualizarRotacion(a)
-
-const dist = map.distance(inicio, fin)
-const dur = (dist / VELOCIDAD) * 1000
-const start = Date.now()
-
-a.intervaloMovimiento = setInterval(()=>{
-
-  if(a.taxiPausado){
-    clearInterval(a.intervaloMovimiento)
-    a.indiceRuta = i
-    return
-  }
-
-  const t = (Date.now() - start) / dur
-
-  if(t >= 1){
-    a.marker.setLatLng(fin)
-    clearInterval(a.intervaloMovimiento)
-    i++
-    a.indiceRuta = i
-
-    if(a.ruta){
-      const restante = a.puntosRuta.slice(i)
-      a.ruta.setLatLngs(restante)
-    }
-
-    mover()
-    return
-  }
-
-  const lat = inicio.lat + (fin.lat - inicio.lat) * t
-  const lng = inicio.lng + (fin.lng - inicio.lng) * t
-
-  a.marker.setLatLng([lat, lng])
-
-  socket.emit("actualizarAeronave", {
-    id: a.id,
-    lat: lat,
-    lng: lng,
-    altitud: a.altitud,
-    angulo: a.angulo
-  })
-
-},16)
-
-  }
-
-  mover()
-}
-
-
-
 function mostrarTaxiing(a,estado){
   const el=a.marker.getElement()
   const label=el.querySelector(".status-label")
   label.style.display=estado?"block":"none"
 }
+
+
+
 //===========CIRCUITO=============
 //=========== TRAFFIC PATTERN =============
 
@@ -1823,8 +1767,6 @@ socket.emit("actualizarAeronave", {
 
   },50)
 }
-
-
 
 function detenerCircuito(){
 

@@ -796,6 +796,10 @@ socket.on("actualizarAeronave", data => {
   if (data.altitud !== undefined) {
     avion.altitud = data.altitud;
   }
+  if(data.estado){
+  avion.estado = data.estado
+}
+
 });
 
 
@@ -1215,6 +1219,8 @@ actualizarRotacion(a)
     const nuevaLng = actual.lng + deltaLng
 
     a.marker.setLatLng([nuevaLat, nuevaLng])
+a.lat = nuevaLat
+a.lng = nuevaLng
 
     const pos = a.marker.getLatLng()
 sincronizarMovimiento(a, pos.lat, pos.lng)
@@ -1465,10 +1471,15 @@ function despegar(){
     const deltaLng = (Math.sin(headingRad) * mps) /
                      (111320 * Math.cos(actual.lat*Math.PI/180))
 
-    a.marker.setLatLng([
-      actual.lat + deltaLat,
-      actual.lng + deltaLng
-    ])
+    const nuevaLat = actual.lat + deltaLat
+const nuevaLng = actual.lng + deltaLng
+
+a.lat = nuevaLat
+a.lng = nuevaLng
+
+a.marker.setLatLng([a.lat, a.lng])
+
+
 
     // ================= FADE 80 NM =================
 
@@ -1773,6 +1784,9 @@ function moverPorPuntos(a){
 
     // 🔥 Rotación exacta desde posición actual
     const nuevaPos = a.marker.getLatLng()
+    a.lat = nuevaPos.lat
+a.lng = nuevaPos.lng
+
     const bearing = calcularBearing(nuevaPos, destino)
 
     a.angulo = bearing
@@ -1871,12 +1885,14 @@ function sincronizarMovimiento(a, lat, lng){
   a.ultimoSync = ahora
 
   socket.emit("actualizarAeronave", {
-    id: a.id,
-    lat,
-    lng,
-    altitud: a.altitud,
-    angulo: a.angulo
-  })
+  id: a.id,
+  lat,
+  lng,
+  altitud: a.altitud,
+  angulo: a.angulo,
+  estado: a.estado
+})
+
 }
 
 

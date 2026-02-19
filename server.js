@@ -213,6 +213,9 @@ socket.on("actualizarAeronave", (data) => {
   if (typeof data.lng !== "number") return;
   if (typeof data.altitud !== "number") return;
   if (typeof data.angulo !== "number") return;
+if(typeof data.estado === "string"){
+  aeronave.estado = data.estado
+}
 
   aeronave.lat = data.lat;
   aeronave.lng = data.lng;
@@ -220,12 +223,14 @@ socket.on("actualizarAeronave", (data) => {
   aeronave.angulo = data.angulo;
 
   socket.to(sala).emit("actualizarAeronave", {
-    id: aeronave.id,
-    lat: aeronave.lat,
-    lng: aeronave.lng,
-    altitud: aeronave.altitud,
-    angulo: aeronave.angulo
-  });
+  id: aeronave.id,
+  lat: aeronave.lat,
+  lng: aeronave.lng,
+  altitud: aeronave.altitud,
+  angulo: aeronave.angulo,
+  estado: aeronave.estado
+});
+
 
 });
 

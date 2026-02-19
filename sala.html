@@ -1578,7 +1578,9 @@ function moverPorPuntos(a){
 
   let i = a.indiceRuta || 0
   const ruta = a.puntosRuta
-  const velocidad = 0.00002
+
+  const taxiKnots = 15
+  const metrosPorSegundo = taxiKnots * 0.514444
 
   let ultimoTiempo = performance.now()
   let ultimoEnvio = 0
@@ -1598,35 +1600,39 @@ function moverPorPuntos(a){
     const actual = a.marker.getLatLng()
     const destino = ruta[i + 1]
 
-    const dx = destino.lng - actual.lng
-    const dy = destino.lat - actual.lat
-    const distancia = Math.sqrt(dx*dx + dy*dy)
+    const distanciaMetros = map.distance(actual, destino)
 
-    if(distancia === 0){
+    if(distanciaMetros === 0){
       i++
       a.indiceRuta = i
       requestAnimationFrame(mover)
       return
     }
 
-    const paso = velocidad * deltaTime
+    const pasoMetros = metrosPorSegundo * deltaTime
 
-    if(distancia <= paso){
+    if(distanciaMetros <= pasoMetros){
+
       a.marker.setLatLng(destino)
       i++
       a.indiceRuta = i
+
     } else {
-      const nuevoLat = actual.lat + (dy/distancia)*paso
-      const nuevoLng = actual.lng + (dx/distancia)*paso
+
+      const ratio = pasoMetros / distanciaMetros
+
+      const nuevoLat = actual.lat + (destino.lat - actual.lat) * ratio
+      const nuevoLng = actual.lng + (destino.lng - actual.lng) * ratio
+
       a.marker.setLatLng([nuevoLat, nuevoLng])
     }
 
-    // 🔥 ROTACIÓN CORRECTA
-    const anguloRad = Math.atan2(dx, dy)
-    a.angulo = anguloRad * (180 / Math.PI)
+    // 🔥 Rotación correcta basada en destino
+    const bearing = calcularBearing(actual, destino)
+    a.angulo = bearing
     actualizarRotacion(a)
 
-    // 🔥 EMITIR SOLO CADA 100ms (no cada frame)
+    // 🔥 Emitir cada 100ms
     if(!a.remoto && ahora - ultimoEnvio > 100){
 
       const pos = a.marker.getLatLng()
@@ -1646,6 +1652,36 @@ function moverPorPuntos(a){
   }
 
   requestAnimationFrame(mover)
+}
+
+function finalizarTaxi(a){
+
+  a.estado = "idle"
+
+  mostrarTaxiing(a,false)
+
+  // Reactivar interacción
+  const el = a.marker.getElement()
+  if(el) el.style.pointerEvents = "auto"
+
+  // 🔥 Detener animación de ruta
+  if(a.animRutaFrame){
+    cancelAnimationFrame(a.animRutaFrame)
+    a.animRutaFrame = null
+  }
+
+  // 🔥 Eliminar línea visual
+  if(a.ruta){
+    map.removeLayer(a.ruta)
+    a.ruta = null
+  }
+
+  // 🔥 Limpiar datos
+  a.puntosRuta = []
+  a.indiceRuta = 0
+
+  actualizarPanelInfo(a)
+  actualizarBotonTaxi()
 }
 
 

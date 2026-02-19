@@ -705,6 +705,8 @@ function confirmarCreacion(){
 
   cerrarCrearPanel()
   document.removeEventListener("click", cerrarSiClickFuera)
+modoRuta = false
+rutaTemporal = []
 
   // 🚀 Emitir al servidor
   socket.emit("crearAeronave", {
@@ -970,7 +972,9 @@ function activarModoRuta(){
     alert("Aircraft is taxiing")
     return
   }
-
+ if(aeronaveSeleccionada.ruta){
+    map.removeLayer(aeronaveSeleccionada.ruta)
+  }
   modoRuta=true
   const pos=aeronaveSeleccionada.marker.getLatLng()
   rutaTemporal=[pos]
@@ -1559,10 +1563,23 @@ function moverPorPuntos(a){
     if(a.taxiPausado) return
 
     if(i >= ruta.length - 1){
-      a.rodando = false
-      mostrarTaxiing(a,false)
-      return
-    }
+
+  a.rodando = false
+  a.taxiPausado = false
+  a.indiceRuta = 0
+
+  mostrarTaxiing(a,false)
+
+  modoRuta = false
+  rutaTemporal = []
+
+  a.marker.dragging.enable()
+
+  actualizarPanelInfo(a)
+
+  return
+}
+
 
   const inicio = L.latLng(ruta[i].lat, ruta[i].lng)
 const fin = ruta[i+1]

@@ -633,17 +633,11 @@ function confirmarCreacion(){
 
   marker.on("drag", function(e){
 
-    const pos = e.target.getLatLng()
+  const pos = e.target.getLatLng()
 
-    socket.emit("actualizarAeronave", {
-      id: callsign,
-      lat: pos.lat,
-      lng: pos.lng,
-      altitud: 0,
-      angulo: 0
-    })
+  sincronizarMovimiento(nueva, pos.lat, pos.lng)
+})
 
-  })
 
   const nueva = {
     tipo,
@@ -811,6 +805,9 @@ socket.on("borrarAeronave", id => {
   }
 if(avion.animRemoto){
   cancelAnimationFrame(avion.animRemoto)
+}
+if(avion.motorTaxi){
+  clearInterval(avion.motorTaxi)
 }
 
   // 🔴 eliminar ruta si existe
@@ -1061,20 +1058,31 @@ function eliminarRuta(){
 
   const a = aeronaveSeleccionada
 
-  // 🔥 Detener animación si existe
+  // 🔥 Detener animación de línea punteada
   if(a.animRutaFrame){
     cancelAnimationFrame(a.animRutaFrame)
     a.animRutaFrame = null
   }
 
-  // 🔥 Eliminar polyline del mapa
+  // 🔥 Eliminar ruta principal
   if(a.ruta){
     map.removeLayer(a.ruta)
     a.ruta = null
   }
-a.puntosRuta = []
 
+  // 🔥 Eliminar ruta recorrida (si existe)
+  if(a.rutaRecorrida){
+    map.removeLayer(a.rutaRecorrida)
+    a.rutaRecorrida = null
+  }
+
+  // 🔥 Reset datos internos
+  a.puntosRuta = []
+  a.indiceRuta = 0
+
+  actualizarBotonTaxi()
 }
+
 
 
 // ================= TAXI =================

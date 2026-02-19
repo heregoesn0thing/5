@@ -146,8 +146,6 @@ socket.on("cambiarHora", ({ hora }) => {
   io.to(sala).emit("horaSala", formatearHora(segundos));
 });
 
-
-
   // ===== UNIRSE A SALA =====
   socket.on("unirseSala", (nombre) => {
 

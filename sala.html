@@ -2263,66 +2263,55 @@ function dibujarCircuito() {
   const umbral04 = L.latLng(-13.755327, -76.229306)
   const umbral22 = L.latLng(-13.734272, -76.211517)
 
-  const eje = 40
-  const ejeInverso = 220
+  const eje = 40 // alineado a pista
+  const rumboIzquierda = 130
 
   const offsetNM = 1.5
-  const extensionNM = 2
+  const extensionNM = 2.0
 
   const offsetM = offsetNM * 1852
   const extensionM = extensionNM * 1852
 
-  const rumboIzquierda = 130
+  // Centro real de pista
+  const centroPista = L.latLng(
+    (umbral04.lat + umbral22.lat) / 2,
+    (umbral04.lng + umbral22.lng) / 2
+  )
 
-  // ===== PUNTOS BASE =====
+  // Desplazar centro al lado izquierdo (patrón izquierdo)
+  const centro = puntoPlano(centroPista, rumboIzquierda, offsetM)
 
-  const crossEje = puntoPlano(umbral04, eje, extensionM)
-  const baseEje = puntoPlano(umbral22, ejeInverso, extensionM)
-
-  const crossOffset = puntoPlano(crossEje, rumboIzquierda, offsetM)
-  const downwindInicio = puntoPlano(umbral04, rumboIzquierda, offsetM)
-  const downwindFin = puntoPlano(umbral22, rumboIzquierda, offsetM)
-  const baseOffset = puntoPlano(baseEje, rumboIzquierda, offsetM)
-
-  // ===== GENERAR HIPÓDROMO =====
+  // Parámetros squircle
+  const a = extensionM + (map.distance(umbral04, umbral22) / 2)
+  const b = offsetM
+  const n = 3.8
+  const pasos = 300
 
   const puntos = []
 
-  function segmento(p1, p2, pasos = 40) {
-    for (let i = 0; i <= pasos; i++) {
-      const t = i / pasos
-      puntos.push([
-        p1.lat + (p2.lat - p1.lat) * t,
-        p1.lng + (p2.lng - p1.lng) * t
-      ])
-    }
+  for (let i = 0; i <= pasos; i++) {
+
+    const t = (i / pasos) * 2 * Math.PI
+
+    const cosT = Math.cos(t)
+    const sinT = Math.sin(t)
+
+    const x = a * Math.sign(cosT) * Math.pow(Math.abs(cosT), 2/n)
+    const y = b * Math.sign(sinT) * Math.pow(Math.abs(sinT), 2/n)
+
+    // Rotación al eje pista
+    const headingRad = eje * Math.PI / 180
+
+    const xr = x * Math.cos(headingRad) - y * Math.sin(headingRad)
+    const yr = x * Math.sin(headingRad) + y * Math.cos(headingRad)
+
+    const distancia = Math.sqrt(xr*xr + yr*yr)
+    const rumbo = Math.atan2(yr, xr) * 180 / Math.PI
+
+    const punto = puntoPlano(centro, rumbo, distancia)
+
+    puntos.push([punto.lat, punto.lng])
   }
-
-  function arco(centro, angInicio, angFin, radio, pasos = 60) {
-    for (let i = 0; i <= pasos; i++) {
-      const t = i / pasos
-      const ang = angInicio + (angFin - angInicio) * t
-      const p = puntoPlano(centro, ang, radio)
-      puntos.push([p.lat, p.lng])
-    }
-  }
-
-  const radio = offsetM
-
-  // 1️⃣ FINAL
-  segmento(umbral22, baseEje)
-
-  // 2️⃣ Arco BASE → DOWNWIND
-  arco(baseOffset, ejeInverso - 90, ejeInverso + 90, radio)
-
-  // 3️⃣ DOWNWIND
-  segmento(downwindFin, downwindInicio)
-
-  // 4️⃣ Arco CROSS → UPWIND
-  arco(crossOffset, eje - 90, eje + 90, radio)
-
-  // 5️⃣ UPWIND
-  segmento(crossEje, umbral22)
 
   patronLayer = L.polyline(puntos, {
     color: "#00ffff",
@@ -2330,12 +2319,6 @@ function dibujarCircuito() {
     dashArray: "8 8"
   }).addTo(map)
 }
-
-
-
-
-
-
 
 
 // ================= FREE NAVIGATION =================

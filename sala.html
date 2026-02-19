@@ -1672,17 +1672,13 @@ chkEje.addEventListener("change", () => {
 
 chkPatron.addEventListener("change", () => {
 
-  if(chkPatron.checked){
-
+  if (chkPatron.checked) {
     dibujarCircuito()
-
   } else {
-
-    if(patronLayer){
+    if (patronLayer) {
       map.removeLayer(patronLayer)
       patronLayer = null
     }
-
   }
 
 })
@@ -2272,88 +2268,69 @@ function puntoPlano(origen, rumbo, distanciaMetros){
   }
 }
 
-let circuitoLayer = null
-
 function dibujarCircuito() {
 
-  // Si ya existe, lo borra
-  if (circuitoLayer) {
-    map.removeLayer(circuitoLayer)
-    circuitoLayer = null
+  if (patronLayer) {
+    map.removeLayer(patronLayer)
+    patronLayer = null
     return
   }
 
-  // ================================
-  // UMBRALES PISTA 04 / 22
-  // ================================
   const umbral04 = L.latLng(-13.755327, -76.229306)
   const umbral22 = L.latLng(-13.734272, -76.211517)
 
-  // Ancho lateral 2 NM
-  const lateralNM = 2
-  const lateralMetros = lateralNM * 1852
+  const rumboPista = 40
 
-  // Rumbo pista 22 aproximado
-  const rumboPista = 40  // 040°
+  const centro = L.latLng(
+    (umbral04.lat + umbral22.lat) / 2,
+    (umbral04.lng + umbral22.lng) / 2
+  )
 
-  // Perpendiculares izquierda/derecha
-  const rumboIzq = rumboPista - 90
-  const rumboDer = rumboPista + 90
+  const largoNM = 4
+  const anchoNM = 4   // 2 NM a cada lado
 
-  // Función para desplazar punto
-  function moverPunto(origen, rumbo, distancia) {
-    return L.GeometryUtil.destination(origen, rumbo, distancia)
+  const largoM = largoNM * 1852
+  const anchoM = anchoNM * 1852
+
+  const a = largoM / 2
+  const b = anchoM / 2
+
+  const n = 4
+  const pasos = 180
+
+  const puntos = []
+
+  for (let i = 0; i <= pasos; i++) {
+
+    const t = (i / pasos) * 2 * Math.PI
+
+    const cosT = Math.cos(t)
+    const sinT = Math.sin(t)
+
+    const x = a * Math.sign(cosT) * Math.pow(Math.abs(cosT), 2/n)
+    const y = b * Math.sign(sinT) * Math.pow(Math.abs(sinT), 2/n)
+
+    const headingRad = rumboPista * Math.PI / 180
+
+    const xr = x * Math.cos(headingRad) - y * Math.sin(headingRad)
+    const yr = x * Math.sin(headingRad) + y * Math.cos(headingRad)
+
+    const punto = L.GeometryUtil.destination(
+      centro,
+      Math.atan2(yr, xr) * 180 / Math.PI,
+      Math.sqrt(xr*xr + yr*yr)
+    )
+
+    puntos.push(punto)
   }
 
-  // ================================
-  // CALCULAR 4 ESQUINAS
-  // ================================
-  const p1 = moverPunto(umbral04, rumboIzq, lateralMetros)
-  const p2 = moverPunto(umbral22, rumboIzq, lateralMetros)
-  const p3 = moverPunto(umbral22, rumboDer, lateralMetros)
-  const p4 = moverPunto(umbral04, rumboDer, lateralMetros)
-
-  // ================================
-  // CREAR CURVAS (ARCO SUAVE)
-  // ================================
-  function crearCurva(inicio, centro, fin, pasos = 20) {
-    const puntos = []
-
-    const brgInicio = L.GeometryUtil.bearing(centro, inicio)
-    const brgFin = L.GeometryUtil.bearing(centro, fin)
-
-    const radio = map.distance(centro, inicio)
-
-    let delta = (brgFin - brgInicio) / pasos
-
-    for (let i = 0; i <= pasos; i++) {
-      let rumbo = brgInicio + delta * i
-      puntos.push(L.GeometryUtil.destination(centro, rumbo, radio))
-    }
-
-    return puntos
-  }
-
-  const curva1 = crearCurva(p1, umbral04, p4)
-  const curva2 = crearCurva(p2, umbral22, p3)
-
-  // ================================
-  // ARMAR HIPÓDROMO COMPLETO
-  // ================================
-  const puntosCircuito = [
-    ...curva1,
-    p2,
-    ...curva2,
-    p1
-  ]
-
-  circuitoLayer = L.polyline(puntosCircuito, {
-    color: "#ffffff",
+  patronLayer = L.polyline(puntos, {
+    color: "#00ffff",
     weight: 2,
-    dashArray: "8 8",
-    smoothFactor: 1
+    dashArray: "8 8"
   }).addTo(map)
 }
+
 
 
 

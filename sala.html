@@ -1674,7 +1674,7 @@ chkPatron.addEventListener("change", () => {
 
   if(chkPatron.checked){
 
-    dibujarCircuitoHipodromo()
+    dibujarCircuito()
 
   } else {
 
@@ -2272,7 +2272,7 @@ function puntoPlano(origen, rumbo, distanciaMetros){
   }
 }
 
-function dibujarCircuitoHipodromo(){
+function dibujarCircuito(){
 
   if(patronLayer){
     map.removeLayer(patronLayer)
@@ -2283,13 +2283,6 @@ function dibujarCircuitoHipodromo(){
 
   const rwy22 = { lat:-13.734272, lng:-76.211517 }
   const rwy04 = { lat:-13.755328, lng:-76.229306 }
-
-  const pistaLength = map.distance(rwy22, rwy04)
-
-  const V = 90 * 0.514444
-  const bank = 25 * Math.PI/180
-  const g = 9.81
-  const R = (V*V)/(g*Math.tan(bank))
 
   function toXY(p){
     return {
@@ -2311,79 +2304,35 @@ function dibujarCircuitoHipodromo(){
   const eje = { x:Math.sin(rumboRad), y:Math.cos(rumboRad) }
   const perp = { x:-eje.y, y:eje.x }
 
-  const crossLong = pistaLength + 2*NM
-  const baseLong  = 2*NM
-  const lateral   = 1.5*NM
+  const largo = 2 * NM
+  const lateral = 1.5 * NM
 
-  const puntos = []
+  // PUNTOS DEL RECTÁNGULO
 
-  // =========================
-  // 1️⃣ UPWIND
-  // =========================
+  const p1 = { x:0, y:0 } // Umbral 22
 
-  puntos.push(toLatLng(0,0))
-
-  const upEnd = {
-    x:eje.x*crossLong,
-    y:eje.y*crossLong
+  const p2 = {
+    x:eje.x * largo,
+    y:eje.y * largo
   }
 
-  puntos.push(toLatLng(upEnd.x, upEnd.y))
-
-  // =========================
-  // 2️⃣ ARCO HACIA DOWNWIND
-  // =========================
-
-  const centro1 = {
-    x: upEnd.x + perp.x*R,
-    y: upEnd.y + perp.y*R
+  const p3 = {
+    x:eje.x * largo + perp.x * lateral,
+    y:eje.y * largo + perp.y * lateral
   }
 
-  for(let a=0; a<=90; a+=2){
-    const theta = rumboRad + Math.PI/2 - a*Math.PI/180
-    const x = centro1.x + R*Math.cos(theta)
-    const y = centro1.y + R*Math.sin(theta)
-    puntos.push(toLatLng(x,y))
+  const p4 = {
+    x:perp.x * lateral,
+    y:perp.y * lateral
   }
 
-  // =========================
-  // 3️⃣ DOWNWIND PARALELO
-  // =========================
-
-  const downStart = {
-    x:eje.x*crossLong + perp.x*lateral,
-    y:eje.y*crossLong + perp.y*lateral
-  }
-
-  const downEnd = {
-    x:eje.x*baseLong + perp.x*lateral,
-    y:eje.y*baseLong + perp.y*lateral
-  }
-
-  puntos.push(toLatLng(downEnd.x, downEnd.y))
-
-  // =========================
-  // 4️⃣ ARCO HACIA BASE (CORREGIDO)
-  // =========================
-
-  // Centro ahora desplazado al NORTE del umbral 22
-  const centro2 = {
-    x: baseLong*eje.x - perp.x*R,
-    y: baseLong*eje.y - perp.y*R
-  }
-
-  for(let a=0; a<=90; a+=2){
-    const theta = rumboRad - a*Math.PI/180
-    const x = centro2.x + R*Math.cos(theta)
-    const y = centro2.y + R*Math.sin(theta)
-    puntos.push(toLatLng(x,y))
-  }
-
-  // =========================
-  // 5️⃣ FINAL
-  // =========================
-
-  puntos.push(toLatLng(0,0))
+  const puntos = [
+    toLatLng(p1.x,p1.y),
+    toLatLng(p2.x,p2.y),
+    toLatLng(p3.x,p3.y),
+    toLatLng(p4.x,p4.y),
+    toLatLng(p1.x,p1.y)
+  ]
 
   patronLayer = L.polyline(puntos,{
     color:"#22c55e",

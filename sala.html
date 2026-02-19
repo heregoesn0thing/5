@@ -1091,6 +1091,8 @@ function iniciarRodaje(){
   a.indiceRuta = 0
 
   mostrarTaxiing(a, true)
+  modoRuta = false
+
   moverPorPuntos(a)
   actualizarPanelInfo(a)
   actualizarBotonTaxi()
@@ -1117,9 +1119,14 @@ function detenerRodaje(){
 
   mostrarTaxiing(a, false)
 
+  //  LIMPIAR MODO RUTA
+  modoRuta = false
+  rutaTemporal = []
+
   actualizarPanelInfo(a)
   actualizarBotonTaxi()
 }
+
 
 
 

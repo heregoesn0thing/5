@@ -90,25 +90,7 @@ let circuloVor = null
 const vorPisco = [-13.744, -76.220]
 const radio5NM = 5 * 1852  // 9260 metros
 
-btnVor.addEventListener("click", () => {
 
-  if(circuloVor){
-    map.removeLayer(circuloVor)
-    circuloVor = null
-    btnVor.classList.remove("activo")
-    return
-  }
-
-  circuloVor = L.circle(vorPisco, {
-    radius: radio5NM,
-    color: "#ffffff",
-    weight: 2,
-    dashArray: "6 8",
-    fill: false
-  }).addTo(map)
-
-  btnVor.classList.add("activo")
-})
 
 
 
@@ -165,7 +147,25 @@ socket.on("cambiarHora", ({ hora }) => {
 });
 
 
+btnVor.addEventListener("click", () => {
 
+  if(circuloVor){
+    map.removeLayer(circuloVor)
+    circuloVor = null
+    btnVor.classList.remove("activo")
+    return
+  }
+
+  circuloVor = L.circle(vorPisco, {
+    radius: radio5NM,
+    color: "#ffffff",
+    weight: 2,
+    dashArray: "6 8",
+    fill: false
+  }).addTo(map)
+
+  btnVor.classList.add("activo")
+})
 
   // ===== UNIRSE A SALA =====
   socket.on("unirseSala", (nombre) => {

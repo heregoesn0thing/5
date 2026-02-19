@@ -2281,27 +2281,15 @@ function dibujarCircuitoHipodromo(){
 
   const NM = 1852
 
-  // =========================
-  // UMBRALES REALES PISCO
-  // =========================
-
   const rwy22 = { lat:-13.734272, lng:-76.211517 }
   const rwy04 = { lat:-13.755328, lng:-76.229306 }
 
   const pistaLength = map.distance(rwy22, rwy04)
 
-  // =========================
-  // RADIO REAL 25° BANK
-  // =========================
-
   const V = 90 * 0.514444
   const bank = 25 * Math.PI/180
   const g = 9.81
   const R = (V*V)/(g*Math.tan(bank))
-
-  // =========================
-  // CONVERSIÓN A PLANO LOCAL
-  // =========================
 
   function toXY(p){
     return {
@@ -2330,20 +2318,20 @@ function dibujarCircuitoHipodromo(){
   const puntos = []
 
   // =========================
-  // UPWIND
+  // 1️⃣ UPWIND
   // =========================
 
-  const upStart = { x:0, y:0 }
+  puntos.push(toLatLng(0,0))
+
   const upEnd = {
     x:eje.x*crossLong,
     y:eje.y*crossLong
   }
 
-  puntos.push(toLatLng(upStart.x, upStart.y))
   puntos.push(toLatLng(upEnd.x, upEnd.y))
 
   // =========================
-  // ARCO UP → CROSS
+  // 2️⃣ ARCO HACIA DOWNWIND
   // =========================
 
   const centro1 = {
@@ -2352,52 +2340,47 @@ function dibujarCircuitoHipodromo(){
   }
 
   for(let a=0; a<=90; a+=2){
-
     const theta = rumboRad + Math.PI/2 - a*Math.PI/180
-
     const x = centro1.x + R*Math.cos(theta)
     const y = centro1.y + R*Math.sin(theta)
-
     puntos.push(toLatLng(x,y))
   }
 
   // =========================
-  // DOWNWIND PARALELO
+  // 3️⃣ DOWNWIND PARALELO
   // =========================
 
   const downStart = {
-    x: eje.x*crossLong + perp.x*lateral,
-    y: eje.y*crossLong + perp.y*lateral
+    x:eje.x*crossLong + perp.x*lateral,
+    y:eje.y*crossLong + perp.y*lateral
   }
 
   const downEnd = {
-    x: eje.x*baseLong + perp.x*lateral,
-    y: eje.y*baseLong + perp.y*lateral
+    x:eje.x*baseLong + perp.x*lateral,
+    y:eje.y*baseLong + perp.y*lateral
   }
 
   puntos.push(toLatLng(downEnd.x, downEnd.y))
 
   // =========================
-  // ARCO DOWN → BASE
+  // 4️⃣ ARCO HACIA BASE (CORREGIDO)
   // =========================
 
+  // Centro ahora desplazado al NORTE del umbral 22
   const centro2 = {
-    x: downEnd.x - perp.x*R,
-    y: downEnd.y - perp.y*R
+    x: baseLong*eje.x - perp.x*R,
+    y: baseLong*eje.y - perp.y*R
   }
 
   for(let a=0; a<=90; a+=2){
-
-    const theta = rumboRad + Math.PI - a*Math.PI/180
-
+    const theta = rumboRad - a*Math.PI/180
     const x = centro2.x + R*Math.cos(theta)
     const y = centro2.y + R*Math.sin(theta)
-
     puntos.push(toLatLng(x,y))
   }
 
   // =========================
-  // FINAL
+  // 5️⃣ FINAL
   // =========================
 
   puntos.push(toLatLng(0,0))
@@ -2408,6 +2391,7 @@ function dibujarCircuitoHipodromo(){
     dashArray:"8 8"
   }).addTo(map)
 }
+
 
 
 

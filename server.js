@@ -23,6 +23,7 @@ app.get("/sala", (req, res) => {
 let salas = {};
 let relojesSalas = {};
 let intervalosSalas = {};
+let peligroSalas = {};
 
 // ================== UTILIDADES ==================
 
@@ -119,6 +120,22 @@ relojesSalas[nombre] = {
 
     io.emit("listaSalas", obtenerListaSalas());
   });
+  socket.on("activarPeligroSala", () => {
+  const sala = socket.sala;
+  if (!sala) return;
+
+  if (peligroSalas[sala]) return; // ya activo
+
+  peligroSalas[sala] = true;
+
+  io.to(sala).emit("peligroActivado");
+
+  setTimeout(() => {
+    peligroSalas[sala] = false;
+    io.to(sala).emit("peligroDesactivado");
+  }, 60000);
+});
+
 socket.on("cambiarHora", ({ hora }) => {
 
   const sala = socket.sala;
@@ -151,6 +168,9 @@ socket.on("cambiarHora", ({ hora }) => {
     }
 
     socket.emit("cargarAeronaves", salas[nombre].aeronaves);
+if (peligroSalas[nombre]) {
+  socket.emit("peligroActivado");
+}
 
     // 🔥 SINCRONIZAR INMEDIATAMENTE
     const horaActual = obtenerHoraActualSala(nombre);
@@ -162,20 +182,10 @@ socket.on("cambiarHora", ({ hora }) => {
   });
 
   // ===== CREAR AERONAVE =====
- socket.on("crearAeronave", (data) => {
-
-  console.log("Evento crearAeronave recibido del cliente");
-  console.log("socket.id:", socket.id);
-  console.log("socket.sala:", socket.sala);
+socket.on("crearAeronave", (data) => {
 
   const sala = socket.sala;
-
-  if (!sala) {
-    console.log("❌ No tiene sala asignada");
-    return;
-  }
-
-  console.log("✔ Emitiendo a sala:", sala);
+  if (!sala) return;
 
   salas[sala].aeronaves.push({
     id: data.id,
@@ -186,7 +196,10 @@ socket.on("cambiarHora", ({ hora }) => {
     angulo: data.angulo || 0
   });
 
+  io.to(sala).emit("crearAeronave", data);
   socket.to(sala).emit("crearAeronave", data);
+
+
 });
 
 
@@ -206,6 +219,7 @@ socket.on("cambiarHora", ({ hora }) => {
     aeronave.angulo = data.angulo;
 
     socket.to(sala).emit("actualizarAeronave", data);
+
   });
 
   // ===== ELIMINAR AERONAVE =====
@@ -220,7 +234,7 @@ socket.on("cambiarHora", ({ hora }) => {
     io.to(sala).emit("borrarAeronave", id);
   });
 
-// ===== CONTROL DEL TIEMPO =====
+  // ===== CONTROL DEL TIEMPO =====
 socket.on("controlTiempo", ({ accion, valor }) => {
 
   const sala = socket.sala;
@@ -229,7 +243,6 @@ socket.on("controlTiempo", ({ accion, valor }) => {
   const reloj = relojesSalas[sala];
   if (!reloj) return;
 
-  // Guardamos tiempo actual antes de cambiar estado
   if (!reloj.pausado) {
     const ahora = Date.now();
     const delta = (ahora - reloj.timestampBase) / 1000 * reloj.velocidad;
@@ -258,6 +271,12 @@ socket.on("controlTiempo", ({ accion, valor }) => {
 
 });
 
+socket.on("desactivarPeligroSala", () => {
+  const sala = socket.sala;
+  if (!sala) return;
+ peligroSalas[sala] = false;
+  io.to(sala).emit("peligroDesactivado");
+});
 
 
 

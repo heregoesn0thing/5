@@ -3,497 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <title>RuedeAPisco</title>
-
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<link rel="stylesheet" href="sala.css">
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-<style>
-  *{
-  box-sizing:border-box;
-}
-
-html, body{
-  margin:0;
-  padding:0;
-  height:100%;
-  overflow:hidden;
-}
-
-#map {
-  height: 100vh;
-  width: 100%;
-  z-index: 1;
-}
-
-
-
-
-.icon-wrapper{
-  width:70px;
-  height:60px;
-  width:80px;
-  height:70px;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  position:relative;
-}
-
-.icon-aircraft{
-  font-size:26px;
-  transform-origin:center center;
-  transition: transform 0.08s linear;
-  display:block;
-  margin:auto;
-}
-
-.callsign-label{
-  position:absolute;
-  bottom:-18px;
-  font-size:11px;
-  font-weight:bold;
-  color:white;
-  background:black;
-  padding:2px 5px;
-  border-radius:4px;
-  white-space:nowrap;
-}
-
-.status-label{
-  position:absolute;
-  top:-16px;
-  font-size:10px;
-  font-weight:bold;
-  color:white;
-  background:blue;
-  padding:2px 4px;
-  border-radius:4px;
-  display:none;
-}
-
-#menuAeronave{
-  position:fixed;
-  top:120px;
-  left:20px;
-  background:rgba(20,20,20,0.95);
-  color:white;
-  border-radius:8px;
-  display:none;
-  z-index:2000;
-  width:260px;
-  font-family:monospace;
-}
-
-#panelHeader{
-  background:#111;
-  padding:8px;
-  cursor:move;
-  display:flex;
-  justify-content:space-between;
-}
-
-#panelBody{ padding:10px; }
-
-#panelBody button{
-  width:100%;
-  margin-top:6px;
-  padding:6px;
-  cursor:pointer;
-}
-
-#aircraftInfo{
-  font-size:12px;
-  margin-bottom:10px;
-  background:#000;
-  padding:6px;
-  border-radius:4px;
-}
-
-#btnEliminarModo {
-  position: absolute;
-  top: 80px;
-  left: 10px;
-  z-index: 1000;
-  width: 35px;
-  height: 35px;
-  border-radius: 6px;
-  border: none;
-  background: #222;
-  color: white;
-  cursor: pointer;
-  font-size: 16px;
-}
-#panelRumbo{
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(20,20,25,0.95);
-  padding: 12px 18px;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  box-shadow: 0 6px 25px rgba(0,0,0,0.4);
-  z-index: 10000;
-}
-
-
-#panelRumbo button{
-  background: #1e2a38;
-  color: white;
-  border: none;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: 0.2s;
-}
-#panelRumbo button:hover{
-  background: #2f4257;
-}
-#headingDisplay{
-  font-size: 18px;
-  font-weight: bold;
-  width: 70px;
-  text-align: center;
-  color: #00e0ff;
-}
-
-#panelRumbo{
-  position: fixed;
-  bottom: 15px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(15,20,30,0.95);
-  padding: 12px 16px;
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
-  z-index: 10000;
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
-
-#panelRumbo button{
-  background: #1e2f45;
-  color: white;
-  border: none;
-  padding: 8px 12px;
-  border-radius: 10px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: 0.2s;
-  font-size: 14px;
-}
-
-#panelRumbo button:hover{
-  background: #2e4766;
-}
-
-#headingDisplay{
-  font-size: 18px;
-  font-weight: bold;
-  width: 70px;
-  text-align: center;
-  color: #00e0ff;
-}
-
-.oculto{
-  opacity: 0;
-  pointer-events: none;
-  transform: translate(-50%, 20px);
-}
-
-/* 📱 RESPONSIVE MÓVIL */
-@media (max-width: 600px){
-
-  #panelRumbo{
-    bottom: 10px;
-    padding: 8px 10px;
-    gap: 6px;
-  }
-
-  #panelRumbo button{
-    padding: 6px 8px;
-    font-size: 12px;
-  }
-
-  #headingDisplay{
-    font-size: 14px;
-    width: 55px;
-  }
-
-}
-#menuAeronave{
-  position: absolute;
-  bottom: 20px;
-  right: 20px;
-  width: 300px;
-  background: rgba(15,15,15,0.97);
-  border: 1px solid #2f2f2f;
-  border-radius: 12px;
-  box-shadow: 0 15px 35px rgba(0,0,0,0.6);
-  backdrop-filter: blur(6px);
-  z-index: 9999;
-  display: none;
-  transition: all 0.3s ease;
-}
-
-/* HEADER */
-#panelHeader{
-  padding: 8px;
-  background: #1c1c1c;
-  border-bottom: 1px solid #333;
-  font-size: 13px;
-  font-weight: bold;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: move;
-  letter-spacing: 1px;
-}
-
-/* BODY */
-#panelBody{
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* BOTONES */
-#panelBody button{
-  padding: 6px;
-  font-size: 12px;
-  border-radius: 6px;
-}
-
-/* SELECTS */
-#panelBody select{
-  width: 100%;
-  padding: 5px;
-  border-radius: 6px;
-}
-
-/* RESPONSIVE */
-@media (max-width: 768px){
-
-  #menuAeronave{
-    width: 95%;
-    left: 2.5%;
-    right: auto;
-    bottom: 10px;
-  }
-
-  #panelBody{
-    gap: 6px;
-  }
-
-  #panelBody button{
-    font-size: 13px;
-  }
-}
-#departurePanel{
-  position:absolute;
-  top:100px;
-  right:20px;
-  width:280px;
-  background: rgba(15,15,15,0.97);
-  border: 1px solid #2f2f2f;
-  border-radius: 12px;
-  box-shadow: 0 15px 35px rgba(0,0,0,0.6);
-  backdrop-filter: blur(6px);
-  z-index: 9999;
-  display:none;
-  color:white;
-  font-size:13px;
-}
-
-.panelHeader{
-  background:#1c1c1c;
-  padding:8px;
-  font-weight:bold;
-  cursor:move;
-  display:flex;
-  justify-content:space-between;
-}
-
-.panelBody{
-  padding:10px;
-}
-
-.panelOculto{
-  display:none;
-}
-
-#btnEliminarModo.activo {
-  background: red;
-}
-#relojHora{ font-size:20px; margin-bottom:8px; }
-
-
-
-
-#timeControls input{
-  background: #0f172a;
-  border: 1px solid #334155;
-  color: white;
-  padding: 6px;
-  border-radius: 6px;
-}
-/* ===== PANEL TIEMPO LIMPIO ===== */
-
-#panelTiempo{
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 9999;
-  background: rgba(15,23,42,0.95);
-  backdrop-filter: blur(8px);
-  padding: 12px 14px;
-  border-radius: 14px;
-  box-shadow: 0 8px 25px rgba(0,0,0,0.4);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-family: monospace;
-  color: #e2e8f0;
-}
-
-#relojGlobal{
-  font-size: 18px;
-  font-weight: bold;
-  letter-spacing: 1px;
-  color: #38bdf8;
-}
-
-#timeControls{
-  display: flex;
-  gap: 6px;
-}
-
-#timeControls button{
-  background: #1e293b;
-  border: none;
-  color: white;
-  padding: 6px 8px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: 0.2s;
-}
-
-#timeControls button:hover{
-  background: #334155;
-  transform: scale(1.05);
-}
-
-/* ===== DROPDOWN LATERAL REAL ===== */
-
-#configHora{
-  position: absolute;
-  top: 0;
-  right: 100%;
-  margin-right: 10px;
-
-  background: rgba(15,23,42,0.98);
-  padding: 10px;
-  border-radius: 12px;
-  display: flex;
-  gap: 8px;
-
-  transform: translateX(20px);
-  opacity: 0;
-  pointer-events: none;
-  transition: 0.25s ease;
-}
-
-#configHora.activo{
-  transform: translateX(0);
-  opacity: 1;
-  pointer-events: auto;
-}
-
-#configHora input{
-  background: #ffffff;
-  border: 1px solid #334155;
-  color: rgb(0, 0, 0);
-  padding: 6px;
-  border-radius: 6px;
-}
-#createAircraftPanel{
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) scale(0.95);
-  width: 340px;
-  background: rgba(15,23,42,0.97);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.6);
-  z-index: 99999;
-  color: #e2e8f0;
-  opacity: 0;
-  pointer-events: none;
-  transition: 0.25s ease;
-  display: block;
-}
-
-#createAircraftPanel.activo{
-  opacity: 1;
-  pointer-events: auto;
-  transform: translate(-50%, -50%) scale(1);
-}
-
-#createAircraftPanel .panelBody{
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-#createAircraftPanel label{
-  font-size: 12px;
-  color: #94a3b8;
-  margin-bottom: 4px;
-}
-
-#createAircraftPanel select,
-#createAircraftPanel input{
-  width: 100%;
-  padding: 8px;
-  border-radius: 8px;
-  border: 1px solid #334155;
-  background: #0f172a;
-  color: white;
-  font-size: 13px;
-}
-
-#createAircraftPanel select:focus,
-#createAircraftPanel input:focus{
-  outline: none;
-  border-color: #38bdf8;
-  box-shadow: 0 0 0 2px rgba(56,189,248,0.3);
-}
-
-.btnPrimary{
-  background: #0ea5e9;
-  border: none;
-  padding: 9px;
-  border-radius: 10px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: 0.2s;
-}
-
-.btnPrimary:hover{
-  background: #0284c7;
-  transform: translateY(-2px);
-}
-
-</style>
 </head>
 
 <body>
@@ -525,7 +38,6 @@ html, body{
              maxlength="8"
              autocomplete="off">
     </div>
-
     <button class="btnPrimary" onclick="confirmarCreacion()">Create Aircraft</button>
 
   </div>
@@ -539,6 +51,14 @@ const socket = io()
 // Obtener nombre desde la URL
 const params = new URLSearchParams(window.location.search);
 const nombreSala = params.get("nombre");
+
+if(!nombreSala){
+  alert("No room specified");
+  window.location.href = "/";
+}else{
+  socket.emit("unirseSala", nombreSala);
+}
+
 
 // Icono para C172
 const iconoC172 = L.divIcon({
@@ -557,8 +77,7 @@ const iconoC172 = L.divIcon({
   iconAnchor: [20, 20]
 });
 
-// Unirse realmente a la room
-socket.emit("unirseSala", nombreSala);
+// Unirse realmente a la sala
 socket.on("cargarAeronaves", lista => {
 
   lista.forEach(data => {
@@ -632,6 +151,11 @@ socket.on("estadoTiempo", (data) => {
 
 });
 
+
+
+
+
+
 </script>
 <div id="menuAeronave">
   <div id="panelHeader">
@@ -641,11 +165,15 @@ socket.on("estadoTiempo", (data) => {
 
   <div id="panelBody">
 
-    <div id="aircraftInfo"></div>
+  <div id="aircraftInfo"></div>
 
     <button onclick="activarModoRuta()">Create Route</button>
-    <button id="btnTaxi" onclick="iniciarRodaje()" disabled>Start Taxi</button>
-    <button onclick="detenerRodaje()">Stop Taxi</button>
+    <div class="taxi-controls">
+    <button id="btnTaxi" onclick="iniciarRodaje()">▶ Taxi</button>
+    <button onclick="detenerRodaje()">⏸ Pause</button>
+    <button onclick="eliminarRuta()">🗑 Delete</button>
+</div>
+
     <button onclick="despegar()">Takeoff</button>
 
     <button onclick="activarModoManual()">Manual Control</button>
@@ -840,12 +368,17 @@ let aeronaveSeleccionada = null
 let modoRuta = false
 let rutaTemporal = []
 let modoEliminar = false;
+let marcadorPeligro = null;
+let imagenPeligro = null;
+let temporizadorPeligro = null;
+
 
 const VELOCIDAD = 8
 const TIPOS = ["A320","A319","C172","AN32"]
 const RUMBO_PISTA_22 = 220
 const DISTANCIA_FADE = 80 * 1852      // 80 NM
 const DISTANCIA_REMOVE = 85 * 1852    // 85 NM
+const ARP_SPSO = [-13.7449, -76.2203];
 
 const PERFORMANCE = {
   A320: { VR:145, CLIMB:250, ACC:1.2 },
@@ -878,13 +411,66 @@ btnEliminar.addEventListener("click", () => {
 
   modoEliminar = !modoEliminar;
 
-  if (modoEliminar) {
-    btnEliminar.classList.add("activo");
-  } else {
-    btnEliminar.classList.remove("activo");
+  btnEliminar.classList.toggle("activo");
+
+  // 🔴 Si hay emergencia activa → cancelarla
+  if(imagenPeligro){
+    map.removeLayer(imagenPeligro);
+    imagenPeligro = null;
+  }
+
+  if(temporizadorPeligro){
+    clearTimeout(temporizadorPeligro);
+    temporizadorPeligro = null;
   }
 
 });
+socket.on("peligroActivado", () => {
+
+  if(imagenPeligro) return
+
+  imagenPeligro = L.marker(ARP_SPSO, {
+    icon: L.icon({
+      iconUrl: "img/incursion.svg",
+      iconSize: [60,120],
+      iconAnchor: [60,60]
+    }),
+    interactive:false
+  }).addTo(map)
+
+})
+
+socket.on("peligroDesactivado", () => {
+
+  if(imagenPeligro){
+    map.removeLayer(imagenPeligro)
+    imagenPeligro = null
+  }
+
+})
+const PASSWORD_PELIGRO = "0223"; // Password hardcoded
+
+function activarModoPeligro(){
+
+  const clave = prompt("Enter password to activate EMERGENCY MODE:");
+
+  if(clave === null) return;
+
+  if(!/^\d+$/.test(clave)){
+    alert("Only numbers allowed ☠️");
+    return;
+  }
+
+  if(clave === PASSWORD_PELIGRO){
+    activarEmergencia()
+    socket.emit("activarPeligroSala", {
+  sala: nombreSala
+})
+;
+  }else{
+    alert("Don't try again please ☠️");
+  }
+}
 
 // ================= TIEMPO =================
 let pausado = false;
@@ -909,29 +495,51 @@ function crearIcono(callsign, tipo){
   let contenidoAvion;
 
   if(tipo === "C172"){
-    contenidoAvion = `<img src="img/c172.svg" class="icon-aircraft" style="width:28px;">`;
+    contenidoAvion = `
+      <img src="img/c172.svg"
+           class="icon-aircraft"
+           style="width:28px;">
+    `;
   } 
   else if(tipo === "AN32"){
-    contenidoAvion = `<img src="img/a320.svg" class="icon-aircraft" style="width:32px;">`;
+    contenidoAvion = `
+      <img src="img/an32.svg"
+           class="icon-aircraft"
+           style="width:32px;">
+    `;
   }
   else if(tipo === "A319"){
-    contenidoAvion = `<img src="img/a320.svg" class="icon-aircraft" style="width:38px;">`;
+    contenidoAvion = `
+      <img src="img/a320.svg"
+           class="icon-aircraft"
+           style="width:38px;">
+    `;
   }
   else if(tipo === "A320"){
-    contenidoAvion = `<img src="img/a320.svg" class="icon-aircraft" style="width:40px;">`;
+    contenidoAvion = `
+      <img src="img/a320.svg"
+           class="icon-aircraft"
+           style="width:40px;">
+    `;
   }
   else {
-    contenidoAvion = `<div class="icon-aircraft" style="font-size:26px;">✈</div>`;
+    contenidoAvion = `
+      <div class="icon-aircraft" style="font-size:26px;">
+        ✈
+      </div>
+    `;
   }
 
   return L.divIcon({
-    className: "icon-wrapper",
-    iconSize: [40,40],
-    iconAnchor: [20,20],
-    html: `
-      ${contenidoAvion}
-      <div class="callsign-label">${callsign}</div>
-      <div class="status-label">TAXI</div>
+    className:"",
+    iconSize:[80,70],
+    iconAnchor:[40,35],
+    html:`
+      <div class="icon-wrapper">
+        <div class="status-label">TAXIING</div>
+        ${contenidoAvion}
+        <div class="callsign-label">${callsign} (${tipo})</div>
+      </div>
     `
   });
 }
@@ -939,15 +547,14 @@ function crearIcono(callsign, tipo){
 
 
 
-
 // ================= CREATE AIRCRAFT =================
 
-
 map.on("click", function(e){
-console.log("CLICK detectado");
+
   // Si estamos creando ruta
   if(modoRuta){
-    if(aeronaveSeleccionada && !aeronaveSeleccionada.rodando){
+    if (aeronaveSeleccionada && aeronaveSeleccionada.estado !== "taxi") {
+
       agregarPuntoRuta(e.latlng)
     }
     return
@@ -1042,11 +649,10 @@ function confirmarCreacion(){
     tipo,
     id: callsign,
     marker,
+    remoto: false, 
     ruta: null,
     puntosRuta: [],
-    rodando: false,
     angulo: 0,
-    intervaloMovimiento: null,
     sid: null,
     altitud: 0,
     velocidad: 0,
@@ -1054,6 +660,9 @@ function confirmarCreacion(){
     star: null,
     starActivo: false,
     faseStar: null,
+    estado: "idle",
+indiceRuta: 0,
+animFrame: null,
     altitudObjetivo: null,
     modoManual: false,
     intervaloManual: null
@@ -1080,7 +689,8 @@ function confirmarCreacion(){
 
   marker.on("dragstart", function(){
 
-    if(nueva.rodando){
+    if(a.estado === "taxi")
+{
       marker.dragging.disable()
       return
     }
@@ -1098,6 +708,8 @@ function confirmarCreacion(){
 
   cerrarCrearPanel()
   document.removeEventListener("click", cerrarSiClickFuera)
+modoRuta = false
+rutaTemporal = []
 
   // 🚀 Emitir al servidor
   socket.emit("crearAeronave", {
@@ -1109,17 +721,9 @@ function confirmarCreacion(){
 
 }
 
-
 socket.on("crearAeronave", data => {
 
-  console.log("📡 Evento crearAeronave recibido:", data);
-
-  if(aeronaves.some(a => a.id === data.id)) {
-    console.log("⚠ Ya existe esa aeronave, no se crea");
-    return;
-  }
-
-  console.log("🟢 Creando marcador en mapa");
+  if(aeronaves.some(a => a.id === data.id)) return
 
   const marker = L.marker([data.lat, data.lng], {
     icon: crearIcono(data.id, data.tipo),
@@ -1127,26 +731,49 @@ socket.on("crearAeronave", data => {
   }).addTo(map)
 
   const nueva = {
-    id: data.id,
-    tipo: data.tipo,
-    marker: marker,
-    remoto: true,
-    altitud: data.altitud || 0,
-    angulo: data.angulo || 0,
-    ruta: null,
-    puntosRuta: [],
-    modoManual:false,
-    intervaloManual:null
-  }
+  id: data.id,
+  tipo: data.tipo,
+  marker: marker,
+  remoto: true,
+  altitud: data.altitud || 0,
+  angulo: data.angulo || 0,
+  ruta: null,
+  puntosRuta: [],
+  estado: "idle",
+  indiceRuta: 0,
+  animFrame: null
+}
+
 
   aeronaves.push(nueva)
-});
 
+  marker.on("click", function(event){
+
+    L.DomEvent.stopPropagation(event)
+
+    if (modoEliminar) {
+
+      socket.emit("eliminarAeronave", nueva.id)
+
+      modoEliminar = false
+      btnEliminar.classList.remove("activo")
+
+      return
+    }
+
+    seleccionarAeronave(nueva)
+
+  })
+
+})
 
 socket.on("actualizarAeronave", data => {
 
   const avion = aeronaves.find(a => a.id === data.id);
   if (!avion) return;
+
+  // 🔥 PROTECCIÓN PROFESIONAL
+  if (!avion.remoto) return;
 
   avion.marker.setLatLng([data.lat, data.lng]);
 
@@ -1160,6 +787,7 @@ socket.on("actualizarAeronave", data => {
   }
 
 });
+
 socket.on("borrarAeronave", id => {
 
   const avion = aeronaves.find(a => a.id === id)
@@ -1170,11 +798,6 @@ socket.on("borrarAeronave", id => {
   if(avion.intervaloManual){
     clearInterval(avion.intervaloManual)
     avion.intervaloManual = null
-  }
-
-  if(avion.intervaloMovimiento){
-    clearInterval(avion.intervaloMovimiento)
-    avion.intervaloMovimiento = null
   }
 
   if(avion.intervaloVuelo){
@@ -1231,72 +854,88 @@ function seleccionarAeronave(obj){
   }else{
     document.getElementById("panelRumbo").classList.add("oculto")
   }
-}
-
-
-function eliminarRuta(avion){
-
-  if (avion.ruta){
-    map.removeLayer(avion.ruta)
-    avion.ruta = null
-    avion.puntosRuta = []
-  }
-
-  if (avion === aeronaveSeleccionada){
-    actualizarBotonTaxi()
-  }
 
 }
+
 function actualizarBotonTaxi(){
 
   const btn = document.getElementById("btnTaxi")
 
   if (!aeronaveSeleccionada ||
-      !aeronaveSeleccionada.ruta ||
+      !aeronaveSeleccionada.puntosRuta ||
       aeronaveSeleccionada.puntosRuta.length === 0){
 
     btn.disabled = true
     btn.style.opacity = "0.4"
+    btn.textContent = "Taxi no disponible"
     return
   }
 
-  btn.disabled = false
-  btn.style.opacity = "1"
+  const a = aeronaveSeleccionada
 
+  switch(a.estado){
+
+    case "taxi":
+      btn.disabled = false
+      btn.style.opacity = "1"
+      btn.textContent = "Detener Taxi"
+      break
+
+    case "idle":
+      btn.disabled = false
+      btn.style.opacity = "1"
+      btn.textContent = "Iniciar Taxi"
+      break
+
+    default:
+      // Si está en vuelo, manual o circuito
+      btn.disabled = true
+      btn.style.opacity = "0.4"
+      btn.textContent = "Taxi no disponible"
+  }
 }
 
 function actualizarPanelInfo(a){
 
-  let estado = "ON GROUND"
+  let estadoTexto = "ON GROUND"
 
-  if(a.rodando) estado = "TAXIING"
-  if(a.enVuelo) estado = "AIRBORNE"
+  switch(a.estado){
+    case "taxi":
+      estadoTexto = "TAXIING"
+      break
+    case "vuelo":
+      estadoTexto = "AIRBORNE"
+      break
+    case "manual":
+      estadoTexto = "MANUAL"
+      break
+    case "circuito":
+      estadoTexto = "TRAFFIC PATTERN"
+      break
+  }
 
   let sidTexto = a.sid ? a.sid : "None"
 
-// ===== FORMATO DE ALTITUD =====
-let altitudTexto = "0 ft"
+  let altitudTexto = "0 ft"
 
-if(a.altitud){
-
-  if(a.altitud <= 3000){
-    altitudTexto = Math.round(a.altitud) + " ft"
-  }else{
-    const FL = Math.round(a.altitud / 100)
-    altitudTexto = "FL" + String(FL).padStart(3,'0')
+  if(a.altitud){
+    if(a.altitud <= 3000){
+      altitudTexto = Math.round(a.altitud) + " ft"
+    }else{
+      const FL = Math.round(a.altitud / 100)
+      altitudTexto = "FL" + String(FL).padStart(3,'0')
+    }
   }
-
-}
-
 
   document.getElementById("aircraftInfo").innerHTML = `
     Type: ${a.tipo}<br>
     Callsign: ${a.id}<br>
     SID: ${sidTexto}<br>
-    Status: ${estado}<br>
+    Status: ${estadoTexto}<br>
     Level: ${altitudTexto}
   `
 }
+
 
 
 
@@ -1314,16 +953,46 @@ function cambiarVelocidad(valor){
 
   document.getElementById("speedValue").innerText = valor
 }
+function agregarAeronave(data, esRemota = true) {
+
+  if(aeronaves.some(a => a.id === data.id)) return
+
+  const marker = L.marker([data.lat, data.lng], {
+    icon: crearIcono(data.id, data.tipo),
+    interactive: true
+  }).addTo(map)
+
+  const nueva = {
+    id: data.id,
+    tipo: data.tipo,
+    marker: marker,
+    remoto: esRemota,
+    altitud: data.altitud || 0,
+    angulo: data.angulo || 0,
+    ruta: null,
+    puntosRuta: [],
+    modoManual:false,
+    intervaloManual:null,
+    indiceRuta: 0,
+    estado: "idle",
+
+  }
+
+  aeronaves.push(nueva)
+}
 
 // ================= ROUTE =================
 
 function activarModoRuta(){
   if(!aeronaveSeleccionada) return
-  if(aeronaveSeleccionada.rodando){
+  if(aeronaveSeleccionada.estado === "taxi"){
+
     alert("Aircraft is taxiing")
     return
   }
-
+ if(aeronaveSeleccionada.ruta){
+    map.removeLayer(aeronaveSeleccionada.ruta)
+  }
   modoRuta=true
   const pos=aeronaveSeleccionada.marker.getLatLng()
   rutaTemporal=[pos]
@@ -1334,11 +1003,29 @@ function activarModoRuta(){
 }
 
 function agregarPuntoRuta(latlng){
-  if(!aeronaveSeleccionada || aeronaveSeleccionada.rodando) return
+  if(!aeronaveSeleccionada || aeronaveSeleccionada.estado === "taxi") return
   rutaTemporal.push(latlng)
   aeronaveSeleccionada.ruta.setLatLngs(rutaTemporal)
   actualizarBotonTaxi()
 
+}
+function eliminarRuta(){
+
+  if(!aeronaveSeleccionada) return
+
+  const a = aeronaveSeleccionada
+
+  a.indiceRuta = 0
+
+  // Eliminar línea del mapa
+  if(a.ruta){
+    map.removeLayer(a.ruta)
+    a.ruta = null
+  }
+
+  a.puntosRuta = []
+
+  mostrarTaxiing(a,false)
 }
 
 // ================= TAXI =================
@@ -1347,58 +1034,64 @@ function iniciarRodaje(){
 
   if(!aeronaveSeleccionada) return
 
-  if(!aeronaveSeleccionada.ruta ||
-     !aeronaveSeleccionada.puntosRuta ||
-     aeronaveSeleccionada.puntosRuta.length < 2){
-    return
-  }
+  const a = aeronaveSeleccionada
 
-  aeronaveSeleccionada.rodando = true
-  aeronaveSeleccionada.marker.dragging.disable()
+  if(a.estado !== "idle") return
 
-  mostrarTaxiing(aeronaveSeleccionada, true)
+  if(!a.puntosRuta || a.puntosRuta.length < 2) return
 
-  moverPorPuntos(aeronaveSeleccionada)
+  a.estado = "taxi"
+  a.indiceRuta = 0
 
-  actualizarPanelInfo(aeronaveSeleccionada)
+  a.marker.dragging.disable()
+
+  const el = a.marker.getElement()
+  if(el) el.style.pointerEvents = "none"
+
+  mostrarTaxiing(a, true)
+
+  moverPorPuntos(a)
+
+  actualizarPanelInfo(a)
   actualizarBotonTaxi()
-
 }
 
 
 function detenerRodaje(){
+
   if(!aeronaveSeleccionada) return
 
-  aeronaveSeleccionada.rodando=false
-  modoRuta=false
-aeronaveSeleccionada.marker.dragging.enable()
-  if(aeronaveSeleccionada.intervaloMovimiento){
-    clearInterval(aeronaveSeleccionada.intervaloMovimiento)
-    aeronaveSeleccionada.intervaloMovimiento=null
-  }
+  const a = aeronaveSeleccionada
 
-  if(aeronaveSeleccionada.ruta){
-    map.removeLayer(aeronaveSeleccionada.ruta)
-    aeronaveSeleccionada.ruta=null
-  }
+  if(a.estado !== "taxi") return
 
-  aeronaveSeleccionada.puntosRuta=[]
-  mostrarTaxiing(aeronaveSeleccionada,false)
-  actualizarPanelInfo(aeronaveSeleccionada)
-actualizarBotonTaxi()
+  a.estado = "idle"
 
+
+  mostrarTaxiing(a, false)
+
+  // 🔥 Reactivar interacción
+  const el = a.marker.getElement()
+  if(el) el.style.pointerEvents = "auto"
+
+  actualizarPanelInfo(a)
+  actualizarBotonTaxi()
 }
+
+
 function activarModoManual(){
+
 
   if(!aeronaveSeleccionada) return
   const a = aeronaveSeleccionada
 
   if(a.modoManual) return
-  if(a.rodando || a.enVuelo || a.circuitoActivo){
+  if(a.estado === "taxi"|| a.estado === "vuelo"|| a.estado === "circuito"){
     alert("Cannot activate manual during automatic modes")
     return
   }
 
+  a.estado = "manual"
   a.modoManual = true
 // Si no tiene ángulo definido, usar el actual o 0
 if(a.angulo === undefined || a.angulo === null){
@@ -1443,11 +1136,12 @@ actualizarRotacion(a)
       angulo:a.angulo
     })
 
-  },50)
+  }, 50)
 
 }
 
 function detenerModoManual(){
+a.estado = "idle"
 
   if(!aeronaveSeleccionada) return
   const a = aeronaveSeleccionada
@@ -1468,7 +1162,7 @@ function iniciarSTAR(){
   if(!aeronaveSeleccionada) return
   const a = aeronaveSeleccionada
 
-  if(!a.enVuelo){
+  if(a.estado !== "vuelo"){
     alert("Aircraft must be airborne")
     return
   }
@@ -1570,9 +1264,11 @@ function despegar(){
   if(!aeronaveSeleccionada) return
   const a = aeronaveSeleccionada
 
-  if(a.enVuelo) return
+  if(a.estado === "vuelo")
+ return
 
-  if(a.rodando){
+  if(a.estado === "taxi")
+{
     alert("Cannot takeoff while taxiing")
     return
   }
@@ -1604,7 +1300,7 @@ function despegar(){
   a.starActivo = false
   a.altitud = 0
   a.velocidad = 0
-  a.enVuelo = true
+  a.estado = "vuelo"
   a.fase = "RUNWAY"
 
   // Heading inicial según punto de salida
@@ -1862,65 +1558,124 @@ function actualizarRotacion(a){
   const icon = el.querySelector(".icon-aircraft");
   if(!icon) return;
 
+  // Obtener offset según tipo
   const offset = ORIENTACION_MODELOS[a.tipo] || ORIENTACION_MODELOS.DEFAULT;
 
   icon.style.transform = `rotate(${a.angulo + offset}deg)`;
 }
 
 
-
 function moverPorPuntos(a){
-  let i=0
-  const ruta=a.puntosRuta
+
+  let i = a.indiceRuta || 0
+  const ruta = a.puntosRuta
 
   function mover(){
-    if(i>=ruta.length-1){
-      detenerRodaje()
+
+    if(a.estado !== "taxi") return
+
+
+    if(i >= ruta.length - 1){
+
+  cambiarEstado(a,"idle")
+  mostrarTaxiing(a,false)
+
+  // 🔥 ELIMINAR RUTA VISUAL
+  if(a.ruta){
+    map.removeLayer(a.ruta)
+    a.ruta = null
+  }
+
+  // 🔥 LIMPIAR PUNTOS
+  a.puntosRuta = []
+  a.indiceRuta = 0
+
+  // 🔥 LIMPIAR RUTA TEMPORAL GLOBAL
+  if(rutaTemporal){
+    map.removeLayer(rutaTemporal)
+    rutaTemporal = null
+  }
+
+  modoRuta = false
+
+  actualizarPanelInfo(a)
+  actualizarBotonTaxi()
+
+  return
+}
+
+
+    const actual = a.marker.getLatLng()
+    const destino = ruta[i + 1]
+
+    const dx = destino.lng - actual.lng
+    const dy = destino.lat - actual.lat
+const anguloRad = Math.atan2(dx, dy)
+const anguloDeg = anguloRad * (180 / Math.PI)
+
+a.angulo = anguloDeg
+actualizarRotacion(a)
+
+    const distancia = Math.sqrt(dx*dx + dy*dy)
+    const velocidad = 0.000005
+
+    if(distancia < velocidad){
+
+      a.marker.setLatLng(destino)
+
+      // 🔥 SINCRONIZAR
+      if(!a.remoto){
+        socket.emit("actualizarAeronave", {
+          id: a.id,
+          lat: destino.lat,
+          lng: destino.lng,
+          altitud: a.altitud,
+          angulo: a.angulo
+        })
+      }
+
+      i++
+      a.indiceRuta = i
+
+      requestAnimationFrame(mover)
       return
     }
 
-    const inicio=ruta[i]
-    const fin=ruta[i+1]
+    const nuevoLat = actual.lat + (dy/distancia)*velocidad
+    const nuevoLng = actual.lng + (dx/distancia)*velocidad
 
-    a.angulo=calcularBearing(inicio,fin)
-    actualizarRotacion(a)
+    a.marker.setLatLng([nuevoLat, nuevoLng])
 
-    const dist=map.distance(inicio,fin)
-    const dur=(dist/VELOCIDAD)*1000
-    const start=Date.now()
+    // 🔥 SINCRONIZAR EN CADA FRAME
+    if(!a.remoto){
+      socket.emit("actualizarAeronave", {
+        id: a.id,
+        lat: nuevoLat,
+        lng: nuevoLng,
+        altitud: a.altitud,
+        angulo: a.angulo
+      })
+    }
 
-    a.intervaloMovimiento=setInterval(()=>{
-      const t=(Date.now()-start)/dur
-      if(t>=1){
-        a.marker.setLatLng(fin)
-        clearInterval(a.intervaloMovimiento)
-        i++
-        mover()
-        return
-      }
-      const lat=inicio.lat+(fin.lat-inicio.lat)*t
-      const lng=inicio.lng+(fin.lng-inicio.lng)*t
-      a.marker.setLatLng([lat,lng])
-
-socket.emit("actualizarAeronave", {
-  id: a.id,
-  lat: lat,
-  lng: lng,
-  altitud: a.altitud,
-  angulo: a.angulo
-})
-
-    },30)
+    requestAnimationFrame(mover)
   }
-  mover()
-}
 
+  requestAnimationFrame(mover)
+}
 
 function mostrarTaxiing(a,estado){
-  const el=a.marker.getElement()
-  const label=el.querySelector(".status-label")
-  label.style.display=estado?"block":"none"
+  const el = a.marker.getElement()
+  if(!el) return
+
+  const label = el.querySelector(".status-label")
+  if(!label) return
+
+  label.style.display = estado ? "block" : "none"
 }
+
+
+
+
 //===========CIRCUITO=============
 //=========== TRAFFIC PATTERN =============
 
@@ -1936,10 +1691,10 @@ function iniciarCircuito(){
     return
   }
 
-  if(a.circuitoActivo) return
-
-  a.circuitoActivo = true
+if(a.estado === "circuito")
+ return
   a.altitud = 0
+a.estado = "circuito"
 
   const velocidad = 60          // 60 KTAS realista
   const patronAltitud = 1500    // 1500 ft
@@ -2051,9 +1806,8 @@ socket.emit("actualizarAeronave", {
   },50)
 }
 
-
-
 function detenerCircuito(){
+
 
   if(!aeronaveSeleccionada) return
   const a = aeronaveSeleccionada
@@ -2063,7 +1817,7 @@ function detenerCircuito(){
     a.intervaloCircuito = null
   }
 
-  a.circuitoActivo = false
+  a.estado = "idle"
 }
 
 // ================= FREE NAVIGATION =================
@@ -2221,7 +1975,54 @@ document.addEventListener("click", function(e){
     config.classList.remove("activo");
   }
 });
+function activarEmergencia(){
 
+  // Evitar duplicados
+  if(imagenPeligro) return;
+
+  imagenPeligro = L.marker(ARP_SPSO, {
+    icon: L.icon({
+      iconUrl: "img/incursion.svg",
+      iconSize: [60,120],
+      iconAnchor: [60,60]
+    }),
+    interactive: false
+  }).addTo(map);
+
+  // 🔴 Activar botón rojo
+  const btn = document.getElementById("btnDanger");
+  btn.classList.add("activo");
+
+  // ⏳ AUTO DESACTIVAR EN 1 MINUTO
+  temporizadorPeligro = setTimeout(() => {
+
+    if(imagenPeligro){
+      map.removeLayer(imagenPeligro);
+      imagenPeligro = null;
+    }
+
+    btn.classList.remove("activo");
+    temporizadorPeligro = null;
+
+  }, 60000); // 60 segundos
+}
+
+function desactivarEmergencia(){
+
+  if(!marcadorPeligro) return;
+
+  map.removeLayer(marcadorPeligro);
+  marcadorPeligro = null;
+}
+function obtenerBoundsImagen(lat, lng, tamañoMetros){
+
+  const delta = tamañoMetros / 111320; // aproximación grados
+
+  return [
+    [lat - delta, lng - delta],
+    [lat + delta, lng + delta]
+  ];
+}
 
 
 </script>
@@ -2233,6 +2034,9 @@ document.addEventListener("click", function(e){
   <button onclick="cambiarRumbo(10)">10° »</button>
 </div>
 
+<button id="btnDanger" onclick="activarModoPeligro()">
+  ⚠
+</button>
 
 </body>
 </html>

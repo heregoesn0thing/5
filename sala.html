@@ -1578,98 +1578,68 @@ function moverPorPuntos(a){
 
   let i = a.indiceRuta || 0
   const ruta = a.puntosRuta
+  const velocidad = 0.00002
 
-  function mover(){
+  let ultimoTiempo = performance.now()
+  let ultimoEnvio = 0
+
+  function mover(ahora){
 
     if(a.estado !== "taxi") return
 
+    const deltaTime = (ahora - ultimoTiempo) / 1000
+    ultimoTiempo = ahora
 
     if(i >= ruta.length - 1){
-
-  cambiarEstado(a,"idle")
-  mostrarTaxiing(a,false)
-
-  // 🔥 ELIMINAR RUTA VISUAL
-  if(a.animRutaFrame){
-  cancelAnimationFrame(a.animRutaFrame)
-  a.animRutaFrame = null
-}
-
-if(a.ruta){
-  map.removeLayer(a.ruta)
-  a.ruta = null
-}
-
-
-  // 🔥 LIMPIAR PUNTOS
-  a.puntosRuta = []
-  a.indiceRuta = 0
-
-  // 🔥 LIMPIAR RUTA TEMPORAL GLOBAL
-  if(rutaTemporal){
-    map.removeLayer(rutaTemporal)
-    rutaTemporal = null
-  }
-
-  modoRuta = false
-
-  actualizarPanelInfo(a)
-  actualizarBotonTaxi()
-
-  return
-}
-
+      finalizarTaxi(a)
+      return
+    }
 
     const actual = a.marker.getLatLng()
     const destino = ruta[i + 1]
 
     const dx = destino.lng - actual.lng
     const dy = destino.lat - actual.lat
-const anguloRad = Math.atan2(dx, dy)
-const anguloDeg = anguloRad * (180 / Math.PI)
-
-a.angulo = anguloDeg
-actualizarRotacion(a)
-
     const distancia = Math.sqrt(dx*dx + dy*dy)
-    const velocidad = 0.000005
 
-    if(distancia < velocidad){
-
-      a.marker.setLatLng(destino)
-
-      // 🔥 SINCRONIZAR
-      if(!a.remoto){
-        socket.emit("actualizarAeronave", {
-          id: a.id,
-          lat: destino.lat,
-          lng: destino.lng,
-          altitud: a.altitud,
-          angulo: a.angulo
-        })
-      }
-
+    if(distancia === 0){
       i++
       a.indiceRuta = i
-
       requestAnimationFrame(mover)
       return
     }
 
-    const nuevoLat = actual.lat + (dy/distancia)*velocidad
-    const nuevoLng = actual.lng + (dx/distancia)*velocidad
+    const paso = velocidad * deltaTime
 
-    a.marker.setLatLng([nuevoLat, nuevoLng])
+    if(distancia <= paso){
+      a.marker.setLatLng(destino)
+      i++
+      a.indiceRuta = i
+    } else {
+      const nuevoLat = actual.lat + (dy/distancia)*paso
+      const nuevoLng = actual.lng + (dx/distancia)*paso
+      a.marker.setLatLng([nuevoLat, nuevoLng])
+    }
 
-    // 🔥 SINCRONIZAR EN CADA FRAME
-    if(!a.remoto){
+    // 🔥 ROTACIÓN CORRECTA
+    const anguloRad = Math.atan2(dx, dy)
+    a.angulo = anguloRad * (180 / Math.PI)
+    actualizarRotacion(a)
+
+    // 🔥 EMITIR SOLO CADA 100ms (no cada frame)
+    if(!a.remoto && ahora - ultimoEnvio > 100){
+
+      const pos = a.marker.getLatLng()
+
       socket.emit("actualizarAeronave", {
         id: a.id,
-        lat: nuevoLat,
-        lng: nuevoLng,
+        lat: pos.lat,
+        lng: pos.lng,
         altitud: a.altitud,
         angulo: a.angulo
       })
+
+      ultimoEnvio = ahora
     }
 
     requestAnimationFrame(mover)
@@ -1677,6 +1647,7 @@ actualizarRotacion(a)
 
   requestAnimationFrame(mover)
 }
+
 
 function mostrarTaxiing(a,estado){
   const el = a.marker.getElement()

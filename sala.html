@@ -2263,33 +2263,37 @@ function dibujarCircuito() {
   const umbral04 = L.latLng(-13.755327, -76.229306)
   const umbral22 = L.latLng(-13.734272, -76.211517)
 
-  const eje = 40
-  const rumboIzquierda = 130
+  const eje = 40              // rumbo pista
+  const rumboSalida = 220     // salida RWY22
+  const rumboFinal = 40       // final RWY22
+  const rumboIzquierda = 130  // patrón izquierdo
 
-  const offsetNM = 1.5
-  const extensionNM = 2.0
+  const extensionNM = 2
+  const lateralNM = 1.5
 
-  const offsetM = offsetNM * 1852
   const extensionM = extensionNM * 1852
+  const lateralM = lateralNM * 1852
 
-  // 🔹 Distancia REAL pista
-  const largoPista = map.distance(umbral04, umbral22)
+  // 🔵 Punto extremo salida (2NM después del umbral 22)
+  const puntoSalida = puntoPlano(umbral22, rumboSalida, extensionM)
 
-  // 🔹 Centro exacto pista
-  const centroPista = L.latLng(
-    (umbral04.lat + umbral22.lat) / 2,
-    (umbral04.lng + umbral22.lng) / 2
+  // 🔵 Punto extremo final (2NM antes del umbral 22)
+  const puntoFinal = puntoPlano(umbral22, rumboFinal, extensionM)
+
+  // 🔵 Centro longitudinal entre esos extremos
+  const centroLong = L.latLng(
+    (puntoSalida.lat + puntoFinal.lat) / 2,
+    (puntoSalida.lng + puntoFinal.lng) / 2
   )
 
-  // 🔹 Centro del patrón (lado izquierdo)
-  const centro = puntoPlano(centroPista, rumboIzquierda, offsetM)
+  // 🔵 Desplazamos lateralmente 1.5NM a la izquierda
+  const centro = puntoPlano(centroLong, rumboIzquierda, lateralM)
 
-  // 🔹 Semieje longitudinal REAL
-  const a = (largoPista / 2) + extensionM
+  // 🔵 Semieje longitudinal = distancia entre extremos / 2
+  const longitudTotal = map.distance(puntoSalida, puntoFinal)
+  const a = longitudTotal / 2
 
-  // 🔹 Semieje lateral
-  const b = offsetM
-
+  const b = lateralM
   const n = 3.8
   const pasos = 360
 
@@ -2305,13 +2309,12 @@ function dibujarCircuito() {
     const x = a * Math.sign(cosT) * Math.pow(Math.abs(cosT), 2/n)
     const y = b * Math.sign(sinT) * Math.pow(Math.abs(sinT), 2/n)
 
-    // Rotación alineada al eje real de pista
     const headingRad = eje * Math.PI / 180
 
     const xr = x * Math.cos(headingRad) - y * Math.sin(headingRad)
     const yr = x * Math.sin(headingRad) + y * Math.cos(headingRad)
 
-    const distancia = Math.sqrt(xr * xr + yr * yr)
+    const distancia = Math.sqrt(xr*xr + yr*yr)
     const rumbo = Math.atan2(yr, xr) * 180 / Math.PI
 
     const punto = puntoPlano(centro, rumbo, distancia)
@@ -2325,7 +2328,6 @@ function dibujarCircuito() {
     dashArray: "8 8"
   }).addTo(map)
 }
-
 
 // ================= FREE NAVIGATION =================
 function cambiarRumbo(valor){

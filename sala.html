@@ -1030,20 +1030,31 @@ function iniciarRodaje(){
     return
   }
 
-  // Si estaba pausado → solo reanudar
+  // 🔥 Si estaba pausado → solo reanudar
   if(a.taxiPausado){
     a.taxiPausado = false
+
+    // Desactivar interacción mientras rueda
+    const el = a.marker.getElement()
+    if(el) el.style.pointerEvents = "none"
+
     moverPorPuntos(a)
     mostrarTaxiing(a, true)
+    actualizarBotonTaxi()
     return
   }
 
-  // Inicio normal
+  // 🔥 Inicio normal
   a.rodando = true
   a.taxiPausado = false
   a.indiceRuta = 0
 
   a.marker.dragging.disable()
+
+  // 🔥 SOLUCIÓN PROFESIONAL
+  const el = a.marker.getElement()
+  if(el) el.style.pointerEvents = "none"
+
   mostrarTaxiing(a, true)
 
   moverPorPuntos(a)
@@ -1052,25 +1063,27 @@ function iniciarRodaje(){
   actualizarBotonTaxi()
 }
 
-
-
 function detenerRodaje(){
 
   if(!aeronaveSeleccionada) return
 
   const a = aeronaveSeleccionada
 
+  if(!a.rodando) return
+
   a.taxiPausado = true
   a.rodando = false
 
-  if(a.intervaloMovimiento){
-    clearInterval(a.intervaloMovimiento)
-    a.intervaloMovimiento = null
-  }
-
   mostrarTaxiing(a, false)
+
+  // 🔥 Reactivar interacción
+  const el = a.marker.getElement()
+  if(el) el.style.pointerEvents = "auto"
+
   actualizarPanelInfo(a)
+  actualizarBotonTaxi()
 }
+
 
 function activarModoManual(){
 
@@ -1564,21 +1577,59 @@ function moverPorPuntos(a){
 
     if(i >= ruta.length - 1){
 
-  a.rodando = false
-  a.taxiPausado = false
-  a.indiceRuta = 0
+      a.rodando = false
+      a.taxiPausado = false
+      a.indiceRuta = 0
 
-  mostrarTaxiing(a,false)
+      mostrarTaxiing(a,false)
 
-  modoRuta = false
-  rutaTemporal = []
+      modoRuta = false
+      rutaTemporal = []
 
-  a.marker.dragging.enable()
+      a.marker.dragging.enable()
 
-  actualizarPanelInfo(a)
+      // 🔥 Reactivar interacción
+      const el = a.marker.getElement()
+      if (el) el.style.pointerEvents = "auto"
 
-  return
+      actualizarPanelInfo(a)
+      actualizarBotonTaxi()
+
+      return
+    }
+
+    const actual = a.marker.getLatLng()
+    const destino = ruta[i + 1]
+
+    const dx = destino.lng - actual.lng
+    const dy = destino.lat - actual.lat
+
+    const distancia = Math.sqrt(dx*dx + dy*dy)
+
+    const velocidad = 0.00005  // ajusta si quieres más rápido/lento
+
+    if(distancia < velocidad){
+
+      a.marker.setLatLng(destino)
+
+      i++
+      a.indiceRuta = i
+
+      requestAnimationFrame(mover)
+      return
+    }
+
+    const nuevoLat = actual.lat + (dy/distancia)*velocidad
+    const nuevoLng = actual.lng + (dx/distancia)*velocidad
+
+    a.marker.setLatLng([nuevoLat, nuevoLng])
+
+    requestAnimationFrame(mover)
+  }
+
+  requestAnimationFrame(mover)
 }
+
 
 
   const inicio = L.latLng(ruta[i].lat, ruta[i].lng)

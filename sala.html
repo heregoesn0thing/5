@@ -2263,7 +2263,7 @@ function dibujarCircuito() {
   const umbral04 = L.latLng(-13.755327, -76.229306)
   const umbral22 = L.latLng(-13.734272, -76.211517)
 
-  const ejePista = 40
+  const eje = 40
   const ejeInverso = 220
 
   const offsetNM = 1.5
@@ -2272,45 +2272,57 @@ function dibujarCircuito() {
   const offsetM = offsetNM * 1852
   const extensionM = extensionNM * 1852
 
-  // ================= PUNTOS CLAVE =================
-
-  // 1️⃣ Punto crosswind (2 NM desde umbral 04)
-  const puntoCrosswind = puntoPlano(umbral04, ejePista, extensionM)
-
-  // 2️⃣ Punto base (2 NM desde umbral 22 hacia atrás)
-  const puntoBaseEje = puntoPlano(umbral22, ejeInverso, extensionM)
-
-  // 3️⃣ Offset lateral izquierdo (lado NE)
   const rumboIzquierda = 130
 
-  const crosswindOffset = puntoPlano(puntoCrosswind, rumboIzquierda, offsetM)
+  // ===== PUNTOS BASE =====
+
+  const crossEje = puntoPlano(umbral04, eje, extensionM)
+  const baseEje = puntoPlano(umbral22, ejeInverso, extensionM)
+
+  const crossOffset = puntoPlano(crossEje, rumboIzquierda, offsetM)
   const downwindInicio = puntoPlano(umbral04, rumboIzquierda, offsetM)
   const downwindFin = puntoPlano(umbral22, rumboIzquierda, offsetM)
-  const baseOffset = puntoPlano(puntoBaseEje, rumboIzquierda, offsetM)
+  const baseOffset = puntoPlano(baseEje, rumboIzquierda, offsetM)
+
+  // ===== GENERAR HIPÓDROMO =====
 
   const puntos = []
 
-  // ================= TRAZADO =================
+  function segmento(p1, p2, pasos = 40) {
+    for (let i = 0; i <= pasos; i++) {
+      const t = i / pasos
+      puntos.push([
+        p1.lat + (p2.lat - p1.lat) * t,
+        p1.lng + (p2.lng - p1.lng) * t
+      ])
+    }
+  }
 
-  // Final → Umbral 22
-  puntos.push(umbral22)
+  function arco(centro, angInicio, angFin, radio, pasos = 60) {
+    for (let i = 0; i <= pasos; i++) {
+      const t = i / pasos
+      const ang = angInicio + (angFin - angInicio) * t
+      const p = puntoPlano(centro, ang, radio)
+      puntos.push([p.lat, p.lng])
+    }
+  }
 
-  // Subir por eje hasta punto base eje
-  puntos.push(puntoBaseEje)
+  const radio = offsetM
 
-  // Base hacia lateral
-  puntos.push(baseOffset)
+  // 1️⃣ FINAL
+  segmento(umbral22, baseEje)
 
-  // Downwind completo paralelo
-  puntos.push(downwindFin)
-  puntos.push(downwindInicio)
+  // 2️⃣ Arco BASE → DOWNWIND
+  arco(baseOffset, ejeInverso - 90, ejeInverso + 90, radio)
 
-  // Crosswind
-  puntos.push(crosswindOffset)
+  // 3️⃣ DOWNWIND
+  segmento(downwindFin, downwindInicio)
 
-  // Regresar al eje
-  puntos.push(puntoCrosswind)
-  puntos.push(umbral22)
+  // 4️⃣ Arco CROSS → UPWIND
+  arco(crossOffset, eje - 90, eje + 90, radio)
+
+  // 5️⃣ UPWIND
+  segmento(crossEje, umbral22)
 
   patronLayer = L.polyline(puntos, {
     color: "#00ffff",

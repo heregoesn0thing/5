@@ -1674,21 +1674,19 @@ chkPatron.addEventListener("change", () => {
 
   if(chkPatron.checked){
 
-    patronLayer = L.circle(vorPisco, {
-      radius: 3000,
-      color: "#22c55e",
-      dashArray: "3 6",
-      fill: false
-    }).addTo(map)
+    dibujarCircuitoHipodromo()
 
   } else {
+
     if(patronLayer){
       map.removeLayer(patronLayer)
       patronLayer = null
     }
+
   }
 
 })
+
 
 
 function girarSuavemente(a, headingActual, headingObjetivo){
@@ -2297,8 +2295,25 @@ function generarArco(centro, radioMetros, rumboInicio, rumboFin, pasos = 20){
 
   return puntos
 }
+
+function puntoPlano(origen, rumbo, distanciaMetros){
+
+  const headingRad = rumbo * Math.PI/180
+
+  const deltaLat = (Math.cos(headingRad) * distanciaMetros) / 111320
+  const deltaLng = (Math.sin(headingRad) * distanciaMetros) /
+    (111320 * Math.cos(origen.lat * Math.PI/180))
+
+  return {
+    lat: origen.lat + deltaLat,
+    lng: origen.lng + deltaLng
+  }
+}
+
 function dibujarCircuitoHipodromo(){
 
+  const rwy04 = { lat: -13.755327, lng: -76.229306 }
+const rwy22 = { lat: -13.734272, lng: -76.211517 }
   const rumboPista = calcularBearing(rwy22, rwy04)
   const lado = -90
   const radioGiro = 0.4 * 1852 // 0.4 NM radio giro realista

@@ -635,7 +635,8 @@ function confirmarCreacion(){
 
     const pos = e.target.getLatLng()
 
-    sincronizarMovimiento(a, lat, lng)
+    const pos = a.marker.getLatLng()
+sincronizarMovimiento(a, pos.lat, pos.lng)
 
 
   })
@@ -1174,7 +1175,8 @@ actualizarRotacion(a)
 
     a.marker.setLatLng([nuevaLat, nuevaLng])
 
-    sincronizarMovimiento(a, lat, lng)
+    const pos = a.marker.getLatLng()
+sincronizarMovimiento(a, pos.lat, pos.lng)
 
 
   }, 50)
@@ -1457,7 +1459,8 @@ function despegar(){
     if(aeronaveSeleccionada === a){
       actualizarPanelInfo(a)
     }
-sincronizarMovimiento(a, lat, lng)
+const pos = a.marker.getLatLng()
+sincronizarMovimiento(a, pos.lat, pos.lng)
 
 
   },50)
@@ -1810,9 +1813,15 @@ function sincronizarMovimiento(a, lat, lng){
 
   a.ultimoSync = ahora
 
-  sincronizarMovimiento(a, lat, lng)
-
+  socket.emit("actualizarAeronave", {
+    id: a.id,
+    lat,
+    lng,
+    altitud: a.altitud,
+    angulo: a.angulo
+  })
 }
+
 
 
 function mostrarTaxiing(a,estado){
@@ -1975,7 +1984,8 @@ a.estado = "circuito"
     ])
 const pos = a.marker.getLatLng()
 
-sincronizarMovimiento(a, lat, lng)
+const pos = a.marker.getLatLng()
+sincronizarMovimiento(a, pos.lat, pos.lng)
 
 
   },50)
@@ -2013,7 +2023,8 @@ function cambiarRumbo(valor){
   actualizarRotacion(a)
   actualizarHeadingDisplay(a)
 
-  sincronizarMovimiento(a, lat, lng)
+  const pos = a.marker.getLatLng()
+sincronizarMovimiento(a, pos.lat, pos.lng)
 
 
 }

@@ -669,6 +669,7 @@ animFrame: null,
   }
 
   aeronaves.push(nueva)
+actualizarInteraccion(nueva)
 
   marker.on("click", function(event){
 
@@ -742,6 +743,7 @@ socket.on("crearAeronave", data => {
 
 
   aeronaves.push(nueva)
+actualizarInteraccion(nueva)
 
   marker.on("click", function(event){
 
@@ -1075,16 +1077,17 @@ function iniciarRodaje(){
   if(!a.puntosRuta || a.puntosRuta.length < 2) return
 
   a.estado = "taxi"
-actualizarInteraccion(a)
-
+  actualizarInteraccion(a)
   a.indiceRuta = 0
 
   mostrarTaxiing(a, true)
-
   moverPorPuntos(a)
-
   actualizarPanelInfo(a)
   actualizarBotonTaxi()
+
+  aeronaveSeleccionada = null
+  cerrarPanel()
+
 }
 
 

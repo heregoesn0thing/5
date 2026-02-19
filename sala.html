@@ -2274,6 +2274,99 @@ actualizarPanelInfo(a)
 actualizarBotonTaxi()
 
 }
+function generarArco(centro, radioMetros, rumboInicio, rumboFin, pasos = 20){
+
+  const puntos = []
+
+  const inicio = rumboInicio * Math.PI/180
+  const fin = rumboFin * Math.PI/180
+
+  for(let i=0; i<=pasos; i++){
+
+    const angulo = inicio + (fin - inicio) * (i/pasos)
+
+    const deltaLat = (Math.cos(angulo) * radioMetros) / 111320
+    const deltaLng = (Math.sin(angulo) * radioMetros) /
+      (111320 * Math.cos(centro.lat * Math.PI/180))
+
+    puntos.push([
+      centro.lat + deltaLat,
+      centro.lng + deltaLng
+    ])
+  }
+
+  return puntos
+}
+function dibujarCircuitoHipodromo(){
+
+  const rumboPista = calcularBearing(rwy22, rwy04)
+  const lado = -90
+  const radioGiro = 0.4 * 1852 // 0.4 NM radio giro realista
+
+  const salida = rwy22
+
+  const upwind = puntoPlano(salida, rumboPista, 2 * 1852)
+  const cross = puntoPlano(upwind, rumboPista + lado, 1.5 * 1852)
+  const downwind = puntoPlano(cross, rumboPista + 180, 2 * 1852)
+  const base = puntoPlano(downwind, rumboPista - lado, 1.5 * 1852)
+
+  let puntos = []
+
+  // Tramo salida
+  puntos.push([salida.lat, salida.lng])
+  puntos.push([upwind.lat, upwind.lng])
+
+  // Giro UPWIND → CROSSWIND
+  const arco1 = generarArco(
+    upwind,
+    radioGiro,
+    rumboPista,
+    rumboPista + lado
+  )
+  puntos = puntos.concat(arco1)
+
+  // Tramo cross
+  puntos.push([cross.lat, cross.lng])
+
+  // Giro CROSS → DOWNWIND
+  const arco2 = generarArco(
+    cross,
+    radioGiro,
+    rumboPista + lado,
+    rumboPista + 180
+  )
+  puntos = puntos.concat(arco2)
+
+  // Tramo downwind
+  puntos.push([downwind.lat, downwind.lng])
+
+  // Giro DOWNWIND → BASE
+  const arco3 = generarArco(
+    downwind,
+    radioGiro,
+    rumboPista + 180,
+    rumboPista - lado
+  )
+  puntos = puntos.concat(arco3)
+
+  // Tramo base
+  puntos.push([base.lat, base.lng])
+
+  // Giro BASE → FINAL
+  const arco4 = generarArco(
+    base,
+    radioGiro,
+    rumboPista - lado,
+    rumboPista
+  )
+  puntos = puntos.concat(arco4)
+
+  circuitoLayer = L.polyline(puntos, {
+    color: "#22c55e",
+    weight: 2,
+    dashArray: "8 8"
+  }).addTo(map)
+}
 
 // ================= FREE NAVIGATION =================
 function cambiarRumbo(valor){

@@ -2231,7 +2231,6 @@ function puntoPlano(origen, rumbo, distanciaMetros){
   }
 }
 
-
 function dibujarCircuitoHipodromo(){
 
   if(patronLayer){
@@ -2240,76 +2239,95 @@ function dibujarCircuitoHipodromo(){
   }
 
   const NM = 1852
+  const V = 60 * 0.514444
+  const bank = 25 * Math.PI/180
+  const g = 9.81
+  const R = (V*V)/(g*Math.tan(bank))   // radio real ~650m
 
-  const distCross = 2 * NM
-  const separacion = 1.5 * NM
-  const distBase = 1.5 * NM
+  const umbral22 = { lat:-13.734272, lng:-76.211517 }
+  const umbral04 = { lat:-13.755327, lng:-76.229306 }
 
-  const umbral = { lat: rwy22[0], lng: rwy22[1] }
-  const llegada = { lat: rwy04[0], lng: rwy04[1] }
+  const rumbo = calcularBearing(umbral22, umbral04)
+  const rumboRad = rumbo * Math.PI/180
 
-  const rumbo = calcularBearing(umbral, llegada)
-  const rumboOpp = (rumbo + 180) % 360
-  const rumboIzq = (rumbo - 90 + 360) % 360
+  function toXY(p){
+    return {
+      x:(p.lng-umbral22.lng)*111320*Math.cos(umbral22.lat*Math.PI/180),
+      y:(p.lat-umbral22.lat)*111320
+    }
+  }
+
+  function toLatLng(x,y){
+    return [
+      umbral22.lat + y/111320,
+      umbral22.lng + x/(111320*Math.cos(umbral22.lat*Math.PI/180))
+    ]
+  }
+
+  const eje = { x:Math.sin(rumboRad), y:Math.cos(rumboRad) }
+  const perp = { x:-eje.y, y:eje.x }
+
+  const pistaLength = map.distance(umbral22, umbral04)
+
+  const crossDist = pistaLength + 2*NM
+  const baseDist  = 2*NM
+  const offset    = 1.5*NM
 
   const puntos = []
 
-  // 1️⃣ UPWIND
-  const p1 = umbral
-  const p2 = puntoPlano(p1, rumbo, distCross)
+  // UPWIND
+  let p1 = { x:0, y:0 }
+  let p2 = { x:eje.x*crossDist, y:eje.y*crossDist }
 
-  puntos.push([p1.lat, p1.lng])
-  puntos.push([p2.lat, p2.lng])
+  puntos.push(toLatLng(p1.x,p1.y))
+  puntos.push(toLatLng(p2.x,p2.y))
 
-  // 2️⃣ CROSSWIND → giro 90° real con radio = separacion
-  const centro1 = puntoPlano(p2, rumboIzq, separacion)
+  // CROSS TURN (arco 90° izquierda)
+  const centro1 = {
+    x: p2.x + perp.x*R,
+    y: p2.y + perp.y*R
+  }
 
-  const arco1 = generarArco(
-    centro1,
-    separacion,
-    rumbo,
-    rumboOpp,
-    40
-  )
+  for(let a=0; a<=90; a+=3){
+    const ang = (rumboRad + Math.PI/2) - a*Math.PI/180
+    const x = centro1.x + R*Math.cos(ang)
+    const y = centro1.y + R*Math.sin(ang)
+    puntos.push(toLatLng(x,y))
+  }
 
-  puntos.push(...arco1)
+  // DOWNWIND paralelo
+  const downStart = puntos[puntos.length-1]
+  const downStartXY = toXY({lat:downStart[0],lng:downStart[1]})
 
-  // 3️⃣ DOWNWIND paralelo exacto
-  const inicioDown = arco1[arco1.length - 1]
+  const downEndXY = {
+    x: eje.x*baseDist + perp.x*offset,
+    y: eje.y*baseDist + perp.y*offset
+  }
 
-  const p3 = puntoPlano(
-    {lat: inicioDown[0], lng: inicioDown[1]},
-    rumboOpp,
-    distBase
-  )
+  puntos.push(toLatLng(downEndXY.x, downEndXY.y))
 
-  puntos.push([p3.lat, p3.lng])
+  // BASE TURN (otro arco izquierda)
+  const centro2 = {
+    x: downEndXY.x + perp.x*(-R),
+    y: downEndXY.y + perp.y*(-R)
+  }
 
-  // 4️⃣ BASE → segundo giro tangencial
-  const centro2 = puntoPlano(p3, (rumboIzq + 180) % 360, separacion)
+  for(let a=0; a<=90; a+=3){
+    const ang = (rumboRad + Math.PI) - a*Math.PI/180
+    const x = centro2.x + R*Math.cos(ang)
+    const y = centro2.y + R*Math.sin(ang)
+    puntos.push(toLatLng(x,y))
+  }
 
-  const arco2 = generarArco(
-    centro2,
-    separacion,
-    rumboOpp,
-    rumbo,
-    40
-  )
-
-  puntos.push(...arco2)
-
-  // 5️⃣ FINAL alineado perfecto
-  puntos.push([p1.lat, p1.lng])
+  // FINAL
+  puntos.push(toLatLng(0,0))
 
   patronLayer = L.polyline(puntos, {
-    color: "#22c55e",
-    weight: 2,
-    dashArray: "8 8"
+    color:"#22c55e",
+    weight:2,
+    dashArray:"8 8"
   }).addTo(map)
 }
-
-
-
 
 // ================= FREE NAVIGATION =================
 function cambiarRumbo(valor){

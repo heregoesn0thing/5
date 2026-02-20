@@ -2143,10 +2143,9 @@ function iniciarCircuito(){
     clearInterval(a.intervaloCircuito)
   }
 
-  // 🔥 Asignar ruta al avión
   a.rutaCircuito = puntosCircuito
 
-  // 🔎 Buscar punto más cercano para entrada limpia
+  // 🔎 Buscar punto más cercano
   const actual = a.marker.getLatLng()
 
   let indice = 0
@@ -2165,39 +2164,63 @@ function iniciarCircuito(){
   a.estado = "circuito"
   actualizarPanelInfo(a)
 
-  const velocidadIndice = 1.2   // 🔧 Ajusta velocidad aquí
+  // ✈️ Velocidad real
+  const velocidadKT = 90
+  const velocidadMPS = velocidadKT * 0.514444
+  const intervaloMS = 50
+  const distanciaPorTick = velocidadMPS * (intervaloMS/1000)
+
+  let distanciaAcumulada = 0
 
   a.intervaloCircuito = setInterval(()=>{
 
-    indice += velocidadIndice
+    let recorrido = 0
 
-    if(indice >= a.rutaCircuito.length){
-      indice = 0
+    while(recorrido < distanciaPorTick){
+
+      const siguiente = (indice - 1 + a.rutaCircuito.length) % a.rutaCircuito.length
+
+      const puntoActual = L.latLng(
+        a.rutaCircuito[indice][0],
+        a.rutaCircuito[indice][1]
+      )
+
+      const puntoSiguiente = L.latLng(
+        a.rutaCircuito[siguiente][0],
+        a.rutaCircuito[siguiente][1]
+      )
+
+      const segmento = map.distance(puntoActual, puntoSiguiente)
+
+      if(recorrido + segmento >= distanciaPorTick){
+        indice = siguiente
+        break
+      }
+
+      recorrido += segmento
+      indice = siguiente
     }
 
-    const iActual = Math.floor(indice)
-    const iSiguiente = (iActual + 1) % a.rutaCircuito.length
+    const punto = a.rutaCircuito[indice]
 
-    const puntoActual = a.rutaCircuito[iActual]
-    const puntoSiguiente = a.rutaCircuito[iSiguiente]
+    const siguienteIndice = (indice - 1 + a.rutaCircuito.length) % a.rutaCircuito.length
 
-    const lat = puntoActual[0]
-    const lng = puntoActual[1]
-
-    // 🔥 RUMBO basado en siguiente punto (perfectamente tangencial)
     const rumbo = calcularRumbo(
-      L.latLng(puntoActual[0], puntoActual[1]),
-      L.latLng(puntoSiguiente[0], puntoSiguiente[1])
+      L.latLng(punto[0], punto[1]),
+      L.latLng(
+        a.rutaCircuito[siguienteIndice][0],
+        a.rutaCircuito[siguienteIndice][1]
+      )
     )
 
     a.angulo = rumbo
     actualizarRotacion(a)
 
-    a.marker.setLatLng([lat, lng])
+    a.marker.setLatLng([punto[0], punto[1]])
 
-    sincronizarMovimiento(a, lat, lng)
+    sincronizarMovimiento(a, punto[0], punto[1])
 
-  }, 50)
+  }, intervaloMS)
 }
 function calcularRumbo(origen, destino){
 

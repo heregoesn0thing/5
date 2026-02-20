@@ -281,32 +281,34 @@ socket.on("rutaCircuitoActualizada", () => {
 
 <div id="manualPanel">
 
-  <div class="controlGroup">
-    <div class="controlLabel">HDG</div>
-    <button class="controlBtn" id="hdgMinus">−</button>
-    <div class="display" id="displayHeading">000</div>
-    <button class="controlBtn" id="hdgPlus">+</button>
+  <div class="mcpModule">
+    <div class="mcpTitle">HDG</div>
+    <div class="mcpControl">
+      <button id="hdgMinus" class="mcpBtn">◀</button>
+      <div id="displayHeading" class="mcpValue">000</div>
+      <button id="hdgPlus" class="mcpBtn">▶</button>
+    </div>
   </div>
 
-  <div class="controlGroup">
-    <div class="controlLabel">SPD</div>
-    <button class="controlBtn" id="spdMinus">−</button>
-    <div class="display" id="displaySpeed">000</div>
-    <button class="controlBtn" id="spdPlus">+</button>
+  <div class="mcpModule">
+    <div class="mcpTitle">SPD</div>
+    <div class="mcpControl">
+      <button id="spdMinus" class="mcpBtn">◀</button>
+      <div id="displaySpeed" class="mcpValue">0</div>
+      <button id="spdPlus" class="mcpBtn">▶</button>
+    </div>
   </div>
 
-  <div class="controlGroup">
-    <div class="controlLabel">ALT</div>
-    <button class="controlBtn" id="altMinus">−</button>
-    <div class="display" id="displayAlt">00000</div>
-    <button class="controlBtn" id="altPlus">+</button>
+  <div class="mcpModule">
+    <div class="mcpTitle">ALT</div>
+    <div class="mcpControl">
+      <button id="altMinus" class="mcpBtn">◀</button>
+      <div id="displayAlt" class="mcpValue">0</div>
+      <button id="altPlus" class="mcpBtn">▶</button>
+    </div>
   </div>
 
 </div>
-
-
-
-
 
 <div id="departurePanel" class="panelOculto">
   <div class="panelHeader">
@@ -438,14 +440,7 @@ const RUMBO_PISTA_22 = 220
 const DISTANCIA_FADE = 80 * 1852      // 80 NM
 const DISTANCIA_REMOVE = 85 * 1852    // 85 NM
 const ARP_SPSO = [-13.7449, -76.2203];
-const hdgPlus = document.getElementById("hdgPlus")
-const hdgMinus = document.getElementById("hdgMinus")
 
-const spdPlus = document.getElementById("spdPlus")
-const spdMinus = document.getElementById("spdMinus")
-
-const altPlus = document.getElementById("altPlus")
-const altMinus = document.getElementById("altMinus")
 const PERFORMANCE = {
   A320: { VR:145, CLIMB:250, ACC:1.2 },
   A319: { VR:140, CLIMB:240, ACC:1.1 },
@@ -1887,7 +1882,14 @@ chkPatron.addEventListener("change", () => {
   }
 
 })
+const hdgPlus = document.getElementById("hdgPlus")
+const hdgMinus = document.getElementById("hdgMinus")
 
+const spdPlus = document.getElementById("spdPlus")
+const spdMinus = document.getElementById("spdMinus")
+
+const altPlus = document.getElementById("altPlus")
+const altMinus = document.getElementById("altMinus")
 hdgPlus.onmousedown = (e) => iniciarCambio("heading", 5, e)
 hdgMinus.onmousedown = (e) => iniciarCambio("heading", -5, e)
 

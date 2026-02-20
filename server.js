@@ -93,9 +93,40 @@ function iniciarMotorSala(nombreSala){
     if (!sala) return
 
     const intervaloMS = 50
-
+    const deltaSeg = intervaloMS / 1000
     sala.aeronaves.forEach(a => {
+// =====================================
+// 🚀 ACELERACIÓN PROGRESIVA
+// =====================================
 
+if (a.velocidad !== undefined && a.velocidadObjetivo !== undefined) {
+
+  const diffVel = a.velocidadObjetivo - a.velocidad
+  const cambioMax = a.aceleracion * deltaSeg
+
+  if (Math.abs(diffVel) <= cambioMax) {
+    a.velocidad = a.velocidadObjetivo
+  } else {
+    a.velocidad += Math.sign(diffVel) * cambioMax
+  }
+}
+// =====================================
+// 🛫 ASCENSO / DESCENSO PROGRESIVO
+// =====================================
+
+if (a.altitud !== undefined && a.altitudObjetivo !== undefined) {
+
+  const diffAlt = a.altitudObjetivo - a.altitud
+
+  const cambioPorSegundo = a.verticalSpeed / 60
+  const cambioMax = cambioPorSegundo * deltaSeg
+
+  if (Math.abs(diffAlt) <= cambioMax) {
+    a.altitud = a.altitudObjetivo
+  } else {
+    a.altitud += Math.sign(diffAlt) * cambioMax
+  }
+}
       // =====================================
       // ✈ MODO MANUAL — PRIORIDAD ABSOLUTA
       // =====================================
@@ -497,11 +528,20 @@ socket.on("crearAeronave", (data) => {
   tipo: data.tipo,
   lat: data.lat,
   lng: data.lng,
+
+  // ALTITUD
   altitud: data.altitud || 0,
+  altitudObjetivo: data.altitud || 0,
+  verticalSpeed: 1500, // ft/min
+
+  // VELOCIDAD
+  velocidad: 90 * 0.514444, // m/s
+  velocidadObjetivo: 90 * 0.514444,
+  aceleracion: 1.5, // m/s²
+
   angulo: data.angulo || 0,
-  velocidad: 90 * 0.514444,
   estado: "idle"
-});
+})
 
 
   io.to(sala).emit("crearAeronave", data);
@@ -621,13 +661,20 @@ iniciarMotorSala(salaNombre)
   }
 
   io.to(salaNombre).emit("actualizarAeronave", {
-    id: aeronave.id,
-    lat: aeronave.lat,
-    lng: aeronave.lng,
-    altitud: aeronave.altitud,
-    angulo: aeronave.angulo,
-    estado: aeronave.estado
-  })
+  id: aeronave.id,
+  lat: aeronave.lat,
+  lng: aeronave.lng,
+
+  altitud: aeronave.altitud,
+  altitudObjetivo: aeronave.altitudObjetivo,
+
+  angulo: aeronave.angulo,
+
+  velocidad: aeronave.velocidad,
+  velocidadObjetivo: aeronave.velocidadObjetivo,
+
+  estado: aeronave.estado
+})
 })
 // ===== INICIAR CIRCUITO =====
 socket.on("iniciarCircuito", ({ id }) => {
@@ -717,16 +764,33 @@ socket.on("ajusteManual", ({ id, tipo, valor }) => {
   if (a.owner !== socket.id) return
   if (a.estado !== "manual") return
 
+  // =====================================
+  // 🧭 HEADING (sigue siendo inmediato)
+  // =====================================
   if (tipo === "heading") {
     a.angulo = (a.angulo + valor + 360) % 360
   }
 
+  // =====================================
+  // 🚀 VELOCIDAD (AHORA PROGRESIVA)
+  // =====================================
   if (tipo === "speed") {
-    a.velocidad = Math.max(0, (a.velocidad || 200) + valor)
+
+    const nuevaObjetivo =
+      (a.velocidadObjetivo || a.velocidad || 0) + valor
+
+    a.velocidadObjetivo = Math.max(0, nuevaObjetivo)
   }
 
+  // =====================================
+  // 🛫 ALTITUD (AHORA PROGRESIVA)
+  // =====================================
   if (tipo === "altitude") {
-    a.altitud = Math.max(0, a.altitud + valor)
+
+    const nuevaAltObjetivo =
+      (a.altitudObjetivo ?? a.altitud) + valor
+
+    a.altitudObjetivo = Math.max(0, nuevaAltObjetivo)
   }
 
   io.to(salaNombre).emit("actualizarAeronave", {

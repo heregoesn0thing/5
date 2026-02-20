@@ -854,31 +854,67 @@ socket.on("actualizarAeronave", data => {
   const avion = aeronaves.find(a => a.id === data.id);
   if (!avion) return;
 
-  // 🔥 SIEMPRE obedecer al servidor
-  avion.estado = data.estado
-  avion.altitud = data.altitud
-  if (aeronaveSeleccionada && avion.id === aeronaveSeleccionada.id) {
+  // =====================================
+  // 🔥 OBEDECER SIEMPRE AL SERVIDOR
+  // =====================================
 
-  actualizarBotonManual()
+  if (data.estado !== undefined)
+    avion.estado = data.estado;
 
-  if (avion.estado === "manual") {
-    document.getElementById("manualPanel").style.display = "block"
-    actualizarDisplaysManual(avion)
-  } else {
-    document.getElementById("manualPanel").style.display = "none"
-  }
-}
-if(avion.estado === "manual"){
-  actualizarInteraccion(avion)
-}
+  if (data.altitud !== undefined)
+    avion.altitud = data.altitud;
+
+  if (data.velocidad !== undefined)
+    avion.velocidad = data.velocidad;
+
+  if (data.altitudObjetivo !== undefined)
+    avion.altitudObjetivo = data.altitudObjetivo;
+
+  if (data.velocidadObjetivo !== undefined)
+    avion.velocidadObjetivo = data.velocidadObjetivo;
+
+  if (data.angulo !== undefined)
+    avion.angulo = data.angulo;
+
+  // =====================================
+  // 🛰 MOVIMIENTO VISUAL
+  // =====================================
+
   interpolarRemoto(
     avion,
     data.lat,
     data.lng,
     data.angulo
-  )
+  );
 
-})
+  // =====================================
+  // 🎯 ACTUALIZAR PANEL SI ESTÁ SELECCIONADO
+  // =====================================
+
+  if (aeronaveSeleccionada && avion.id === aeronaveSeleccionada.id) {
+
+    actualizarBotonManual();
+
+    // 🔥 SIEMPRE actualizar panel
+    actualizarDisplaysManual(avion);
+
+    // Mostrar u ocultar panel manual
+    if (avion.estado === "manual") {
+      document.getElementById("manualPanel").style.display = "block";
+    } else {
+      document.getElementById("manualPanel").style.display = "none";
+    }
+  }
+
+  // =====================================
+  // 🔒 INTERACCIÓN (DRAG)
+  // =====================================
+
+  if (avion.estado === "manual") {
+    actualizarInteraccion(avion);
+  }
+
+});
 
 document.getElementById("btnExtender").addEventListener("click", () => {
 
@@ -2147,12 +2183,15 @@ function sincronizarMovimiento(a, lat, lng){
 
 function actualizarDisplaysManual(a){
 
+  // HEADING REAL
   document.getElementById("displayHeading").textContent =
-    String(Math.round(a.angulo)).padStart(3,"0")
+    String(Math.round(a.angulo || 0)).padStart(3,"0")
 
+  // 🔥 VELOCIDAD REAL (no objetivo)
   document.getElementById("displaySpeed").textContent =
-    Math.round(a.velocidadObjetivo || 0)
+    Math.round(a.velocidad || 0)
 
+  // ALTITUD REAL
   document.getElementById("displayAlt").textContent =
     Math.round(a.altitud || 0)
 }
@@ -2430,6 +2469,25 @@ function toggleConfig(){
   document.addEventListener("touchend", stopDrag)
 
 })()
+
+function loopVisual(){
+
+  if (aeronaveSeleccionada) {
+
+    actualizarDisplaysManual(aeronaveSeleccionada);
+
+    if (aeronaveSeleccionada.estado === "manual") {
+      document.getElementById("manualPanel").style.display = "block";
+    } else {
+      document.getElementById("manualPanel").style.display = "none";
+    }
+
+  }
+
+  requestAnimationFrame(loopVisual);
+}
+
+loopVisual();
 /* ===== FIN PANEL ARRASTRABLE ===== */
 function pausarTiempo(){
   socket.emit("controlTiempo", {

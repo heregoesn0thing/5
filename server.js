@@ -145,14 +145,20 @@ if (a.altitud !== undefined && a.altitudObjetivo !== undefined) {
   a.lng = nuevoPunto.lng
 
   io.to(nombreSala).emit("actualizarAeronave", {
-    id: a.id,
-    lat: a.lat,
-    lng: a.lng,
-    altitud: a.altitud,
-    angulo: a.angulo,
-    velocidad: a.velocidad,
-    estado: a.estado
-  })
+  id: a.id,
+  lat: a.lat,
+  lng: a.lng,
+
+  altitud: a.altitud,
+  altitudObjetivo: a.altitudObjetivo,
+
+  angulo: a.angulo,
+
+  velocidad: a.velocidad,
+  velocidadObjetivo: a.velocidadObjetivo,
+
+  estado: a.estado
+})
 
   return
 }
@@ -217,13 +223,20 @@ if (a.altitud !== undefined && a.altitudObjetivo !== undefined) {
         }
 
         io.to(nombreSala).emit("actualizarAeronave", {
-          id: a.id,
-          lat: a.lat,
-          lng: a.lng,
-          altitud: a.altitud,
-          angulo: a.angulo,
-          estado: a.estado
-        })
+  id: a.id,
+  lat: a.lat,
+  lng: a.lng,
+
+  altitud: a.altitud,
+  altitudObjetivo: a.altitudObjetivo,
+
+  angulo: a.angulo,
+
+  velocidad: a.velocidad,
+  velocidadObjetivo: a.velocidadObjetivo,
+
+  estado: a.estado
+})
 
         return
       }
@@ -294,13 +307,20 @@ if (a.altitud !== undefined && a.altitudObjetivo !== undefined) {
       }
 
       io.to(nombreSala).emit("actualizarAeronave", {
-        id: a.id,
-        lat: a.lat,
-        lng: a.lng,
-        altitud: a.altitud,
-        angulo: a.angulo,
-        estado: a.estado
-      })
+  id: a.id,
+  lat: a.lat,
+  lng: a.lng,
+
+  altitud: a.altitud,
+  altitudObjetivo: a.altitudObjetivo,
+
+  angulo: a.angulo,
+
+  velocidad: a.velocidad,
+  velocidadObjetivo: a.velocidadObjetivo,
+
+  estado: a.estado
+})
 
     })
 
@@ -660,20 +680,20 @@ socket.on("activarManual", ({ id }) => {
 iniciarMotorSala(salaNombre)
   }
 
-  io.to(salaNombre).emit("actualizarAeronave", {
-  id: aeronave.id,
-  lat: aeronave.lat,
-  lng: aeronave.lng,
+  io.to(nombreSala).emit("actualizarAeronave", {
+  id: a.id,
+  lat: a.lat,
+  lng: a.lng,
 
-  altitud: aeronave.altitud,
-  altitudObjetivo: aeronave.altitudObjetivo,
+  altitud: a.altitud,
+  altitudObjetivo: a.altitudObjetivo,
 
-  angulo: aeronave.angulo,
+  angulo: a.angulo,
 
-  velocidad: aeronave.velocidad,
-  velocidadObjetivo: aeronave.velocidadObjetivo,
+  velocidad: a.velocidad,
+  velocidadObjetivo: a.velocidadObjetivo,
 
-  estado: aeronave.estado
+  estado: a.estado
 })
 })
 // ===== INICIAR CIRCUITO =====
@@ -793,15 +813,21 @@ socket.on("ajusteManual", ({ id, tipo, valor }) => {
     a.altitudObjetivo = Math.max(0, nuevaAltObjetivo)
   }
 
-  io.to(salaNombre).emit("actualizarAeronave", {
-    id: a.id,
-    lat: a.lat,
-    lng: a.lng,
-    altitud: a.altitud,
-    angulo: a.angulo,
-    velocidad: a.velocidad,
-    estado: a.estado
-  })
+  io.to(nombreSala).emit("actualizarAeronave", {
+  id: a.id,
+  lat: a.lat,
+  lng: a.lng,
+
+  altitud: a.altitud,
+  altitudObjetivo: a.altitudObjetivo,
+
+  angulo: a.angulo,
+
+  velocidad: a.velocidad,
+  velocidadObjetivo: a.velocidadObjetivo,
+
+  estado: a.estado
+})
 
 })
   // ===== CONTROL DEL TIEMPO =====

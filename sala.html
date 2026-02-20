@@ -2265,7 +2265,7 @@ function dibujarCircuito(){
 
   const rumboPista = 40
   const rumboInverso = 220
-  const rumboIzq = 130   // izquierda de RWY 22
+  const rumboIzq = 130
 
   const extensionNM = 2.5
   const offsetNM = 1.5
@@ -2273,43 +2273,68 @@ function dibujarCircuito(){
   const extensionM = extensionNM * 1852
   const offsetM = offsetNM * 1852
 
-  // =========================
-  // EXTENSIONES SOBRE EJE
-  // =========================
+  const radio = offsetM
+
+  // ===============================
+  // EXTENSIONES RECTAS
+  // ===============================
 
   const finalExt = puntoPlano(umbral22, rumboPista, extensionM)
   const salidaExt = puntoPlano(umbral04, rumboInverso, extensionM)
 
-  // =========================
-  // PARALELA LATERAL EXACTA
-  // =========================
-
-  const upwindInicio = puntoPlano(umbral22, rumboIzq, offsetM)
-  const upwindFin = puntoPlano(umbral04, rumboIzq, offsetM)
-
   const finalOffset = puntoPlano(finalExt, rumboIzq, offsetM)
   const salidaOffset = puntoPlano(salidaExt, rumboIzq, offsetM)
 
-  // =========================
-  // CONSTRUIR HIPÓDROMO
-  // =========================
-
   let puntos = []
 
+  // ===============================
   // FINAL
+  // ===============================
+
   puntos.push([umbral22.lat, umbral22.lng])
   puntos.push([finalExt.lat, finalExt.lng])
 
-  // GIRO A DOWNWIND
-  puntos.push([finalOffset.lat, finalOffset.lng])
+  // ===============================
+  // CURVA 1 (final → downwind)
+  // ===============================
 
-  // DOWNWIND PARALELO
+  const centro1 = puntoPlano(finalExt, rumboIzq, radio)
+
+  for(let i=0; i<=40; i++){
+    const ang = (Math.PI * i) / 40
+    const x = radio * Math.cos(ang)
+    const y = radio * Math.sin(ang)
+
+    const rumbo = rumboPista + (ang * 180/Math.PI)
+    const p = puntoPlano(centro1, rumbo, radio)
+
+    puntos.push([p.lat, p.lng])
+  }
+
+  // ===============================
+  // DOWNWIND
+  // ===============================
+
   puntos.push([salidaOffset.lat, salidaOffset.lng])
 
-  // GIRO A FINAL
-  puntos.push([salidaExt.lat, salidaExt.lng])
+  // ===============================
+  // CURVA 2 (downwind → final)
+  // ===============================
 
+  const centro2 = puntoPlano(salidaExt, rumboIzq, radio)
+
+  for(let i=0; i<=40; i++){
+    const ang = (Math.PI * i) / 40
+    const rumbo = rumboInverso + (ang * 180/Math.PI)
+    const p = puntoPlano(centro2, rumbo, radio)
+
+    puntos.push([p.lat, p.lng])
+  }
+
+  // ===============================
   // SALIDA
+  // ===============================
+
   puntos.push([umbral04.lat, umbral04.lng])
 
   patronLayer = L.polyline(puntos,{

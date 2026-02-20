@@ -548,3 +548,23 @@ html, body{
   cursor: pointer;
 }
 
+.control-btn{
+  background: #1c1c1c;
+  color: #00ff9c;
+  border: 1px solid #00ff9c;
+  padding: 8px 14px;
+  font-family: monospace;
+  font-size: 14px;
+  border-radius: 4px;
+  transition: all 0.1s ease;
+  cursor: pointer;
+}
+
+.control-btn:hover{
+  background: #003d28;
+}
+
+.control-btn:active{
+  transform: scale(0.95);
+  background: #006b46;
+}

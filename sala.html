@@ -1867,24 +1867,25 @@ function interpolarRemoto(avion, lat, lng, anguloServidor){
 
   avion.marker.setLatLng([nuevaLat, nuevaLng])
 
-  // 🔥 1️⃣ Inicializar si es la primera vez
+  // Inicializar
   if(avion.angulo === undefined || avion.angulo === null){
     avion.angulo = anguloServidor
   }
 
-  // 🔥 2️⃣ Corrección anti-salto 360° ↔ 0°
-  if(avion.estado === "circuito" || avion.estado === "interceptando"){
-    if(Math.abs(avion.angulo - anguloServidor) > 180){
-      avion.angulo = anguloServidor
-    }
-  }
-
-  // 🔥 3️⃣ Interpolación angular suave
+  // Diferencia angular correcta
   const diff =
     (anguloServidor - avion.angulo + 540) % 360 - 180
 
-  const factorGiro = 0.3
+  // Solo corregir si está completamente desfasado
+  if(
+    (avion.estado === "circuito" || avion.estado === "interceptando")
+    && Math.abs(diff) > 120
+  ){
+    avion.angulo = anguloServidor
+  }
 
+  // Interpolación suave
+  const factorGiro = 0.3
   avion.angulo += diff * factorGiro
   avion.angulo = (avion.angulo + 360) % 360
 

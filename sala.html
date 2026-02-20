@@ -284,27 +284,27 @@ socket.on("rutaCircuitoActualizada", () => {
   <div class="controlGroup">
     <div class="controlLabel">HDG</div>
     <div class="controlRow">
-      <button class="controlBtn">◀</button>
+      <button id="hdgMinus" class="controlBtn">◀</button>
       <div id="displayHeading" class="controlDisplay">090</div>
-      <button class="controlBtn">▶</button>
+      <button id="hdgPlus" class="controlBtn">▶</button>
     </div>
   </div>
 
   <div class="controlGroup">
     <div class="controlLabel">SPD</div>
     <div class="controlRow">
-      <button class="controlBtn">-</button>
+      <button id="spdMinus" class="controlBtn">-</button>
       <div id="displaySpeed" class="controlDisplay">250</div>
-      <button class="controlBtn">+</button>
+      <button id="spdPlus" class="controlBtn">+</button>
     </div>
   </div>
 
   <div class="controlGroup">
     <div class="controlLabel">ALT</div>
     <div class="controlRow">
-      <button class="controlBtn">▼</button>
+      <button id="altMinus" class="controlBtn">▼</button>
       <div id="displayAlt" class="controlDisplay">10000</div>
-      <button class="controlBtn">▲</button>
+      <button id="altPlus" class="controlBtn">▲</button>
     </div>
   </div>
 
@@ -438,14 +438,20 @@ let modoEliminar = false;
 let marcadorPeligro = null;
 let imagenPeligro = null;
 let temporizadorPeligro = null;
-let intervaloCambio = null
 const VELOCIDAD = 8
 const TIPOS = ["A320","A319","C172","AN32"]
 const RUMBO_PISTA_22 = 220
 const DISTANCIA_FADE = 80 * 1852      // 80 NM
 const DISTANCIA_REMOVE = 85 * 1852    // 85 NM
 const ARP_SPSO = [-13.7449, -76.2203];
+const hdgPlus = document.getElementById("hdgPlus")
+const hdgMinus = document.getElementById("hdgMinus")
 
+const spdPlus = document.getElementById("spdPlus")
+const spdMinus = document.getElementById("spdMinus")
+
+const altPlus = document.getElementById("altPlus")
+const altMinus = document.getElementById("altMinus")
 const PERFORMANCE = {
   A320: { VR:145, CLIMB:250, ACC:1.2 },
   A319: { VR:140, CLIMB:240, ACC:1.1 },
@@ -1377,21 +1383,22 @@ function enviarAjuste(tipo, valor) {
     valor
   })
 }
+
+let intervaloCambio = null
+
 function iniciarCambio(tipo, incremento, event){
 
   if(!aeronaveSeleccionada) return
+  if(aeronaveSeleccionada.estado !== "manual") return
 
   let paso = incremento
 
-  // Si se mantiene SHIFT
   if(event && event.shiftKey){
     paso = incremento * 10
   }
 
-  // Enviar una vez inmediata
   enviarAjuste(tipo, paso)
 
-  // Evitar múltiples intervalos
   detenerCambio()
 
   intervaloCambio = setInterval(()=>{
@@ -1405,23 +1412,7 @@ function detenerCambio(){
     intervaloCambio = null
   }
 }
-document.getElementById("hdgPlus")
-  .onclick = () => enviarAjuste("heading", 5)
 
-document.getElementById("hdgMinus")
-  .onclick = () => enviarAjuste("heading", -5)
-
-document.getElementById("spdPlus")
-  .onclick = () => enviarAjuste("speed", 10)
-
-document.getElementById("spdMinus")
-  .onclick = () => enviarAjuste("speed", -10)
-
-document.getElementById("altPlus")
-  .onclick = () => enviarAjuste("altitude", 500)
-
-document.getElementById("altMinus")
-  .onclick = () => enviarAjuste("altitude", -500)
 function iniciarSTAR(){
 
   if(!aeronaveSeleccionada) return
@@ -1856,7 +1847,19 @@ chkPatron.addEventListener("change", () => {
 })
 
 
+function detenerCambio(){
+  clearInterval(intervaloCambio)
+}
+hdgPlus.onmousedown = (e) => iniciarCambio("heading", 5, e)
+hdgMinus.onmousedown = (e) => iniciarCambio("heading", -5, e)
 
+spdPlus.onmousedown = (e) => iniciarCambio("speed", 10, e)
+spdMinus.onmousedown = (e) => iniciarCambio("speed", -10, e)
+
+altPlus.onmousedown = (e) => iniciarCambio("altitude", 500, e)
+altMinus.onmousedown = (e) => iniciarCambio("altitude", -500, e)
+
+document.onmouseup = detenerCambio
 function girarSuavemente(a, headingActual, headingObjetivo){
 
   const turnRate = 6        // grados por segundo

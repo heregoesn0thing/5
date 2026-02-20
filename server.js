@@ -457,7 +457,20 @@ aeronave.ruta = generarRutaServidor()
 
   aeronave.indice = indiceMasCercano
   aeronave.progreso = 0
+// 🔧 Colocar aeronave EXACTAMENTE sobre la ruta
+const puntoInicial = aeronave.ruta[indiceMasCercano]
 
+aeronave.lat = puntoInicial.lat
+aeronave.lng = puntoInicial.lng
+
+// Actualizar rumbo inicial
+const siguiente =
+  (indiceMasCercano - 1 + aeronave.ruta.length) % aeronave.ruta.length
+
+aeronave.angulo = calcularRumboServidor(
+  puntoInicial,
+  aeronave.ruta[siguiente]
+)
   aeronave.velocidad = 90 * 0.514444
 
   aeronave.estado = "circuito"

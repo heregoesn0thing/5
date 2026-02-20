@@ -2130,7 +2130,6 @@ function iniciarCircuito(){
 
   if(a.estado !== "idle") return
 
-  // 🔥 Si no existen puntos, generarlos automáticamente
   if(!puntosCircuito || puntosCircuito.length === 0){
     generarPuntosCircuito()
   }
@@ -2144,16 +2143,42 @@ function iniciarCircuito(){
     clearInterval(a.intervaloCircuito)
   }
 
+  // =========================
+  // 🔎 BUSCAR PUNTO MÁS CERCANO
+  // =========================
+
+  const actual = a.marker.getLatLng()
+
+  let indiceMasCercano = 0
+  let menorDistancia = Infinity
+
+  puntosCircuito.forEach((p, i) => {
+
+    const punto = L.latLng(p[0], p[1])
+    const d = map.distance(actual, punto)
+
+    if(d < menorDistancia){
+      menorDistancia = d
+      indiceMasCercano = i
+    }
+  })
+
+  let indice = indiceMasCercano
+
+  // =========================
+  // CONFIGURACIÓN
+  // =========================
+
   a.estado = "circuito"
   actualizarPanelInfo(a)
 
-  let indice = 0
   const velocidadKT = 90
   const mps = velocidadKT * 0.514444
 
   a.intervaloCircuito = setInterval(()=>{
 
     const actual = a.marker.getLatLng()
+
     const destino = L.latLng(
       puntosCircuito[indice][0],
       puntosCircuito[indice][1]
@@ -2161,7 +2186,7 @@ function iniciarCircuito(){
 
     const distancia = map.distance(actual, destino)
 
-    if(distancia < 25){
+    if(distancia < 30){
       indice++
       if(indice >= puntosCircuito.length){
         indice = 0
@@ -2171,14 +2196,19 @@ function iniciarCircuito(){
 
     const bearing = calcularRumbo(actual, destino)
 
-    a.angulo = girarSuavemente(a, a.angulo || bearing, bearing)
+    a.angulo = girarSuavemente(
+      a,
+      a.angulo ?? bearing,
+      bearing
+    )
+
     actualizarRotacion(a)
 
     const headingRad = a.angulo * Math.PI/180
 
-    const deltaLat = (Math.cos(headingRad)*mps*0.05)/111320
-    const deltaLng = (Math.sin(headingRad)*mps*0.05)/
-      (111320*Math.cos(actual.lat*Math.PI/180))
+    const deltaLat = (Math.cos(headingRad) * mps * 0.05) / 111320
+    const deltaLng = (Math.sin(headingRad) * mps * 0.05) /
+      (111320 * Math.cos(actual.lat * Math.PI/180))
 
     const nuevaLat = actual.lat + deltaLat
     const nuevaLng = actual.lng + deltaLng
@@ -2187,7 +2217,7 @@ function iniciarCircuito(){
 
     sincronizarMovimiento(a, nuevaLat, nuevaLng)
 
-  },50)
+  }, 50)
 }
 function calcularRumbo(origen, destino){
 

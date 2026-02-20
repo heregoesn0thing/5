@@ -429,16 +429,11 @@ socket.on("iniciarCircuito", ({ id }) => {
   const aeronave = salas[sala].aeronaves.find(a => a.id === id)
   if (!aeronave) return
 
-  // 🔒 Solo el dueño puede iniciar
   if (aeronave.owner !== socket.id) return
-
-  // Si ya está en circuito no hacer nada
   if (aeronave.estado === "circuito") return
 
-  // Generar nueva ruta SIEMPRE (más limpio)
   aeronave.ruta = generarRutaServidor()
 
-  // 🔎 Buscar punto más cercano al avión actual
   let indiceMasCercano = 0
   let menorDistancia = Infinity
 
@@ -458,14 +453,38 @@ socket.on("iniciarCircuito", ({ id }) => {
   aeronave.indice = indiceMasCercano
   aeronave.progreso = 0
 
-  // ✈ Velocidad individual
-  aeronave.velocidad = 90 * 0.514444 // 90 KT en m/s
+  aeronave.velocidad = 90 * 0.514444
 
   aeronave.estado = "circuito"
 
+  // 🔥 Emisión inmediata
+  io.to(sala).emit("actualizarAeronave", {
+    id: aeronave.id,
+    lat: aeronave.lat,
+    lng: aeronave.lng,
+    altitud: aeronave.altitud,
+    angulo: aeronave.angulo,
+    estado: aeronave.estado
+  })
+
   iniciarMotorSala(sala)
 })
+socket.on("detenerCircuito", ({ id }) => {
 
+  const sala = socket.sala
+  if (!sala) return
+
+  const aeronave = salas[sala].aeronaves.find(a => a.id === id)
+  if (!aeronave) return
+
+  if (aeronave.owner !== socket.id) return
+
+  aeronave.estado = "idle"
+  aeronave.ruta = null
+  aeronave.indice = 0
+  aeronave.progreso = 0
+
+})
   // ===== ELIMINAR AERONAVE =====
   socket.on("eliminarAeronave", (id) => {
 

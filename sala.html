@@ -2149,21 +2149,14 @@ function calcularRumbo(origen, destino){
   return (brng + 360) % 360
 }
 
-
 function detenerCircuito(){
 
   if(!aeronaveSeleccionada) return
   const a = aeronaveSeleccionada
 
-  if(a.intervaloCircuito){
-    clearInterval(a.intervaloCircuito)
-    a.intervaloCircuito = null
-  }
-
-  a.estado = "idle"
-  actualizarInteraccion(a)
-actualizarPanelInfo(a)
-actualizarBotonTaxi()
+  socket.emit("detenerCircuito", {
+    id: a.id
+  })
 
 }
 function generarArco(centro, radioMetros, rumboInicio, rumboFin, pasos = 20){

@@ -500,7 +500,23 @@ function activarModoPeligro(){
     clave: clave
   });
 }
+let circuitoLayer = null
 
+socket.on("rutaCircuito", data => {
+
+  if (circuitoLayer) {
+    map.removeLayer(circuitoLayer)
+  }
+
+  circuitoLayer = L.polyline(
+    data.ruta.map(p => [p.lat, p.lng]),
+    {
+      color: "yellow",
+      weight: 2
+    }
+  ).addTo(map)
+
+})
 
 // ================= TIEMPO =================
 let pausado = false;

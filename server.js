@@ -155,7 +155,110 @@ function distanciaEntre(A, B){
 
   return R * c
 }
+function puntoPlano(origen, rumbo, distancia){
 
+  const R = 6371000
+  const brng = rumbo * Math.PI/180
+
+  const lat1 = origen.lat * Math.PI/180
+  const lon1 = origen.lng * Math.PI/180
+
+  const lat2 = Math.asin(
+    Math.sin(lat1)*Math.cos(distancia/R) +
+    Math.cos(lat1)*Math.sin(distancia/R)*Math.cos(brng)
+  )
+
+  const lon2 = lon1 + Math.atan2(
+    Math.sin(brng)*Math.sin(distancia/R)*Math.cos(lat1),
+    Math.cos(distancia/R)-Math.sin(lat1)*Math.sin(lat2)
+  )
+
+  return {
+    lat: lat2 * 180/Math.PI,
+    lng: lon2 * 180/Math.PI
+  }
+}
+function distanciaEntre(A, B){
+
+  const R = 6371000
+
+  const dLat = (B.lat - A.lat) * Math.PI/180
+  const dLon = (B.lng - A.lng) * Math.PI/180
+
+  const lat1 = A.lat * Math.PI/180
+  const lat2 = B.lat * Math.PI/180
+
+  const a =
+    Math.sin(dLat/2)**2 +
+    Math.cos(lat1)*Math.cos(lat2) *
+    Math.sin(dLon/2)**2
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+
+  return R * c
+}
+function generarRutaServidor(){
+
+  const umbral04 = { lat: -13.755327, lng: -76.229306 }
+  const umbral22 = { lat: -13.734272, lng: -76.211517 }
+
+  const rumboPista = 40
+  const rumboInverso = 220
+  const rumboIzq = 130   // tráfico izquierdo RWY 22
+
+  const lateralM = 1.5 * 1852
+  const extensionM = 2.5 * 1852
+
+  // Extensiones eje pista
+  const finalExt = puntoPlano(umbral22, rumboPista, extensionM)
+  const salidaExt = puntoPlano(umbral04, rumboInverso, extensionM)
+
+  // Centro longitudinal
+  const centroLong = {
+    lat: (finalExt.lat + salidaExt.lat)/2,
+    lng: (finalExt.lng + salidaExt.lng)/2
+  }
+
+  // Centro desplazado lateral
+  const centro = puntoPlano(centroLong, rumboIzq, lateralM)
+
+  const longitudTotal = distanciaEntre(finalExt, salidaExt)
+
+  const a = longitudTotal / 2
+  const b = lateralM
+  const n = 4.5
+  const pasos = 400
+
+  const puntos = []
+
+  for(let i=0; i<=pasos; i++){
+
+    const t = (i/pasos) * 2*Math.PI
+
+    const cosT = Math.cos(t)
+    const sinT = Math.sin(t)
+
+    const x = a * Math.sign(cosT) * Math.pow(Math.abs(cosT), 2/n)
+    const y = b * Math.sign(sinT) * Math.pow(Math.abs(sinT), 2/n)
+
+    const headingRad = rumboPista * Math.PI/180
+
+    const xr = x*Math.cos(headingRad) - y*Math.sin(headingRad)
+    const yr = x*Math.sin(headingRad) + y*Math.cos(headingRad)
+
+    const distancia = Math.sqrt(xr*xr + yr*yr)
+    const rumbo = Math.atan2(yr, xr) * 180/Math.PI
+
+    const punto = puntoPlano(centro, rumbo, distancia)
+
+    puntos.push({
+      lat: punto.lat,
+      lng: punto.lng
+    })
+  }
+
+  return puntos
+}
 function calcularRumboServidor(A, B){
 
   const lat1 = A.lat * Math.PI/180

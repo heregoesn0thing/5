@@ -815,6 +815,9 @@ socket.on("actualizarAeronave", data => {
   // 🔥 SIEMPRE obedecer al servidor
   avion.estado = data.estado
   avion.altitud = data.altitud
+  if (aeronaveSeleccionada && avion.id === aeronaveSeleccionada.id) {
+  actualizarBotonManual()
+}
 if(avion.estado === "manual"){
   actualizarInteraccion(avion)
 }
@@ -918,7 +921,7 @@ function seleccionarAeronave(obj){
   actualizarBotonTaxi()
 
   actualizarDepartureInfo(obj)   // ← SIN IF
-
+actualizarBotonManual()
   if(obj.modoManual){
     document.getElementById("panelRumbo").classList.remove("oculto")
     actualizarHeadingDisplay(obj)
@@ -1228,7 +1231,35 @@ function actualizarInteraccion(a){
     a.marker.dragging.disable()
   }
 }
+function actualizarBotonManual() {
 
+  const btn = document.getElementById("btnManual")
+  if (!btn) return
+
+  // No hay aeronave seleccionada
+  if (!aeronaveSeleccionada) {
+    btn.disabled = true
+    btn.textContent = "Manual Control"
+    btn.style.background = "#333"
+    btn.style.cursor = "not-allowed"
+    return
+  }
+
+  btn.disabled = false
+  btn.style.cursor = "pointer"
+
+  if (aeronaveSeleccionada.estado === "manual") {
+
+    btn.textContent = "Exit Manual"
+    btn.style.background = "#e53935"   // rojo activo
+
+  } else {
+
+    btn.textContent = "Manual Control"
+    btn.style.background = "#333"
+
+  }
+}
 
 function iniciarSTAR(){
 

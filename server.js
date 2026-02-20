@@ -571,19 +571,23 @@ socket.on("activarManual", ({ id }) => {
   const aeronave = sala.aeronaves.find(a => a.id === id)
   if (!aeronave) return
 
-  // 🔒 Seguridad: solo el dueño puede hacerlo
   if (aeronave.owner !== socket.id) return
 
-  // 🔥 PASO CLAVE
-  aeronave.estado = "manual"
+  // 🔁 TOGGLE
+  if (aeronave.estado === "manual") {
+    
+    aeronave.estado = "idle"
 
-  // Cancelar cualquier sistema automático
-  aeronave.ruta = null
-  aeronave.indice = 0
-  aeronave.progreso = 0
-  aeronave.indiceObjetivo = null
+  } else {
 
-  // Informar a todos
+    aeronave.estado = "manual"
+    aeronave.ruta = null
+    aeronave.indice = 0
+    aeronave.progreso = 0
+    aeronave.indiceObjetivo = null
+
+  }
+
   io.to(salaNombre).emit("actualizarAeronave", {
     id: aeronave.id,
     lat: aeronave.lat,
@@ -592,7 +596,6 @@ socket.on("activarManual", ({ id }) => {
     angulo: aeronave.angulo,
     estado: aeronave.estado
   })
-
 })
 // ===== INICIAR CIRCUITO =====
 socket.on("iniciarCircuito", ({ id }) => {

@@ -131,7 +131,24 @@ if (a.altitud !== undefined && a.altitudObjetivo !== undefined) {
       // ✈ MODO MANUAL — PRIORIDAD ABSOLUTA
       // =====================================
       if (a.estado === "manual") {
+// =====================================
+// 🧭 GIRO PROGRESIVO HACIA HEADING OBJETIVO
+// =====================================
 
+if (a.headingObjetivo !== undefined) {
+
+  const diff = diferenciaAngular(a.angulo, a.headingObjetivo)
+  const maxGiroPorSegundo = 25 // grados por segundo
+  const maxGiroTick = maxGiroPorSegundo * deltaSeg
+
+  if (Math.abs(diff) <= maxGiroTick) {
+    a.angulo = a.headingObjetivo
+  } else {
+    a.angulo += Math.sign(diff) * maxGiroTick
+  }
+
+  a.angulo = (a.angulo + 360) % 360
+}
   const velocidadMPS = a.velocidad || (90 * 0.514444)
   const distanciaTick = velocidadMPS * deltaSeg
 

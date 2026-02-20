@@ -46,7 +46,7 @@
 
 </div>
 <button id="btnEliminarModo">🗑</button>
-<button id="btnCapas" class="btn-vor">Lines</button>
+<button id="btnCapas" class="btn-vor">...</button>
 
 <div id="panelCapas" class="panel-capas oculto">
   <label><input type="checkbox" id="chkVor"> ATZ</label>
@@ -877,12 +877,6 @@ if (aeronaveSeleccionada && avion.id === aeronaveSeleccionada.id) {
 
   actualizarBotonManual();
   actualizarDisplaysManual(avion);
-
-  if (avion.estado === "manual") {
-    panel.style.display = "flex";
-  } else {
-    panel.style.display = "none";
-  }
 }
 
   if (avion.estado === "manual") {
@@ -992,53 +986,47 @@ function seleccionarAeronave(obj){
   actualizarBotonTaxi()
 
   actualizarDepartureInfo(obj)   // ← SIN IF
-actualizarBotonManual()
-if(obj.estado === "manual"){
-  document.getElementById("manualPanel").style.display = "block"
-  actualizarDisplaysManual(obj)
-} else {
-  document.getElementById("manualPanel").style.display = "none"
-}
-}
+actualizarBotonManual();
+
 document.getElementById("btnManual")
   .addEventListener("click", () => {
 
-    if(!aeronaveSeleccionada) return
+    if(!aeronaveSeleccionada) return;
 
-    const a = aeronaveSeleccionada
+    const a = aeronaveSeleccionada;
 
     // 🔴 Si ya está en manual → salir
     if(a.estado === "manual"){
-      socket.emit("salirManual", { id: a.id })
-      return
+      socket.emit("salirManual", { id: a.id });
+      return;
     }
 
     // 🔥 PRIORIDAD TOTAL
     // Cancelar taxi
     if(a.motorTaxi){
-      clearInterval(a.motorTaxi)
-      a.motorTaxi = null
+      clearInterval(a.motorTaxi);
+      a.motorTaxi = null;
     }
 
     // Cancelar vuelo
     if(a.intervaloVuelo){
-      clearInterval(a.intervaloVuelo)
-      a.intervaloVuelo = null
+      clearInterval(a.intervaloVuelo);
+      a.intervaloVuelo = null;
     }
 
     // Cancelar circuito
     if(a.intervaloCircuito){
-      clearInterval(a.intervaloCircuito)
-      a.intervaloCircuito = null
+      clearInterval(a.intervaloCircuito);
+      a.intervaloCircuito = null;
     }
 
     // Cancelar STAR
-    a.starActivo = false
+    a.starActivo = false;
 
     // Activar manual
-    socket.emit("activarManual", { id: a.id })
+    socket.emit("activarManual", { id: a.id });
+  });
 
-})
 function actualizarBotonTaxi(){
 
   const btn = document.getElementById("btnTaxi")
@@ -1126,7 +1114,21 @@ function actualizarPanelInfo(a){
   `
 }
 
+function actualizarPanelManual() {
 
+  const panel = document.getElementById("manualPanel");
+
+  if (!aeronaveSeleccionada) {
+    panel.classList.remove("activo");
+    return;
+  }
+
+  if (aeronaveSeleccionada.estado === "manual") {
+    panel.classList.add("activo");
+  } else {
+    panel.classList.remove("activo");
+  }
+}
 
 
 function cerrarPanel(){
@@ -2545,6 +2547,8 @@ function loopVisual(){
 
 loopVisual();
 /* ===== FIN PANEL ARRASTRABLE ===== */
+}
+
 function pausarTiempo(){
   socket.emit("controlTiempo", {
     accion:"pausar"

@@ -356,10 +356,7 @@ html, body{
   z-index: 9999;
 }
 
-#timeControls{
-  display: flex;
-  gap: 6px;
-}
+
 
 #timeControls button{
   background: #1e293b;
@@ -378,22 +375,20 @@ html, body{
 
 /* ===== DROPDOWN LATERAL REAL ===== */
 
-#configHora{
+#configHora {
   position: absolute;
-  top: 0;
-  right: 100%;
-  margin-right: 10px;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
 
-  background: rgba(15,23,42,0.98);
-  padding: 10px;
-  border-radius: 12px;
-  display: flex;
-  gap: 8px;
+  display: none;
+  flex-direction: row;
+  gap: 6px;
 
-  transform: translateX(20px);
-  opacity: 0;
-  pointer-events: none;
-  transition: 0.25s ease;
+  background: rgba(15,15,15,0.95);
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #00ff9c55;
 }
 
 #configHora.activo{
@@ -711,7 +706,7 @@ html, body{
 #timeControls {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 /* ===== Botones estilo panel manual ===== */
@@ -732,15 +727,6 @@ html, body{
 
 #timeControls button:hover {
   background: #374151;
-}
-
-/* ===== Configuración desplegable ===== */
-
-#configHora {
-  display: none;
-  margin-top: 6px;
-  gap: 6px;
-  align-items: center;
 }
 
 #configHora input {

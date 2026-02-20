@@ -2143,79 +2143,59 @@ function iniciarCircuito(){
     clearInterval(a.intervaloCircuito)
   }
 
-  // =========================
-  // 🔎 BUSCAR PUNTO MÁS CERCANO
-  // =========================
+  // 🔥 Asignar ruta al avión
+  a.rutaCircuito = puntosCircuito
 
+  // 🔎 Buscar punto más cercano para entrada limpia
   const actual = a.marker.getLatLng()
 
-  let indiceMasCercano = 0
+  let indice = 0
   let menorDistancia = Infinity
 
-  puntosCircuito.forEach((p, i) => {
-
+  a.rutaCircuito.forEach((p, i) => {
     const punto = L.latLng(p[0], p[1])
     const d = map.distance(actual, punto)
 
     if(d < menorDistancia){
       menorDistancia = d
-      indiceMasCercano = i
+      indice = i
     }
   })
-
-  let indice = indiceMasCercano
-
-  // =========================
-  // CONFIGURACIÓN
-  // =========================
 
   a.estado = "circuito"
   actualizarPanelInfo(a)
 
-  const velocidadKT = 90
-  const mps = velocidadKT * 0.514444
+  const velocidadIndice = 1.2   // 🔧 Ajusta velocidad aquí
 
   a.intervaloCircuito = setInterval(()=>{
 
-    const actual = a.marker.getLatLng()
+    indice += velocidadIndice
 
-    const destino = L.latLng(
-      puntosCircuito[indice][0],
-      puntosCircuito[indice][1]
-    )
-
-    const distancia = map.distance(actual, destino)
-
-    if(distancia < 30){
-      indice++
-      if(indice >= puntosCircuito.length){
-        indice = 0
-      }
-      return
+    if(indice >= a.rutaCircuito.length){
+      indice = 0
     }
 
-    const bearing = calcularRumbo(actual, destino)
+    const iActual = Math.floor(indice)
+    const iSiguiente = (iActual + 1) % a.rutaCircuito.length
 
-    a.angulo = girarSuavemente(
-      a,
-      a.angulo ?? bearing,
-      bearing
+    const puntoActual = a.rutaCircuito[iActual]
+    const puntoSiguiente = a.rutaCircuito[iSiguiente]
+
+    const lat = puntoActual[0]
+    const lng = puntoActual[1]
+
+    // 🔥 RUMBO basado en siguiente punto (perfectamente tangencial)
+    const rumbo = calcularRumbo(
+      L.latLng(puntoActual[0], puntoActual[1]),
+      L.latLng(puntoSiguiente[0], puntoSiguiente[1])
     )
 
+    a.angulo = rumbo
     actualizarRotacion(a)
 
-    const headingRad = a.angulo * Math.PI/180
+    a.marker.setLatLng([lat, lng])
 
-    const deltaLat = (Math.cos(headingRad) * mps * 0.05) / 111320
-    const deltaLng = (Math.sin(headingRad) * mps * 0.05) /
-      (111320 * Math.cos(actual.lat * Math.PI/180))
-
-    const nuevaLat = actual.lat + deltaLat
-    const nuevaLng = actual.lng + deltaLng
-
-    a.marker.setLatLng([nuevaLat, nuevaLng])
-
-    sincronizarMovimiento(a, nuevaLat, nuevaLng)
+    sincronizarMovimiento(a, lat, lng)
 
   }, 50)
 }
@@ -2235,33 +2215,6 @@ function calcularRumbo(origen, destino){
   return (brng + 360) % 360
 }
 
-function moverAvionEnRuta(a, velocidadMPS) {
-
-  let i = 0
-
-  a.intervaloCircuito = setInterval(() => {
-
-    if (!a.rutaCircuito || i >= a.rutaCircuito.length - 1) {
-      i = 0
-    }
-
-    const actual = a.rutaCircuito[i]
-    const siguiente = a.rutaCircuito[i + 1]
-
-    a.marker.setLatLng(actual)
-
-    const dx = siguiente[1] - actual[1]
-    const dy = siguiente[0] - actual[0]
-
-    a.angulo = Math.atan2(dx, dy) * 180 / Math.PI
-    actualizarRotacion(a)
-
-    sincronizarMovimiento(a, actual[0], actual[1])
-
-    i++
-
-  }, 50)
-}
 
 function detenerCircuito(){
 

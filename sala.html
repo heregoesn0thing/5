@@ -279,46 +279,33 @@ socket.on("rutaCircuitoActualizada", () => {
 
 </div>
 
-<div id="manualPanel" style="
-  position: absolute;
-  bottom: 20px;
-  right: 20px;
-  background: #1e1e1e;
-  padding: 15px;
-  border-radius: 10px;
-  display: none;
-  z-index: 2000;
-  width: 220px;
-  font-family: monospace;
-">
+<div id="manualPanel">
 
-  <div style="text-align:center; margin-bottom:10px;">
-    MANUAL CONTROL
+  <div class="controlGroup">
+    <div class="controlLabel">HDG</div>
+    <div class="controlRow">
+      <button class="controlBtn">◀</button>
+      <div id="displayHeading" class="controlDisplay">090</div>
+      <button class="controlBtn">▶</button>
+    </div>
   </div>
 
-  <div>
-    Heading: <span id="displayHeading">000</span>°
-    <br>
-    <button id="hdgMinus">-</button>
-    <button id="hdgPlus">+</button>
+  <div class="controlGroup">
+    <div class="controlLabel">SPD</div>
+    <div class="controlRow">
+      <button class="controlBtn">-</button>
+      <div id="displaySpeed" class="controlDisplay">250</div>
+      <button class="controlBtn">+</button>
+    </div>
   </div>
 
-  <hr>
-
-  <div>
-    Speed: <span id="displaySpeed">0</span>
-    <br>
-    <button id="spdMinus">-</button>
-    <button id="spdPlus">+</button>
-  </div>
-
-  <hr>
-
-  <div>
-    Altitude: <span id="displayAlt">0</span> ft
-    <br>
-    <button id="altMinus">-</button>
-    <button id="altPlus">+</button>
+  <div class="controlGroup">
+    <div class="controlLabel">ALT</div>
+    <div class="controlRow">
+      <button class="controlBtn">▼</button>
+      <div id="displayAlt" class="controlDisplay">10000</div>
+      <button class="controlBtn">▲</button>
+    </div>
   </div>
 
 </div>
@@ -893,18 +880,19 @@ socket.on("actualizarAeronave", data => {
 
   if (aeronaveSeleccionada && avion.id === aeronaveSeleccionada.id) {
 
-    actualizarBotonManual();
+  actualizarBotonManual();
 
-    // 🔥 SIEMPRE actualizar panel
-    actualizarDisplaysManual(avion);
+  const panel = document.getElementById("manualPanel");
 
-    // Mostrar u ocultar panel manual
-    if (avion.estado === "manual") {
-      document.getElementById("manualPanel").style.display = "block";
-    } else {
-      document.getElementById("manualPanel").style.display = "none";
-    }
+  // 🔥 SIEMPRE actualizar los valores del panel
+  actualizarDisplaysManual(avion);
+
+  if (avion.estado === "manual") {
+    panel.style.display = "flex";   // ⚠ IMPORTANTE
+  } else {
+    panel.style.display = "none";
   }
+}
 
   // =====================================
   // 🔒 INTERACCIÓN (DRAG)

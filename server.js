@@ -93,31 +93,47 @@ function iniciarMotorSala(nombreSala){
     if (!sala) return
 
     const intervaloMS = 50
-    const velocidadKT = 90
-    const velocidadMPS = velocidadKT * 0.514444
-    const distanciaPorTick = velocidadMPS * (intervaloMS/1000)
 
     sala.aeronaves.forEach(a => {
 
       if (a.estado !== "circuito") return
-      if (!a.ruta) return
+      if (!a.ruta || a.ruta.length < 2) return
+
+      const velocidadMPS = a.velocidad || (90 * 0.514444)
+      let distanciaRestanteTick = velocidadMPS * (intervaloMS/1000)
+
+      while (distanciaRestanteTick > 0) {
+
+        const siguiente = (a.indice + 1) % a.ruta.length
+
+        const A = a.ruta[a.indice]
+        const B = a.ruta[siguiente]
+
+        const distanciaSegmento = distanciaEntre(A, B)
+        const restanteSegmento = distanciaSegmento - a.progreso
+
+        if (distanciaRestanteTick < restanteSegmento) {
+
+          a.progreso += distanciaRestanteTick
+          distanciaRestanteTick = 0
+
+        } else {
+
+          distanciaRestanteTick -= restanteSegmento
+          a.indice = siguiente
+          a.progreso = 0
+
+          continue
+        }
+      }
 
       const siguiente = (a.indice + 1) % a.ruta.length
-
       const A = a.ruta[a.indice]
       const B = a.ruta[siguiente]
 
-      const distancia = distanciaEntre(A, B)
+      const distanciaSegmento = distanciaEntre(A, B)
 
-      a.progreso += distanciaPorTick
-
-      if (a.progreso >= distancia){
-        a.indice = siguiente
-        a.progreso = 0
-        return
-      }
-
-      const t = a.progreso / distancia
+      const t = distanciaSegmento === 0 ? 0 : a.progreso / distanciaSegmento
 
       a.lat = A.lat + (B.lat - A.lat) * t
       a.lng = A.lng + (B.lng - A.lng) * t
@@ -178,25 +194,7 @@ function puntoPlano(origen, rumbo, distancia){
     lng: lon2 * 180/Math.PI
   }
 }
-function distanciaEntre(A, B){
 
-  const R = 6371000
-
-  const dLat = (B.lat - A.lat) * Math.PI/180
-  const dLon = (B.lng - A.lng) * Math.PI/180
-
-  const lat1 = A.lat * Math.PI/180
-  const lat2 = B.lat * Math.PI/180
-
-  const a =
-    Math.sin(dLat/2)**2 +
-    Math.cos(lat1)*Math.cos(lat2) *
-    Math.sin(dLon/2)**2
-
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
-
-  return R * c
-}
 function generarRutaServidor(){
 
   const umbral04 = { lat: -13.755327, lng: -76.229306 }
@@ -431,17 +429,39 @@ socket.on("iniciarCircuito", ({ id }) => {
   const aeronave = salas[sala].aeronaves.find(a => a.id === id)
   if (!aeronave) return
 
-  // Solo el dueño puede iniciar
+  // 🔒 Solo el dueño puede iniciar
   if (aeronave.owner !== socket.id) return
 
-  aeronave.estado = "circuito"
+  // Si ya está en circuito no hacer nada
+  if (aeronave.estado === "circuito") return
 
-  // Generar ruta si no existe
-  if (!aeronave.ruta) {
-    aeronave.ruta = generarRutaServidor()
-    aeronave.indice = 0
-    aeronave.progreso = 0
-  }
+  // Generar nueva ruta SIEMPRE (más limpio)
+  aeronave.ruta = generarRutaServidor()
+
+  // 🔎 Buscar punto más cercano al avión actual
+  let indiceMasCercano = 0
+  let menorDistancia = Infinity
+
+  aeronave.ruta.forEach((p, i) => {
+
+    const d = distanciaEntre(
+      { lat: aeronave.lat, lng: aeronave.lng },
+      p
+    )
+
+    if (d < menorDistancia) {
+      menorDistancia = d
+      indiceMasCercano = i
+    }
+  })
+
+  aeronave.indice = indiceMasCercano
+  aeronave.progreso = 0
+
+  // ✈ Velocidad individual
+  aeronave.velocidad = 90 * 0.514444 // 90 KT en m/s
+
+  aeronave.estado = "circuito"
 
   iniciarMotorSala(sala)
 })
@@ -553,7 +573,10 @@ socket.on("disconnect", () => {
             clearInterval(intervalosSalas[nombre]);
             delete intervalosSalas[nombre];
           }
-
+if (motoresSalas[nombre]) {
+  clearInterval(motoresSalas[nombre])
+  delete motoresSalas[nombre]
+}
           delete salas[nombre];
           delete relojesSalas[nombre];
           delete peligroSalas[nombre];

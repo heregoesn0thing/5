@@ -223,7 +223,7 @@ socket.on("rutaCircuitoActualizada", () => {
     <button onclick="iniciarCircuito()">Traffic Pattern</button>
     <button id="btnExtender">Extender +0.5 NM</button>
     <button onclick="detenerCircuito()">Stop Pattern</button>
-
+<button id="btnManual">Control Manual</button>
     <button onclick="eliminarSeleccionada()">Remove Aircraft</button>
 
     <select id="sidSelect">
@@ -929,7 +929,16 @@ function seleccionarAeronave(obj){
   }
 
 }
+document.getElementById("btnManual")
+  .addEventListener("click", () => {
 
+    if(!aeronaveSeleccionada) return
+
+    socket.emit("activarManual", {
+      id: aeronaveSeleccionada.id
+    })
+
+})
 function actualizarBotonTaxi(){
 
   const btn = document.getElementById("btnTaxi")

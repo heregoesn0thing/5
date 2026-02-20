@@ -561,6 +561,41 @@ if(typeof data.estado === "string"){
 
 });
 
+// manual control activation
+socket.on("activarManual", ({ id }) => {
+
+  const salaNombre = socket.sala
+  if (!salaNombre) return
+
+  const sala = salas[salaNombre]
+  if (!sala) return
+
+  const aeronave = sala.aeronaves.find(a => a.id === id)
+  if (!aeronave) return
+
+  // 🔒 Seguridad: solo el dueño puede hacerlo
+  if (aeronave.owner !== socket.id) return
+
+  // 🔥 PASO CLAVE
+  aeronave.estado = "manual"
+
+  // Cancelar cualquier sistema automático
+  aeronave.ruta = null
+  aeronave.indice = 0
+  aeronave.progreso = 0
+  aeronave.indiceObjetivo = null
+
+  // Informar a todos
+  io.to(salaNombre).emit("actualizarAeronave", {
+    id: aeronave.id,
+    lat: aeronave.lat,
+    lng: aeronave.lng,
+    altitud: aeronave.altitud,
+    angulo: aeronave.angulo,
+    estado: aeronave.estado
+  })
+
+})
 // ===== INICIAR CIRCUITO =====
 socket.on("iniciarCircuito", ({ id }) => {
 

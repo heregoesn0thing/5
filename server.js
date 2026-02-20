@@ -317,51 +317,7 @@ function generarRutaServidor(sala){
   return puntos
 }
 
-socket.on("extenderSalida", ({ metros }) => {
 
-  const nombreSala = socket.sala
-  if (!nombreSala) return
-
-  const sala = salas[nombreSala]
-  if (!sala) return
-
-  // Sumar extensión
-  sala.extensionExtra += metros
-
-  // Regenerar ruta para todas las aeronaves en circuito
-  sala.aeronaves.forEach(a => {
-
-    if (a.estado !== "circuito") return
-
-    a.ruta = generarRutaServidor(sala)
-
-    // reajustar índice al punto más cercano
-    let indiceMasCercano = 0
-    let menorDistancia = Infinity
-
-    a.ruta.forEach((p, i) => {
-
-      const d = distanciaEntre(
-        { lat: a.lat, lng: a.lng },
-        p
-      )
-
-      if (d < menorDistancia) {
-        menorDistancia = d
-        indiceMasCercano = i
-      }
-    })
-
-    a.indice = indiceMasCercano
-    a.progreso = 0
-  })
-
-  // Enviar nueva ruta a todos
-  io.to(nombreSala).emit("rutaCircuitoActualizada", {
-    extensionExtra: sala.extensionExtra
-  })
-
-})
 function calcularRumboServidor(A, B){
 
   const lat1 = A.lat * Math.PI/180
@@ -485,7 +441,51 @@ socket.on("crearAeronave", (data) => {
 
 
 });
+socket.on("extenderSalida", ({ metros }) => {
 
+  const nombreSala = socket.sala
+  if (!nombreSala) return
+
+  const sala = salas[nombreSala]
+  if (!sala) return
+
+  // Sumar extensión
+  sala.extensionExtra += metros
+
+  // Regenerar ruta para todas las aeronaves en circuito
+  sala.aeronaves.forEach(a => {
+
+    if (a.estado !== "circuito") return
+
+    a.ruta = generarRutaServidor(sala)
+
+    // reajustar índice al punto más cercano
+    let indiceMasCercano = 0
+    let menorDistancia = Infinity
+
+    a.ruta.forEach((p, i) => {
+
+      const d = distanciaEntre(
+        { lat: a.lat, lng: a.lng },
+        p
+      )
+
+      if (d < menorDistancia) {
+        menorDistancia = d
+        indiceMasCercano = i
+      }
+    })
+
+    a.indice = indiceMasCercano
+    a.progreso = 0
+  })
+
+  // Enviar nueva ruta a todos
+  io.to(nombreSala).emit("rutaCircuitoActualizada", {
+    extensionExtra: sala.extensionExtra
+  })
+
+})
 
 
   // ===== ACTUALIZAR AERONAVE =====
@@ -529,22 +529,18 @@ if(typeof data.estado === "string"){
 // ===== INICIAR CIRCUITO =====
 socket.on("iniciarCircuito", ({ id }) => {
 
-  const sala = socket.sala
-  if (!sala) return
+  const salaNombre = socket.sala
+  if (!salaNombre) return
 
-  const aeronave = salas[sala].aeronaves.find(a => a.id === id)
+  const sala = salas[salaNombre]
+  const aeronave = sala.aeronaves.find(a => a.id === id)
   if (!aeronave) return
 
   if (aeronave.owner !== socket.id) return
-  if (aeronave.estado === "circuito") return
+  if (aeronave.estado === "circuito" || aeronave.estado === "interceptando") return
 
-  aeronave.ruta = generarRutaServidor(salas[sala])
-// Enviar ruta al cliente
-io.to(sala).emit("rutaCircuito", {
-  id: aeronave.id,
-  ruta: aeronave.ruta
-})
-aeronave.ruta = generarRutaServidor(salas[sala])
+  aeronave.ruta = generarRutaServidor(sala)
+
   let indiceMasCercano = 0
   let menorDistancia = Infinity
 
@@ -561,53 +557,28 @@ aeronave.ruta = generarRutaServidor(salas[sala])
     }
   })
 
-  aeronave.indice = indiceMasCercano
-  aeronave.progreso = 0
-// 🔧 Colocar aeronave EXACTAMENTE sobre la ruta
-const puntoInicial = aeronave.ruta[indiceMasCercano]
-
-aeronave.lat = puntoInicial.lat
-aeronave.lng = puntoInicial.lng
-
-// Actualizar rumbo inicial
-const siguiente =
-  (indiceMasCercano - 1 + aeronave.ruta.length) % aeronave.ruta.length
-
-aeronave.angulo = calcularRumboServidor(
-  puntoInicial,
-  aeronave.ruta[siguiente]
-)
+  aeronave.indiceObjetivo = indiceMasCercano
   aeronave.velocidad = 90 * 0.514444
+  aeronave.estado = "interceptando"
 
-  aeronave.estado = "circuito"
-
-  // 🔥 Emisión inmediata
-  io.to(sala).emit("actualizarAeronave", {
-    id: aeronave.id,
-    lat: aeronave.lat,
-    lng: aeronave.lng,
-    altitud: aeronave.altitud,
-    angulo: aeronave.angulo,
-    estado: aeronave.estado
-  })
-
-  iniciarMotorSala(sala)
+  iniciarMotorSala(salaNombre)
 })
 socket.on("detenerCircuito", ({ id }) => {
 
-  const sala = socket.sala
-  if (!sala) return
+  const salaNombre = socket.sala
+  if (!salaNombre) return
 
-  const aeronave = salas[sala].aeronaves.find(a => a.id === id)
+  const sala = salas[salaNombre]
+  const aeronave = sala.aeronaves.find(a => a.id === id)
   if (!aeronave) return
 
   if (aeronave.owner !== socket.id) return
 
-  aeronave.indiceObjetivo = indiceMasCercano
-aeronave.estado = "interceptando"
-aeronave.velocidad = 90 * 0.514444
+  aeronave.estado = "idle"
   aeronave.ruta = null
-  
+  aeronave.indice = 0
+  aeronave.progreso = 0
+  aeronave.indiceObjetivo = null
 
 })
 socket.on("rutaCircuito", data => {

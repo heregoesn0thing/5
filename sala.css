@@ -329,24 +329,7 @@ html, body{
   padding: 6px;
   border-radius: 6px;
 }
-/* ===== PANEL TIEMPO LIMPIO ===== */
 
-#panelTiempo{
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 9999;
-  background: rgba(15,23,42,0.95);
-  backdrop-filter: blur(8px);
-  padding: 12px 14px;
-  border-radius: 14px;
-  box-shadow: 0 8px 25px rgba(0,0,0,0.4);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-family: monospace;
-  color: #e2e8f0;
-}
 
 #relojGlobal{
   position: fixed;
@@ -586,15 +569,19 @@ html, body{
   transform: scale(0.95);
   background: #006b46;
 }
-/* ============================= */
-/* PANEL MANUAL CENTRO INFERIOR */
-/* ============================= */
+/* ================= MANUAL CONTROL PANEL ================= */
 
-#manualPanel{
+#manualPanel {
   position: fixed;
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
+
+  display: none;              /* se muestra con JS */
+  flex-direction: row;
+  gap: 30px;
+  align-items: center;
+  justify-content: center;
 
   background: rgba(15, 15, 15, 0.95);
   backdrop-filter: blur(8px);
@@ -604,15 +591,11 @@ html, body{
 
   border: 1px solid #00ff9c55;
 
-  display: none;
-  gap: 30px;
-  align-items: center;
-  justify-content: center;
-
   box-shadow: 0 0 25px rgba(0,255,156,0.2);
 
   z-index: 9999;
-}.controlGroup{
+}
+.controlGroup{
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -672,4 +655,111 @@ html, body{
   border-radius: 8px;  /* esquinas suaves */
   padding: 8px 16px;
   font-weight: bold;
+}/* ================= MANUAL PANEL BUTTONS ================= */
+
+#manualPanel .controlBtn {
+  width: 55px;
+  height: 55px;
+  border-radius: 50%;
+  border: none;
+  background: #1f2937;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+#manualPanel .controlBtn:hover {
+  background: #374151;
+}
+/* ================= PANEL TIEMPO (HUD STYLE) ================= */
+
+#panelTiempo {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+
+  display: flex;
+  flex-direction: row;   /* 🔥 IMPORTANTE */
+  align-items: center;
+  gap: 12px;
+
+  background: rgba(15, 15, 15, 0.95);
+  backdrop-filter: blur(8px);
+
+  padding: 10px 16px;
+  border-radius: 14px;
+
+  border: 1px solid #00ff9c55;
+  box-shadow: 0 0 25px rgba(0,255,156,0.2);
+
+  z-index: 9999;
+}
+
+/* ===== Reloj ===== */
+
+#relojGlobal {
+  font-family: monospace;
+  font-size: 20px;
+  font-weight: bold;
+  color: #00ff9c;
+  letter-spacing: 2px;
+}
+
+/* ===== Contenedor de botones ===== */
+
+#timeControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ===== Botones estilo panel manual ===== */
+
+#timeControls button {
+  width: 36px;
+  height: 36px;
+
+  border-radius: 50%;
+  border: none;
+
+  background: #1f2937;
+  color: white;
+
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+#timeControls button:hover {
+  background: #374151;
+}
+
+/* ===== Configuración desplegable ===== */
+
+#configHora {
+  display: none;
+  margin-top: 6px;
+  gap: 6px;
+  align-items: center;
+}
+
+#configHora input {
+  background: #111;
+  color: #00ff9c;
+  border: 1px solid #00ff9c55;
+  border-radius: 6px;
+  padding: 4px 6px;
+}
+
+#configHora button {
+  background: #1f2937;
+  border: none;
+  color: white;
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+#configHora button:hover {
+  background: #374151;
 }

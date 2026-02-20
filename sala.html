@@ -61,7 +61,11 @@ const socket = io()
 // Obtener nombre desde la URL
 const params = new URLSearchParams(window.location.search);
 const nombreSala = params.get("nombre");
+let rutaServidor = null
 
+socket.on("rutaCircuito", data => {
+  rutaServidor = data.ruta
+})
 if(!nombreSala){
   alert("No room specified");
   window.location.href = "/";
@@ -502,21 +506,6 @@ function activarModoPeligro(){
 }
 let circuitoLayer = null
 
-socket.on("rutaCircuito", data => {
-
-  if (circuitoLayer) {
-    map.removeLayer(circuitoLayer)
-  }
-
-  circuitoLayer = L.polyline(
-    data.ruta.map(p => [p.lat, p.lng]),
-    {
-      color: "yellow",
-      weight: 2
-    }
-  ).addTo(map)
-
-})
 
 // ================= TIEMPO =================
 let pausado = false;
@@ -1726,15 +1715,26 @@ chkEje.addEventListener("change", () => {
 
 chkPatron.addEventListener("change", () => {
 
-  if(chkPatron.checked){
+  if (chkPatron.checked) {
 
-    if(rutaCircuitoServidor){
-      dibujarRutaServidor()
+    if (!rutaServidor) return
+
+    if (patronLayer) {
+      map.removeLayer(patronLayer)
     }
+
+    patronLayer = L.polyline(
+      rutaServidor.map(p => [p.lat, p.lng]),
+      {
+        color: "#00ffff",
+        weight: 2,
+        dashArray: "8 8"
+      }
+    ).addTo(map)
 
   } else {
 
-    if(patronLayer){
+    if (patronLayer) {
       map.removeLayer(patronLayer)
       patronLayer = null
     }

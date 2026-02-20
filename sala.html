@@ -2252,9 +2252,9 @@ function puntoPlano(origen, rumbo, distanciaMetros){
   }
 }
 
-function dibujarCircuito(){
+function dibujarCircuito() {
 
-  if(patronLayer){
+  if (patronLayer) {
     map.removeLayer(patronLayer)
     patronLayer = null
     return
@@ -2265,82 +2265,84 @@ function dibujarCircuito(){
 
   const rumboPista = 40
   const rumboInverso = 220
-  const rumboIzq = 130
+  const rumboIzq = 130   // tráfico izquierdo RWY 22
 
-  const extensionNM = 2.5
   const offsetNM = 1.5
+  const extensionNM = 2.5
 
-  const extensionM = extensionNM * 1852
   const offsetM = offsetNM * 1852
+  const extensionM = extensionNM * 1852
 
-  const radio = offsetM
-
-  // ===============================
-  // EXTENSIONES RECTAS
-  // ===============================
+  // =========================
+  // 1️⃣ EXTENSIONES EXACTAS
+  // =========================
 
   const finalExt = puntoPlano(umbral22, rumboPista, extensionM)
   const salidaExt = puntoPlano(umbral04, rumboInverso, extensionM)
 
-  const finalOffset = puntoPlano(finalExt, rumboIzq, offsetM)
-  const salidaOffset = puntoPlano(salidaExt, rumboIzq, offsetM)
+  // =========================
+  // 2️⃣ LINEA PARALELA EXACTA
+  // =========================
+
+  const downwindInicio = puntoPlano(finalExt, rumboIzq, offsetM)
+  const downwindFin = puntoPlano(salidaExt, rumboIzq, offsetM)
+
+  // =========================
+  // 3️⃣ RADIO DE GIRO REALISTA (25°)
+  // =========================
+
+  const velocidadKT = 90
+  const velocidadMPS = velocidadKT * 0.514444
+  const bankRad = 25 * Math.PI / 180
+  const g = 9.81
+
+  const radioViraje = (velocidadMPS ** 2) / (g * Math.tan(bankRad))
+
+  function generarArco(centro, rumboInicio, rumboFin, pasos = 30) {
+
+    const puntos = []
+
+    for (let i = 0; i <= pasos; i++) {
+
+      const t = i / pasos
+      const rumbo = rumboInicio + (rumboFin - rumboInicio) * t
+      const p = puntoPlano(centro, rumbo, radioViraje)
+
+      puntos.push([p.lat, p.lng])
+    }
+
+    return puntos
+  }
 
   let puntos = []
 
-  // ===============================
   // FINAL
-  // ===============================
-
   puntos.push([umbral22.lat, umbral22.lng])
   puntos.push([finalExt.lat, finalExt.lng])
 
-  // ===============================
-  // CURVA 1 (final → downwind)
-  // ===============================
+  // ARCO 1 (Final → Downwind)
+  const centro1 = puntoPlano(finalExt, rumboIzq, radioViraje)
+  puntos = puntos.concat(
+    generarArco(centro1, rumboPista, rumboPista + 90)
+  )
 
-  const centro1 = puntoPlano(finalExt, rumboIzq, radio)
-
-  for(let i=0; i<=40; i++){
-    const ang = (Math.PI * i) / 40
-    const x = radio * Math.cos(ang)
-    const y = radio * Math.sin(ang)
-
-    const rumbo = rumboPista + (ang * 180/Math.PI)
-    const p = puntoPlano(centro1, rumbo, radio)
-
-    puntos.push([p.lat, p.lng])
-  }
-
-  // ===============================
   // DOWNWIND
-  // ===============================
+  puntos.push([downwindFin.lat, downwindFin.lng])
 
-  puntos.push([salidaOffset.lat, salidaOffset.lng])
+  // ARCO 2 (Downwind → Final)
+  const centro2 = puntoPlano(salidaExt, rumboIzq, radioViraje)
+  puntos = puntos.concat(
+    generarArco(centro2, rumboPista + 180, rumboPista + 270)
+  )
 
-  // ===============================
-  // CURVA 2 (downwind → final)
-  // ===============================
-
-  const centro2 = puntoPlano(salidaExt, rumboIzq, radio)
-
-  for(let i=0; i<=40; i++){
-    const ang = (Math.PI * i) / 40
-    const rumbo = rumboInverso + (ang * 180/Math.PI)
-    const p = puntoPlano(centro2, rumbo, radio)
-
-    puntos.push([p.lat, p.lng])
-  }
-
-  // ===============================
   // SALIDA
-  // ===============================
-
+  puntos.push([salidaExt.lat, salidaExt.lng])
   puntos.push([umbral04.lat, umbral04.lng])
 
-  patronLayer = L.polyline(puntos,{
-    color:"#00ffff",
-    weight:2,
-    dashArray:"8 8"
+  patronLayer = L.polyline(puntos, {
+    color: "#00ffff",
+    weight: 2,
+    dashArray: "8 8"
   }).addTo(map)
 }
 // ================= FREE NAVIGATION =================

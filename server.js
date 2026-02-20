@@ -133,7 +133,7 @@ if (a.altitud !== undefined && a.altitudObjetivo !== undefined) {
       if (a.estado === "manual") {
 
   const velocidadMPS = a.velocidad || (90 * 0.514444)
-  const distanciaTick = velocidadMPS * (intervaloMS / 1000)
+  const distanciaTick = velocidadMPS * deltaSeg
 
   const nuevoPunto = puntoPlano(
     { lat: a.lat, lng: a.lng },
@@ -206,7 +206,7 @@ if (a.altitud !== undefined && a.altitudObjetivo !== undefined) {
           } else {
 
             const diff = diferenciaAngular(a.angulo, rumboDeseado)
-            const maxGiro = 3
+            const maxGiro = 2
 
             if (Math.abs(diff) <= maxGiro) {
               a.angulo = rumboDeseado
@@ -287,7 +287,7 @@ if (a.altitud !== undefined && a.altitudObjetivo !== undefined) {
       } else {
 
         const diff = diferenciaAngular(a.angulo, rumboDeseado)
-        const maxGiro = 3
+        const maxGiro = 2
 
         if (Math.abs(diff) < maxGiro) {
           a.angulo = rumboDeseado

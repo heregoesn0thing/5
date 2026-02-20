@@ -61,7 +61,6 @@ const socket = io()
 // Obtener nombre desde la URL
 const params = new URLSearchParams(window.location.search);
 const nombreSala = params.get("nombre");
-let rutaServidor = null
 
 socket.on("rutaCircuito", data => {
   rutaServidor = data.ruta
@@ -1134,6 +1133,7 @@ function actualizarPanelManual() {
 function cerrarPanel(){
   document.getElementById("menuAeronave").style.display = "none"
   aeronaveSeleccionada = null
+  actualizarPanelManual();
 }
 function cambiarVelocidad(valor){
 
@@ -1567,7 +1567,10 @@ function despegar(){
     alert("Cannot takeoff while taxiing")
     return
   }
-
+if(a.estado === "manual"){
+  alert("Exit manual mode first");
+  return;
+}
   // ================= VALIDACIÓN ZONA =================
 
   const desdeRWY22 = estaAlineadoConPista(a)
@@ -2217,17 +2220,16 @@ function sincronizarMovimiento(a, lat, lng){
   a.ultimoSync = ahora
 
   socket.emit("actualizarAeronave", {
-    id: a.id,
-    lat,
-    lng,
-    altitud: a.altitud,
-    velocidad: a.velocidad,
-    angulo: a.angulo,
-    headingObjetivo: a.headingObjetivo,
-    altitudObjetivo: a.altitudObjetivo,
-    velocidadObjetivo: a.velocidadObjetivo,
-    estado: a.estado
-  })
+  id: a.id,
+  lat,
+  lng,
+  altitud: a.altitud,
+  velocidad: a.velocidad,
+  angulo: a.angulo,
+  headingObjetivo: a.headingObjetivo,
+  altitudObjetivo: a.altitudObjetivo,
+  velocidadObjetivo: a.velocidadObjetivo
+});
 }
 
 function actualizarDisplaysManual(a){
@@ -2546,7 +2548,7 @@ function loopVisual(){
 }
 
 loopVisual();
-}
+
 document.addEventListener("DOMContentLoaded", () => {
 
   const btnManual = document.getElementById("btnManual");

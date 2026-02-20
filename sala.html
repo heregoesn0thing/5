@@ -2461,11 +2461,17 @@ function cambiarHora() {
   document.getElementById("configHora").classList.remove("activo");
 }
 
-function toggleConfig(){
-  const panel = document.getElementById("configHora");
-  panel.classList.toggle("activo");
-}
+function toggleConfig() {
+  const panel = document.getElementById("configHora")
 
+  if (!panel) return
+
+  if (panel.style.display === "block") {
+    panel.style.display = "none"
+  } else {
+    panel.style.display = "block"
+  }
+}
 /* ===== PANEL ARRASTRABLE ===== */
 (function(){
 

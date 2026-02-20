@@ -330,7 +330,8 @@ html, body{
   top: 100%;
   right: 0;
   margin-top: 8px;
-
+  bottom: 60px;
+z-index: 10000;
   display: none;
   flex-direction: row;
   gap: 6px;
@@ -342,6 +343,7 @@ html, body{
 }
 
 #configHora.activo{
+  display: flex;
   transform: translateX(0);
   opacity: 1;
   pointer-events: auto;

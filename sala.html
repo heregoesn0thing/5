@@ -2154,7 +2154,6 @@ function iniciarCircuito(){
   a.rutaCircuito.forEach((p, i) => {
     const punto = L.latLng(p[0], p[1])
     const d = map.distance(actual, punto)
-
     if(d < menorDistancia){
       menorDistancia = d
       indice = i
@@ -2164,61 +2163,51 @@ function iniciarCircuito(){
   a.estado = "circuito"
   actualizarPanelInfo(a)
 
-  // ✈️ Velocidad real
+  // ✈️ Velocidad constante REAL
   const velocidadKT = 90
   const velocidadMPS = velocidadKT * 0.514444
   const intervaloMS = 50
   const distanciaPorTick = velocidadMPS * (intervaloMS/1000)
 
-  let distanciaAcumulada = 0
+  let progresoEnSegmento = 0
 
   a.intervaloCircuito = setInterval(()=>{
 
-    let recorrido = 0
+    const siguiente = (indice - 1 + a.rutaCircuito.length) % a.rutaCircuito.length
 
-    while(recorrido < distanciaPorTick){
+    const A = L.latLng(
+      a.rutaCircuito[indice][0],
+      a.rutaCircuito[indice][1]
+    )
 
-      const siguiente = (indice - 1 + a.rutaCircuito.length) % a.rutaCircuito.length
+    const B = L.latLng(
+      a.rutaCircuito[siguiente][0],
+      a.rutaCircuito[siguiente][1]
+    )
 
-      const puntoActual = L.latLng(
-        a.rutaCircuito[indice][0],
-        a.rutaCircuito[indice][1]
-      )
+    const longitudSegmento = map.distance(A, B)
 
-      const puntoSiguiente = L.latLng(
-        a.rutaCircuito[siguiente][0],
-        a.rutaCircuito[siguiente][1]
-      )
+    progresoEnSegmento += distanciaPorTick
 
-      const segmento = map.distance(puntoActual, puntoSiguiente)
-
-      if(recorrido + segmento >= distanciaPorTick){
-        indice = siguiente
-        break
-      }
-
-      recorrido += segmento
+    if(progresoEnSegmento >= longitudSegmento){
       indice = siguiente
+      progresoEnSegmento = 0
+      return
     }
 
-    const punto = a.rutaCircuito[indice]
+    const t = progresoEnSegmento / longitudSegmento
 
-    const siguienteIndice = (indice - 1 + a.rutaCircuito.length) % a.rutaCircuito.length
+    const lat = A.lat + (B.lat - A.lat) * t
+    const lng = A.lng + (B.lng - A.lng) * t
 
-    const rumbo = calcularRumbo(
-      L.latLng(punto[0], punto[1]),
-      L.latLng(
-        a.rutaCircuito[siguienteIndice][0],
-        a.rutaCircuito[siguienteIndice][1]
-      )
-    )
+    const rumbo = calcularRumbo(A, B)
 
     a.angulo = rumbo
     actualizarRotacion(a)
 
-    a.marker.setLatLng([punto[0], punto[1]])
+    a.marker.setLatLng([lat, lng])
 
-    sincronizarMovimiento(a, punto[0], punto[1])
+    sincronizarMovimiento(a, lat, lng)
 
   }, intervaloMS)
 }

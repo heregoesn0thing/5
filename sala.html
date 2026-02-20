@@ -858,7 +858,15 @@ socket.on("actualizarAeronave", data => {
   avion.estado = data.estado
   avion.altitud = data.altitud
   if (aeronaveSeleccionada && avion.id === aeronaveSeleccionada.id) {
+
   actualizarBotonManual()
+
+  if (avion.estado === "manual") {
+    document.getElementById("manualPanel").style.display = "block"
+    actualizarDisplaysManual(avion)
+  } else {
+    document.getElementById("manualPanel").style.display = "none"
+  }
 }
 if(avion.estado === "manual"){
   actualizarInteraccion(avion)
@@ -970,7 +978,12 @@ actualizarBotonManual()
   }else{
     document.getElementById("panelRumbo").classList.add("oculto")
   }
-
+if(obj.estado === "manual"){
+  document.getElementById("manualPanel").style.display = "block"
+  actualizarDisplaysManual(obj)
+} else {
+  document.getElementById("manualPanel").style.display = "none"
+}
 }
 document.getElementById("btnManual")
   .addEventListener("click", () => {
@@ -1312,6 +1325,24 @@ function enviarAjuste(tipo, valor) {
     tipo: tipo,
     valor: valor
   })
+
+  // Actualización visual inmediata (suave)
+  if(tipo === "heading"){
+    aeronaveSeleccionada.angulo =
+      (aeronaveSeleccionada.angulo + valor + 360) % 360
+  }
+
+  if(tipo === "speed"){
+    aeronaveSeleccionada.velocidadObjetivo =
+      Math.max(0, aeronaveSeleccionada.velocidadObjetivo + valor)
+  }
+
+  if(tipo === "altitude"){
+    aeronaveSeleccionada.altitud =
+      Math.max(0, aeronaveSeleccionada.altitud + valor)
+  }
+
+  actualizarDisplaysManual(aeronaveSeleccionada)
 }
 document.getElementById("hdgPlus")
   .onclick = () => enviarAjuste("heading", 5)
@@ -2090,7 +2121,17 @@ function sincronizarMovimiento(a, lat, lng){
 
 }
 
+function actualizarDisplaysManual(a){
 
+  document.getElementById("displayHeading").textContent =
+    String(Math.round(a.angulo)).padStart(3,"0")
+
+  document.getElementById("displaySpeed").textContent =
+    Math.round(a.velocidadObjetivo || 0)
+
+  document.getElementById("displayAlt").textContent =
+    Math.round(a.altitud || 0)
+}
 
 function mostrarTaxiing(a,estado){
   const el = a.marker.getElement()

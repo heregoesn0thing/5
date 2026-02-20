@@ -231,7 +231,7 @@ function iniciarMotorSala(nombreSala){
       const A = a.ruta[a.indice]
       const B = a.ruta[siguiente]
 
-      const distanciaSegmento = distanciaSegmento = distanciaEntre(A, B)
+      const distanciaSegmento = distanciaEntre(A, B)
 
       const t = distanciaSegmento === 0
         ? 0
@@ -612,7 +612,7 @@ socket.on("activarManual", ({ id }) => {
     aeronave.indice = 0
     aeronave.progreso = 0
     aeronave.indiceObjetivo = null
-
+iniciarMotorSala(salaNombre)
   }
 
   io.to(salaNombre).emit("actualizarAeronave", {

@@ -1856,52 +1856,40 @@ map.on("zoom", () => {
   aeronaves.forEach(a => actualizarRotacion(a))
 });
 
-function interpolarRemoto(avion, latDestino, lngDestino, anguloDestino){
+function interpolarRemoto(avion, lat, lng, anguloServidor){
 
-  if(avion.animRemoto){
-    cancelAnimationFrame(avion.animRemoto);
+  // ===== POSICIÓN =====
+  const actual = avion.marker.getLatLng()
+
+  const factor = 0.25   // suavizado posición
+
+  const nuevaLat =
+    actual.lat + (lat - actual.lat) * factor
+
+  const nuevaLng =
+    actual.lng + (lng - actual.lng) * factor
+
+  avion.marker.setLatLng([nuevaLat, nuevaLng])
+
+  // ===== ÁNGULO (ARREGLADO) =====
+
+  if(avion.anguloVisual === undefined){
+    avion.anguloVisual = anguloServidor
   }
 
-  const inicio = avion.marker.getLatLng();
+  // diferencia angular corta
+  const diff =
+    (anguloServidor - avion.anguloVisual + 540) % 360 - 180
 
-  const anguloInicio =
-    (avion.angulo !== undefined && avion.angulo !== null)
-      ? avion.angulo
-      : anguloDestino;
+  const factorGiro = 0.3
 
-  const duracion = 100;
-  const startTime = performance.now();
+  avion.anguloVisual += diff * factorGiro
 
-  function animar(now){
+  avion.anguloVisual =
+    (avion.anguloVisual + 360) % 360
 
-    const t = Math.min((now - startTime) / duracion, 1);
-
-    // ===== POSICIÓN =====
-    const lat = inicio.lat + (latDestino - inicio.lat) * t;
-    const lng = inicio.lng + (lngDestino - inicio.lng) * t;
-    avion.marker.setLatLng([lat, lng]);
-
-    // ===== GIRO CORTO CORRECTO =====
-    let deltaAng = anguloDestino - anguloInicio;
-
-    if(deltaAng > 180) deltaAng -= 360;
-    if(deltaAng < -180) deltaAng += 360;
-
-    avion.angulo = anguloInicio + deltaAng * t;
-
-    // Normalizar
-    avion.angulo = (avion.angulo + 360) % 360;
-
-    actualizarRotacion(avion);
-
-    if(t < 1){
-      avion.animRemoto = requestAnimationFrame(animar);
-    }
-  }
-
-  avion.animRemoto = requestAnimationFrame(animar);
+  avion.marker.setRotationAngle(avion.anguloVisual)
 }
-
 function moverPorPuntos(a){
 
   if(a.motorTaxi){

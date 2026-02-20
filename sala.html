@@ -1846,10 +1846,6 @@ chkPatron.addEventListener("change", () => {
 
 })
 
-
-function detenerCambio(){
-  clearInterval(intervaloCambio)
-}
 hdgPlus.onmousedown = (e) => iniciarCambio("heading", 5, e)
 hdgMinus.onmousedown = (e) => iniciarCambio("heading", -5, e)
 
@@ -1860,6 +1856,17 @@ altPlus.onmousedown = (e) => iniciarCambio("altitude", 500, e)
 altMinus.onmousedown = (e) => iniciarCambio("altitude", -500, e)
 
 document.onmouseup = detenerCambio
+
+hdgPlus.ontouchstart = (e) => iniciarCambio("heading", 5, e)
+hdgMinus.ontouchstart = (e) => iniciarCambio("heading", -5, e)
+
+spdPlus.ontouchstart = (e) => iniciarCambio("speed", 10, e)
+spdMinus.ontouchstart = (e) => iniciarCambio("speed", -10, e)
+
+altPlus.ontouchstart = (e) => iniciarCambio("altitude", 500, e)
+altMinus.ontouchstart = (e) => iniciarCambio("altitude", -500, e)
+
+document.addEventListener("touchend", detenerCambio)
 function girarSuavemente(a, headingActual, headingObjetivo){
 
   const turnRate = 6        // grados por segundo

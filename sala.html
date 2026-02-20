@@ -2267,77 +2267,70 @@ function dibujarCircuito() {
   const rumboInverso = 220
   const rumboIzq = 130   // tráfico izquierdo RWY 22
 
-  const offsetNM = 1.5
+  const lateralNM = 1.5
   const extensionNM = 2.5
 
-  const offsetM = offsetNM * 1852
+  const lateralM = lateralNM * 1852
   const extensionM = extensionNM * 1852
 
   // =========================
-  // 1️⃣ EXTENSIONES EXACTAS
+  // 1️⃣ EXTENSIONES SOBRE EJE PISTA
   // =========================
 
   const finalExt = puntoPlano(umbral22, rumboPista, extensionM)
   const salidaExt = puntoPlano(umbral04, rumboInverso, extensionM)
 
   // =========================
-  // 2️⃣ LINEA PARALELA EXACTA
+  // 2️⃣ LINEA PARALELA (UPWIND / DOWNWIND)
   // =========================
 
-  const downwindInicio = puntoPlano(finalExt, rumboIzq, offsetM)
-  const downwindFin = puntoPlano(salidaExt, rumboIzq, offsetM)
+  const upwindInicio = puntoPlano(umbral22, rumboIzq, lateralM)
+  const upwindFin = puntoPlano(umbral04, rumboIzq, lateralM)
+
+  const downwindInicio = puntoPlano(finalExt, rumboIzq, lateralM)
+  const downwindFin = puntoPlano(salidaExt, rumboIzq, lateralM)
 
   // =========================
-  // 3️⃣ RADIO DE GIRO REALISTA (25°)
+  // 3️⃣ CONSTRUIR SQUIRCLE DESPLAZADO
   // =========================
 
-  const velocidadKT = 90
-  const velocidadMPS = velocidadKT * 0.514444
-  const bankRad = 25 * Math.PI / 180
-  const g = 9.81
+  const longitudTotal = map.distance(finalExt, salidaExt)
+  const centroLong = L.latLng(
+    (finalExt.lat + salidaExt.lat) / 2,
+    (finalExt.lng + salidaExt.lng) / 2
+  )
 
-  const radioViraje = (velocidadMPS ** 2) / (g * Math.tan(bankRad))
+  const centro = puntoPlano(centroLong, rumboIzq, lateralM)
 
-  function generarArco(centro, rumboInicio, rumboFin, pasos = 30) {
+  const a = longitudTotal / 2
+  const b = lateralM
+  const n = 4.5
+  const pasos = 500
 
-    const puntos = []
+  const puntos = []
 
-    for (let i = 0; i <= pasos; i++) {
+  for (let i = 0; i <= pasos; i++) {
 
-      const t = i / pasos
-      const rumbo = rumboInicio + (rumboFin - rumboInicio) * t
-      const p = puntoPlano(centro, rumbo, radioViraje)
+    const t = (i / pasos) * 2 * Math.PI
 
-      puntos.push([p.lat, p.lng])
-    }
+    const cosT = Math.cos(t)
+    const sinT = Math.sin(t)
 
-    return puntos
+    const x = a * Math.sign(cosT) * Math.pow(Math.abs(cosT), 2/n)
+    const y = b * Math.sign(sinT) * Math.pow(Math.abs(sinT), 2/n)
+
+    const headingRad = rumboPista * Math.PI / 180
+
+    const xr = x * Math.cos(headingRad) - y * Math.sin(headingRad)
+    const yr = x * Math.sin(headingRad) + y * Math.cos(headingRad)
+
+    const distancia = Math.sqrt(xr*xr + yr*yr)
+    const rumbo = Math.atan2(yr, xr) * 180 / Math.PI
+
+    const punto = puntoPlano(centro, rumbo, distancia)
+
+    puntos.push([punto.lat, punto.lng])
   }
-
-  let puntos = []
-
-  // FINAL
-  puntos.push([umbral22.lat, umbral22.lng])
-  puntos.push([finalExt.lat, finalExt.lng])
-
-  // ARCO 1 (Final → Downwind)
-  const centro1 = puntoPlano(finalExt, rumboIzq, radioViraje)
-  puntos = puntos.concat(
-    generarArco(centro1, rumboPista, rumboPista + 90)
-  )
-
-  // DOWNWIND
-  puntos.push([downwindFin.lat, downwindFin.lng])
-
-  // ARCO 2 (Downwind → Final)
-  const centro2 = puntoPlano(salidaExt, rumboIzq, radioViraje)
-  puntos = puntos.concat(
-    generarArco(centro2, rumboPista + 180, rumboPista + 270)
-  )
-
-  // SALIDA
-  puntos.push([salidaExt.lat, salidaExt.lng])
-  puntos.push([umbral04.lat, umbral04.lng])
 
   patronLayer = L.polyline(puntos, {
     color: "#00ffff",

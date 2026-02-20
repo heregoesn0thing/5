@@ -217,13 +217,10 @@ socket.on("rutaCircuitoActualizada", () => {
 </div>
 
     <button onclick="despegar()">Takeoff</button>
-
-    <button onclick="activarModoManual()">Manual Control</button>
-    <button onclick="detenerModoManual()">Stop Manual</button>
+    <button id="btnManual">Manual Control</button>
     <button onclick="iniciarCircuito()">Traffic Pattern</button>
     <button id="btnExtender">Extender +0.5 NM</button>
     <button onclick="detenerCircuito()">Stop Pattern</button>
-<button id="btnManual">Control Manual</button>
     <button onclick="eliminarSeleccionada()">Remove Aircraft</button>
 
     <select id="sidSelect">
@@ -691,8 +688,7 @@ modoRuta: false,
 
 animFrame: null,
     altitudObjetivo: null,
-    modoManual: false,
-    intervaloManual: null
+    
   }
 marker.on("drag", function(e){
 
@@ -819,7 +815,9 @@ socket.on("actualizarAeronave", data => {
   // 🔥 SIEMPRE obedecer al servidor
   avion.estado = data.estado
   avion.altitud = data.altitud
-
+if(avion.estado === "manual"){
+  actualizarInteraccion(avion)
+}
   interpolarRemoto(
     avion,
     data.lat,
@@ -982,19 +980,27 @@ function actualizarPanelInfo(a){
   let estadoTexto = "ON GROUND"
 
   switch(a.estado){
-    case "taxi":
-      estadoTexto = "TAXIING"
-      break
-    case "vuelo":
-      estadoTexto = "AIRBORNE"
-      break
-    case "manual":
-      estadoTexto = "MANUAL"
-      break
-    case "circuito":
-      estadoTexto = "TRAFFIC PATTERN"
-      break
-  }
+
+  case "taxi":
+    estadoTexto = "TAXIING"
+    break
+
+  case "vuelo":
+    estadoTexto = "AIRBORNE"
+    break
+
+  case "manual":
+    estadoTexto = "MANUAL"
+    break
+
+  case "circuito":
+    estadoTexto = "TRAFFIC PATTERN"
+    break
+
+  case "interceptando":
+    estadoTexto = "INTERCEPTING"
+    break
+}
 
   let sidTexto = a.sid ? a.sid : "None"
 
@@ -1211,84 +1217,6 @@ function detenerRodaje(a){
 }
 
 
-
-
-function activarModoManual(){
-
-
-  if(!aeronaveSeleccionada) return
-  const a = aeronaveSeleccionada
-
-  if(a.modoManual) return
-  if(a.estado === "taxi"|| a.estado === "vuelo"|| a.estado === "circuito"){
-    alert("Cannot activate manual during automatic modes")
-    return
-  }
-
-  a.estado = "manual"
-  a.modoManual = true
-// Si no tiene ángulo definido, usar el actual o 0
-if(a.angulo === undefined || a.angulo === null){
-  a.angulo = 0
-}
-
-// Forzar que el icono apunte al rumbo actual
-actualizarRotacion(a)
-
-  // ✅ Mostrar panel
-  document.getElementById("panelRumbo").classList.remove("oculto")
-
-  // ✅ Actualizar heading visual inmediatamente
-  actualizarHeadingDisplay(a)
-
-  if(a.intervaloManual){
-    clearInterval(a.intervaloManual)
-  }
-
-  a.intervaloManual = setInterval(()=>{
-
-    if(a.velocidadObjetivo <= 0) return
-
-    const mps = a.velocidadObjetivo * 0.514444
-    const headingRad = a.angulo * Math.PI/180
-    const actual = a.marker.getLatLng()
-
-    const deltaLat = (Math.cos(headingRad)*mps)/111320
-    const deltaLng = (Math.sin(headingRad)*mps) /
-      (111320*Math.cos(actual.lat*Math.PI/180))
-
-    const nuevaLat = actual.lat + deltaLat
-    const nuevaLng = actual.lng + deltaLng
-
-    a.marker.setLatLng([nuevaLat, nuevaLng])
-a.lat = nuevaLat
-a.lng = nuevaLng
-
-    const pos = a.marker.getLatLng()
-sincronizarMovimiento(a, pos.lat, pos.lng)
-
-
-  }, 50)
-
-}
-
-function detenerModoManual(){
-
-  if(!aeronaveSeleccionada) return
-  const a = aeronaveSeleccionada
-
-  a.estado = "idle"
-  actualizarInteraccion(a)
-
-  a.modoManual = false
-
-  if(a.intervaloManual){
-    clearInterval(a.intervaloManual)
-    a.intervaloManual = null
-  }
-
-  document.getElementById("panelRumbo").classList.add("oculto")
-}
 
 function actualizarInteraccion(a){
 

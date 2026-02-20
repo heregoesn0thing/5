@@ -560,8 +560,6 @@ if(typeof data.estado === "string"){
 
 
 });
-
-// manual control activation
 socket.on("activarManual", ({ id }) => {
 
   const salaNombre = socket.sala

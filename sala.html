@@ -2128,88 +2128,10 @@ function iniciarCircuito(){
   if(!aeronaveSeleccionada) return
   const a = aeronaveSeleccionada
 
-  if(a.estado !== "idle") return
-
-  if(!puntosCircuito || puntosCircuito.length === 0){
-    generarPuntosCircuito()
-  }
-
-  if(!puntosCircuito || puntosCircuito.length === 0){
-    alert("No hay circuito disponible")
-    return
-  }
-
-  if(a.intervaloCircuito){
-    clearInterval(a.intervaloCircuito)
-  }
-
-  a.rutaCircuito = puntosCircuito
-
-  // 🔎 Buscar punto más cercano
-  const actual = a.marker.getLatLng()
-
-  let indice = 0
-  let menorDistancia = Infinity
-
-  a.rutaCircuito.forEach((p, i) => {
-    const punto = L.latLng(p[0], p[1])
-    const d = map.distance(actual, punto)
-    if(d < menorDistancia){
-      menorDistancia = d
-      indice = i
-    }
+  socket.emit("iniciarCircuito", {
+    id: a.id
   })
 
-  a.estado = "circuito"
-  actualizarPanelInfo(a)
-
-  // ✈️ Velocidad constante REAL
-  const velocidadKT = 90
-  const velocidadMPS = velocidadKT * 0.514444
-  const intervaloMS = 50
-  const distanciaPorTick = velocidadMPS * (intervaloMS/1000)
-
-  let progresoEnSegmento = 0
-
-  a.intervaloCircuito = setInterval(()=>{
-
-    const siguiente = (indice - 1 + a.rutaCircuito.length) % a.rutaCircuito.length
-
-    const A = L.latLng(
-      a.rutaCircuito[indice][0],
-      a.rutaCircuito[indice][1]
-    )
-
-    const B = L.latLng(
-      a.rutaCircuito[siguiente][0],
-      a.rutaCircuito[siguiente][1]
-    )
-
-    const longitudSegmento = map.distance(A, B)
-
-    progresoEnSegmento += distanciaPorTick
-
-    if(progresoEnSegmento >= longitudSegmento){
-      indice = siguiente
-      progresoEnSegmento = 0
-      return
-    }
-
-    const t = progresoEnSegmento / longitudSegmento
-
-    const lat = A.lat + (B.lat - A.lat) * t
-    const lng = A.lng + (B.lng - A.lng) * t
-
-    const rumbo = calcularRumbo(A, B)
-
-    a.angulo = rumbo
-    actualizarRotacion(a)
-
-    a.marker.setLatLng([lat, lng])
-
-    sincronizarMovimiento(a, lat, lng)
-
-  }, intervaloMS)
 }
 function calcularRumbo(origen, destino){
 

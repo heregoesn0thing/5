@@ -25,7 +25,7 @@ let relojesSalas = {};
 let intervalosSalas = {};
 let peligroSalas = {};
 let timeoutsSalas = {};
-
+let motoresSalas = {}
 // ================== UTILIDADES ==================
 
 function convertirHoraASegundos(horaStr) {
@@ -83,8 +83,94 @@ function obtenerHoraActualSala(nombre) {
 
   return formatearHora(reloj.tiempoBase + delta);
 }
+function iniciarMotorSala(nombreSala){
 
+  if (motoresSalas[nombreSala]) return
 
+  motoresSalas[nombreSala] = setInterval(() => {
+
+    const sala = salas[nombreSala]
+    if (!sala) return
+
+    const intervaloMS = 50
+    const velocidadKT = 90
+    const velocidadMPS = velocidadKT * 0.514444
+    const distanciaPorTick = velocidadMPS * (intervaloMS/1000)
+
+    sala.aeronaves.forEach(a => {
+
+      if (a.estado !== "circuito") return
+      if (!a.ruta) return
+
+      const siguiente = (a.indice + 1) % a.ruta.length
+
+      const A = a.ruta[a.indice]
+      const B = a.ruta[siguiente]
+
+      const distancia = distanciaEntre(A, B)
+
+      a.progreso += distanciaPorTick
+
+      if (a.progreso >= distancia){
+        a.indice = siguiente
+        a.progreso = 0
+        return
+      }
+
+      const t = a.progreso / distancia
+
+      a.lat = A.lat + (B.lat - A.lat) * t
+      a.lng = A.lng + (B.lng - A.lng) * t
+
+      a.angulo = calcularRumboServidor(A, B)
+
+      io.to(nombreSala).emit("actualizarAeronave", {
+        id: a.id,
+        lat: a.lat,
+        lng: a.lng,
+        altitud: a.altitud,
+        angulo: a.angulo,
+        estado: a.estado
+      })
+
+    })
+
+  }, 50)
+}
+function distanciaEntre(A, B){
+
+  const R = 6371000
+  const dLat = (B.lat - A.lat) * Math.PI/180
+  const dLon = (B.lng - A.lng) * Math.PI/180
+
+  const lat1 = A.lat * Math.PI/180
+  const lat2 = B.lat * Math.PI/180
+
+  const a =
+    Math.sin(dLat/2)**2 +
+    Math.cos(lat1)*Math.cos(lat2) *
+    Math.sin(dLon/2)**2
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+
+  return R * c
+}
+
+function calcularRumboServidor(A, B){
+
+  const lat1 = A.lat * Math.PI/180
+  const lat2 = B.lat * Math.PI/180
+  const dLon = (B.lng - A.lng) * Math.PI/180
+
+  const y = Math.sin(dLon) * Math.cos(lat2)
+  const x =
+    Math.cos(lat1)*Math.sin(lat2) -
+    Math.sin(lat1)*Math.cos(lat2)*Math.cos(dLon)
+
+  const brng = Math.atan2(y,x) * 180/Math.PI
+
+  return (brng + 360) % 360
+}
 
 
 
@@ -233,6 +319,29 @@ if(typeof data.estado === "string"){
 
 });
 
+// ===== INICIAR CIRCUITO =====
+socket.on("iniciarCircuito", ({ id }) => {
+
+  const sala = socket.sala
+  if (!sala) return
+
+  const aeronave = salas[sala].aeronaves.find(a => a.id === id)
+  if (!aeronave) return
+
+  // Solo el dueño puede iniciar
+  if (aeronave.owner !== socket.id) return
+
+  aeronave.estado = "circuito"
+
+  // Generar ruta si no existe
+  if (!aeronave.ruta) {
+    aeronave.ruta = generarRutaServidor()
+    aeronave.indice = 0
+    aeronave.progreso = 0
+  }
+
+  iniciarMotorSala(sala)
+})
 
   // ===== ELIMINAR AERONAVE =====
   socket.on("eliminarAeronave", (id) => {

@@ -134,19 +134,24 @@ function iniciarMotorSala(nombreSala){
 
           a.lat += (destino.lat - a.lat) * fraccion
           a.lng += (destino.lng - a.lng) * fraccion
-          const diff = diferenciaAngular(a.angulo, rumbo)
+          const rumboDeseado = calcularRumboServidor(A, B)
 
-// limitar velocidad de giro (ej: 3° por tick)
-const maxGiro = 3
-
-if (Math.abs(diff) < maxGiro) {
-  a.angulo = rumbo
+if (a.angulo === undefined || a.angulo === null) {
+  a.angulo = rumboDeseado
 } else {
-  a.angulo += Math.sign(diff) * maxGiro
-}
 
-// normalizar a 0-360
-a.angulo = (a.angulo + 360) % 360
+  const diff = diferenciaAngular(a.angulo, rumboDeseado)
+
+  const maxGiro = 3   // grados por tick (muy realista)
+
+  if (Math.abs(diff) < maxGiro) {
+    a.angulo = rumboDeseado
+  } else {
+    a.angulo += Math.sign(diff) * maxGiro
+  }
+
+  a.angulo = (a.angulo + 360) % 360
+}
         }
 
         io.to(nombreSala).emit("actualizarAeronave", {
@@ -208,7 +213,24 @@ a.angulo = (a.angulo + 360) % 360
       a.lat = A.lat + (B.lat - A.lat) * t
       a.lng = A.lng + (B.lng - A.lng) * t
 
-      a.angulo = calcularRumboServidor(A, B)
+      const rumboDeseado = calcularRumboServidor(A, B)
+
+if (a.angulo === undefined || a.angulo === null) {
+  a.angulo = rumboDeseado
+} else {
+
+  const diff = diferenciaAngular(a.angulo, rumboDeseado)
+
+  const maxGiro = 3   // grados por tick (muy realista)
+
+  if (Math.abs(diff) < maxGiro) {
+    a.angulo = rumboDeseado
+  } else {
+    a.angulo += Math.sign(diff) * maxGiro
+  }
+
+  a.angulo = (a.angulo + 360) % 360
+}
 
       io.to(nombreSala).emit("actualizarAeronave", {
         id: a.id,
@@ -328,7 +350,9 @@ function generarRutaServidor(sala){
 
   return puntos
 }
-
+function diferenciaAngular(actual, destino) {
+  return (destino - actual + 540) % 360 - 180
+}
 
 function calcularRumboServidor(A, B){
 

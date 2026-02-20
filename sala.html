@@ -1903,16 +1903,6 @@ altMinus.onmousedown = (e) => iniciarCambio("altitude", -500, e)
 
 document.addEventListener("mouseup", detenerCambio)
 
-hdgPlus.ontouchstart = (e) => iniciarCambio("heading", 5, e)
-hdgMinus.ontouchstart = (e) => iniciarCambio("heading", -5, e)
-
-spdPlus.ontouchstart = (e) => iniciarCambio("speed", 10, e)
-spdMinus.ontouchstart = (e) => iniciarCambio("speed", -10, e)
-
-altPlus.ontouchstart = (e) => iniciarCambio("altitude", 500, e)
-altMinus.ontouchstart = (e) => iniciarCambio("altitude", -500, e)
-
-document.addEventListener("touchend", detenerCambio)
 function girarSuavemente(a, headingActual, headingObjetivo){
 
   const turnRate = 6        // grados por segundo

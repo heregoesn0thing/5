@@ -880,40 +880,32 @@ socket.on("actualizarAeronave", data => {
     data.angulo
   );
 
-  // =====================================
-  // 🎯 ACTUALIZAR PANEL SI ESTÁ SELECCIONADO
-  // =====================================
+const panel = document.getElementById("manualPanel");
 
-  if (aeronaveSeleccionada && avion.id === aeronaveSeleccionada.id) {
+if (aeronaveSeleccionada && avion.id === aeronaveSeleccionada.id) {
 
   actualizarBotonManual();
-
-  const panel = document.getElementById("manualPanel");
-
-  // 🔥 SIEMPRE actualizar los valores del panel
   actualizarDisplaysManual(avion);
 
   if (avion.estado === "manual") {
-    panel.style.display = "flex";   // ⚠ IMPORTANTE
+    panel.style.display = "flex";
   } else {
     panel.style.display = "none";
   }
 }
 
-  // =====================================
-  // 🔒 INTERACCIÓN (DRAG)
-  // =====================================
-
   if (avion.estado === "manual") {
-  panel.style.display = "flex"
-  iniciarMotorManual(avion)
+
+  iniciarMotorManual(avion);
   actualizarInteraccion(avion);
+
 } else {
-  panel.style.display = "none"
+
   if(avion.intervaloManual){
-  clearInterval(avion.intervaloManual)
-  avion.intervaloManual = null
-}
+    clearInterval(avion.intervaloManual);
+    avion.intervaloManual = null;
+  }
+
 }
 
 });

@@ -195,7 +195,7 @@ function puntoPlano(origen, rumbo, distancia){
   }
 }
 
-function generarRutaServidor(){
+function generarRutaServidor(sala){
 
   const umbral04 = { lat: -13.755327, lng: -76.229306 }
   const umbral22 = { lat: -13.734272, lng: -76.211517 }
@@ -205,19 +205,20 @@ function generarRutaServidor(){
   const rumboIzq = 130   // tráfico izquierdo RWY 22
 
   const lateralM = 1.5 * 1852
-  const extensionM = 2.5 * 1852
 
-  // Extensiones eje pista
+  // 🔥 EXTENSIÓN DINÁMICA
+  const extensionBase = 2.5 * 1852
+  const extensionExtra = sala.extensionExtra || 0
+  const extensionM = extensionBase + extensionExtra
+
   const finalExt = puntoPlano(umbral22, rumboPista, extensionM)
   const salidaExt = puntoPlano(umbral04, rumboInverso, extensionM)
 
-  // Centro longitudinal
   const centroLong = {
     lat: (finalExt.lat + salidaExt.lat)/2,
     lng: (finalExt.lng + salidaExt.lng)/2
   }
 
-  // Centro desplazado lateral
   const centro = puntoPlano(centroLong, rumboIzq, lateralM)
 
   const longitudTotal = distanciaEntre(finalExt, salidaExt)
@@ -257,6 +258,52 @@ function generarRutaServidor(){
 
   return puntos
 }
+
+socket.on("extenderSalida", ({ metros }) => {
+
+  const nombreSala = socket.sala
+  if (!nombreSala) return
+
+  const sala = salas[nombreSala]
+  if (!sala) return
+
+  // Sumar extensión
+  sala.extensionExtra += metros
+
+  // Regenerar ruta para todas las aeronaves en circuito
+  sala.aeronaves.forEach(a => {
+
+    if (a.estado !== "circuito") return
+
+    a.ruta = generarRutaServidor(sala)
+
+    // reajustar índice al punto más cercano
+    let indiceMasCercano = 0
+    let menorDistancia = Infinity
+
+    a.ruta.forEach((p, i) => {
+
+      const d = distanciaEntre(
+        { lat: a.lat, lng: a.lng },
+        p
+      )
+
+      if (d < menorDistancia) {
+        menorDistancia = d
+        indiceMasCercano = i
+      }
+    })
+
+    a.indice = indiceMasCercano
+    a.progreso = 0
+  })
+
+  // Enviar nueva ruta a todos
+  io.to(nombreSala).emit("rutaCircuitoActualizada", {
+    extensionExtra: sala.extensionExtra
+  })
+
+})
 function calcularRumboServidor(A, B){
 
   const lat1 = A.lat * Math.PI/180
@@ -295,7 +342,8 @@ io.on("connection", (socket) => {
 
     salas[nombre] = {
       jugadores: [],
-      aeronaves: []
+      aeronaves: [],
+      extensionExtra: 0 
     };
 
 relojesSalas[nombre] = {
@@ -432,13 +480,13 @@ socket.on("iniciarCircuito", ({ id }) => {
   if (aeronave.owner !== socket.id) return
   if (aeronave.estado === "circuito") return
 
-  aeronave.ruta = generarRutaServidor()
+  aeronave.ruta = generarRutaServidor(salas[sala])
 // Enviar ruta al cliente
 io.to(sala).emit("rutaCircuito", {
   id: aeronave.id,
   ruta: aeronave.ruta
 })
-aeronave.ruta = generarRutaServidor()
+aeronave.ruta = generarRutaServidor(salas[sala])
   let indiceMasCercano = 0
   let menorDistancia = Infinity
 

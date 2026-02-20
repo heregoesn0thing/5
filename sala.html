@@ -183,7 +183,13 @@ socket.on("rutaCircuito", data => {
   }
 
 })
+socket.on("rutaCircuitoActualizada", () => {
 
+  if (chkPatron.checked && rutaCircuitoServidor) {
+    dibujarRutaServidor()
+  }
+
+})
 
 
 
@@ -211,6 +217,7 @@ socket.on("rutaCircuito", data => {
     <button onclick="activarModoManual()">Manual Control</button>
     <button onclick="detenerModoManual()">Stop Manual</button>
     <button onclick="iniciarCircuito()">Traffic Pattern</button>
+    <button id="btnExtender">Extender +0.5 NM</button>
     <button onclick="detenerCircuito()">Stop Pattern</button>
 
     <button onclick="eliminarSeleccionada()">Remove Aircraft</button>
@@ -834,7 +841,13 @@ socket.on("actualizarAeronave", data => {
 
 })
 
+document.getElementById("btnExtender").addEventListener("click", () => {
 
+  const metros = 0.5 * 1852  // medio NM
+
+  socket.emit("extenderSalida", { metros })
+
+})
 socket.on("borrarAeronave", id => {
 
   const avion = aeronaves.find(a => a.id === id)

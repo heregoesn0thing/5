@@ -96,6 +96,36 @@ function iniciarMotorSala(nombreSala){
 
     sala.aeronaves.forEach(a => {
 
+      // =====================================
+      // ✈ MODO MANUAL — PRIORIDAD ABSOLUTA
+      // =====================================
+      if (a.estado === "manual") {
+
+        const velocidadMPS = a.velocidad || (90 * 0.514444)
+        const distanciaTick = velocidadMPS * (intervaloMS / 1000)
+
+        const rad = (a.angulo || 0) * Math.PI / 180
+
+        a.lat += Math.cos(rad) * distanciaTick
+        a.lng += Math.sin(rad) * distanciaTick
+
+        io.to(nombreSala).emit("actualizarAeronave", {
+          id: a.id,
+          lat: a.lat,
+          lng: a.lng,
+          altitud: a.altitud,
+          angulo: a.angulo,
+          velocidad: a.velocidad,
+          estado: a.estado
+        })
+
+        return
+      }
+
+      // =====================================
+      // RESTO DE LÓGICA (requiere ruta)
+      // =====================================
+
       if (!a.ruta || a.ruta.length < 2) return
 
       const velocidadMPS = a.velocidad || (90 * 0.514444)
@@ -115,7 +145,6 @@ function iniciarMotorSala(nombreSala){
 
         if (distancia <= distanciaTick) {
 
-          // Llegó exactamente al patrón
           a.lat = destino.lat
           a.lng = destino.lng
 
@@ -125,32 +154,31 @@ function iniciarMotorSala(nombreSala){
 
         } else {
 
+          const rumboDeseado = calcularRumboServidor(
+            { lat: a.lat, lng: a.lng },
+            destino
+          )
 
-const rumboDeseado = calcularRumboServidor(
-  { lat: a.lat, lng: a.lng },
-  destino
-)
+          const fraccion = distanciaTick / distancia
 
-const fraccion = distanciaTick / distancia
+          a.lat += (destino.lat - a.lat) * fraccion
+          a.lng += (destino.lng - a.lng) * fraccion
 
-a.lat += (destino.lat - a.lat) * fraccion
-a.lng += (destino.lng - a.lng) * fraccion
+          if (a.angulo === undefined || a.angulo === null) {
+            a.angulo = rumboDeseado
+          } else {
 
-// 🔥 Giro suave UNA SOLA VEZ
-if (a.angulo === undefined || a.angulo === null) {
-  a.angulo = rumboDeseado
-} else {
-  const diff = diferenciaAngular(a.angulo, rumboDeseado)
-  const maxGiro = 3
+            const diff = diferenciaAngular(a.angulo, rumboDeseado)
+            const maxGiro = 3
 
-  if (Math.abs(diff) <= maxGiro) {
-    a.angulo = rumboDeseado
-  } else {
-    a.angulo += Math.sign(diff) * maxGiro
-  }
+            if (Math.abs(diff) <= maxGiro) {
+              a.angulo = rumboDeseado
+            } else {
+              a.angulo += Math.sign(diff) * maxGiro
+            }
 
-  a.angulo = (a.angulo + 360) % 360
-}
+            a.angulo = (a.angulo + 360) % 360
+          }
         }
 
         io.to(nombreSala).emit("actualizarAeronave", {
@@ -203,7 +231,7 @@ if (a.angulo === undefined || a.angulo === null) {
       const A = a.ruta[a.indice]
       const B = a.ruta[siguiente]
 
-      const distanciaSegmento = distanciaEntre(A, B)
+      const distanciaSegmento = distanciaSegmento = distanciaEntre(A, B)
 
       const t = distanciaSegmento === 0
         ? 0
@@ -214,22 +242,21 @@ if (a.angulo === undefined || a.angulo === null) {
 
       const rumboDeseado = calcularRumboServidor(A, B)
 
-if (a.angulo === undefined || a.angulo === null) {
-  a.angulo = rumboDeseado
-} else {
+      if (a.angulo === undefined || a.angulo === null) {
+        a.angulo = rumboDeseado
+      } else {
 
-  const diff = diferenciaAngular(a.angulo, rumboDeseado)
+        const diff = diferenciaAngular(a.angulo, rumboDeseado)
+        const maxGiro = 3
 
-  const maxGiro = 3   // grados por tick (muy realista)
+        if (Math.abs(diff) < maxGiro) {
+          a.angulo = rumboDeseado
+        } else {
+          a.angulo += Math.sign(diff) * maxGiro
+        }
 
-  if (Math.abs(diff) < maxGiro) {
-    a.angulo = rumboDeseado
-  } else {
-    a.angulo += Math.sign(diff) * maxGiro
-  }
-
-  a.angulo = (a.angulo + 360) % 360
-}
+        a.angulo = (a.angulo + 360) % 360
+      }
 
       io.to(nombreSala).emit("actualizarAeronave", {
         id: a.id,
@@ -671,7 +698,43 @@ socket.on("detenerCircuito", ({ id }) => {
 
     io.to(sala).emit("borrarAeronave", id);
   });
+socket.on("ajusteManual", ({ id, tipo, valor }) => {
 
+  const salaNombre = socket.sala
+  if (!salaNombre) return
+
+  const sala = salas[salaNombre]
+  if (!sala) return
+
+  const a = sala.aeronaves.find(av => av.id === id)
+  if (!a) return
+
+  if (a.owner !== socket.id) return
+  if (a.estado !== "manual") return
+
+  if (tipo === "heading") {
+    a.angulo = (a.angulo + valor + 360) % 360
+  }
+
+  if (tipo === "speed") {
+    a.velocidad = Math.max(0, (a.velocidad || 200) + valor)
+  }
+
+  if (tipo === "altitude") {
+    a.altitud = Math.max(0, a.altitud + valor)
+  }
+
+  io.to(salaNombre).emit("actualizarAeronave", {
+    id: a.id,
+    lat: a.lat,
+    lng: a.lng,
+    altitud: a.altitud,
+    angulo: a.angulo,
+    velocidad: a.velocidad,
+    estado: a.estado
+  })
+
+})
   // ===== CONTROL DEL TIEMPO =====
 socket.on("controlTiempo", ({ accion, valor }) => {
 

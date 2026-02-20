@@ -972,12 +972,6 @@ function seleccionarAeronave(obj){
 
   actualizarDepartureInfo(obj)   // ← SIN IF
 actualizarBotonManual()
-  if(obj.modoManual){
-    document.getElementById("panelRumbo").classList.remove("oculto")
-    actualizarHeadingDisplay(obj)
-  }else{
-    document.getElementById("panelRumbo").classList.add("oculto")
-  }
 if(obj.estado === "manual"){
   document.getElementById("manualPanel").style.display = "block"
   actualizarDisplaysManual(obj)
@@ -990,9 +984,38 @@ document.getElementById("btnManual")
 
     if(!aeronaveSeleccionada) return
 
-    socket.emit("activarManual", {
-      id: aeronaveSeleccionada.id
-    })
+    const a = aeronaveSeleccionada
+
+    // 🔴 Si ya está en manual → salir
+    if(a.estado === "manual"){
+      socket.emit("salirManual", { id: a.id })
+      return
+    }
+
+    // 🔥 PRIORIDAD TOTAL
+    // Cancelar taxi
+    if(a.motorTaxi){
+      clearInterval(a.motorTaxi)
+      a.motorTaxi = null
+    }
+
+    // Cancelar vuelo
+    if(a.intervaloVuelo){
+      clearInterval(a.intervaloVuelo)
+      a.intervaloVuelo = null
+    }
+
+    // Cancelar circuito
+    if(a.intervaloCircuito){
+      clearInterval(a.intervaloCircuito)
+      a.intervaloCircuito = null
+    }
+
+    // Cancelar STAR
+    a.starActivo = false
+
+    // Activar manual
+    socket.emit("activarManual", { id: a.id })
 
 })
 function actualizarBotonTaxi(){
@@ -1285,6 +1308,7 @@ function actualizarInteraccion(a){
   } else {
     a.marker.dragging.disable()
   }
+
 }
 function actualizarBotonManual() {
 

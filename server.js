@@ -765,49 +765,58 @@ socket.on("ajusteManual", ({ id, tipo, valor }) => {
   const a = sala.aeronaves.find(av => av.id === id)
   if (!a) return
 
+  // Seguridad multiplayer
   if (a.owner !== socket.id) return
   if (a.estado !== "manual") return
 
   // =====================================
-  // 🧭 HEADING (sigue siendo inmediato)
+  // 🧭 HEADING (usando headingObjetivo)
   // =====================================
   if (tipo === "heading") {
-    a.angulo = (a.angulo + valor + 360) % 360
+
+    const base = a.headingObjetivo ?? a.angulo
+    const nuevoHeading = (base + valor + 360) % 360
+
+    a.headingObjetivo = nuevoHeading
   }
 
   // =====================================
-  // 🚀 VELOCIDAD (AHORA PROGRESIVA)
+  // 🚀 VELOCIDAD (con límites)
   // =====================================
   if (tipo === "speed") {
 
-    const nuevaObjetivo =
-      (a.velocidadObjetivo || a.velocidad || 0) + valor
+    const base = a.velocidadObjetivo ?? a.velocidad ?? 0
+    const nuevaObjetivo = base + valor
 
-    a.velocidadObjetivo = Math.max(0, nuevaObjetivo)
+    a.velocidadObjetivo = Math.max(0, Math.min(500, nuevaObjetivo))
   }
 
   // =====================================
-  // 🛫 ALTITUD (AHORA PROGRESIVA)
+  // 🛫 ALTITUD (con límites)
   // =====================================
   if (tipo === "altitude") {
 
-    const nuevaAltObjetivo =
-      (a.altitudObjetivo ?? a.altitud) + valor
+    const base = a.altitudObjetivo ?? a.altitud ?? 0
+    const nuevaAltObjetivo = base + valor
 
-    a.altitudObjetivo = Math.max(0, nuevaAltObjetivo)
+    a.altitudObjetivo = Math.max(0, Math.min(45000, nuevaAltObjetivo))
   }
 
+  // =====================================
+  // 📡 EMITIR ACTUALIZACIÓN
+  // =====================================
   io.to(salaNombre).emit("actualizarAeronave", {
-  id: a.id,
-  lat: a.lat,
-  lng: a.lng,
-  altitud: a.altitud,
-  altitudObjetivo: a.altitudObjetivo,
-  angulo: a.angulo,
-  velocidad: a.velocidad,
-  velocidadObjetivo: a.velocidadObjetivo,
-  estado: a.estado
-})
+    id: a.id,
+    lat: a.lat,
+    lng: a.lng,
+    altitud: a.altitud,
+    altitudObjetivo: a.altitudObjetivo,
+    angulo: a.angulo,
+    headingObjetivo: a.headingObjetivo,
+    velocidad: a.velocidad,
+    velocidadObjetivo: a.velocidadObjetivo,
+    estado: a.estado
+  })
 
 })
   // ===== CONTROL DEL TIEMPO =====

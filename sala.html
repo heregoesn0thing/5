@@ -451,7 +451,7 @@ let modoEliminar = false;
 let marcadorPeligro = null;
 let imagenPeligro = null;
 let temporizadorPeligro = null;
-
+let intervaloCambio = null
 const VELOCIDAD = 8
 const TIPOS = ["A320","A319","C172","AN32"]
 const RUMBO_PISTA_22 = 220
@@ -1375,34 +1375,47 @@ function actualizarBotonManual() {
 
   }
 }
+let ultimoInputManual = 0
 function enviarAjuste(tipo, valor) {
 
   if (!aeronaveSeleccionada) return
   if (aeronaveSeleccionada.estado !== "manual") return
 
+  ultimoInputManual = Date.now()
+
   socket.emit("ajusteManual", {
     id: aeronaveSeleccionada.id,
-    tipo: tipo,
-    valor: valor
+    tipo,
+    valor
   })
+}
+function iniciarCambio(tipo, incremento, event){
 
-  // Actualización visual inmediata (suave)
-  if(tipo === "heading"){
-    aeronaveSeleccionada.angulo =
-      (aeronaveSeleccionada.angulo + valor + 360) % 360
+  if(!aeronaveSeleccionada) return
+
+  let paso = incremento
+
+  // Si se mantiene SHIFT
+  if(event && event.shiftKey){
+    paso = incremento * 10
   }
 
-  if(tipo === "speed"){
-    aeronaveSeleccionada.velocidadObjetivo =
-      Math.max(0, aeronaveSeleccionada.velocidadObjetivo + valor)
-  }
+  // Enviar una vez inmediata
+  enviarAjuste(tipo, paso)
 
-  if(tipo === "altitude"){
-    aeronaveSeleccionada.altitud =
-      Math.max(0, aeronaveSeleccionada.altitud + valor)
-  }
+  // Evitar múltiples intervalos
+  detenerCambio()
 
-  actualizarDisplaysManual(aeronaveSeleccionada)
+  intervaloCambio = setInterval(()=>{
+    enviarAjuste(tipo, paso)
+  }, 150)
+}
+
+function detenerCambio(){
+  if(intervaloCambio){
+    clearInterval(intervaloCambio)
+    intervaloCambio = null
+  }
 }
 document.getElementById("hdgPlus")
   .onclick = () => enviarAjuste("heading", 5)
@@ -2194,6 +2207,9 @@ function actualizarDisplaysManual(a){
   // ALTITUD REAL
   document.getElementById("displayAlt").textContent =
     Math.round(a.altitud || 0)
+    if(Date.now() - ultimoInputManual < 200){
+  // pequeño efecto visual
+}
 }
 
 function mostrarTaxiing(a,estado){
@@ -2567,7 +2583,45 @@ function obtenerBoundsImagen(lat, lng, tamañoMetros){
   <button onclick="cambiarRumbo(1)">1° ›</button>
   <button onclick="cambiarRumbo(10)">10° »</button>
 </div>
+<button 
+  onmousedown="iniciarCambio('heading', -1, event)"
+  onmouseup="detenerCambio()"
+  onmouseleave="detenerCambio()">
+  ◀
+</button>
 
+<button 
+  onmousedown="iniciarCambio('heading', 1, event)"
+  onmouseup="detenerCambio()"
+  onmouseleave="detenerCambio()">
+  ▶
+</button>
+<button 
+  onmousedown="iniciarCambio('speed', -1, event)"
+  onmouseup="detenerCambio()"
+  onmouseleave="detenerCambio()">
+  -
+</button>
+
+<button 
+  onmousedown="iniciarCambio('speed', 1, event)"
+  onmouseup="detenerCambio()"
+  onmouseleave="detenerCambio()">
+  +
+</button>
+<button 
+  onmousedown="iniciarCambio('altitude', -100, event)"
+  onmouseup="detenerCambio()"
+  onmouseleave="detenerCambio()">
+  ▼
+</button>
+
+<button 
+  onmousedown="iniciarCambio('altitude', 100, event)"
+  onmouseup="detenerCambio()"
+  onmouseleave="detenerCambio()">
+  ▲
+</button>
 <button id="btnDanger" onclick="activarModoPeligro()">
   ⚠
 </button>

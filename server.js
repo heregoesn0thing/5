@@ -433,7 +433,11 @@ socket.on("iniciarCircuito", ({ id }) => {
   if (aeronave.estado === "circuito") return
 
   aeronave.ruta = generarRutaServidor()
-
+// Enviar ruta al cliente
+io.to(sala).emit("rutaCircuito", {
+  id: aeronave.id,
+  ruta: aeronave.ruta
+})
   let indiceMasCercano = 0
   let menorDistancia = Infinity
 
@@ -483,6 +487,21 @@ socket.on("detenerCircuito", ({ id }) => {
   aeronave.ruta = null
   aeronave.indice = 0
   aeronave.progreso = 0
+
+})
+socket.on("rutaCircuito", data => {
+
+  if (circuitoLayer) {
+    map.removeLayer(circuitoLayer)
+  }
+
+  circuitoLayer = L.polyline(
+    data.ruta.map(p => [p.lat, p.lng]),
+    {
+      color: "yellow",
+      weight: 2
+    }
+  ).addTo(map)
 
 })
   // ===== ELIMINAR AERONAVE =====

@@ -905,8 +905,16 @@ socket.on("actualizarAeronave", data => {
   // =====================================
 
   if (avion.estado === "manual") {
-    actualizarInteraccion(avion);
-  }
+  panel.style.display = "flex"
+  iniciarMotorManual(avion)
+  actualizarInteraccion(avion);
+} else {
+  panel.style.display = "none"
+  if(avion.intervaloManual){
+  clearInterval(avion.intervaloManual)
+  avion.intervaloManual = null
+}
+}
 
 });
 
@@ -1383,7 +1391,53 @@ function enviarAjuste(tipo, valor) {
     valor
   })
 }
+// ================= MOTOR MANUAL =================
 
+function iniciarMotorManual(a){
+
+  if(a.intervaloManual){
+    clearInterval(a.intervaloManual)
+  }
+
+  a.intervaloManual = setInterval(()=>{
+
+    if(a.estado !== "manual") return
+
+    // Giro suave hacia heading objetivo
+    if(a.headingObjetivo !== undefined){
+      a.angulo = girarSuavemente(
+        a,
+        a.angulo,
+        a.headingObjetivo
+      )
+    }
+
+    // Movimiento según velocidad actual
+    const headingRad = a.angulo * Math.PI/180
+    const actual = a.marker.getLatLng()
+
+    const mps = (a.velocidad || 0) * 0.514444
+
+    const deltaLat = (Math.cos(headingRad) * mps) / 111320
+    const deltaLng = (Math.sin(headingRad) * mps) /
+                     (111320 * Math.cos(actual.lat*Math.PI/180))
+
+    const nuevaLat = actual.lat + deltaLat
+    const nuevaLng = actual.lng + deltaLng
+
+    a.marker.setLatLng([nuevaLat, nuevaLng])
+
+    actualizarRotacion(a)
+
+    if(aeronaveSeleccionada === a){
+      actualizarDisplaysManual(a)
+      actualizarPanelInfo(a)
+    }
+
+    sincronizarMovimiento(a, nuevaLat, nuevaLng)
+
+  },50)
+}
 let intervaloCambio = null
 
 function iniciarCambio(tipo, incremento, event){
@@ -1855,7 +1909,7 @@ spdMinus.onmousedown = (e) => iniciarCambio("speed", -10, e)
 altPlus.onmousedown = (e) => iniciarCambio("altitude", 500, e)
 altMinus.onmousedown = (e) => iniciarCambio("altitude", -500, e)
 
-document.onmouseup = detenerCambio
+document.addEventListener("mouseup", detenerCambio)
 
 hdgPlus.ontouchstart = (e) => iniciarCambio("heading", 5, e)
 hdgMinus.ontouchstart = (e) => iniciarCambio("heading", -5, e)

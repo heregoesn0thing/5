@@ -666,4 +666,10 @@ html, body{
 .controlBtn:active{
   transform: scale(0.92);
   background: #004d33;
+}#botonManual {
+  width: 140px;        /* ancho rectangular */
+  height: 40px;        /* altura baja */
+  border-radius: 8px;  /* esquinas suaves */
+  padding: 8px 16px;
+  font-weight: bold;
 }

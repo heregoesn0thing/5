@@ -166,7 +166,7 @@ if (a.altitud !== undefined && a.altitudObjetivo !== undefined) {
       if (!a.ruta || a.ruta.length < 2) return
 
       const velocidadMPS = a.velocidad || (90 * 0.514444)
-      const distanciaTick = velocidadMPS * (intervaloMS/1000)
+      const distanciaTick = velocidadMPS * deltaSeg
 
       // =====================================
       // ✈ FASE 1 — INTERCEPTANDO EL CIRCUITO
@@ -218,16 +218,16 @@ if (a.altitud !== undefined && a.altitudObjetivo !== undefined) {
           }
         }
 
-        io.to(salaNombre).emit("actualizarAeronave", {
-  id: aeronave.id,
-  lat: aeronave.lat,
-  lng: aeronave.lng,
-  altitud: aeronave.altitud,
-  altitudObjetivo: aeronave.altitudObjetivo,
-  angulo: aeronave.angulo,
-  velocidad: aeronave.velocidad,
-  velocidadObjetivo: aeronave.velocidadObjetivo,
-  estado: aeronave.estado
+        io.to(nombreSala).emit("actualizarAeronave", {
+  id: a.id,
+  lat: a.lat,
+  lng: a.lng,
+  altitud: a.altitud,
+  altitudObjetivo: a.altitudObjetivo,
+  angulo: a.angulo,
+  velocidad: a.velocidad,
+  velocidadObjetivo: a.velocidadObjetivo,
+  estado: a.estado
 })
 
         return
@@ -298,16 +298,16 @@ if (a.altitud !== undefined && a.altitudObjetivo !== undefined) {
         a.angulo = (a.angulo + 360) % 360
       }
 
-      io.to(salaNombre).emit("actualizarAeronave", {
-  id: aeronave.id,
-  lat: aeronave.lat,
-  lng: aeronave.lng,
-  altitud: aeronave.altitud,
-  altitudObjetivo: aeronave.altitudObjetivo,
-  angulo: aeronave.angulo,
-  velocidad: aeronave.velocidad,
-  velocidadObjetivo: aeronave.velocidadObjetivo,
-  estado: aeronave.estado
+      io.to(nombreSala).emit("actualizarAeronave", {
+  id: a.id,
+  lat: a.lat,
+  lng: a.lng,
+  altitud: a.altitud,
+  altitudObjetivo: a.altitudObjetivo,
+  angulo: a.angulo,
+  velocidad: a.velocidad,
+  velocidadObjetivo: a.velocidadObjetivo,
+  estado: a.estado
 })
 
     })

@@ -148,15 +148,11 @@ if (a.altitud !== undefined && a.altitudObjetivo !== undefined) {
   id: a.id,
   lat: a.lat,
   lng: a.lng,
-
   altitud: a.altitud,
   altitudObjetivo: a.altitudObjetivo,
-
   angulo: a.angulo,
-
   velocidad: a.velocidad,
   velocidadObjetivo: a.velocidadObjetivo,
-
   estado: a.estado
 })
 
@@ -222,20 +218,16 @@ if (a.altitud !== undefined && a.altitudObjetivo !== undefined) {
           }
         }
 
-        io.to(nombreSala).emit("actualizarAeronave", {
-  id: a.id,
-  lat: a.lat,
-  lng: a.lng,
-
-  altitud: a.altitud,
-  altitudObjetivo: a.altitudObjetivo,
-
-  angulo: a.angulo,
-
-  velocidad: a.velocidad,
-  velocidadObjetivo: a.velocidadObjetivo,
-
-  estado: a.estado
+        io.to(salaNombre).emit("actualizarAeronave", {
+  id: aeronave.id,
+  lat: aeronave.lat,
+  lng: aeronave.lng,
+  altitud: aeronave.altitud,
+  altitudObjetivo: aeronave.altitudObjetivo,
+  angulo: aeronave.angulo,
+  velocidad: aeronave.velocidad,
+  velocidadObjetivo: aeronave.velocidadObjetivo,
+  estado: aeronave.estado
 })
 
         return
@@ -306,20 +298,16 @@ if (a.altitud !== undefined && a.altitudObjetivo !== undefined) {
         a.angulo = (a.angulo + 360) % 360
       }
 
-      io.to(nombreSala).emit("actualizarAeronave", {
-  id: a.id,
-  lat: a.lat,
-  lng: a.lng,
-
-  altitud: a.altitud,
-  altitudObjetivo: a.altitudObjetivo,
-
-  angulo: a.angulo,
-
-  velocidad: a.velocidad,
-  velocidadObjetivo: a.velocidadObjetivo,
-
-  estado: a.estado
+      io.to(salaNombre).emit("actualizarAeronave", {
+  id: aeronave.id,
+  lat: aeronave.lat,
+  lng: aeronave.lng,
+  altitud: aeronave.altitud,
+  altitudObjetivo: aeronave.altitudObjetivo,
+  angulo: aeronave.angulo,
+  velocidad: aeronave.velocidad,
+  velocidadObjetivo: aeronave.velocidadObjetivo,
+  estado: aeronave.estado
 })
 
     })
@@ -565,7 +553,7 @@ socket.on("crearAeronave", (data) => {
 
 
   io.to(sala).emit("crearAeronave", data);
-
+iniciarMotorSala(sala)
 
 });
 socket.on("extenderSalida", ({ metros }) => {
@@ -680,20 +668,16 @@ socket.on("activarManual", ({ id }) => {
 iniciarMotorSala(salaNombre)
   }
 
-  io.to(nombreSala).emit("actualizarAeronave", {
-  id: a.id,
-  lat: a.lat,
-  lng: a.lng,
-
-  altitud: a.altitud,
-  altitudObjetivo: a.altitudObjetivo,
-
-  angulo: a.angulo,
-
-  velocidad: a.velocidad,
-  velocidadObjetivo: a.velocidadObjetivo,
-
-  estado: a.estado
+  io.to(salaNombre).emit("actualizarAeronave", {
+  id: aeronave.id,
+  lat: aeronave.lat,
+  lng: aeronave.lng,
+  altitud: aeronave.altitud,
+  altitudObjetivo: aeronave.altitudObjetivo,
+  angulo: aeronave.angulo,
+  velocidad: aeronave.velocidad,
+  velocidadObjetivo: aeronave.velocidadObjetivo,
+  estado: aeronave.estado
 })
 })
 // ===== INICIAR CIRCUITO =====
@@ -813,19 +797,15 @@ socket.on("ajusteManual", ({ id, tipo, valor }) => {
     a.altitudObjetivo = Math.max(0, nuevaAltObjetivo)
   }
 
-  io.to(nombreSala).emit("actualizarAeronave", {
+  io.to(salaNombre).emit("actualizarAeronave", {
   id: a.id,
   lat: a.lat,
   lng: a.lng,
-
   altitud: a.altitud,
   altitudObjetivo: a.altitudObjetivo,
-
   angulo: a.angulo,
-
   velocidad: a.velocidad,
   velocidadObjetivo: a.velocidadObjetivo,
-
   estado: a.estado
 })
 

@@ -104,7 +104,7 @@ function iniciarMotorSala(nombreSala){
 
       while (distanciaRestanteTick > 0) {
 
-        const siguiente = (a.indice + 1) % a.ruta.length
+        const siguiente = (a.indice - 1 + a.ruta.length) % a.ruta.length
 
         const A = a.ruta[a.indice]
         const B = a.ruta[siguiente]
@@ -127,7 +127,7 @@ function iniciarMotorSala(nombreSala){
         }
       }
 
-      const siguiente = (a.indice + 1) % a.ruta.length
+      const siguiente = (a.indice - 1 + a.ruta.length) % a.ruta.length
       const A = a.ruta[a.indice]
       const B = a.ruta[siguiente]
 

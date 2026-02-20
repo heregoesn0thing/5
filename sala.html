@@ -2263,39 +2263,49 @@ function dibujarCircuito() {
   const umbral04 = L.latLng(-13.755327, -76.229306)
   const umbral22 = L.latLng(-13.734272, -76.211517)
 
-  const rumbo04 = 40
-  const rumbo22 = 220
-  const rumboIzquierda = 130
+  const rumboPista = 40
+  const rumboInverso = 220
+  const rumboIzq = 130   // tráfico izquierdo RWY 22
 
   const lateralNM = 1.5
-  const totalNM = 2.5
-  const inicioCurvaNM = 2.0
+  const extensionNM = 2.5
 
   const lateralM = lateralNM * 1852
-  const totalM = totalNM * 1852
-  const inicioCurvaM = inicioCurvaNM * 1852
+  const extensionM = extensionNM * 1852
 
-  // 🔵 Puntos donde empiezan las curvas
-  const inicioCurvaFinal = puntoPlano(umbral22, rumbo04, inicioCurvaM)
-  const inicioCurvaSalida = puntoPlano(umbral04, rumbo22, inicioCurvaM)
+  // =========================
+  // 1️⃣ EXTENSIONES SOBRE EJE PISTA
+  // =========================
 
-  // 🔵 Puntos extremos totales (2.5 NM)
-  const extremoFinal = puntoPlano(umbral22, rumbo04, totalM)
-  const extremoSalida = puntoPlano(umbral04, rumbo22, totalM)
+  const finalExt = puntoPlano(umbral22, rumboPista, extensionM)
+  const salidaExt = puntoPlano(umbral04, rumboInverso, extensionM)
 
-  // 🔵 Longitud total
-  const longitudTotal = map.distance(extremoFinal, extremoSalida)
+  // =========================
+  // 2️⃣ LINEA PARALELA (UPWIND / DOWNWIND)
+  // =========================
+
+  const upwindInicio = puntoPlano(umbral22, rumboIzq, lateralM)
+  const upwindFin = puntoPlano(umbral04, rumboIzq, lateralM)
+
+  const downwindInicio = puntoPlano(finalExt, rumboIzq, lateralM)
+  const downwindFin = puntoPlano(salidaExt, rumboIzq, lateralM)
+
+  // =========================
+  // 3️⃣ CONSTRUIR SQUIRCLE DESPLAZADO
+  // =========================
+
+  const longitudTotal = map.distance(finalExt, salidaExt)
   const centroLong = L.latLng(
-    (extremoFinal.lat + extremoSalida.lat) / 2,
-    (extremoFinal.lng + extremoSalida.lng) / 2
+    (finalExt.lat + salidaExt.lat) / 2,
+    (finalExt.lng + salidaExt.lng) / 2
   )
 
-  const centro = puntoPlano(centroLong, rumboIzquierda, lateralM)
+  const centro = puntoPlano(centroLong, rumboIzq, lateralM)
 
   const a = longitudTotal / 2
   const b = lateralM
-  const n = 4.2   // más rectangular
-  const pasos = 400
+  const n = 4.5
+  const pasos = 500
 
   const puntos = []
 
@@ -2309,7 +2319,7 @@ function dibujarCircuito() {
     const x = a * Math.sign(cosT) * Math.pow(Math.abs(cosT), 2/n)
     const y = b * Math.sign(sinT) * Math.pow(Math.abs(sinT), 2/n)
 
-    const headingRad = rumbo04 * Math.PI / 180
+    const headingRad = rumboPista * Math.PI / 180
 
     const xr = x * Math.cos(headingRad) - y * Math.sin(headingRad)
     const yr = x * Math.sin(headingRad) + y * Math.cos(headingRad)

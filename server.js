@@ -125,16 +125,32 @@ function iniciarMotorSala(nombreSala){
 
         } else {
 
-          const rumbo = calcularRumboServidor(
-            { lat: a.lat, lng: a.lng },
-            destino
-          )
+         const rumboDeseado = calcularRumboServidor(
+  { lat: a.lat, lng: a.lng },
+  destino
+)
 
-          const fraccion = distanciaTick / distancia
+const fraccion = distanciaTick / distancia
 
-          a.lat += (destino.lat - a.lat) * fraccion
-          a.lng += (destino.lng - a.lng) * fraccion
-          const rumboDeseado = calcularRumboServidor(A, B)
+a.lat += (destino.lat - a.lat) * fraccion
+a.lng += (destino.lng - a.lng) * fraccion
+
+// 🔥 Giro suave correcto
+if (a.angulo === undefined || a.angulo === null) {
+  a.angulo = rumboDeseado
+} else {
+
+  const diff = diferenciaAngular(a.angulo, rumboDeseado)
+  const maxGiro = 3
+
+  if (Math.abs(diff) < maxGiro) {
+    a.angulo = rumboDeseado
+  } else {
+    a.angulo += Math.sign(diff) * maxGiro
+  }
+
+  a.angulo = (a.angulo + 360) % 360
+}
 
 if (a.angulo === undefined || a.angulo === null) {
   a.angulo = rumboDeseado

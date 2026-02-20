@@ -1863,7 +1863,11 @@ function interpolarRemoto(avion, latDestino, lngDestino, anguloDestino){
   }
 
   const inicio = avion.marker.getLatLng();
-  const anguloInicio = avion.angulo || 0;
+
+  const anguloInicio =
+    (avion.angulo !== undefined && avion.angulo !== null)
+      ? avion.angulo
+      : anguloDestino;
 
   const duracion = 100;
   const startTime = performance.now();
@@ -1872,18 +1876,22 @@ function interpolarRemoto(avion, latDestino, lngDestino, anguloDestino){
 
     const t = Math.min((now - startTime) / duracion, 1);
 
-    // Posición
+    // ===== POSICIÓN =====
     const lat = inicio.lat + (latDestino - inicio.lat) * t;
     const lng = inicio.lng + (lngDestino - inicio.lng) * t;
     avion.marker.setLatLng([lat, lng]);
 
-    // 🔥 Interpolación angular correcta
-    let deltaAng = (anguloDestino ?? anguloInicio) - anguloInicio;
+    // ===== GIRO CORTO CORRECTO =====
+    let deltaAng = anguloDestino - anguloInicio;
 
     if(deltaAng > 180) deltaAng -= 360;
     if(deltaAng < -180) deltaAng += 360;
 
     avion.angulo = anguloInicio + deltaAng * t;
+
+    // Normalizar
+    avion.angulo = (avion.angulo + 360) % 360;
+
     actualizarRotacion(avion);
 
     if(t < 1){
@@ -1893,8 +1901,6 @@ function interpolarRemoto(avion, latDestino, lngDestino, anguloDestino){
 
   avion.animRemoto = requestAnimationFrame(animar);
 }
-
-
 
 function moverPorPuntos(a){
 

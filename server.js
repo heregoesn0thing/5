@@ -101,26 +101,30 @@ function iniciarMotorSala(nombreSala){
       // =====================================
       if (a.estado === "manual") {
 
-        const velocidadMPS = a.velocidad || (90 * 0.514444)
-        const distanciaTick = velocidadMPS * (intervaloMS / 1000)
+  const velocidadMPS = a.velocidad || (90 * 0.514444)
+  const distanciaTick = velocidadMPS * (intervaloMS / 1000)
 
-        const rad = (a.angulo || 0) * Math.PI / 180
+  const nuevoPunto = puntoPlano(
+    { lat: a.lat, lng: a.lng },
+    a.angulo || 0,
+    distanciaTick
+  )
 
-        a.lat += Math.cos(rad) * distanciaTick
-        a.lng += Math.sin(rad) * distanciaTick
+  a.lat = nuevoPunto.lat
+  a.lng = nuevoPunto.lng
 
-        io.to(nombreSala).emit("actualizarAeronave", {
-          id: a.id,
-          lat: a.lat,
-          lng: a.lng,
-          altitud: a.altitud,
-          angulo: a.angulo,
-          velocidad: a.velocidad,
-          estado: a.estado
-        })
+  io.to(nombreSala).emit("actualizarAeronave", {
+    id: a.id,
+    lat: a.lat,
+    lng: a.lng,
+    altitud: a.altitud,
+    angulo: a.angulo,
+    velocidad: a.velocidad,
+    estado: a.estado
+  })
 
-        return
-      }
+  return
+}
 
       // =====================================
       // RESTO DE LÓGICA (requiere ruta)
@@ -495,6 +499,7 @@ socket.on("crearAeronave", (data) => {
   lng: data.lng,
   altitud: data.altitud || 0,
   angulo: data.angulo || 0,
+  velocidad: 90 * 0.514444,
   estado: "idle"
 });
 

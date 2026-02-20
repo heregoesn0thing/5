@@ -391,7 +391,7 @@ let modoEliminar = false;
 let marcadorPeligro = null;
 let imagenPeligro = null;
 let temporizadorPeligro = null;
-
+let puntosCircuito = []
 
 const VELOCIDAD = 8
 const TIPOS = ["A320","A319","C172","AN32"]
@@ -2068,107 +2068,142 @@ function proyectarPunto(lat, lng, rumbo, distanciaKm){
     lng: lng2 * 180/Math.PI
   }
 }
+function generarPuntosCircuito(){
 
-// ================= LEFT TRAFFIC PATTERN RWY 22 =================
-
-function iniciarCircuito() {
-
-  if (!aeronaveSeleccionada) return
-  const a = aeronaveSeleccionada
-
-  if (a.tipo !== "C172") {
-    alert("Only C172 allowed")
-    return
-  }
-
-  if (a.intervaloCircuito) clearInterval(a.intervaloCircuito)
+  puntosCircuito = []
 
   const umbral04 = L.latLng(-13.755327, -76.229306)
   const umbral22 = L.latLng(-13.734272, -76.211517)
 
-  const ejePista = 40
-  const ejeInverso = 220
+  const rumboPista = 40
+  const rumboInverso = 220
+  const rumboIzq = 130
 
-  const offsetNM = 1.5
-  const extensionNM = 2
+  const lateralM = 1.5 * 1852
+  const extensionM = 2.5 * 1852
 
-  const offsetM = offsetNM * 1852
-  const extensionM = extensionNM * 1852
+  const finalExt = puntoPlano(umbral22, rumboPista, extensionM)
+  const salidaExt = puntoPlano(umbral04, rumboInverso, extensionM)
 
-  const velocidadKT = 90
-  const velocidadMPS = velocidadKT * 0.514444
+  const longitudTotal = map.distance(finalExt, salidaExt)
 
-  const bankRad = 25 * Math.PI / 180
-  const g = 9.81
+  const centroLong = L.latLng(
+    (finalExt.lat + salidaExt.lat) / 2,
+    (finalExt.lng + salidaExt.lng) / 2
+  )
 
-  const radioViraje = (velocidadMPS ** 2) / (g * Math.tan(bankRad))
+  const centro = puntoPlano(centroLong, rumboIzq, lateralM)
 
-  const rumboIzquierda = 130
+  const a = longitudTotal / 2
+  const b = lateralM
+  const n = 4.5
+  const pasos = 400
 
-  // ===== PUNTOS BASE =====
+  for (let i = 0; i <= pasos; i++) {
 
-  const puntoCrossEje = puntoPlano(umbral04, ejePista, extensionM)
-  const puntoBaseEje = puntoPlano(umbral22, ejeInverso, extensionM)
+    const t = (i / pasos) * 2 * Math.PI
 
-  const downwindInicio = puntoPlano(umbral04, rumboIzquierda, offsetM)
-  const downwindFin = puntoPlano(umbral22, rumboIzquierda, offsetM)
+    const cosT = Math.cos(t)
+    const sinT = Math.sin(t)
 
-  const crosswindOffset = puntoPlano(puntoCrossEje, rumboIzquierda, offsetM)
-  const baseOffset = puntoPlano(puntoBaseEje, rumboIzquierda, offsetM)
+    const x = a * Math.sign(cosT) * Math.pow(Math.abs(cosT), 2/n)
+    const y = b * Math.sign(sinT) * Math.pow(Math.abs(sinT), 2/n)
 
-  // ===== CONSTRUIR RUTA CON ARCOS =====
+    const headingRad = rumboPista * Math.PI / 180
 
-  let ruta = []
+    const xr = x * Math.cos(headingRad) - y * Math.sin(headingRad)
+    const yr = x * Math.sin(headingRad) + y * Math.cos(headingRad)
 
-  function agregarSegmento(p1, p2, pasos = 30) {
-    for (let i = 0; i <= pasos; i++) {
-      const t = i / pasos
-      ruta.push([
-        p1.lat + (p2.lat - p1.lat) * t,
-        p1.lng + (p2.lng - p1.lng) * t
-      ])
-    }
+    const distancia = Math.sqrt(xr*xr + yr*yr)
+    const rumbo = Math.atan2(yr, xr) * 180 / Math.PI
+
+    const punto = puntoPlano(centro, rumbo, distancia)
+
+    puntosCircuito.push([punto.lat, punto.lng])
   }
-
-  function agregarArco(centro, inicioAng, finAng, pasos = 40) {
-    for (let i = 0; i <= pasos; i++) {
-      const t = i / pasos
-      const ang = inicioAng + (finAng - inicioAng) * t
-      const punto = puntoPlano(centro, ang, radioViraje)
-      ruta.push([punto.lat, punto.lng])
-    }
-  }
-
-  // FINAL
-  agregarSegmento(umbral22, puntoBaseEje)
-
-  // BASE
-  agregarSegmento(puntoBaseEje, baseOffset)
-
-  // DOWNWIND
-  agregarSegmento(baseOffset, downwindInicio)
-
-  // CROSSWIND
-  agregarSegmento(downwindInicio, crosswindOffset)
-
-  // UPWIND
-  agregarSegmento(crosswindOffset, umbral22)
-
-  // ===== DIBUJO =====
-
-  if (patronLayer) map.removeLayer(patronLayer)
-
-  patronLayer = L.polyline(ruta, {
-    color: "#00ffff",
-    weight: 2,
-    dashArray: "8 8"
-  }).addTo(map)
-
-  a.rutaCircuito = ruta
-
-  moverAvionEnRuta(a, velocidadMPS)
 }
+// ================= LEFT TRAFFIC PATTERN RWY 22 =================
+function iniciarCircuito(){
 
+  if(!aeronaveSeleccionada) return
+  const a = aeronaveSeleccionada
+
+  if(a.estado !== "idle") return
+
+  // 🔥 Si no existen puntos, generarlos automáticamente
+  if(!puntosCircuito || puntosCircuito.length === 0){
+    generarPuntosCircuito()
+  }
+
+  if(!puntosCircuito || puntosCircuito.length === 0){
+    alert("No hay circuito disponible")
+    return
+  }
+
+  if(a.intervaloCircuito){
+    clearInterval(a.intervaloCircuito)
+  }
+
+  a.estado = "circuito"
+  actualizarPanelInfo(a)
+
+  let indice = 0
+  const velocidadKT = 90
+  const mps = velocidadKT * 0.514444
+
+  a.intervaloCircuito = setInterval(()=>{
+
+    const actual = a.marker.getLatLng()
+    const destino = L.latLng(
+      puntosCircuito[indice][0],
+      puntosCircuito[indice][1]
+    )
+
+    const distancia = map.distance(actual, destino)
+
+    if(distancia < 25){
+      indice++
+      if(indice >= puntosCircuito.length){
+        indice = 0
+      }
+      return
+    }
+
+    const bearing = calcularRumbo(actual, destino)
+
+    a.angulo = girarSuavemente(a, a.angulo || bearing, bearing)
+    actualizarRotacion(a)
+
+    const headingRad = a.angulo * Math.PI/180
+
+    const deltaLat = (Math.cos(headingRad)*mps*0.05)/111320
+    const deltaLng = (Math.sin(headingRad)*mps*0.05)/
+      (111320*Math.cos(actual.lat*Math.PI/180))
+
+    const nuevaLat = actual.lat + deltaLat
+    const nuevaLng = actual.lng + deltaLng
+
+    a.marker.setLatLng([nuevaLat, nuevaLng])
+
+    sincronizarMovimiento(a, nuevaLat, nuevaLng)
+
+  },50)
+}
+function calcularRumbo(origen, destino){
+
+  const lat1 = origen.lat * Math.PI/180
+  const lat2 = destino.lat * Math.PI/180
+  const dLon = (destino.lng - origen.lng) * Math.PI/180
+
+  const y = Math.sin(dLon) * Math.cos(lat2)
+  const x =
+    Math.cos(lat1)*Math.sin(lat2) -
+    Math.sin(lat1)*Math.cos(lat2)*Math.cos(dLon)
+
+  const brng = Math.atan2(y,x) * 180/Math.PI
+
+  return (brng + 360) % 360
+}
 
 function moverAvionEnRuta(a, velocidadMPS) {
 
@@ -2257,8 +2292,11 @@ function dibujarCircuito() {
   if (patronLayer) {
     map.removeLayer(patronLayer)
     patronLayer = null
+    puntosCircuito = []   // limpiar también los puntos
     return
   }
+
+  puntosCircuito = []   // 🔥 IMPORTANTE: ahora es global
 
   const umbral04 = L.latLng(-13.755327, -76.229306)
   const umbral22 = L.latLng(-13.734272, -76.211517)
@@ -2274,27 +2312,14 @@ function dibujarCircuito() {
   const extensionM = extensionNM * 1852
 
   // =========================
-  // 1️⃣ EXTENSIONES SOBRE EJE PISTA
+  // EXTENSIONES SOBRE EJE PISTA
   // =========================
 
   const finalExt = puntoPlano(umbral22, rumboPista, extensionM)
   const salidaExt = puntoPlano(umbral04, rumboInverso, extensionM)
 
-  // =========================
-  // 2️⃣ LINEA PARALELA (UPWIND / DOWNWIND)
-  // =========================
-
-  const upwindInicio = puntoPlano(umbral22, rumboIzq, lateralM)
-  const upwindFin = puntoPlano(umbral04, rumboIzq, lateralM)
-
-  const downwindInicio = puntoPlano(finalExt, rumboIzq, lateralM)
-  const downwindFin = puntoPlano(salidaExt, rumboIzq, lateralM)
-
-  // =========================
-  // 3️⃣ CONSTRUIR SQUIRCLE DESPLAZADO
-  // =========================
-
   const longitudTotal = map.distance(finalExt, salidaExt)
+
   const centroLong = L.latLng(
     (finalExt.lat + salidaExt.lat) / 2,
     (finalExt.lng + salidaExt.lng) / 2
@@ -2306,8 +2331,6 @@ function dibujarCircuito() {
   const b = lateralM
   const n = 4.5
   const pasos = 500
-
-  const puntos = []
 
   for (let i = 0; i <= pasos; i++) {
 
@@ -2329,10 +2352,10 @@ function dibujarCircuito() {
 
     const punto = puntoPlano(centro, rumbo, distancia)
 
-    puntos.push([punto.lat, punto.lng])
+    puntosCircuito.push([punto.lat, punto.lng])
   }
 
-  patronLayer = L.polyline(puntos, {
+  patronLayer = L.polyline(puntosCircuito, {
     color: "#00ffff",
     weight: 2,
     dashArray: "8 8"

@@ -1862,7 +1862,7 @@ chkPatron.addEventListener("change", () => {
 
   if (chkPatron.checked) {
 
-    if (!rutaServidor) return
+    if (!rutaCircuitoServidor) return
 
     if (patronLayer) {
       map.removeLayer(patronLayer)
@@ -2206,7 +2206,30 @@ function finalizarTaxi(a){
   actualizarPanelInfo(a)
   actualizarBotonTaxi()
 }
+function sincronizarMovimiento(a, lat, lng){
 
+  if(a.remoto) return
+
+  const ahora = performance.now()
+
+  if(!a.ultimoSync) a.ultimoSync = 0
+  if(ahora - a.ultimoSync < 80) return
+
+  a.ultimoSync = ahora
+
+  socket.emit("actualizarAeronave", {
+    id: a.id,
+    lat,
+    lng,
+    altitud: a.altitud,
+    velocidad: a.velocidad,
+    angulo: a.angulo,
+    headingObjetivo: a.headingObjetivo,
+    altitudObjetivo: a.altitudObjetivo,
+    velocidadObjetivo: a.velocidadObjetivo
+  });
+
+}
 
 function sincronizarMovimiento(a, lat, lng){
 

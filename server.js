@@ -134,7 +134,19 @@ function iniciarMotorSala(nombreSala){
 
           a.lat += (destino.lat - a.lat) * fraccion
           a.lng += (destino.lng - a.lng) * fraccion
-          a.angulo = rumbo
+          const diff = diferenciaAngular(a.angulo, rumbo)
+
+// limitar velocidad de giro (ej: 3° por tick)
+const maxGiro = 3
+
+if (Math.abs(diff) < maxGiro) {
+  a.angulo = rumbo
+} else {
+  a.angulo += Math.sign(diff) * maxGiro
+}
+
+// normalizar a 0-360
+a.angulo = (a.angulo + 360) % 360
         }
 
         io.to(nombreSala).emit("actualizarAeronave", {

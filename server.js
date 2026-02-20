@@ -438,6 +438,7 @@ io.to(sala).emit("rutaCircuito", {
   id: aeronave.id,
   ruta: aeronave.ruta
 })
+aeronave.ruta = generarRutaServidor()
   let indiceMasCercano = 0
   let menorDistancia = Infinity
 

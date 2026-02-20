@@ -172,7 +172,17 @@ socket.on("estadoTiempo", (data) => {
   iconPause.style.display = pausado ? "none" : "block";
 
 });
+socket.on("rutaCircuito", data => {
 
+  // Guardar ruta
+  rutaCircuitoServidor = data.ruta
+
+  // Si el checkbox está activo → dibujar
+  if(chkPatron.checked){
+    dibujarRutaServidor()
+  }
+
+})
 
 
 
@@ -1619,6 +1629,7 @@ const chkPatron = document.getElementById("chkPatron")
 let circuloVor = null
 let ejePista = null
 let patronLayer = null
+let rutaCircuitoServidor = null
 
 // Coordenadas reales
 const vorPisco = [-13.744, -76.220]
@@ -1686,13 +1697,19 @@ chkEje.addEventListener("change", () => {
 
 chkPatron.addEventListener("change", () => {
 
-  if (chkPatron.checked) {
-    dibujarCircuito()
+  if(chkPatron.checked){
+
+    if(rutaCircuitoServidor){
+      dibujarRutaServidor()
+    }
+
   } else {
-    if (patronLayer) {
+
+    if(patronLayer){
       map.removeLayer(patronLayer)
       patronLayer = null
     }
+
   }
 
 })
@@ -1717,7 +1734,23 @@ function girarSuavemente(a, headingActual, headingObjetivo){
   return headingActual + (diferencia > 0 ? maxCambio : -maxCambio)
 }
 
+function dibujarRutaServidor(){
 
+  if(!rutaCircuitoServidor) return
+
+  if(patronLayer){
+    map.removeLayer(patronLayer)
+  }
+
+  patronLayer = L.polyline(
+    rutaCircuitoServidor.map(p => [p.lat, p.lng]),
+    {
+      color: "#00ffff",
+      weight: 2,
+      dashArray: "8 8"
+    }
+  ).addTo(map)
+}
 function estaAlineadoConPista(a){
 
   let diferencia = Math.abs(a.angulo - RUMBO_PISTA_22)

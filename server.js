@@ -96,15 +96,70 @@ function iniciarMotorSala(nombreSala){
 
     sala.aeronaves.forEach(a => {
 
-      if (a.estado !== "circuito") return
       if (!a.ruta || a.ruta.length < 2) return
 
       const velocidadMPS = a.velocidad || (90 * 0.514444)
-      let distanciaRestanteTick = velocidadMPS * (intervaloMS/1000)
+      const distanciaTick = velocidadMPS * (intervaloMS/1000)
+
+      // =====================================
+      // ✈ FASE 1 — INTERCEPTANDO EL CIRCUITO
+      // =====================================
+      if (a.estado === "interceptando") {
+
+        const destino = a.ruta[a.indiceObjetivo]
+
+        const distancia = distanciaEntre(
+          { lat: a.lat, lng: a.lng },
+          destino
+        )
+
+        if (distancia <= distanciaTick) {
+
+          // Llegó exactamente al patrón
+          a.lat = destino.lat
+          a.lng = destino.lng
+
+          a.indice = a.indiceObjetivo
+          a.progreso = 0
+          a.estado = "circuito"
+
+        } else {
+
+          const rumbo = calcularRumboServidor(
+            { lat: a.lat, lng: a.lng },
+            destino
+          )
+
+          const fraccion = distanciaTick / distancia
+
+          a.lat += (destino.lat - a.lat) * fraccion
+          a.lng += (destino.lng - a.lng) * fraccion
+          a.angulo = rumbo
+        }
+
+        io.to(nombreSala).emit("actualizarAeronave", {
+          id: a.id,
+          lat: a.lat,
+          lng: a.lng,
+          altitud: a.altitud,
+          angulo: a.angulo,
+          estado: a.estado
+        })
+
+        return
+      }
+
+      // =====================================
+      // ✈ FASE 2 — MOVIMIENTO NORMAL EN CIRCUITO
+      // =====================================
+      if (a.estado !== "circuito") return
+
+      let distanciaRestanteTick = distanciaTick
 
       while (distanciaRestanteTick > 0) {
 
-        const siguiente = (a.indice - 1 + a.ruta.length) % a.ruta.length
+        const siguiente =
+          (a.indice - 1 + a.ruta.length) % a.ruta.length
 
         const A = a.ruta[a.indice]
         const B = a.ruta[siguiente]
@@ -122,18 +177,21 @@ function iniciarMotorSala(nombreSala){
           distanciaRestanteTick -= restanteSegmento
           a.indice = siguiente
           a.progreso = 0
-
           continue
         }
       }
 
-      const siguiente = (a.indice - 1 + a.ruta.length) % a.ruta.length
+      const siguiente =
+        (a.indice - 1 + a.ruta.length) % a.ruta.length
+
       const A = a.ruta[a.indice]
       const B = a.ruta[siguiente]
 
       const distanciaSegmento = distanciaEntre(A, B)
 
-      const t = distanciaSegmento === 0 ? 0 : a.progreso / distanciaSegmento
+      const t = distanciaSegmento === 0
+        ? 0
+        : a.progreso / distanciaSegmento
 
       a.lat = A.lat + (B.lat - A.lat) * t
       a.lng = A.lng + (B.lng - A.lng) * t
@@ -545,10 +603,11 @@ socket.on("detenerCircuito", ({ id }) => {
 
   if (aeronave.owner !== socket.id) return
 
-  aeronave.estado = "idle"
+  aeronave.indiceObjetivo = indiceMasCercano
+aeronave.estado = "interceptando"
+aeronave.velocidad = 90 * 0.514444
   aeronave.ruta = null
-  aeronave.indice = 0
-  aeronave.progreso = 0
+  
 
 })
 socket.on("rutaCircuito", data => {

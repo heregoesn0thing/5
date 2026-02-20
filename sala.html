@@ -1060,20 +1060,20 @@ function actualizarBotonTaxi(){
     case "taxi":
       btn.disabled = false
       btn.style.opacity = "1"
-      btn.textContent = "Detener Taxi"
+      btn.textContent = "Stop"
       break
 
     case "idle":
       btn.disabled = false
       btn.style.opacity = "1"
-      btn.textContent = "Iniciar Taxi"
+      btn.textContent = "Taxi"
       break
 
     default:
       // Si está en vuelo, manual o circuito
       btn.disabled = true
       btn.style.opacity = "0.4"
-      btn.textContent = "Taxi no disponible"
+      btn.textContent = "Unable to taxi"
   }
 }
 

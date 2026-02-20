@@ -1860,8 +1860,7 @@ function interpolarRemoto(avion, lat, lng, anguloServidor){
 
   // ===== POSICIÓN =====
   const actual = avion.marker.getLatLng()
-
-  const factor = 0.25   // suavizado posición
+  const factor = 0.25
 
   const nuevaLat =
     actual.lat + (lat - actual.lat) * factor
@@ -1871,24 +1870,22 @@ function interpolarRemoto(avion, lat, lng, anguloServidor){
 
   avion.marker.setLatLng([nuevaLat, nuevaLng])
 
-  // ===== ÁNGULO (ARREGLADO) =====
+  // ===== ÁNGULO CORREGIDO =====
 
-  if(avion.anguloVisual === undefined){
-    avion.anguloVisual = anguloServidor
+  if(avion.angulo === undefined){
+    avion.angulo = anguloServidor
   }
 
-  // diferencia angular corta
   const diff =
-    (anguloServidor - avion.anguloVisual + 540) % 360 - 180
+    (anguloServidor - avion.angulo + 540) % 360 - 180
 
   const factorGiro = 0.3
 
-  avion.anguloVisual += diff * factorGiro
+  avion.angulo += diff * factorGiro
+  avion.angulo = (avion.angulo + 360) % 360
 
-  avion.anguloVisual =
-    (avion.anguloVisual + 360) % 360
-
-  avion.marker.setRotationAngle(avion.anguloVisual)
+  // 🔥 AQUÍ ESTÁ LA CLAVE
+  actualizarRotacion(avion)
 }
 function moverPorPuntos(a){
 

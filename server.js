@@ -565,7 +565,8 @@ socket.on("crearAeronave", (data) => {
   aceleracion: 1.5, // m/s²
 
   angulo: data.angulo || 0,
-  estado: "idle"
+headingObjetivo: data.angulo || 0,
+estado: "idle"
 })
 
 

@@ -813,26 +813,12 @@ actualizarInteraccion(nueva)
 
 socket.on("actualizarAeronave", data => {
 
-  const avion = aeronaves.find(a => a.id === data.id)
-  if (!avion) return
+  const avion = aeronaves.find(a => a.id === data.id);
+  if (!avion) return;
 
-  // 🔥 IMPORTANTE: circuito E interceptando
-  if(data.estado === "circuito" || data.estado === "interceptando"){
-
-    avion.estado = data.estado
-
-    interpolarRemoto(
-      avion,
-      data.lat,
-      data.lng,
-      data.angulo
-    )
-
-    avion.altitud = data.altitud
-    return
-  }
-
-  if (!avion.remoto) return
+  // 🔥 SIEMPRE obedecer al servidor
+  avion.estado = data.estado
+  avion.altitud = data.altitud
 
   interpolarRemoto(
     avion,
@@ -841,7 +827,6 @@ socket.on("actualizarAeronave", data => {
     data.angulo
   )
 
-  avion.altitud = data.altitud
 })
 
 document.getElementById("btnExtender").addEventListener("click", () => {

@@ -813,13 +813,13 @@ actualizarInteraccion(nueva)
 
 socket.on("actualizarAeronave", data => {
 
-  const avion = aeronaves.find(a => a.id === data.id);
-  if (!avion) return;
+  const avion = aeronaves.find(a => a.id === data.id)
+  if (!avion) return
 
-  // 🔥 SI ESTÁ EN CIRCUITO → SIEMPRE obedecer servidor
-  if(data.estado === "circuito"){
+  // 🔥 IMPORTANTE: circuito E interceptando
+  if(data.estado === "circuito" || data.estado === "interceptando"){
 
-    avion.estado = "circuito"
+    avion.estado = data.estado
 
     interpolarRemoto(
       avion,
@@ -832,8 +832,7 @@ socket.on("actualizarAeronave", data => {
     return
   }
 
-  // 🔹 Para otros modos solo actualizar si es remoto
-  if (!avion.remoto) return;
+  if (!avion.remoto) return
 
   interpolarRemoto(
     avion,
@@ -843,7 +842,6 @@ socket.on("actualizarAeronave", data => {
   )
 
   avion.altitud = data.altitud
-
 })
 
 document.getElementById("btnExtender").addEventListener("click", () => {
@@ -1858,7 +1856,6 @@ map.on("zoom", () => {
 
 function interpolarRemoto(avion, lat, lng, anguloServidor){
 
-  // ===== POSICIÓN =====
   const actual = avion.marker.getLatLng()
   const factor = 0.25
 
@@ -1870,12 +1867,19 @@ function interpolarRemoto(avion, lat, lng, anguloServidor){
 
   avion.marker.setLatLng([nuevaLat, nuevaLng])
 
-  // ===== ÁNGULO CORREGIDO =====
-
-  if(avion.angulo === undefined){
+  // 🔥 1️⃣ Inicializar si es la primera vez
+  if(avion.angulo === undefined || avion.angulo === null){
     avion.angulo = anguloServidor
   }
 
+  // 🔥 2️⃣ Corrección anti-salto 360° ↔ 0°
+  if(avion.estado === "circuito" || avion.estado === "interceptando"){
+    if(Math.abs(avion.angulo - anguloServidor) > 180){
+      avion.angulo = anguloServidor
+    }
+  }
+
+  // 🔥 3️⃣ Interpolación angular suave
   const diff =
     (anguloServidor - avion.angulo + 540) % 360 - 180
 
@@ -1884,7 +1888,6 @@ function interpolarRemoto(avion, lat, lng, anguloServidor){
   avion.angulo += diff * factorGiro
   avion.angulo = (avion.angulo + 360) % 360
 
-  // 🔥 AQUÍ ESTÁ LA CLAVE
   actualizarRotacion(avion)
 }
 function moverPorPuntos(a){

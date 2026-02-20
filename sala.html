@@ -877,6 +877,7 @@ if (aeronaveSeleccionada && avion.id === aeronaveSeleccionada.id) {
 
   actualizarBotonManual();
   actualizarDisplaysManual(avion);
+  actualizarPanelManual();
 }
 
   if (avion.estado === "manual") {
@@ -972,61 +973,22 @@ socket.on("borrarAeronave", id => {
 
 function seleccionarAeronave(obj){
 
-  aeronaveSeleccionada = obj
+  aeronaveSeleccionada = obj;
 
-  document.getElementById("aircraftTitle").innerText = obj.id
+  document.getElementById("aircraftTitle").innerText = obj.id;
 
-  actualizarPanelInfo(obj)
+  actualizarPanelInfo(obj);
+  document.getElementById("menuAeronave").style.display = "block";
 
-  document.getElementById("menuAeronave").style.display = "block"
+  document.getElementById("speedSlider").value = obj.velocidadObjetivo || 0;
+  document.getElementById("speedValue").innerText = obj.velocidadObjetivo || 0;
 
-  document.getElementById("speedSlider").value = obj.velocidadObjetivo || 0
-  document.getElementById("speedValue").innerText = obj.velocidadObjetivo || 0
+  actualizarBotonTaxi();
+  actualizarDepartureInfo(obj);
+  actualizarBotonManual();
+  actualizarPanelManual(); 
 
-  actualizarBotonTaxi()
-
-  actualizarDepartureInfo(obj)   // ← SIN IF
-actualizarBotonManual();
-
-document.getElementById("btnManual")
-  .addEventListener("click", () => {
-
-    if(!aeronaveSeleccionada) return;
-
-    const a = aeronaveSeleccionada;
-
-    // 🔴 Si ya está en manual → salir
-    if(a.estado === "manual"){
-      socket.emit("salirManual", { id: a.id });
-      return;
-    }
-
-    // 🔥 PRIORIDAD TOTAL
-    // Cancelar taxi
-    if(a.motorTaxi){
-      clearInterval(a.motorTaxi);
-      a.motorTaxi = null;
-    }
-
-    // Cancelar vuelo
-    if(a.intervaloVuelo){
-      clearInterval(a.intervaloVuelo);
-      a.intervaloVuelo = null;
-    }
-
-    // Cancelar circuito
-    if(a.intervaloCircuito){
-      clearInterval(a.intervaloCircuito);
-      a.intervaloCircuito = null;
-    }
-
-    // Cancelar STAR
-    a.starActivo = false;
-
-    // Activar manual
-    socket.emit("activarManual", { id: a.id });
-  });
-
+}
 function actualizarBotonTaxi(){
 
   const btn = document.getElementById("btnTaxi")
@@ -1114,6 +1076,44 @@ function actualizarPanelInfo(a){
   `
 }
 
+const btnManual = document.getElementById("btnManual");
+
+btnManual.addEventListener("click", () => {
+
+  if (!aeronaveSeleccionada) return;
+
+  const a = aeronaveSeleccionada;
+
+  // 🔴 Si ya está en manual → salir
+  if (a.estado === "manual") {
+    socket.emit("salirManual", { id: a.id });
+    return;
+  }
+
+  // Cancelar taxi
+  if (a.motorTaxi) {
+    clearInterval(a.motorTaxi);
+    a.motorTaxi = null;
+  }
+
+  // Cancelar vuelo
+  if (a.intervaloVuelo) {
+    clearInterval(a.intervaloVuelo);
+    a.intervaloVuelo = null;
+  }
+
+  // Cancelar circuito
+  if (a.intervaloCircuito) {
+    clearInterval(a.intervaloCircuito);
+    a.intervaloCircuito = null;
+  }
+
+  // Cancelar STAR
+  a.starActivo = false;
+
+  socket.emit("activarManual", { id: a.id });
+
+});
 function actualizarPanelManual() {
 
   const panel = document.getElementById("manualPanel");
@@ -2546,9 +2546,50 @@ function loopVisual(){
 }
 
 loopVisual();
-/* ===== FIN PANEL ARRASTRABLE ===== */
 }
+document.addEventListener("DOMContentLoaded", () => {
 
+  const btnManual = document.getElementById("btnManual");
+
+  btnManual.addEventListener("click", () => {
+
+    if (!aeronaveSeleccionada) return;
+
+    const a = aeronaveSeleccionada;
+
+    // 🔴 Si ya está en manual → salir
+    if (a.estado === "manual") {
+      socket.emit("salirManual", { id: a.id });
+      return;
+    }
+
+    // Cancelar taxi
+    if (a.motorTaxi) {
+      clearInterval(a.motorTaxi);
+      a.motorTaxi = null;
+    }
+
+    // Cancelar vuelo
+    if (a.intervaloVuelo) {
+      clearInterval(a.intervaloVuelo);
+      a.intervaloVuelo = null;
+    }
+
+    // Cancelar circuito
+    if (a.intervaloCircuito) {
+      clearInterval(a.intervaloCircuito);
+      a.intervaloCircuito = null;
+    }
+
+    // Cancelar STAR
+    a.starActivo = false;
+
+    // Activar manual
+    socket.emit("activarManual", { id: a.id });
+
+  });
+
+});
 function pausarTiempo(){
   socket.emit("controlTiempo", {
     accion:"pausar"

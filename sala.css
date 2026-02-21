@@ -172,6 +172,12 @@ html, body{
 
 .estado-interceptando{
   background: #ff8800;
+}#panelInfoAeronave{
+  pointer-events: none;
+}
+
+#panelInfoAeronave *{
+  pointer-events: auto;
 }
 /* ================= PANEL DE ACCIONES =================*/
 /* ============================= */

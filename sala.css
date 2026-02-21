@@ -635,12 +635,12 @@ z-index: 10000;
   position: absolute;
   top: 15px;
   right: 15px;
-  background: #111;
-  padding: 12px;
-  border-radius: 10px;
+  background: rgba(20,20,20,0.95);
+  padding: 10px 14px;
+  border-radius: 8px;
   color: white;
+  z-index: 9999;   
   font-family: monospace;
-  min-width: 180px;
 }
 
 .tiempoTop {

@@ -737,8 +737,15 @@ socket.on("ajusteManual", ({ id, tipo, valor }) => {
   }
 
   if (tipo === "speed") {
-    a.velocidad = Math.max(0, (a.velocidad || 200) + valor)
-  }
+
+  const nudosEnMPS = valor * 0.514444
+
+  a.velocidad = Math.max(
+    0,
+    (a.velocidad || 90 * 0.514444) + nudosEnMPS
+  )
+
+}
 
   if (tipo === "altitude") {
     a.altitud = Math.max(0, a.altitud + valor)

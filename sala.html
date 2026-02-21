@@ -871,7 +871,15 @@ socket.on("actualizarAeronave", data => {
   if (avion.estado === "manual") {
     actualizarInteraccion(avion)
   }
+if (data.id === aeronaveSeleccionada?.id) {
 
+  if (data.estado === "manual") {
+    document.getElementById("panelManual").style.display = "block"
+  } else {
+    document.getElementById("panelManual").style.display = "none"
+  }
+
+}
   
   interpolarRemoto(
     avion,
@@ -2344,7 +2352,16 @@ function eliminarSeleccionada(){
 
 }
 
+function ajustar(tipo, valor) {
 
+  if (!aeronaveSeleccionada) return
+
+  socket.emit("ajusteManual", {
+    id: aeronaveSeleccionada.id,
+    tipo,
+    valor
+  })
+}
 
 // ================= CLOCK =================
 
@@ -2498,7 +2515,26 @@ function obtenerBoundsImagen(lat, lng, tamañoMetros){
   <button onclick="cambiarRumbo(1)">1° ›</button>
   <button onclick="cambiarRumbo(10)">10° »</button>
 </div>
+<div id="panelManual" style="display:none; position:absolute; bottom:20px; left:20px; background:#111; color:white; padding:15px; border-radius:8px;">
 
+  <h3>Control Manual</h3>
+
+  <div>
+    <button onclick="ajustar('heading', -5)">◀ 5°</button>
+    <button onclick="ajustar('heading', 5)">5° ▶</button>
+  </div>
+
+  <div>
+    <button onclick="ajustar('speed', -5)">-5 kt</button>
+    <button onclick="ajustar('speed', 5)">+5 kt</button>
+  </div>
+
+  <div>
+    <button onclick="ajustar('altitude', -100)">-100 ft</button>
+    <button onclick="ajustar('altitude', 100)">+100 ft</button>
+  </div>
+
+</div>
 <button id="btnDanger" onclick="activarModoPeligro()">
   ⚠
 </button>

@@ -1711,17 +1711,15 @@ map.on("zoom", () => {
 });
 
 function interpolarRemoto(avion, lat, lng, anguloServidor){
-
-  const actual = avion.marker.getLatLng()
-  const factor = 0.15
-
-  const nuevaLat =
-    actual.lat + (lat - actual.lat) * factor
-
-  const nuevaLng =
-    actual.lng + (lng - actual.lng) * factor
-
-  avion.marker.setLatLng([nuevaLat, nuevaLng])
+// 🔥 POSICIÓN EXACTA DEL SERVIDOR
+avion.marker.setLatLng([lat, lng])
+  //const actual = avion.marker.getLatLng()
+ // const factor = 0.15
+  //const nuevaLat =
+   // actual.lat + (lat - actual.lat) * factor
+  //const nuevaLng =
+   // actual.lng + (lng - actual.lng) * factor
+ // avion.marker.setLatLng([nuevaLat, nuevaLng])
 
   // Inicializar
   if(avion.angulo === undefined || avion.angulo === null){

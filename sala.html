@@ -87,65 +87,7 @@ const iconoC172 = L.divIcon({
   iconAnchor: [20, 20]
 });
 
-// Unirse realmente a la sala
-socket.on("cargarAeronaves", lista => {
 
-  lista.forEach(data => {
-
-    if (aeronaves.some(a => a.id === data.id)) return
-
-    const marker = L.marker([data.lat, data.lng], {
-      icon: crearIcono(data.id, data.tipo),
-      interactive: true
-    }).addTo(map)
-
-    const nueva = {
-      id: data.id,
-      tipo: data.tipo,
-      estado: "idle",
-      indiceRuta: 0,
-      rutaRecorrida: null,
-      marker: marker,
-      remoto: true,
-      altitud: data.altitud || 0,
-      angulo: data.angulo || 0,
-      velocidadObjetivo: 0,
-      ruta: null,        
-      puntosRuta: []
-    }
-
-    aeronaves.push(nueva)
-
-    marker.on("click", function(event){
-
-      L.DomEvent.stopPropagation(event)
-
-      if (modoEliminar) {
-
-  if(nueva.estado !== "idle"){
-    alert("Cannot remove aircraft while operating")
-    return
-  }
-
-  const confirmar = confirm("Remove aircraft " + nueva.id + "?")
-  if(!confirmar) return
-
-  socket.emit("eliminarAeronave", nueva.id)
-
-  modoEliminar = false
-  btnEliminar.classList.remove("activo")
-
-  return
-}
-
-
-      seleccionarAeronave(nueva)
-
-    })
-
-  })
-
-})
 socket.on("horaSala", data => {
   const reloj = document.getElementById("relojGlobal");
   if(!reloj) return;
@@ -658,7 +600,6 @@ function confirmarCreacion(){
     return
   }
 
-  // 🔴 VALIDACIÓN IMPORTANTE
   if(!window.tempLatLng){
     alert("Click en el mapa primero para elegir posición")
     return
@@ -667,104 +608,18 @@ function confirmarCreacion(){
   const lat = window.tempLatLng.lat
   const lng = window.tempLatLng.lng
 
-  console.log("✈ Creando aeronave en:", lat, lng)
-
-  const marker = L.marker([lat, lng], {
-    icon: crearIcono(callsign, tipo),
-    draggable: true
-  }).addTo(map)
-
-
-  const nueva = {
-    tipo,
-    id: callsign,
-    marker,
-    remoto: false, 
-    ruta: null,
-    rutaRecorrida: null,
-    puntosRuta: [],
-    indiceRuta: 0,
-modoRuta: false,
-  rutaTemporal: [],
-    angulo: 0,
-    sid: null,
-    altitud: 0,
-    velocidad: 0,
-    velocidadObjetivo: 0,
-    star: null,
-    starActivo: false,
-    faseStar: null,
-    estado: "idle",
-
-animFrame: null,
-    altitudObjetivo: null,
-    
-  }
-marker.on("drag", function(e){
-
-  const pos = e.target.getLatLng()
-
-  sincronizarMovimiento(nueva, pos.lat, pos.lng)
-})
-
-  aeronaves.push(nueva)
-actualizarInteraccion(nueva)
-
-  marker.on("click", function(event){
-
-    L.DomEvent.stopPropagation(event)
-
-    if (modoEliminar) {
-
-  // 🚫 No permitir borrar si no está en idle
-  if(nueva.estado !== "idle"){
-    alert("Cannot remove aircraft while operating")
-    return
-  }
-
-  const confirmar = confirm("Remove aircraft " + nueva.id + "?")
-  if(!confirmar) return
-
-  socket.emit("eliminarAeronave", nueva.id)
-
-  modoEliminar = false
-  btnEliminar.classList.remove("activo")
-
-  return
-}
-
-
-    seleccionarAeronave(nueva)
-  })
-
-  marker.on("dragstart", function(){
-
-  if(nueva.estado !== "idle"){
-    nueva.marker.dragging.disable()
-    return
-  }
-
-  if(nueva.ruta){
-    eliminarRuta(nueva)
-  }
-
-  nueva.modoRuta = false
-})
-
-
+  console.log("✈ Solicitud de creación enviada:", lat, lng)
 
   cerrarCrearPanel()
   document.removeEventListener("click", cerrarSiClickFuera)
 
-
-  // 🚀 Emitir al servidor
+  // 🔥 SOLO ESTO
   socket.emit("crearAeronave", {
     id: callsign,
     tipo,
     lat,
     lng
   })
-
 }
 
 socket.on("crearAeronave", data => {

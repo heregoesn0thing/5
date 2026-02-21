@@ -540,7 +540,9 @@ if (timeoutsSalas[nombre]) {
   clearTimeout(timeoutsSalas[nombre]);
   delete timeoutsSalas[nombre];
 }
-    socket.emit("cargarAeronaves", salas[nombre].aeronaves);
+    salas[nombre].aeronaves.forEach(a => {
+  socket.emit("crearAeronave", a);
+});
 if (peligroSalas[nombre]) {
   socket.emit("peligroActivado");
 }

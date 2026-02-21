@@ -77,107 +77,116 @@ html, body{
 /* ============================= */
 #panelInfoAeronave{
   position: fixed;
-  top: 20px;
-  left: 20px;
-  width: 280px;
+  top: 10px;
+  left: 10px;
+  width: 230px;
 
-  background: linear-gradient(
-    145deg,
-    rgba(18,18,18,0.95),
-    rgba(10,10,10,0.95)
-  );
+  background: linear-gradient(145deg,#0f172a,#111827);
+  border-radius: 12px;
 
-  backdrop-filter: blur(8px);
-  border-radius: 18px;
-  padding: 18px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.45);
+  padding: 14px;
 
-  color: #e5e5e5;
-  font-family: "Consolas", monospace;
+  font-family: "Segoe UI", sans-serif;
   font-size: 13px;
-
-  border: 1px solid rgba(255,255,255,0.05);
-
-  box-shadow:
-    0 15px 35px rgba(0,0,0,0.6),
-    inset 0 1px 1px rgba(255,255,255,0.04);
-
-  z-index: 2000;
-  transition: 0.25s ease;
+  color: #e5e7eb;
+ /* Animación desplegable */
+  overflow: hidden;
+  transition: all 0.3s ease;
+  
+  
+  z-index: 4000;
+  display: flex;
+  flex-direction: column;
 }
 
-/* Header */
+/* HEADER */
 .panel-header{
-  font-weight: bold;
-  font-size: 14px;
-  letter-spacing: 1px;
-  margin-bottom: 12px;
-  padding-bottom: 6px;
-
   display: flex;
   justify-content: space-between;
   align-items: center;
 
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1px;
+
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 
-/* Indicador estado (bolita) */
+/* Cuando está colapsado */
+#panelInfoAeronave.contraido{
+  padding-bottom: 8px;
+  height: auto;
+}
+#panelInfoAeronave.contraido .panel-body{
+  max-height: 0;
+  opacity: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+#panelInfoAeronave .panel-body{
+  max-height: 500px;
+  opacity: 1;
+  transition: all 0.3s ease;
+}
+
+/* Icono */
+.header-controls{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#panelToggleIcon{
+  font-size: 12px;
+  transition: transform 0.3s ease;
+}
+
+/* Rotación del icono */
+#panelInfoAeronave.contraido #panelToggleIcon{
+  transform: rotate(-90deg);
+}
+/* Indicador de estado */
 .estado-indicador{
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: gray;
+  background: #6b7280;
+}
+
+/* BODY */
+.panel-body{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 /* Filas */
-.panel-body{
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  row-gap: 8px;
-  column-gap: 10px;
-}
-
 .panel-body div{
   display: flex;
   justify-content: space-between;
+  align-items: center;
+
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 
+/* Etiquetas */
 .label{
-  color: #888;
+  color: #9ca3af;
+  font-size: 12px;
+  font-weight: 500;
 }
 
+/* Valores */
 .valor{
-  font-weight: bold;
-  color: #fff;
-}
-
-/* Estados dinámicos */
-.estado-idle .estado-indicador{
-  background: #666;
-}
-
-.estado-taxi .estado-indicador{
-  background: #00c3ff;
-  box-shadow: 0 0 8px #00c3ff;
-}
-
-.estado-manual .estado-indicador{
-  background: #00ff88;
-  box-shadow: 0 0 10px #00ff88;
-}
-
-.estado-circuito .estado-indicador{
-  background: #ffd000;
-  box-shadow: 0 0 10px #ffd000;
-}
-
-.estado-interceptando{
-  background: #ff8800;
-}#panelInfoAeronave{
-  pointer-events: none;
-}
-
-#panelInfoAeronave *{
-  pointer-events: auto;
+  color: #ffffff;
+  font-weight: 600;
 }
 /* ================= PANEL DE ACCIONES =================*/
 /* ============================= */

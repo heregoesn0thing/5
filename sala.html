@@ -48,14 +48,16 @@
 
 <div id="panelInfoAeronave" class="estado-idle">
 
-  <div class="panel-header">
-    <span>✈ AERONAVE</span>
+  <div class="panel-header" onclick="togglePanelInfo()">
+  <span id="header-id">✈ ---</span>
+  <div class="header-controls">
     <div class="estado-indicador"></div>
+    <span id="panelToggleIcon">▾</span>
   </div>
+</div>
 
   <div class="panel-body">
 
-    <div><span class="label">ID</span><span class="valor" id="info-id">---</span></div>
     <div><span class="label">Estado</span><span class="valor" id="info-estado">---</span></div>
 
     <div><span class="label">Alt</span><span class="valor" id="info-altitud">---</span></div>
@@ -1070,7 +1072,7 @@ document.getElementById("btnManual")
 function actualizarPanelInfoAeronave(a){
 
   if(!a) return
-
+document.getElementById("header-id").textContent = "✈ " + (a.id || "---")
   document.getElementById("info-id").textContent = a.id || "-"
   document.getElementById("info-estado").textContent = a.estado || "-"
 
@@ -1088,6 +1090,14 @@ function actualizarPanelInfoAeronave(a){
 
   document.getElementById("info-lng").textContent =
     a.lng !== undefined ? a.lng.toFixed(5) : "-"
+}
+
+function togglePanelInfo(){
+
+  const panel = document.getElementById("panelInfoAeronave")
+
+  panel.classList.toggle("contraido")
+
 }
 function actualizarBotonTaxi(){
 
@@ -1343,7 +1353,6 @@ function iniciarRodaje(){
   actualizarBotonTaxi()
 
   aeronaveSeleccionada = null
-  cerrarPanel()
 
 }
 

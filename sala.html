@@ -1911,6 +1911,19 @@ map.on("zoom", () => {
 
 function interpolarRemoto(avion, lat, lng, anguloServidor){
 
+  // 🔥 Si está en manual → obedecer exacto
+  if(avion.estado === "manual"){
+    avion.marker.setLatLng([lat, lng])
+    avion.angulo = anguloServidor
+    actualizarRotacion(avion)
+    return
+  }
+
+  // 🔥 Si no tiene marker aún, colocarlo directo
+  if(!avion.marker){
+    return
+  }
+
   const actual = avion.marker.getLatLng()
   const factor = 0.25
 
@@ -1922,16 +1935,15 @@ function interpolarRemoto(avion, lat, lng, anguloServidor){
 
   avion.marker.setLatLng([nuevaLat, nuevaLng])
 
-  // Inicializar
+  // Inicializar ángulo
   if(avion.angulo === undefined || avion.angulo === null){
     avion.angulo = anguloServidor
   }
 
-  // Diferencia angular correcta
   const diff =
     (anguloServidor - avion.angulo + 540) % 360 - 180
 
-  // Solo corregir si está completamente desfasado
+  // Solo snap fuerte en circuito/interceptando
   if(
     (avion.estado === "circuito" || avion.estado === "interceptando")
     && Math.abs(diff) > 120
@@ -1939,7 +1951,6 @@ function interpolarRemoto(avion, lat, lng, anguloServidor){
     avion.angulo = anguloServidor
   }
 
-  // Interpolación suave
   const factorGiro = 0.3
   avion.angulo += diff * factorGiro
   avion.angulo = (avion.angulo + 360) % 360

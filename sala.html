@@ -2143,7 +2143,34 @@ function actualizarDisplaysManual(a){
   document.getElementById("displayAlt").textContent =
     Math.round(a.altitud || 0)
 }
+function actualizarDisplaysManual(avion) {
 
+  if (!avion) return
+
+  // 🧭 Heading
+  const heading = Math.round(avion.angulo || 0)
+  const headingFormateado = heading.toString().padStart(3, "0") + "°"
+
+  const hdgEl = document.getElementById("hdgValue")
+  if (hdgEl) hdgEl.textContent = headingFormateado
+
+
+  // 🚀 Speed (m/s → knots)
+  const velocidadMPS = avion.velocidad || 0
+  const knots = Math.round(velocidadMPS / 0.514444)
+  const speedFormateada = knots.toString().padStart(3, "0") + " kt"
+
+  const spdEl = document.getElementById("spdValue")
+  if (spdEl) spdEl.textContent = speedFormateada
+
+
+  // 🛫 Altitude
+  const altitud = Math.round(avion.altitud || 0)
+  const altFormateada = altitud.toString().padStart(4, "0") + " ft"
+
+  const altEl = document.getElementById("altValue")
+  if (altEl) altEl.textContent = altFormateada
+}
 function mostrarTaxiing(a,estado){
   const el = a.marker.getElement()
   if(!el) return

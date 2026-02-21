@@ -958,7 +958,28 @@ function activarManual(id) {
 
   socket.emit("activarManual", { id });
 }
+function sincronizarMovimiento(a, lat, lng){
 
+  if(a.remoto) return
+
+  const ahora = performance.now()
+
+
+  if(!a.ultimoSync) a.ultimoSync = 0
+  if(ahora - a.ultimoSync < 100) return
+
+  a.ultimoSync = ahora
+
+  socket.emit("actualizarAeronave", {
+  id: a.id,
+  lat,
+  lng,
+  altitud: a.altitud,
+  angulo: a.angulo,
+  estado: a.estado
+})
+
+}
 // ================= PANEL =================
 
 function seleccionarAeronave(obj){

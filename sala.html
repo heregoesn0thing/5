@@ -45,9 +45,19 @@
   </div>
 
 </div>
-<div class="grupo-botones">
-  <button id="btnEliminarModo" class="btn-eliminar">🗑</button>
-  <button onclick="actualizarSesion()" class="btn-actualizar">⟳</button>
+<div id="menuAcciones">
+
+  <div id="submenuAcciones">
+    <button id="btnDanger" class="btn-accion" onclick="activarModoPeligro()">⚠</button>
+  <button onclick="actualizarSesion()" class="btn-accion">⟳</button>
+  
+  <button id="btnEliminarModo" class="btn-accion">🗑</button>
+</div>
+
+  <button onclick="toggleMenuAcciones()" id="btnMenuPrincipal">
+    ⋮
+  </button>
+
 </div>
 <button id="btnCapas" class="btn-vor">...</button>
 
@@ -963,7 +973,20 @@ socket.on("borrarAeronave", id => {
 })
 
 
+function toggleMenuAcciones(){
+  const menu = document.getElementById("submenuAcciones")
+  menu.classList.toggle("activo")
+}
+document.addEventListener("click", function(e){
 
+  const menu = document.getElementById("submenuAcciones")
+  const contenedor = document.getElementById("menuAcciones")
+
+  if (!contenedor.contains(e.target)){
+    menu.classList.remove("activo")
+  }
+
+})
 // ================= PANEL =================
 function entrarSala(nombre){
   socket.emit("unirseSala", nombre)
@@ -2588,9 +2611,6 @@ function obtenerBoundsImagen(lat, lng, tamañoMetros){
   </div>
 
 </div>
-<button id="btnDanger" onclick="activarModoPeligro()">
-  ⚠
-</button>
 
 </body>
 </html>

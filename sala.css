@@ -752,3 +752,36 @@ html, body{
   color: black;
   border-color: #00ffcc;
 }
+
+.grupo-botones{
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+}
+
+.btn-eliminar{
+  background: #c62828;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-eliminar:hover{
+  background: #b71c1c;
+}
+
+.btn-actualizar{
+  background: #1565c0;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-actualizar:hover{
+  background: #0d47a1;
+}

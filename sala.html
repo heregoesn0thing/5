@@ -721,20 +721,6 @@ if (aeronaveSeleccionada && avion.id === aeronaveSeleccionada.id) {
   actualizarPanelManual();
 }
 
-  if (avion.estado === "manual") {
-
-  iniciarMotorManual(avion);
-  actualizarInteraccion(avion);
-
-} else {
-
-  if(avion.intervaloManual){
-    clearInterval(avion.intervaloManual);
-    avion.intervaloManual = null;
-  }
-
-}
-
 });
 
 document.getElementById("btnExtender").addEventListener("click", () => {
@@ -1222,51 +1208,6 @@ function enviarAjuste(tipo, valor) {
     valor
   })
 }
-// ================= MOTOR MANUAL =================
-
-function iniciarMotorManual(a){
-
-  if(a.intervaloManual){
-    clearInterval(a.intervaloManual)
-  }
-
-  a.intervaloManual = setInterval(()=>{
-
-    if(a.estado !== "manual") return
-
-    // Giro suave hacia heading objetivo
-    if(a.headingObjetivo !== undefined){
-      a.angulo = girarSuavemente(
-        a,
-        a.angulo,
-        a.headingObjetivo
-      )
-    }
-
-    // Movimiento según velocidad actual
-    const headingRad = a.angulo * Math.PI/180
-    const actual = a.marker.getLatLng()
-
-    const mps = (a.velocidad || 0) * 0.514444
-
-    const deltaLat = (Math.cos(headingRad) * mps) / 111320
-    const deltaLng = (Math.sin(headingRad) * mps) /
-                     (111320 * Math.cos(actual.lat*Math.PI/180))
-
-    const nuevaLat = actual.lat + deltaLat
-    const nuevaLng = actual.lng + deltaLng
-
-    a.marker.setLatLng([nuevaLat, nuevaLng])
-
-    actualizarRotacion(a)
-
-    if(aeronaveSeleccionada === a){
-      actualizarDisplaysManual(a)
-      actualizarPanelInfo(a)
-    }
-
-  },50)
-}
 let intervaloCambio = null
 
 function iniciarCambio(tipo, incremento, event){
@@ -1462,97 +1403,6 @@ if(a.estado === "manual"){
     clearInterval(a.intervaloVuelo)
   }
 
-  a.intervaloVuelo = setInterval(()=>{
-
-    // ================= ACELERACIÓN PROGRESIVA =================
-
-    const aceleracion = 0.8
-
-    if(a.velocidad < a.velocidadObjetivo){
-      a.velocidad += aceleracion
-      if(a.velocidad > a.velocidadObjetivo)
-        a.velocidad = a.velocidadObjetivo
-    }
-
-    // ================= ASCENSO =================
-
-    if(a.velocidad >= 25){
-
-      const climbFPM = CLIMB_RATE[a.tipo] || 2000
-      const climbFPS = climbFPM / 60
-      a.altitud += climbFPS * 0.05
-    }
-
-    // ================= EJECUTAR STAR =================
-
-    if(a.starActivo){
-      ejecutarSTAR(a)
-    }
-
-    // ================= GIRO SUAVE =================
-
-    a.angulo = girarSuavemente(
-      a,
-      a.angulo || a.headingObjetivo,
-      a.headingObjetivo
-    )
-
-    actualizarRotacion(a)
-
-    // ================= MOVIMIENTO =================
-
-    const headingRad = a.angulo * Math.PI/180
-    const actual = a.marker.getLatLng()
-
-    const mps = a.velocidad * 0.514444
-
-    const deltaLat = (Math.cos(headingRad) * mps) / 111320
-    const deltaLng = (Math.sin(headingRad) * mps) /
-                     (111320 * Math.cos(actual.lat*Math.PI/180))
-
-    const nuevaLat = actual.lat + deltaLat
-const nuevaLng = actual.lng + deltaLng
-
-a.lat = nuevaLat
-a.lng = nuevaLng
-
-a.marker.setLatLng([a.lat, a.lng])
-
-
-
-    // ================= FADE 80 NM =================
-
-    const distanciaSalida = map.distance(
-      puntoSalida,
-      a.marker.getLatLng()
-    )
-
-    if(distanciaSalida > DISTANCIA_FADE){
-
-      const progreso = (distanciaSalida - DISTANCIA_FADE) /
-                       (DISTANCIA_REMOVE - DISTANCIA_FADE)
-
-      const opacidad = 1 - Math.min(progreso,1)
-
-      a.marker.getElement().style.opacity = opacidad
-    }
-
-    if(distanciaSalida >= DISTANCIA_REMOVE){
-
-      clearInterval(a.intervaloVuelo)
-socket.emit("eliminarAeronave", a.id)
-
-    }
-
-    // ================= ACTUALIZAR PANEL =================
-
-    if(aeronaveSeleccionada === a){
-      actualizarPanelInfo(a)
-    }
-const pos = a.marker.getLatLng()
-
-
-  },50)
 }
 
 // ================= DEPARTURE INFO =================

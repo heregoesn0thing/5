@@ -135,7 +135,7 @@ if (a.altitud !== undefined && a.altitudObjetivo !== undefined) {
 // 🧭 GIRO PROGRESIVO HACIA HEADING OBJETIVO
 // =====================================
 
-if (a.headingObjetivo !== undefined) {
+if (typeof a.headingObjetivo === "number") {
 
   const diff = diferenciaAngular(a.angulo, a.headingObjetivo)
   const maxGiroPorSegundo = 25 // grados por segundo
@@ -570,7 +570,9 @@ estado: "idle"
 })
 
 
-  io.to(sala).emit("crearAeronave", data);
+const nueva = salas[sala].aeronaves[salas[sala].aeronaves.length - 1];
+
+io.to(sala).emit("crearAeronave", nueva);
 iniciarMotorSala(sala)
 
 });
@@ -641,7 +643,7 @@ socket.on("actualizarAeronave", (data) => {
 if(typeof data.estado === "string"){
   aeronave.estado = data.estado
 }
-
+if (aeronave.estado !== "manual") return;
   aeronave.lat = data.lat;
   aeronave.lng = data.lng;
   aeronave.altitud = data.altitud;
@@ -806,7 +808,8 @@ socket.on("ajusteManual", ({ id, tipo, valor }) => {
     const base = a.velocidadObjetivo ?? a.velocidad ?? 0
     const nuevaObjetivo = base + valor
 
-    a.velocidadObjetivo = Math.max(0, Math.min(500, nuevaObjetivo))
+    const maxSpeed = 250 * 0.514444;
+a.velocidadObjetivo = Math.max(0, Math.min(maxSpeed, nuevaObjetivo))
   }
 
   // =====================================

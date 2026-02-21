@@ -280,7 +280,18 @@ html, body{
   transform: translateY(-3px) scale(1.05);
   background: rgba(50,50,50,0.9);
 }
+/* ESTILO ESPECIAL PARA BOTÓN STOP */
+.btn-menu.stop {
+  background: linear-gradient(135deg, #7f1d1d, #991b1b);
+  color: white;
+  font-weight: 600;
+}
 
+.btn-menu.stop:hover {
+  background: linear-gradient(135deg, #b91c1c, #dc2626);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.4);
+}
 /* ============================= */
 /* DANGER ⚠ */
 /* ============================= */

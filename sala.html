@@ -77,7 +77,7 @@
   <div id="submenuAcciones">
     <button id="btnDanger" class="btn-accion" onclick="activarModoPeligro()">⚠</button>
   <button onclick="actualizarSesion()" class="btn-accion">⟳</button>
-  
+  <button class="btn-menu stop" onclick="detenerTodo()">⛔</button>
   <button id="btnEliminarModo" class="btn-accion">🗑</button>
 </div>
 
@@ -2136,7 +2136,14 @@ a.lng = nuevaPos.lng
   a.motorTaxi = setInterval(motor, 16)
 }
 
+function detenerTodo(){
 
+  if(!aeronaveSeleccionada) return
+
+  socket.emit("detenerTodo", {
+    id: aeronaveSeleccionada.id
+  })
+}
 function actualizarRutaRecorrida(a){
 
   if(!a.ruta || !a.rutaRecorrida) return

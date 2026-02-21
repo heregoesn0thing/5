@@ -72,6 +72,106 @@ html, body{
   background:#000;
   padding:6px;
   border-radius:4px;
+}/* ============================= */
+/* PANEL INFO AERONAVE - ATC */
+/* ============================= */
+#panelInfoAeronave{
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  width: 280px;
+
+  background: linear-gradient(
+    145deg,
+    rgba(18,18,18,0.95),
+    rgba(10,10,10,0.95)
+  );
+
+  backdrop-filter: blur(8px);
+  border-radius: 18px;
+  padding: 18px;
+
+  color: #e5e5e5;
+  font-family: "Consolas", monospace;
+  font-size: 13px;
+
+  border: 1px solid rgba(255,255,255,0.05);
+
+  box-shadow:
+    0 15px 35px rgba(0,0,0,0.6),
+    inset 0 1px 1px rgba(255,255,255,0.04);
+
+  z-index: 2000;
+  transition: 0.25s ease;
+}
+
+/* Header */
+.panel-header{
+  font-weight: bold;
+  font-size: 14px;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+/* Indicador estado (bolita) */
+.estado-indicador{
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: gray;
+}
+
+/* Filas */
+.panel-body{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  row-gap: 8px;
+  column-gap: 10px;
+}
+
+.panel-body div{
+  display: flex;
+  justify-content: space-between;
+}
+
+.label{
+  color: #888;
+}
+
+.valor{
+  font-weight: bold;
+  color: #fff;
+}
+
+/* Estados dinámicos */
+.estado-idle .estado-indicador{
+  background: #666;
+}
+
+.estado-taxi .estado-indicador{
+  background: #00c3ff;
+  box-shadow: 0 0 8px #00c3ff;
+}
+
+.estado-manual .estado-indicador{
+  background: #00ff88;
+  box-shadow: 0 0 10px #00ff88;
+}
+
+.estado-circuito .estado-indicador{
+  background: #ffd000;
+  box-shadow: 0 0 10px #ffd000;
+}
+
+.estado-interceptando{
+  background: #ff8800;
 }
 /* ================= PANEL DE ACCIONES =================*/
 /* ============================= */

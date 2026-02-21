@@ -45,6 +45,31 @@
   </div>
 
 </div>
+
+<div id="panelInfoAeronave" class="estado-idle">
+
+  <div class="panel-header">
+    <span>✈ AERONAVE</span>
+    <div class="estado-indicador"></div>
+  </div>
+
+  <div class="panel-body">
+
+    <div><span class="label">ID</span><span class="valor" id="info-id">---</span></div>
+    <div><span class="label">Estado</span><span class="valor" id="info-estado">---</span></div>
+
+    <div><span class="label">Alt</span><span class="valor" id="info-altitud">---</span></div>
+    <div><span class="label">Vel</span><span class="valor" id="info-velocidad">---</span></div>
+
+    <div><span class="label">HDG</span><span class="valor" id="info-heading">---</span></div>
+    <div><span class="label">Lat</span><span class="valor" id="info-lat">---</span></div>
+
+    <div><span class="label">Lng</span><span class="valor" id="info-lng">---</span></div>
+
+  </div>
+
+</div>
+
 <div id="menuAcciones">
 
   <div id="submenuAcciones">
@@ -462,7 +487,7 @@ let modoEliminar = false;
 let marcadorPeligro = null;
 let imagenPeligro = null;
 let temporizadorPeligro = null;
-
+let ultimaAeronaveSeleccionada = null
 const VELOCIDAD = 8
 const TIPOS = ["A320","A319","C172","AN32"]
 const RUMBO_PISTA_22 = 220
@@ -892,7 +917,10 @@ socket.on("actualizarAeronave", data => {
   if (avion.estado === "manual") {
     actualizarInteraccion(avion)
   }
-
+if (ultimaAeronaveSeleccionada && avion.id === ultimaAeronaveSeleccionada.id){
+  ultimaAeronaveSeleccionada = avion
+  actualizarPanelInfoAeronave(avion)
+}
   interpolarRemoto(
     avion,
     data.lat,
@@ -999,6 +1027,9 @@ function actualizarSesion(){
 function seleccionarAeronave(obj){
 
   aeronaveSeleccionada = obj
+ ultimaAeronaveSeleccionada = obj  
+
+  actualizarPanelInfoAeronave(obj)
 
   document.getElementById("aircraftTitle").innerText = obj.id
 
@@ -1036,6 +1067,31 @@ document.getElementById("btnManual")
     })
 
 })
+function actualizarPanelInfoAeronave(a){
+
+  if(!a) return
+
+  const panel = document.getElementById("panelInfoAeronave")
+
+  panel.className = ""   // limpiar clases
+  panel.classList.add("estado-" + a.estado)
+
+  document.getElementById("info-id").textContent = a.id
+  document.getElementById("info-estado").textContent = a.estado
+  document.getElementById("info-altitud").textContent = a.altitud + " ft"
+
+  document.getElementById("info-velocidad").textContent =
+    Math.round((a.velocidad || 0) / 0.514444) + " kt"
+
+  document.getElementById("info-heading").textContent =
+    Math.round(a.angulo || 0) + "°"
+
+  document.getElementById("info-lat").textContent =
+    a.lat.toFixed(5)
+
+  document.getElementById("info-lng").textContent =
+    a.lng.toFixed(5)
+}
 function actualizarBotonTaxi(){
 
   const btn = document.getElementById("btnTaxi")

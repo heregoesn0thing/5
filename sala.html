@@ -2216,8 +2216,8 @@ function sincronizarMovimiento(a, lat, lng){
 
   socket.emit("actualizarAeronave", {
     id: a.id,
-    lat,
-    lng,
+    lat: lat,
+    lng: lng,
     altitud: a.altitud,
     velocidad: a.velocidad,
     angulo: a.angulo,
@@ -2225,7 +2225,7 @@ function sincronizarMovimiento(a, lat, lng){
     altitudObjetivo: a.altitudObjetivo,
     velocidadObjetivo: a.velocidadObjetivo,
     estado: a.estado
-  });
+  })
 
 }
 function actualizarDisplaysManual(a){

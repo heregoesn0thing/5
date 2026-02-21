@@ -46,6 +46,7 @@
 
 </div>
 <button id="btnEliminarModo">🗑</button>
+<button onclick="actualizarSesion()">Actualizar</button>
 <button id="btnCapas" class="btn-vor">...</button>
 
 <div id="panelCapas" class="panel-capas oculto">
@@ -62,7 +63,15 @@ const socket = io()
 const params = new URLSearchParams(window.location.search);
 const nombreSala = params.get("nombre");
 let rutaServidor = null
+socket.on("connect", () => {
 
+  const salaGuardada = localStorage.getItem("salaActiva")
+
+  if (salaGuardada) {
+    socket.emit("unirseSala", salaGuardada)
+  }
+
+})
 socket.on("rutaCircuito", data => {
   rutaServidor = data.ruta
 })
@@ -954,6 +963,13 @@ socket.on("borrarAeronave", id => {
 
 
 // ================= PANEL =================
+function entrarSala(nombre){
+  socket.emit("unirseSala", nombre)
+  localStorage.setItem("salaActiva", nombre)
+}
+function actualizarSesion(){
+  location.reload()
+}
 
 function seleccionarAeronave(obj){
 

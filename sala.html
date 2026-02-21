@@ -2226,35 +2226,11 @@ function sincronizarMovimiento(a, lat, lng){
     angulo: a.angulo,
     headingObjetivo: a.headingObjetivo,
     altitudObjetivo: a.altitudObjetivo,
-    velocidadObjetivo: a.velocidadObjetivo
+    velocidadObjetivo: a.velocidadObjetivo,
+    estado: a.estado
   });
 
 }
-
-function sincronizarMovimiento(a, lat, lng){
-
-  if(a.remoto) return
-
-  const ahora = performance.now()
-
-  if(!a.ultimoSync) a.ultimoSync = 0
-  if(ahora - a.ultimoSync < 80) return
-
-  a.ultimoSync = ahora
-
-  socket.emit("actualizarAeronave", {
-  id: a.id,
-  lat,
-  lng,
-  altitud: a.altitud,
-  velocidad: a.velocidad,
-  angulo: a.angulo,
-  headingObjetivo: a.headingObjetivo,
-  altitudObjetivo: a.altitudObjetivo,
-  velocidadObjetivo: a.velocidadObjetivo
-});
-}
-
 function actualizarDisplaysManual(a){
 
   // HEADING REAL

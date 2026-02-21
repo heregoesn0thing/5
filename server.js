@@ -304,7 +304,8 @@ if (typeof a.headingObjetivo === "number") {
       } else {
 
         const diff = diferenciaAngular(a.angulo, rumboDeseado)
-        const maxGiro = 2
+        const maxGiroPorSegundo = 25
+const maxGiro = maxGiroPorSegundo * deltaSeg
 
         if (Math.abs(diff) < maxGiro) {
           a.angulo = rumboDeseado
@@ -583,7 +584,11 @@ socket.on("extenderSalida", ({ metros }) => {
 
   const sala = salas[nombreSala]
   if (!sala) return
-
+if (sala.aeronaves.length === 0) {
+  clearInterval(motoresSalas[nombreSala])
+  delete motoresSalas[nombreSala]
+  return
+}
   // Sumar extensión
   sala.extensionExtra += metros
 
@@ -823,22 +828,6 @@ a.velocidadObjetivo = Math.max(0, Math.min(maxSpeed, nuevaObjetivo))
     a.altitudObjetivo = Math.max(0, Math.min(45000, nuevaAltObjetivo))
   }
 
-  // =====================================
-  // 📡 EMITIR ACTUALIZACIÓN
-  // =====================================
-  io.to(salaNombre).emit("actualizarAeronave", {
-    id: a.id,
-    lat: a.lat,
-    lng: a.lng,
-    altitud: a.altitud,
-    altitudObjetivo: a.altitudObjetivo,
-    angulo: a.angulo,
-    headingObjetivo: a.headingObjetivo,
-    velocidad: a.velocidad,
-    velocidadObjetivo: a.velocidadObjetivo,
-    estado: a.estado
-  })
-
 })
   // ===== CONTROL DEL TIEMPO =====
 socket.on("controlTiempo", ({ accion, valor }) => {
@@ -920,7 +909,7 @@ socket.on("disconnect", () => {
     if (salas[nombre].jugadores.length === 0) {
 
       // Evitar múltiples timeouts
-      if (timeoutsSalas[nombre]) return;
+      if (timeoutsSalas[nombre]) continue;
 
       console.log(`⏳ Sala ${nombre} vacía. Eliminando en 5 minutos si nadie entra.`);
 

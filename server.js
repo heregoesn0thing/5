@@ -647,10 +647,10 @@ socket.on("actualizarAeronave", (data) => {
   const aeronave = salas[sala].aeronaves.find(a => a.id === data.id);
   if (!aeronave) return;
 
-  // 🔒 Solo el dueño puede actualizar
+  // 🔒 Solo el dueño puede enviar comandos
   if (aeronave.owner !== socket.id) return;
 
-  // 🛡 Validaciones
+  // 🛡 Validaciones mínimas
   if (typeof data.lat !== "number") return;
   if (typeof data.lng !== "number") return;
   if (typeof data.altitud !== "number") return;
@@ -661,16 +661,13 @@ socket.on("actualizarAeronave", (data) => {
     aeronave.estado = data.estado;
   }
 
-  // 🔒 Solo permitir movimiento en manual
-  if (aeronave.estado !== "manual") return;
-
-  // 🔄 Actualizar datos en servidor
+  // ✅ ACTUALIZAR SIEMPRE
   aeronave.lat = data.lat;
   aeronave.lng = data.lng;
   aeronave.altitud = data.altitud;
   aeronave.angulo = data.angulo;
 
-  // 📡 Reenviar a TODOS (incluido dueño)
+  // 📡 Reenviar a TODOS
   io.to(sala).emit("actualizarAeronave", {
     id: aeronave.id,
     lat: aeronave.lat,

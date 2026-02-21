@@ -635,7 +635,7 @@ socket.on("crearAeronave", data => {
   id: data.id,
   tipo: data.tipo,
   marker: marker,
-  remoto: data.esPropietario ? false : true,
+  remoto:  true,
   altitud: data.altitud || 0,
   angulo: data.angulo || 0,
   ruta: null,
@@ -1710,40 +1710,48 @@ map.on("zoom", () => {
   aeronaves.forEach(a => actualizarRotacion(a))
 });
 
-function interpolarRemoto(avion, lat, lng, anguloServidor){
-// 🔥 POSICIÓN EXACTA DEL SERVIDOR
-avion.marker.setLatLng([lat, lng])
-  //const actual = avion.marker.getLatLng()
- // const factor = 0.15
-  //const nuevaLat =
-   // actual.lat + (lat - actual.lat) * factor
-  //const nuevaLng =
-   // actual.lng + (lng - actual.lng) * factor
- // avion.marker.setLatLng([nuevaLat, nuevaLng])
+function interpolarRemoto(avion, latServidor, lngServidor, anguloServidor){
 
-  // Inicializar
-  if(avion.angulo === undefined || avion.angulo === null){
-    avion.angulo = anguloServidor
+  // Guardamos destino
+  avion.destinoLat = latServidor
+  avion.destinoLng = lngServidor
+  avion.destinoAngulo = anguloServidor
+
+  if(avion.animandoRemoto) return
+  avion.animandoRemoto = true
+
+  function animar(){
+
+    if(!avion.destinoLat) {
+      avion.animandoRemoto = false
+      return
+    }
+
+    const actual = avion.marker.getLatLng()
+
+    const factor = 0.25 // suavidad (0.2–0.35 ideal)
+
+    const nuevaLat =
+      actual.lat + (avion.destinoLat - actual.lat) * factor
+
+    const nuevaLng =
+      actual.lng + (avion.destinoLng - actual.lng) * factor
+
+    avion.marker.setLatLng([nuevaLat, nuevaLng])
+
+    // 🔄 Rotación suave
+    const deltaAng =
+      avion.destinoAngulo - (avion.angulo || 0)
+
+    avion.angulo =
+      (avion.angulo || 0) + deltaAng * 0.2
+
+    actualizarRotacion(avion, avion.angulo)
+
+    requestAnimationFrame(animar)
   }
 
-  // Diferencia angular correcta
-  const diff =
-    (anguloServidor - avion.angulo + 540) % 360 - 180
-
-  // Solo corregir si está completamente desfasado
-  if(
-    (avion.estado === "circuito" || avion.estado === "interceptando")
-    && Math.abs(diff) > 120
-  ){
-    avion.angulo = anguloServidor
-  }
-
-  // Interpolación suave
-  const factorGiro = 0.3
-  avion.angulo += diff * factorGiro
-  avion.angulo = (avion.angulo + 360) % 360
-
-  actualizarRotacion(avion)
+  requestAnimationFrame(animar)
 }
 function moverPorPuntos(a){
 

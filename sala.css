@@ -703,3 +703,117 @@ html, body{
   pointer-events: none;
   transform: translateY(-10px);
 }
+/* ================= CREATE AIRCRAFT PANEL ================= */
+
+#createAircraftPanel {
+  position: absolute;
+  top: 120px;
+  right: 20px;
+  width: 280px;
+  border-radius: 16px;
+
+  background: rgba(25, 30, 45, 0.96);
+  backdrop-filter: blur(10px);
+
+  box-shadow: 0 18px 45px rgba(0,0,0,0.55);
+
+  font-family: 'Segoe UI', sans-serif;
+  overflow: hidden;
+
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+/* HEADER */
+#createAircraftPanel .panelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  padding: 12px 16px;
+
+  background: linear-gradient(145deg, #1c2233, #232a3d);
+  border-bottom: 1px solid #2c344a;
+
+  font-size: 14px;
+  font-weight: 600;
+  color: #00e0ff;
+  letter-spacing: 0.5px;
+}
+
+/* BOTÓN CIERRE */
+#createAircraftPanel .panelHeader span:last-child {
+  font-size: 14px;
+  transition: 0.2s ease;
+}
+
+#createAircraftPanel .panelHeader span:last-child:hover {
+  color: #ff4d4d;
+  transform: scale(1.1);
+}
+
+/* BODY */
+#createAircraftPanel .panelBody {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* FORM SECTION */
+#createAircraftPanel .formSection {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+#createAircraftPanel label {
+  font-size: 12px;
+  color: #9ca3af;
+  letter-spacing: 0.3px;
+}
+
+/* INPUT & SELECT */
+#createAircraftPanel input,
+#createAircraftPanel select {
+  background: #151922;
+  border: 1px solid #2c344a;
+  color: #00e0ff;
+  padding: 8px;
+  border-radius: 8px;
+  font-size: 13px;
+  outline: none;
+  transition: 0.2s ease;
+}
+
+#createAircraftPanel input:focus,
+#createAircraftPanel select:focus {
+  border-color: #00e0ff;
+  box-shadow: 0 0 8px rgba(0,224,255,0.4);
+}
+
+/* BOTÓN PRINCIPAL */
+#createAircraftPanel .btnPrimary {
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+
+  background: linear-gradient(145deg, #008cff, #0055cc);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+
+  transition: 0.2s ease;
+}
+
+#createAircraftPanel .btnPrimary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0,140,255,0.5);
+}
+
+/* ANIMACIÓN DE OCULTO */
+.oculto {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-10px);
+}

@@ -1071,26 +1071,23 @@ function actualizarPanelInfoAeronave(a){
 
   if(!a) return
 
-  const panel = document.getElementById("panelInfoAeronave")
+  document.getElementById("info-id").textContent = a.id || "-"
+  document.getElementById("info-estado").textContent = a.estado || "-"
 
-  panel.className = ""   // limpiar clases
-  panel.classList.add("estado-" + a.estado)
-
-  document.getElementById("info-id").textContent = a.id
-  document.getElementById("info-estado").textContent = a.estado
-  document.getElementById("info-altitud").textContent = a.altitud + " ft"
+  document.getElementById("info-altitud").textContent =
+    (a.altitud ?? 0) + " ft"
 
   document.getElementById("info-velocidad").textContent =
-    Math.round((a.velocidad || 0) / 0.514444) + " kt"
+    Math.round(((a.velocidad ?? 0) / 0.514444)) + " kt"
 
   document.getElementById("info-heading").textContent =
-    Math.round(a.angulo || 0) + "°"
+    Math.round(a.angulo ?? 0) + "°"
 
   document.getElementById("info-lat").textContent =
-    a.lat.toFixed(5)
+    a.lat !== undefined ? a.lat.toFixed(5) : "-"
 
   document.getElementById("info-lng").textContent =
-    a.lng.toFixed(5)
+    a.lng !== undefined ? a.lng.toFixed(5) : "-"
 }
 function actualizarBotonTaxi(){
 

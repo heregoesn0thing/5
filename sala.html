@@ -247,21 +247,17 @@ socket.on("rutaCircuitoActualizada", () => {
   </div>
 </div>
 <div id="panelTiempo">
-
   <div class="tiempoTop">
-    <div id="relojGlobal">12:00:00</div>
-
+    <div id="relojGlobal">00:00:00</div>
     <div id="timeControls">
-      <button id="btnPausa">⏸</button>
-      <button id="btnConfig">⚙</button>
+      <button onclick="toggleConfig()">⚙</button>
     </div>
   </div>
 
   <div id="configHora" class="oculto">
     <input type="time" id="inputHora">
-    <button id="btnAplicarHora">OK</button>
+    <button onclick="aplicarHora()">OK</button>
   </div>
-
 </div>
 
 <div id="manualPanel">
@@ -2248,7 +2244,63 @@ function animarRuta(a){
   a.animRutaFrame = requestAnimationFrame(animar)
 }
 
+function cambiarHora() {
 
+  const input = document.getElementById("inputHora");
+  if (!input) return;
+
+  const nuevaHora = input.value;
+  if (!nuevaHora) return;
+
+  // Separar HH y MM
+  const partes = nuevaHora.split(":");
+  const horas = parseInt(partes[0]);
+  const minutos = parseInt(partes[1]);
+
+  const datosHora = {
+    horas: horas,
+    minutos: minutos,
+    segundos: 0
+  };
+
+  // Actualizar visual inmediato
+  const reloj = document.getElementById("relojGlobal");
+  if (reloj) {
+    reloj.textContent =
+      `${String(horas).padStart(2,"0")}:` +
+      `${String(minutos).padStart(2,"0")}:00`;
+  }
+
+  // Enviar al servidor
+  socket.emit("cambiarHora", datosHora);
+
+  // Cerrar panel
+  const panelConfig = document.getElementById("configHora");
+  if (panelConfig) {
+    panelConfig.classList.add("oculto");
+  }
+}
+document.addEventListener("DOMContentLoaded", () => {
+
+  const btnAplicar = document.getElementById("btnAplicarHora");
+  const btnConfig = document.getElementById("btnConfig");
+  const btnPausa = document.getElementById("btnPausa");
+
+  if (btnAplicar) {
+    btnAplicar.addEventListener("click", cambiarHora);
+  }
+
+  if (btnConfig) {
+    btnConfig.addEventListener("click", () => {
+      document.getElementById("configHora").classList.toggle("oculto");
+    });
+  }
+
+  if (btnPausa) {
+    btnPausa.addEventListener("click", toggleTiempo);
+  }
+
+});
 
 
 
@@ -2409,63 +2461,7 @@ function eliminarSeleccionada(){
 
 }
 
-function cambiarHora() {
 
-  const input = document.getElementById("inputHora");
-  if (!input) return;
-
-  const nuevaHora = input.value;
-  if (!nuevaHora) return;
-
-  // Separar HH y MM
-  const partes = nuevaHora.split(":");
-  const horas = parseInt(partes[0]);
-  const minutos = parseInt(partes[1]);
-
-  const datosHora = {
-    horas: horas,
-    minutos: minutos,
-    segundos: 0
-  };
-
-  // Actualizar visual inmediato
-  const reloj = document.getElementById("relojGlobal");
-  if (reloj) {
-    reloj.textContent =
-      `${String(horas).padStart(2,"0")}:` +
-      `${String(minutos).padStart(2,"0")}:00`;
-  }
-
-  // Enviar al servidor
-  socket.emit("cambiarHora", datosHora);
-
-  // Cerrar panel
-  const panelConfig = document.getElementById("configHora");
-  if (panelConfig) {
-    panelConfig.classList.add("oculto");
-  }
-}
-document.addEventListener("DOMContentLoaded", () => {
-
-  const btnAplicar = document.getElementById("btnAplicarHora");
-  const btnConfig = document.getElementById("btnConfig");
-  const btnPausa = document.getElementById("btnPausa");
-
-  if (btnAplicar) {
-    btnAplicar.addEventListener("click", cambiarHora);
-  }
-
-  if (btnConfig) {
-    btnConfig.addEventListener("click", () => {
-      document.getElementById("configHora").classList.toggle("oculto");
-    });
-  }
-
-  if (btnPausa) {
-    btnPausa.addEventListener("click", toggleTiempo);
-  }
-
-});
 function toggleConfig() {
   const panel = document.getElementById("configHora")
 

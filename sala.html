@@ -953,7 +953,11 @@ socket.on("borrarAeronave", id => {
 
 })
 
+function activarManual(id) {
+  if (!id) return;
 
+  socket.emit("activarManual", { id });
+}
 
 // ================= PANEL =================
 

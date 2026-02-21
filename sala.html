@@ -2534,39 +2534,25 @@ function obtenerBoundsImagen(lat, lng, tamañoMetros){
 </div>
 <div id="panelManual">
 
-  <div class="panel-header">
-    <span>MANUAL CONTROL</span>
+  <div class="control">
+    <span>HDG</span>
+    <button onclick="ajustar('heading', -5)">−</button>
+    <span id="hdgValue">000°</span>
+    <button onclick="ajustar('heading', 5)">+</button>
   </div>
 
-  <div class="panel-body">
+  <div class="control">
+    <span>SPD</span>
+    <button onclick="ajustar('speed', -5)">−</button>
+    <span id="spdValue">000 kt</span>
+    <button onclick="ajustar('speed', 5)">+</button>
+  </div>
 
-    <div class="control-group">
-      <div class="label">HDG</div>
-      <div class="value" id="hdgValue">000°</div>
-      <div class="buttons">
-        <button onclick="ajustar('heading', -5)">−5</button>
-        <button onclick="ajustar('heading', 5)">+5</button>
-      </div>
-    </div>
-
-    <div class="control-group">
-      <div class="label">SPD</div>
-      <div class="value" id="spdValue">000 kt</div>
-      <div class="buttons">
-        <button onclick="ajustar('speed', -5)">−5</button>
-        <button onclick="ajustar('speed', 5)">+5</button>
-      </div>
-    </div>
-
-    <div class="control-group">
-      <div class="label">ALT</div>
-      <div class="value" id="altValue">0000 ft</div>
-      <div class="buttons">
-        <button onclick="ajustar('altitude', -100)">−100</button>
-        <button onclick="ajustar('altitude', 100)">+100</button>
-      </div>
-    </div>
-
+  <div class="control">
+    <span>ALT</span>
+    <button onclick="ajustar('altitude', -100)">−</button>
+    <span id="altValue">0000 ft</span>
+    <button onclick="ajustar('altitude', 100)">+</button>
   </div>
 
 </div>

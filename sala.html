@@ -211,8 +211,7 @@ socket.on("rutaCircuitoActualizada", () => {
 
     <button onclick="activarModoRuta()">Create Route</button>
     <div class="taxi-controls">
-    <button id="btnTaxi" onclick="iniciarRodaje()">▶ Taxi</button>
-    <button onclick="detenerRodaje(aeronaveSeleccionada)">⏸ Pause</button>
+    <button id="btnTaxi" onclick="iniciarTaxi()">Iniciar Taxi</button>
     <button onclick="eliminarRuta(aeronaveSeleccionada)">🗑 Delete</button>
 </div>
 
@@ -844,7 +843,7 @@ socket.on("actualizarAeronave", data => {
   const avion = aeronaves.find(a => a.id === data.id)
   if (!avion) return
 
-  // 🔄 Actualizar datos
+  // 🔄 Actualizar datos base
   avion.estado = data.estado
   avion.altitud = data.altitud
   avion.lat = data.lat
@@ -860,11 +859,15 @@ socket.on("actualizarAeronave", data => {
 
     actualizarBotonManual()
 
-    if (avion.estado === "manual") {
-      document.getElementById("panelManual").style.display = "block"
+    if (avion.estado === "manual" || avion.estado === "taxi") {
+
+      document.getElementById("panelManual").style.display = "flex"
       actualizarDisplaysManual(avion)
+
     } else {
+
       document.getElementById("panelManual").style.display = "none"
+
     }
   }
 
@@ -1227,10 +1230,12 @@ a.indiceRuta = 0
 
 // ================= TAXI =================
 
-function iniciarRodaje(){
+function iniciarTaxi(){
 
   if(!aeronaveSeleccionada) return
-
+socket.emit("iniciarTaxi", {
+    id: aeronaveSeleccionada.id
+  })
   const a = aeronaveSeleccionada
 
   if(a.estado !== "idle") return

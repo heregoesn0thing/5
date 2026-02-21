@@ -46,7 +46,7 @@
 
 </div>
 <button id="btnEliminarModo">🗑</button>
-<button id="btnCapas" class="btn-vor">Lines</button>
+<button id="btnCapas" class="btn-vor">...</button>
 
 <div id="panelCapas" class="panel-capas oculto">
   <label><input type="checkbox" id="chkVor"> ATZ</label>
@@ -841,26 +841,38 @@ actualizarInteraccion(nueva)
 
 socket.on("actualizarAeronave", data => {
 
-  const avion = aeronaves.find(a => a.id === data.id);
-  if (!avion) return;
+  const avion = aeronaves.find(a => a.id === data.id)
+  if (!avion) return
 
-  // 🔥 SIEMPRE obedecer al servidor
+  // 🔥 Actualizar datos base SIEMPRE primero
   avion.estado = data.estado
   avion.altitud = data.altitud
+  avion.lat = data.lat
+  avion.lng = data.lng
+  avion.angulo = data.angulo
+
+  // 🔥 Crear marker si no existe
+  if (!avion.marker) {
+    avion.marker = crearMarker(avion)
+  }
+
   if (aeronaveSeleccionada && avion.id === aeronaveSeleccionada.id) {
 
-  actualizarBotonManual()
+    actualizarBotonManual()
+
+    if (avion.estado === "manual") {
+      document.getElementById("manualPanel").style.display = "block"
+      actualizarDisplaysManual(avion)
+    } else {
+      document.getElementById("manualPanel").style.display = "none"
+    }
+  }
 
   if (avion.estado === "manual") {
-    document.getElementById("manualPanel").style.display = "block"
-    actualizarDisplaysManual(avion)
-  } else {
-    document.getElementById("manualPanel").style.display = "none"
+    actualizarInteraccion(avion)
   }
-}
-if(avion.estado === "manual"){
-  actualizarInteraccion(avion)
-}
+
+  
   interpolarRemoto(
     avion,
     data.lat,

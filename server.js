@@ -499,7 +499,16 @@ socket.on("crearAeronave", (data) => {
 });
 
 
-  io.to(sala).emit("crearAeronave", data);
+  io.to(sala).emit("crearAeronave", {
+  id: data.id,
+  tipo: data.tipo,
+  lat: data.lat,
+  lng: data.lng,
+  altitud: data.altitud || 0,
+  angulo: data.angulo || 0,
+  estado: "idle",
+  owner: socket.id
+});
 
 
 });

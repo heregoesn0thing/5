@@ -250,13 +250,13 @@ socket.on("rutaCircuitoActualizada", () => {
   <div class="tiempoTop">
     <div id="relojGlobal">00:00:00</div>
     <div id="timeControls">
-      <button onclick="toggleConfig()">⚙</button>
+      <button id="btnConfigHora">⚙</button>
     </div>
   </div>
 
   <div id="configHora" class="oculto">
     <input type="time" id="inputHora">
-    <button onclick="aplicarHora()">OK</button>
+    <button id="btnAplicarHora">OK</button>
   </div>
 </div>
 
@@ -2597,6 +2597,48 @@ const btnConfig = document.getElementById("btnConfig");
   });
 
 });
+// ================= CONFIG RELOJ =================
+
+function toggleConfigHora() {
+  const panel = document.getElementById("configHora");
+  if (!panel) return;
+
+  panel.classList.toggle("oculto");
+}
+
+function cambiarHora() {
+
+  const input = document.getElementById("inputHora");
+  if (!input) return;
+
+  const nuevaHora = input.value;
+  if (!nuevaHora) return;
+
+  socket.emit("cambiarHora", {
+    hora: nuevaHora
+  });
+
+  // cerrar panel
+  const panel = document.getElementById("configHora");
+  if(panel){
+    panel.classList.add("oculto");
+  }
+}
+document.addEventListener("DOMContentLoaded", () => {
+
+  const btnConfig = document.getElementById("btnConfigHora");
+  const btnAplicar = document.getElementById("btnAplicarHora");
+
+  if (btnConfig) {
+    btnConfig.addEventListener("click", toggleConfigHora);
+  }
+
+  if (btnAplicar) {
+    btnAplicar.addEventListener("click", cambiarHora);
+  }
+
+});
+
 function pausarTiempo(){
   socket.emit("controlTiempo", {
     accion:"pausar"

@@ -152,11 +152,7 @@ html, body{
   color: #00e0ff;
 }
 
-.oculto{
-  opacity: 0;
-  pointer-events: none;
-  transform: translate(-50%, 20px);
-}
+
 
 /* 📱 RESPONSIVE MÓVIL */
 @media (max-width: 600px){
@@ -296,10 +292,6 @@ html, body{
   border-radius: 6px;
 }
 
-
-
-
-
 #timeControls button{
   background: #1e293b;
   border: none;
@@ -315,39 +307,6 @@ html, body{
   transform: scale(1.05);
 }
 
-/* ===== DROPDOWN LATERAL REAL ===== */
-
-#configHora {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 8px;
-  bottom: 60px;
-z-index: 10000;
-  display: none;
-  flex-direction: row;
-  gap: 6px;
-
-  background: rgba(15,15,15,0.95);
-  padding: 8px;
-  border-radius: 8px;
-  border: 1px solid #00ff9c55;
-}
-
-#configHora.activo{
-  display: flex;
-  transform: translateX(0);
-  opacity: 1;
-  pointer-events: auto;
-}
-
-#configHora input{
-  background: #ffffff;
-  border: 1px solid #334155;
-  color: rgb(0, 0, 0);
-  padding: 6px;
-  border-radius: 6px;
-}
 #createAircraftPanel{
   position: fixed;
   top: 50%;
@@ -688,5 +647,18 @@ z-index: 10000;
 }
 
 #configHora {
-  margin-top: 10px;
+  position: absolute;
+  top: 60px;
+  right: 0;
+  background: #1e1e2f;
+  padding: 12px;
+  border-radius: 10px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.oculto{
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px);
 }

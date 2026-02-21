@@ -134,7 +134,48 @@ function iniciarMotorSala(nombreSala){
 
       const velocidadMPS = a.velocidad || (90 * 0.514444)
       const distanciaTick = velocidadMPS * (intervaloMS/1000)
+// =====================================
+// ✈ FASE 0 — INGRESO 45°
+// =====================================
 
+if (a.estado === "interceptando45") {
+
+  const destino = a.puntoIngreso
+
+  const distancia = distanciaEntre(
+    { lat: a.lat, lng: a.lng },
+    destino
+  )
+
+  if (distancia <= distanciaTick) {
+
+    // Ahora pasa a interceptar el circuito
+    a.estado = "interceptando"
+    return
+  }
+
+  const rumboDeseado = calcularRumboServidor(
+    { lat: a.lat, lng: a.lng },
+    destino
+  )
+
+  const fraccion = distanciaTick / distancia
+
+  a.lat += (destino.lat - a.lat) * fraccion
+  a.lng += (destino.lng - a.lng) * fraccion
+  a.angulo = rumboDeseado
+
+  io.to(nombreSala).emit("actualizarAeronave", {
+    id: a.id,
+    lat: a.lat,
+    lng: a.lng,
+    altitud: a.altitud,
+    angulo: a.angulo,
+    estado: a.estado
+  })
+
+  return
+}
       // =====================================
       // ✈ FASE 1 — INTERCEPTANDO EL CIRCUITO
       // =====================================
@@ -665,26 +706,35 @@ socket.on("iniciarCircuito", ({ id }) => {
     ruta: aeronave.ruta
   })
 
-  // Buscar punto más cercano
-  let indiceMasCercano = 0
-  let menorDistancia = Infinity
+  // ===== INGRESO 45° A VIENTO EN COLA =====
 
-  aeronave.ruta.forEach((p, i) => {
+const DISTANCIA_INGRESO = 0.5 * 1852 // 0.5 NM en metros
 
-    const d = distanciaEntre(
-      { lat: aeronave.lat, lng: aeronave.lng },
-      p
-    )
+// Tomamos tramo aproximado de viento en cola
+const indiceVientoCola = Math.floor(aeronave.ruta.length * 0.25)
+const puntoVientoCola = aeronave.ruta[indiceVientoCola]
 
-    if (d < menorDistancia) {
-      menorDistancia = d
-      indiceMasCercano = i
-    }
-  })
+// Rumbo del tramo viento en cola
+const siguiente = (indiceVientoCola + 1) % aeronave.ruta.length
+const rumboDownwind = calcularRumboServidor(
+  puntoVientoCola,
+  aeronave.ruta[siguiente]
+)
 
-  aeronave.indiceObjetivo = indiceMasCercano
-  aeronave.velocidad = 90 * 0.514444
-  aeronave.estado = "interceptando"
+// Crear punto de ingreso a 45°
+const rumboIngreso = (rumboDownwind - 45 + 360) % 360
+
+const puntoIngreso = puntoPlano(
+  puntoVientoCola,
+  rumboIngreso,
+  DISTANCIA_INGRESO
+)
+
+// Guardamos datos en la aeronave
+aeronave.puntoIngreso = puntoIngreso
+aeronave.indiceObjetivo = indiceVientoCola
+aeronave.velocidad = 90 * 0.514444
+aeronave.estado = "interceptando45"
 
   iniciarMotorSala(salaNombre)
 })

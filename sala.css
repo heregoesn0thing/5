@@ -854,6 +854,227 @@ html, body{
   pointer-events: none;
   transform: translateY(-10px);
 }
+
+/* ========================= */
+/* PANEL LATERAL IZQUIERDO */
+/* ========================= */
+
+#panelLateralIzq{
+  position: fixed;
+  top: 50%;
+  left: 0;
+
+  transform: translate(-240px, -50%);
+  transition: transform 0.35s ease;
+
+  display: flex;
+  align-items: center;
+
+  z-index: 9999;
+  font-family: "Segoe UI", sans-serif;
+}
+
+/* Estado abierto */
+#panelLateralIzq.activo{
+  transform: translate(0, -50%);
+}
+
+/* PANEL INTERNO */
+.contenido-lateral{
+  width: 240px;
+  padding: 18px;
+  border-radius: 0 14px 14px 0;
+
+  background: rgba(20,25,40,0.97);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+/* BOTÓN DESLIZANTE */
+.boton-lateral{
+  width: 22px;
+  height: 80px;
+
+  background: linear-gradient(145deg,#1c2233,#232a3d);
+  color: #00e0ff;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 0 10px 10px 0;
+  cursor: pointer;
+
+  box-shadow: 4px 4px 15px rgba(0,0,0,0.4);
+  transition: 0.3s ease;
+}
+
+.boton-lateral:hover{
+  background: #2a3145;
+}
+
+.boton-lateral span{
+  font-size: 18px;
+  font-weight: bold;
+}
+
+/* GRUPOS */
+.grupo{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.titulo-grupo{
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #9ca3af;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  padding-bottom: 4px;
+}
+
+/* BOTONES INTERNOS */
+.boton-lateral{
+  width: 22px;
+  height: 80px;
+
+  background: #1f2433;
+  border: none;
+  color: #aaa;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 0 10px 10px 0;
+  cursor: pointer;
+
+  transition: 0.2s ease;
+}
+
+.boton-lateral:hover{
+  background: #2a3145;
+  color: #00e0ff;
+}
+
+/* ========GRUPO 2========= */
+
+/* =============================
+   LANDING BUTTONS 
+============================= */
+
+.landing-principales{
+  display: flex;
+  gap: 8px;
+}
+
+/* ESTILO BASE (todos iguales) */
+.btn-lateral.landing-main{
+  flex: 1;
+  padding: 8px 6px;
+  border-radius: 10px;
+  border: 1px solid #2c344a;
+
+  background: linear-gradient(145deg, #1c2233, #232a3d);
+  color: #cbd5e1;
+
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+
+  transition: all 0.25s ease;
+}
+
+/* Hover general */
+.btn-lateral.landing-main:hover{
+  border-color: #3b82f6;
+  color: white;
+  transform: translateY(-2px);
+}
+
+/* =============================
+   ESTADOS ACTIVOS
+============================= */
+
+/* CLEARED TO LAND - VERDE */
+.btn-lateral.landing-main.activo:not(.touch):not(.goaround){
+  background: linear-gradient(145deg, #065f46, #047857);
+  border-color: #10b981;
+  color: #ecfdf5;
+  box-shadow: 0 0 12px rgba(16,185,129,0.5);
+}
+/* =============================
+   SUB BOTONES CLEARED TO LAND
+============================= */
+
+.landing-opciones{
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: all 0.25s ease;
+}
+
+.landing-opciones.activo{
+  max-height: 70px;
+  opacity: 1;
+}
+
+/* ESTILO BASE PROFESIONAL */
+.mini-btn{
+  flex: 1;
+  padding: 6px 4px;
+
+  border-radius: 8px;
+  border: 1px solid #2c344a;
+
+  background: linear-gradient(145deg, #141a28, #1c2233);
+  color: #94a3b8;
+
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* Hover elegante */
+.mini-btn:hover{
+  border-color: #10b981;
+  color: #e6fffa;
+  transform: translateY(-1px);
+}
+
+/* ACTIVO - VERDE PROFESIONAL */
+.mini-btn.activo{
+  background: linear-gradient(145deg, #065f46, #047857);
+  border-color: #10b981;
+  color: #ecfdf5;
+  box-shadow: 0 0 8px rgba(16,185,129,0.45);
+}
+/* TOUCH & GO - AZUL */
+.btn-lateral.landing-main.touch.activo{
+  background: linear-gradient(145deg, #1e40af, #2563eb);
+  border-color: #3b82f6;
+  color: #eff6ff;
+  box-shadow: 0 0 12px rgba(59,130,246,0.5);
+}
+
+/* GO AROUND - ROJO */
+.btn-lateral.landing-main.goaround.activo{
+  background: linear-gradient(145deg, #7f1d1d, #b91c1c);
+  border-color: #ef4444;
+  color: #fef2f2;
+  box-shadow: 0 0 12px rgba(239,68,68,0.5);
+}
 /* ================= CREATE AIRCRAFT PANEL ================= */
 
 #createAircraftPanel {

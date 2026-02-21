@@ -71,18 +71,82 @@
   </div>
 
 </div>
+<div id="panelLateralIzq">
 
+  <div class="contenido-lateral">
+
+    <!-- GRUPO 1 -->
+    <div class="grupo">
+      <div class="titulo-grupo">GENERAL</div>
+      <button class="btn-lateral">Botón 1</button>
+      <button class="btn-lateral">Botón 2</button>
+    </div>
+
+    <!-- GRUPO 2 -->
+    <div class="grupo">
+
+  <div class="titulo-grupo">LANDING CONTROL</div>
+
+  <!-- FILA PRINCIPAL -->
+  <div class="landing-principales">
+
+    <button class="btn-lateral landing-main" onclick="activarCleared(this)">
+      Cleared to Land
+    </button>
+
+    <button class="btn-lateral landing-main touch" onclick="activarPrincipal(this)">
+      Touch & Go
+    </button>
+
+    <button class="btn-lateral landing-main goaround" onclick="activarPrincipal(this)">
+      Go Around
+    </button>
+
+  </div>
+
+  <!-- SUB BOTONES CLEARED -->
+  <div class="landing-opciones" id="landingOpciones">
+
+    <button class="mini-btn landing-choice" onclick="seleccionarSubOpcion(this)">A</button>
+    <button class="mini-btn landing-choice" onclick="seleccionarSubOpcion(this)">B</button>
+    <button class="mini-btn landing-choice" onclick="seleccionarSubOpcion(this)">C</button>
+    <button class="mini-btn landing-choice" onclick="seleccionarSubOpcion(this)">D</button>
+    <button class="mini-btn landing-choice" onclick="seleccionarSubOpcion(this)">E</button>
+
+  </div>
+
+</div>
+    <!-- GRUPO 5-->
+    <div class="grupo">
+      <div class="titulo-grupo">GENERAL</div>
+      <button class="btn-lateral">Botón 1</button>
+      <button class="btn-lateral">Botón 2</button>
+    </div>
+    <!-- GRUPO 5 -->
+    <div class="grupo">
+      <div class="titulo-grupo">GENERAL</div>
+      <button class="btn-lateral">Botón 1</button>
+      <button class="btn-lateral">Botón 2</button>
+    </div>
+  </div>
+
+  <!-- BOTÓN DESPLEGABLE -->
+  <div class="boton-lateral" onclick="togglePanelIzq()">
+    <span id="iconoLateral">›</span>
+  </div>
+
+</div>
 <div id="menuAcciones">
 
   <div id="submenuAcciones">
     <button id="btnDanger" class="btn-accion" onclick="activarModoPeligro()">⚠</button>
   <button onclick="actualizarSesion()" class="btn-accion">⟳</button>
-  <button class="btn-menu stop" onclick="detenerTodo()">⛔</button>
+  <button class="btn-menu stop" onclick="detenerTodo()">-</button>
   <button id="btnEliminarModo" class="btn-accion">🗑</button>
 </div>
 
   <button onclick="toggleMenuAcciones()" id="btnMenuPrincipal">
-    🛠️
+    🛠
   </button>
 
 </div>
@@ -497,6 +561,8 @@ const DISTANCIA_FADE = 80 * 1852      // 80 NM
 const DISTANCIA_REMOVE = 85 * 1852    // 85 NM
 const ARP_SPSO = [-13.7449, -76.2203];
 const DISTANCIA_INGRESO = 0.5 * 1852   // 0.5 NM
+
+const puntoEsperaRwy22 = [-13.75492, -76.22896];
 const PERFORMANCE = {
   A320: { VR:145, CLIMB:250, ACC:1.2 },
   A319: { VR:140, CLIMB:240, ACC:1.1 },
@@ -517,7 +583,44 @@ const ORIENTACION_MODELOS = {
   A320: 0,
   DEFAULT: 0
 };
+/* ===============================
+   RUTAS TAXI RWY 22
+================================ */
 
+// Salida A
+const rutaTaxiA = [
+  [-13.7355, -76.2135],
+  [-13.7365, -76.2160],
+  [-13.7375, -76.2180]
+];
+
+// Salida B
+const rutaTaxiB = [
+  [-13.7380, -76.2195],
+  [-13.7395, -76.2215],
+  [-13.7410, -76.2235]
+];
+
+// Salida C
+const rutaTaxiC = [
+  [-13.7420, -76.2245],
+  [-13.7435, -76.2260],
+  [-13.7448, -76.2275]
+];
+
+// Salida D
+const rutaTaxiD = [
+  [-13.7460, -76.2285],
+  [-13.7470, -76.2295],
+  [-13.7485, -76.2305]
+];
+
+// Salida E
+const rutaTaxiE = [
+  [-13.7500, -76.2315],
+  [-13.7515, -76.2325],
+  [-13.7530, -76.2335]
+];
 const LIB_MANDI = L.latLng(-12.389000, -76.758094)
 const RUMBO_LIB_MANDI = 140
 const TOLERANCIA_RUMBO = 15
@@ -1099,6 +1202,217 @@ function togglePanelInfo(){
   panel.classList.toggle("contraido")
 
 }
+
+function togglePanelIzq(){
+  const panel = document.getElementById("panelLateralIzq");
+  const icono = document.getElementById("iconoLateral");
+
+  panel.classList.toggle("activo");
+
+  if(panel.classList.contains("activo")){
+    icono.textContent = "‹"; // cuando está abierto
+  } else {
+    icono.textContent = "›"; // cuando está cerrado
+  }
+}
+// ====================BOTONES GRUPOS=============== //
+// GRUPO 2  //
+function activarCleared(boton){
+
+  if(!aeronaveSeleccionada){
+    alert("Selecciona una aeronave primero");
+    return;
+  }
+
+  // Solo uno activo
+  document.querySelectorAll(".landing-main")
+    .forEach(btn => btn.classList.remove("activo"));
+
+  boton.classList.add("activo");
+
+  document.getElementById("landingOpciones")
+    .classList.add("activo");
+
+  aeronaveSeleccionada.landingMode = "CLEARED TO LAND";
+  aeronaveSeleccionada.estado = "CLEARED TO LAND";
+
+  actualizarPanelInfoAeronave(aeronaveSeleccionada);
+
+  iniciarMonitoreoAterrizaje(aeronaveSeleccionada);
+}
+function seleccionarSubOpcion(boton){
+
+  // Quitar activo a todos
+  const subBotones = document.querySelectorAll(".landing-choice");
+  subBotones.forEach(btn => btn.classList.remove("activo"));
+
+  // Activar solo el seleccionado
+  boton.classList.add("activo");
+
+  if(!aeronaveSeleccionada) return;
+
+  // Guardar letra seleccionada
+  aeronaveSeleccionada.landingSubOption =
+    boton.textContent.trim();
+
+  console.log("Salida seleccionada:",
+    aeronaveSeleccionada.landingSubOption);
+
+  // 🔥 SI YA ESTÁ ESPERANDO EN PISTA → INICIAR TAXI
+  if(aeronaveSeleccionada.estado === "AWAITING EXIT"){
+    ejecutarTaxiAutomatico(aeronaveSeleccionada);
+  }
+}
+function iniciarMonitoreoAterrizaje(aeronave){
+
+  const intervalo = setInterval(() => {
+
+    if(aeronave.estado !== "CLEARED TO LAND"){
+      clearInterval(intervalo);
+      return;
+    }
+
+    const diferenciaRumbo =
+      Math.abs(aeronave.heading - rumboPista22);
+
+    const distanciaUmbral = calcularDistancia(
+      aeronave.lat,
+      aeronave.lng,
+      rwy22[0],
+      rwy22[1]
+    );
+
+    const alineada = diferenciaRumbo <= 5;
+    const enFinal = distanciaUmbral < 3000;
+    const bajaAltitud = aeronave.altitud < 500;
+
+    if(alineada && enFinal && bajaAltitud){
+      clearInterval(intervalo);
+      autorizarTouchdown(aeronave);
+    }
+
+  }, 500);
+}
+function autorizarTouchdown(aeronave){
+
+  const puntoToma = calcularPuntoDesplazado(
+    rwy22[0],
+    rwy22[1],
+    -300,
+    rumboPista22
+  );
+
+  aeronave.estado = "LANDING";
+
+  moverAeronaveHacia(aeronave, puntoToma, () => {
+    ejecutarRollout(aeronave);
+  });
+}
+function ejecutarRollout(aeronave){
+
+  aeronave.estado = "ROLL OUT";
+  aeronave.velocidadObjetivo = 30;
+
+  setTimeout(() => {
+
+    if(!aeronave.landingSubOption){
+      continuarRodajeHastaEspera(aeronave);
+    } else {
+      ejecutarTaxiAutomatico(aeronave);
+    }
+
+  }, 4000);
+}
+
+
+function continuarRodajeHastaEspera(aeronave){
+
+  aeronave.estado = "ROLLING TO END";
+
+  moverAeronaveHacia(aeronave, puntoEsperaRwy22, () => {
+
+    aeronave.velocidadObjetivo = 0;
+    aeronave.estado = "AWAITING EXIT";
+
+    console.log("Esperando selección A/B/C/D/E");
+
+  });
+}
+
+function ejecutarTaxiAutomatico(aeronave){
+
+  const salida = aeronave.landingSubOption;
+
+  const rutasTaxi = {
+    "A": rutaTaxiA,
+    "B": rutaTaxiB,
+    "C": rutaTaxiC,
+    "D": rutaTaxiD,
+    "E": rutaTaxiE
+  };
+
+  const rutaSeleccionada = rutasTaxi[salida];
+
+  if(!rutaSeleccionada){
+    console.log("No existe ruta para", salida);
+    return;
+  }
+
+  aeronave.estado = "TAXI " + salida;
+  aeronave.velocidadObjetivo = 15;
+
+  seguirRutaTaxi(aeronave, rutaSeleccionada);
+}
+
+
+
+
+
+
+
+
+
+
+
+//====== FUNCIONES AUXILIARES GEOGRÁFICAS ======//
+function calcularDistancia(lat1, lon1, lat2, lon2){
+
+  const R = 6371000;
+  const dLat = (lat2-lat1) * Math.PI/180;
+  const dLon = (lon2-lon1) * Math.PI/180;
+
+  const a =
+    Math.sin(dLat/2)*Math.sin(dLat/2) +
+    Math.cos(lat1*Math.PI/180) *
+    Math.cos(lat2*Math.PI/180) *
+    Math.sin(dLon/2)*Math.sin(dLon/2);
+
+  const c = 2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+
+  return R*c;
+}
+function calcularPuntoDesplazado(lat, lng, distanciaMetros, rumboGrados){
+
+  const R = 6378137;
+  const brng = rumboGrados * Math.PI/180;
+  const d = distanciaMetros;
+
+  const lat1 = lat*Math.PI/180;
+  const lon1 = lng*Math.PI/180;
+
+  const lat2 = Math.asin(
+    Math.sin(lat1)*Math.cos(d/R) +
+    Math.cos(lat1)*Math.sin(d/R)*Math.cos(brng)
+  );
+
+  const lon2 = lon1 + Math.atan2(
+    Math.sin(brng)*Math.sin(d/R)*Math.cos(lat1),
+    Math.cos(d/R)-Math.sin(lat1)*Math.sin(lat2)
+  );
+
+  return [lat2*180/Math.PI, lon2*180/Math.PI];
+}
+
 function actualizarBotonTaxi(){
 
   const btn = document.getElementById("btnTaxi")

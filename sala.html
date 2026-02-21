@@ -6,6 +6,8 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <link rel="stylesheet" href="sala.css">
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-geometryutil"></script>
+
 
 </head>
 
@@ -44,6 +46,14 @@
 
 </div>
 <button id="btnEliminarModo">🗑</button>
+<button id="btnCapas" class="btn-vor">Lines</button>
+
+<div id="panelCapas" class="panel-capas oculto">
+  <label><input type="checkbox" id="chkVor"> ATZ</label>
+  <label><input type="checkbox" id="chkEje"> RWY 04/22</label>
+  <label><input type="checkbox" id="chkPatron"> Aerodrome Traffic Circuit</label>
+</div>
+
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
@@ -51,7 +61,11 @@ const socket = io()
 // Obtener nombre desde la URL
 const params = new URLSearchParams(window.location.search);
 const nombreSala = params.get("nombre");
+let rutaServidor = null
 
+socket.on("rutaCircuito", data => {
+  rutaServidor = data.ruta
+})
 if(!nombreSala){
   alert("No room specified");
   window.location.href = "/";
@@ -92,6 +106,9 @@ socket.on("cargarAeronaves", lista => {
     const nueva = {
       id: data.id,
       tipo: data.tipo,
+      estado: "idle",
+      indiceRuta: 0,
+      rutaRecorrida: null,
       marker: marker,
       remoto: true,
       altitud: data.altitud || 0,
@@ -109,13 +126,22 @@ socket.on("cargarAeronaves", lista => {
 
       if (modoEliminar) {
 
-        socket.emit("eliminarAeronave", nueva.id)
+  if(nueva.estado !== "idle"){
+    alert("Cannot remove aircraft while operating")
+    return
+  }
 
-        modoEliminar = false
-        btnEliminar.classList.remove("activo")
+  const confirmar = confirm("Remove aircraft " + nueva.id + "?")
+  if(!confirmar) return
 
-        return
-      }
+  socket.emit("eliminarAeronave", nueva.id)
+
+  modoEliminar = false
+  btnEliminar.classList.remove("activo")
+
+  return
+}
+
 
       seleccionarAeronave(nueva)
 
@@ -150,8 +176,24 @@ socket.on("estadoTiempo", (data) => {
   iconPause.style.display = pausado ? "none" : "block";
 
 });
+socket.on("rutaCircuito", data => {
 
+  // Guardar ruta
+  rutaCircuitoServidor = data.ruta
 
+  // Si el checkbox está activo → dibujar
+  if(chkPatron.checked){
+    dibujarRutaServidor()
+  }
+
+})
+socket.on("rutaCircuitoActualizada", () => {
+
+  if (chkPatron.checked && rutaCircuitoServidor) {
+    dibujarRutaServidor()
+  }
+
+})
 
 
 
@@ -170,17 +212,15 @@ socket.on("estadoTiempo", (data) => {
     <button onclick="activarModoRuta()">Create Route</button>
     <div class="taxi-controls">
     <button id="btnTaxi" onclick="iniciarRodaje()">▶ Taxi</button>
-    <button onclick="detenerRodaje()">⏸ Pause</button>
-    <button onclick="eliminarRuta()">🗑 Delete</button>
+    <button onclick="detenerRodaje(aeronaveSeleccionada)">⏸ Pause</button>
+    <button onclick="eliminarRuta(aeronaveSeleccionada)">🗑 Delete</button>
 </div>
 
     <button onclick="despegar()">Takeoff</button>
-
-    <button onclick="activarModoManual()">Manual Control</button>
-    <button onclick="detenerModoManual()">Stop Manual</button>
+    <button id="btnManual">Manual Control</button>
     <button onclick="iniciarCircuito()">Traffic Pattern</button>
+    <button id="btnExtender">Extender +0.5 NM</button>
     <button onclick="detenerCircuito()">Stop Pattern</button>
-
     <button onclick="eliminarSeleccionada()">Remove Aircraft</button>
 
     <select id="sidSelect">
@@ -239,7 +279,49 @@ socket.on("estadoTiempo", (data) => {
 
 </div>
 
+<div id="manualPanel" style="
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: #1e1e1e;
+  padding: 15px;
+  border-radius: 10px;
+  display: none;
+  z-index: 2000;
+  width: 220px;
+  font-family: monospace;
+">
 
+  <div style="text-align:center; margin-bottom:10px;">
+    MANUAL CONTROL
+  </div>
+
+  <div>
+    Heading: <span id="displayHeading">000</span>°
+    <br>
+    <button id="hdgMinus">-</button>
+    <button id="hdgPlus">+</button>
+  </div>
+
+  <hr>
+
+  <div>
+    Speed: <span id="displaySpeed">0</span>
+    <br>
+    <button id="spdMinus">-</button>
+    <button id="spdPlus">+</button>
+  </div>
+
+  <hr>
+
+  <div>
+    Altitude: <span id="displayAlt">0</span> ft
+    <br>
+    <button id="altMinus">-</button>
+    <button id="altPlus">+</button>
+  </div>
+
+</div>
 
 
 
@@ -365,13 +447,10 @@ crearVOR("SCO VOR", -13.738556, -76.212750)
 
 let aeronaves = []
 let aeronaveSeleccionada = null
-let modoRuta = false
-let rutaTemporal = []
 let modoEliminar = false;
 let marcadorPeligro = null;
 let imagenPeligro = null;
 let temporizadorPeligro = null;
-
 
 const VELOCIDAD = 8
 const TIPOS = ["A320","A319","C172","AN32"]
@@ -448,29 +527,24 @@ socket.on("peligroDesactivado", () => {
   }
 
 })
-const PASSWORD_PELIGRO = "0223"; // Password hardcoded
 
 function activarModoPeligro(){
 
-  const clave = prompt("Enter password to activate EMERGENCY MODE:");
-
+  const clave = prompt("Enter emergency password:");
   if(clave === null) return;
 
   if(!/^\d+$/.test(clave)){
-    alert("Only numbers allowed ☠️");
+    alert("Only numbers allowed");
     return;
   }
 
-  if(clave === PASSWORD_PELIGRO){
-    activarEmergencia()
-    socket.emit("activarPeligroSala", {
-  sala: nombreSala
-})
-;
-  }else{
-    alert("Don't try again please ☠️");
-  }
+  socket.emit("activarPeligroSala", {
+    sala: nombreSala,
+    clave: clave
+  });
 }
+let circuitoLayer = null
+
 
 // ================= TIEMPO =================
 let pausado = false;
@@ -552,7 +626,8 @@ function crearIcono(callsign, tipo){
 map.on("click", function(e){
 
   // Si estamos creando ruta
-  if(modoRuta){
+  if(aeronaveSeleccionada && aeronaveSeleccionada.modoRuta){
+
     if (aeronaveSeleccionada && aeronaveSeleccionada.estado !== "taxi") {
 
       agregarPuntoRuta(e.latlng)
@@ -631,19 +706,6 @@ function confirmarCreacion(){
     draggable: true
   }).addTo(map)
 
-  marker.on("drag", function(e){
-
-    const pos = e.target.getLatLng()
-
-    socket.emit("actualizarAeronave", {
-      id: callsign,
-      lat: pos.lat,
-      lng: pos.lng,
-      altitud: 0,
-      angulo: 0
-    })
-
-  })
 
   const nueva = {
     tipo,
@@ -651,7 +713,11 @@ function confirmarCreacion(){
     marker,
     remoto: false, 
     ruta: null,
+    rutaRecorrida: null,
     puntosRuta: [],
+    indiceRuta: 0,
+modoRuta: false,
+  rutaTemporal: [],
     angulo: 0,
     sid: null,
     altitud: 0,
@@ -661,14 +727,20 @@ function confirmarCreacion(){
     starActivo: false,
     faseStar: null,
     estado: "idle",
-indiceRuta: 0,
+
 animFrame: null,
     altitudObjetivo: null,
-    modoManual: false,
-    intervaloManual: null
+    
   }
+marker.on("drag", function(e){
+
+  const pos = e.target.getLatLng()
+
+  sincronizarMovimiento(nueva, pos.lat, pos.lng)
+})
 
   aeronaves.push(nueva)
+actualizarInteraccion(nueva)
 
   marker.on("click", function(event){
 
@@ -676,36 +748,46 @@ animFrame: null,
 
     if (modoEliminar) {
 
-      socket.emit("eliminarAeronave", callsign)
+  // 🚫 No permitir borrar si no está en idle
+  if(nueva.estado !== "idle"){
+    alert("Cannot remove aircraft while operating")
+    return
+  }
 
-      modoEliminar = false
-      btnEliminar.classList.remove("activo")
+  const confirmar = confirm("Remove aircraft " + nueva.id + "?")
+  if(!confirmar) return
 
-      return
-    }
+  socket.emit("eliminarAeronave", nueva.id)
+
+  modoEliminar = false
+  btnEliminar.classList.remove("activo")
+
+  return
+}
+
 
     seleccionarAeronave(nueva)
   })
 
   marker.on("dragstart", function(){
 
-    if(nueva.estado === "taxi")
-{      alert("Can't move while taxiing")
-      return
-    }
+  if(nueva.estado !== "idle"){
+    nueva.marker.dragging.disable()
+    return
+  }
 
-    if(nueva.ruta){
-      eliminarRuta(nueva)
-    }
+  if(nueva.ruta){
+    eliminarRuta(nueva)
+  }
 
-    modoRuta = false
-  })
+  nueva.modoRuta = false
+})
+
 
 
   cerrarCrearPanel()
   document.removeEventListener("click", cerrarSiClickFuera)
-modoRuta = false
-rutaTemporal = []
+
 
   // 🚀 Emitir al servidor
   socket.emit("crearAeronave", {
@@ -734,14 +816,18 @@ socket.on("crearAeronave", data => {
   altitud: data.altitud || 0,
   angulo: data.angulo || 0,
   ruta: null,
+  rutaRecorrida: null,
   puntosRuta: [],
   estado: "idle",
   indiceRuta: 0,
-  animFrame: null
+  animFrame: null,
+  modoRuta: false,
+  rutaTemporal: [],
 }
 
 
   aeronaves.push(nueva)
+actualizarInteraccion(nueva)
 
   marker.on("click", function(event){
 
@@ -768,28 +854,45 @@ socket.on("actualizarAeronave", data => {
   const avion = aeronaves.find(a => a.id === data.id);
   if (!avion) return;
 
-  // 🔥 PROTECCIÓN PROFESIONAL
-  if (!avion.remoto) return;
+  // 🔥 SIEMPRE obedecer al servidor
+  avion.estado = data.estado
+  avion.altitud = data.altitud
+  if (aeronaveSeleccionada && avion.id === aeronaveSeleccionada.id) {
 
-  avion.marker.setLatLng([data.lat, data.lng]);
+  actualizarBotonManual()
 
-  if (data.angulo !== undefined) {
-    avion.angulo = data.angulo;
-    actualizarRotacion(avion);
+  if (avion.estado === "manual") {
+    document.getElementById("manualPanel").style.display = "block"
+    actualizarDisplaysManual(avion)
+  } else {
+    document.getElementById("manualPanel").style.display = "none"
   }
+}
+if(avion.estado === "manual"){
+  actualizarInteraccion(avion)
+}
+  interpolarRemoto(
+    avion,
+    data.lat,
+    data.lng,
+    data.angulo
+  )
 
-  if (data.altitud !== undefined) {
-    avion.altitud = data.altitud;
-  }
+})
 
-});
+document.getElementById("btnExtender").addEventListener("click", () => {
 
+  const metros = 0.5 * 1852  // medio NM
+
+  socket.emit("extenderSalida", { metros })
+
+})
 socket.on("borrarAeronave", id => {
 
   const avion = aeronaves.find(a => a.id === id)
   if (!avion) return
 
-  // 🔴 DETENER TODO ANTES DE ELIMINAR
+  // 🔴 DETENER TODOS LOS MOTORES
 
   if(avion.intervaloManual){
     clearInterval(avion.intervaloManual)
@@ -806,14 +909,39 @@ socket.on("borrarAeronave", id => {
     avion.intervaloCircuito = null
   }
 
-  // 🔴 eliminar ruta si existe
-  if(avion.ruta){
-    map.removeLayer(avion.ruta)
+  if(avion.motorTaxi){
+    clearInterval(avion.motorTaxi)
+    avion.motorTaxi = null
   }
 
-  map.removeLayer(avion.marker)
+  if(avion.animRemoto){
+    cancelAnimationFrame(avion.animRemoto)
+    avion.animRemoto = null
+  }
+
+  // 🔴 ELIMINAR RUTAS
+
+  if(avion.ruta){
+    map.removeLayer(avion.ruta)
+    avion.ruta = null
+  }
+
+  if(avion.rutaRecorrida){
+    map.removeLayer(avion.rutaRecorrida)
+    avion.rutaRecorrida = null
+  }
+
+  // 🔴 ELIMINAR MARKER SEGURO
+
+  if(map.hasLayer(avion.marker)){
+    map.removeLayer(avion.marker)
+  }
+
+  // 🔴 ELIMINAR DEL ARRAY
 
   aeronaves = aeronaves.filter(a => a.id !== id)
+
+  // 🔴 LIMPIAR UI
 
   if(aeronaveSeleccionada && aeronaveSeleccionada.id === id){
     aeronaveSeleccionada = null
@@ -843,16 +971,30 @@ function seleccionarAeronave(obj){
   actualizarBotonTaxi()
 
   actualizarDepartureInfo(obj)   // ← SIN IF
-
+actualizarBotonManual()
   if(obj.modoManual){
     document.getElementById("panelRumbo").classList.remove("oculto")
     actualizarHeadingDisplay(obj)
   }else{
     document.getElementById("panelRumbo").classList.add("oculto")
   }
-
+if(obj.estado === "manual"){
+  document.getElementById("manualPanel").style.display = "block"
+  actualizarDisplaysManual(obj)
+} else {
+  document.getElementById("manualPanel").style.display = "none"
 }
+}
+document.getElementById("btnManual")
+  .addEventListener("click", () => {
 
+    if(!aeronaveSeleccionada) return
+
+    socket.emit("activarManual", {
+      id: aeronaveSeleccionada.id
+    })
+
+})
 function actualizarBotonTaxi(){
 
   const btn = document.getElementById("btnTaxi")
@@ -896,19 +1038,27 @@ function actualizarPanelInfo(a){
   let estadoTexto = "ON GROUND"
 
   switch(a.estado){
-    case "taxi":
-      estadoTexto = "TAXIING"
-      break
-    case "vuelo":
-      estadoTexto = "AIRBORNE"
-      break
-    case "manual":
-      estadoTexto = "MANUAL"
-      break
-    case "circuito":
-      estadoTexto = "TRAFFIC PATTERN"
-      break
-  }
+
+  case "taxi":
+    estadoTexto = "TAXIING"
+    break
+
+  case "vuelo":
+    estadoTexto = "AIRBORNE"
+    break
+
+  case "manual":
+    estadoTexto = "MANUAL"
+    break
+
+  case "circuito":
+    estadoTexto = "TRAFFIC PATTERN"
+    break
+
+  case "interceptando":
+    estadoTexto = "INTERCEPTING"
+    break
+}
 
   let sidTexto = a.sid ? a.sid : "None"
 
@@ -966,6 +1116,9 @@ function agregarAeronave(data, esRemota = true) {
     altitud: data.altitud || 0,
     angulo: data.angulo || 0,
     ruta: null,
+    rutaRecorrida: null,
+    modoRuta: false,
+    rutaTemporal: [],
     puntosRuta: [],
     modoManual:false,
     intervaloManual:null,
@@ -978,41 +1131,49 @@ function agregarAeronave(data, esRemota = true) {
 }
 
 // ================= ROUTE =================
-
 function activarModoRuta(){
 
-  if(!aeronaveSeleccionada) return
-
   const a = aeronaveSeleccionada
+  if(!a) return
 
   if(a.estado === "taxi"){
     alert("Aircraft is taxiing")
     return
   }
 
-  // 🔥 Eliminar ruta anterior correctamente
-  if(a.animRutaFrame){
-    cancelAnimationFrame(a.animRutaFrame)
-    a.animRutaFrame = null
-  }
-
+  // 🔥 Limpiar rutas anteriores
   if(a.ruta){
     map.removeLayer(a.ruta)
     a.ruta = null
   }
 
-  // 🔥 Crear nueva ruta independiente
-  modoRuta = true
+  if(a.rutaRecorrida){
+    map.removeLayer(a.rutaRecorrida)
+    a.rutaRecorrida = null
+  }
+
+  // 🔥 AHORA ES PROPIEDAD DEL OBJETO
+  a.modoRuta = true
 
   const pos = a.marker.getLatLng()
 
-  a.puntosRuta = [pos]   // ← YA NO usamos rutaTemporal global
+  // 🔥 Ruta temporal ahora es del objeto
+  a.rutaTemporal = [pos]
+  a.puntosRuta = a.rutaTemporal
 
-  a.ruta = L.polyline(a.puntosRuta, {
+  // 🟢 Ruta futura (punteada animada)
+  a.ruta = L.polyline(a.rutaTemporal, {
     color: "#21bd21",
     weight: 3,
     dashArray: "6 12",
     dashOffset: "0"
+  }).addTo(map)
+
+  // ⚪ Ruta recorrida (inicialmente vacía)
+  a.rutaRecorrida = L.polyline([], {
+    color: "#21bd21",
+    weight: 3,
+    opacity: 0.15
   }).addTo(map)
 
   animarRuta(a)
@@ -1023,42 +1184,44 @@ function activarModoRuta(){
 
 function agregarPuntoRuta(latlng){
 
-  if(!aeronaveSeleccionada) return
-
   const a = aeronaveSeleccionada
-
+  if(!a) return
+  if(!a.modoRuta) return
   if(a.estado === "taxi") return
 
-  if(!a.puntosRuta) return
-
-  a.puntosRuta.push(latlng)
-
-  if(a.ruta){
-    a.ruta.setLatLngs(a.puntosRuta)
-  }
+  a.rutaTemporal.push(latlng)
+  a.ruta.setLatLngs(a.rutaTemporal)
 
   actualizarBotonTaxi()
 }
 
-function eliminarRuta(){
 
-  if(!aeronaveSeleccionada) return
+function eliminarRuta(a){
 
-  const a = aeronaveSeleccionada
+  if(!a) return
 
-  // 🔥 Detener animación si existe
+  if(a.estado === "taxi") return
+
   if(a.animRutaFrame){
     cancelAnimationFrame(a.animRutaFrame)
     a.animRutaFrame = null
   }
 
-  // 🔥 Eliminar polyline del mapa
   if(a.ruta){
     map.removeLayer(a.ruta)
     a.ruta = null
   }
-a.puntosRuta = []
 
+  if(a.rutaRecorrida){
+    map.removeLayer(a.rutaRecorrida)
+    a.rutaRecorrida = null
+  }
+
+  a.modoRuta = false
+a.rutaTemporal = []
+a.puntosRuta = []
+a.indiceRuta = 0
+  actualizarBotonTaxi()
 }
 
 
@@ -1075,114 +1238,44 @@ function iniciarRodaje(){
   if(!a.puntosRuta || a.puntosRuta.length < 2) return
 
   a.estado = "taxi"
-actualizarInteraccion(a)
-
+  actualizarInteraccion(a)
   a.indiceRuta = 0
 
   mostrarTaxiing(a, true)
+  a.modoRuta = false
 
   moverPorPuntos(a)
-
   actualizarPanelInfo(a)
   actualizarBotonTaxi()
+
+  aeronaveSeleccionada = null
+  cerrarPanel()
+
 }
 
+function detenerRodaje(a){
 
-function detenerRodaje(){
-
-  if(!aeronaveSeleccionada) return
-
-  const a = aeronaveSeleccionada
-
+  if(!a) return
   if(a.estado !== "taxi") return
 
-  a.estado = "idle"
-actualizarInteraccion(a)
+  if(a.motorTaxi){
+    clearInterval(a.motorTaxi)
+    a.motorTaxi = null
+  }
 
+  a.estado = "idle"
+  actualizarInteraccion(a)
   mostrarTaxiing(a, false)
+
+  a.modoRuta = false
+  a.rutaTemporal = []
 
   actualizarPanelInfo(a)
   actualizarBotonTaxi()
 }
 
 
-function activarModoManual(){
 
-
-  if(!aeronaveSeleccionada) return
-  const a = aeronaveSeleccionada
-
-  if(a.modoManual) return
-  if(a.estado === "taxi"|| a.estado === "vuelo"|| a.estado === "circuito"){
-    alert("Cannot activate manual during automatic modes")
-    return
-  }
-
-  a.estado = "manual"
-  a.modoManual = true
-// Si no tiene ángulo definido, usar el actual o 0
-if(a.angulo === undefined || a.angulo === null){
-  a.angulo = 0
-}
-
-// Forzar que el icono apunte al rumbo actual
-actualizarRotacion(a)
-
-  // ✅ Mostrar panel
-  document.getElementById("panelRumbo").classList.remove("oculto")
-
-  // ✅ Actualizar heading visual inmediatamente
-  actualizarHeadingDisplay(a)
-
-  if(a.intervaloManual){
-    clearInterval(a.intervaloManual)
-  }
-
-  a.intervaloManual = setInterval(()=>{
-
-    if(a.velocidadObjetivo <= 0) return
-
-    const mps = a.velocidadObjetivo * 0.514444
-    const headingRad = a.angulo * Math.PI/180
-    const actual = a.marker.getLatLng()
-
-    const deltaLat = (Math.cos(headingRad)*mps)/111320
-    const deltaLng = (Math.sin(headingRad)*mps) /
-      (111320*Math.cos(actual.lat*Math.PI/180))
-
-    const nuevaLat = actual.lat + deltaLat
-    const nuevaLng = actual.lng + deltaLng
-
-    a.marker.setLatLng([nuevaLat, nuevaLng])
-
-    socket.emit("actualizarAeronave", {
-      id:a.id,
-      lat:nuevaLat,
-      lng:nuevaLng,
-      altitud:a.altitud,
-      angulo:a.angulo
-    })
-
-  }, 50)
-
-}
-
-function detenerModoManual(){
-a.estado = "idle"
-actualizarInteraccion(a)
-
-  if(!aeronaveSeleccionada) return
-  const a = aeronaveSeleccionada
-
-  a.modoManual = false
-
-  if(a.intervaloManual){
-    clearInterval(a.intervaloManual)
-    a.intervaloManual = null
-  }
-document.getElementById("panelRumbo").classList.add("oculto")
-
-}
 function actualizarInteraccion(a){
 
   if(!a || !a.marker) return
@@ -1193,8 +1286,81 @@ function actualizarInteraccion(a){
     a.marker.dragging.disable()
   }
 }
+function actualizarBotonManual() {
 
+  const btn = document.getElementById("btnManual")
+  if (!btn) return
 
+  // No hay aeronave seleccionada
+  if (!aeronaveSeleccionada) {
+    btn.disabled = true
+    btn.textContent = "Manual Control"
+    btn.style.background = "#333"
+    btn.style.cursor = "not-allowed"
+    return
+  }
+
+  btn.disabled = false
+  btn.style.cursor = "pointer"
+
+  if (aeronaveSeleccionada.estado === "manual") {
+
+    btn.textContent = "Exit Manual"
+    btn.style.background = "#e53935"   // rojo activo
+
+  } else {
+
+    btn.textContent = "Manual Control"
+    btn.style.background = "#333"
+
+  }
+}
+function enviarAjuste(tipo, valor) {
+
+  if (!aeronaveSeleccionada) return
+  if (aeronaveSeleccionada.estado !== "manual") return
+
+  socket.emit("ajusteManual", {
+    id: aeronaveSeleccionada.id,
+    tipo: tipo,
+    valor: valor
+  })
+
+  // Actualización visual inmediata (suave)
+  if(tipo === "heading"){
+    aeronaveSeleccionada.angulo =
+      (aeronaveSeleccionada.angulo + valor + 360) % 360
+  }
+
+  if(tipo === "speed"){
+    aeronaveSeleccionada.velocidadObjetivo =
+      Math.max(0, aeronaveSeleccionada.velocidadObjetivo + valor)
+  }
+
+  if(tipo === "altitude"){
+    aeronaveSeleccionada.altitud =
+      Math.max(0, aeronaveSeleccionada.altitud + valor)
+  }
+
+  actualizarDisplaysManual(aeronaveSeleccionada)
+}
+document.getElementById("hdgPlus")
+  .onclick = () => enviarAjuste("heading", 5)
+
+document.getElementById("hdgMinus")
+  .onclick = () => enviarAjuste("heading", -5)
+
+document.getElementById("spdPlus")
+  .onclick = () => enviarAjuste("speed", 10)
+
+document.getElementById("spdMinus")
+  .onclick = () => enviarAjuste("speed", -10)
+
+document.getElementById("altPlus")
+  .onclick = () => enviarAjuste("altitude", 500)
+
+document.getElementById("altMinus")
+  .onclick = () => enviarAjuste("altitude", -500)
 function iniciarSTAR(){
 
   if(!aeronaveSeleccionada) return
@@ -1406,10 +1572,15 @@ function despegar(){
     const deltaLng = (Math.sin(headingRad) * mps) /
                      (111320 * Math.cos(actual.lat*Math.PI/180))
 
-    a.marker.setLatLng([
-      actual.lat + deltaLat,
-      actual.lng + deltaLng
-    ])
+    const nuevaLat = actual.lat + deltaLat
+const nuevaLng = actual.lng + deltaLng
+
+a.lat = nuevaLat
+a.lng = nuevaLng
+
+a.marker.setLatLng([a.lat, a.lng])
+
+
 
     // ================= FADE 80 NM =================
 
@@ -1431,9 +1602,8 @@ function despegar(){
     if(distanciaSalida >= DISTANCIA_REMOVE){
 
       clearInterval(a.intervaloVuelo)
-      map.removeLayer(a.marker)
-      aeronaves = aeronaves.filter(x=>x!==a)
-      cerrarPanel()
+socket.emit("eliminarAeronave", a.id)
+
     }
 
     // ================= ACTUALIZAR PANEL =================
@@ -1441,14 +1611,9 @@ function despegar(){
     if(aeronaveSeleccionada === a){
       actualizarPanelInfo(a)
     }
-socket.emit("actualizarAeronave", {
-  id: a.id,
-  lat: a.marker.getLatLng().lat,
-  lng: a.marker.getLatLng().lng,
-  altitud: a.altitud,
-  angulo: a.angulo
+const pos = a.marker.getLatLng()
+sincronizarMovimiento(a, pos.lat, pos.lng)
 
-})
 
   },50)
 }
@@ -1522,6 +1687,113 @@ function puedeDespegarDesdeLIB(a){
 
   return true
 }
+// ================= Lineas punteadas =================
+const btnCapas = document.getElementById("btnCapas")
+const panelCapas = document.getElementById("panelCapas")
+
+const chkVor = document.getElementById("chkVor")
+const chkEje = document.getElementById("chkEje")
+const chkPatron = document.getElementById("chkPatron")
+
+let circuloVor = null
+let ejePista = null
+let patronLayer = null
+let rutaCircuitoServidor = null
+
+// Coordenadas reales
+const vorPisco = [-13.744, -76.220]
+const radio5NM = 5 * 1852
+
+const rwy04 = [-13.755327, -76.229306]
+const rwy22 = [-13.734272, -76.211517]
+
+// Mostrar / ocultar panel
+btnCapas.addEventListener("click", () => {
+  panelCapas.classList.toggle("oculto")
+})
+
+/* =======================
+   5NM VOR
+======================= */
+
+chkVor.addEventListener("change", () => {
+
+  if(chkVor.checked){
+
+    circuloVor = L.circle(vorPisco, {
+      radius: radio5NM,
+      color: "#ffffff",
+      weight: 2,
+      dashArray: "6 8",
+      fill: false
+    }).addTo(map)
+
+  } else {
+    if(circuloVor){
+      map.removeLayer(circuloVor)
+      circuloVor = null
+    }
+  }
+
+})
+
+/* =======================
+   EJE PISTA
+======================= */
+
+chkEje.addEventListener("change", () => {
+
+  if(chkEje.checked){
+
+    ejePista = L.polyline([rwy04, rwy22], {
+      color: "#00ffff",
+      weight: 2,
+      dashArray: "4 6"
+    }).addTo(map)
+
+  } else {
+    if(ejePista){
+      map.removeLayer(ejePista)
+      ejePista = null
+    }
+  }
+
+})
+
+/* =======================
+   PATRÓN (placeholder)
+======================= */
+
+chkPatron.addEventListener("change", () => {
+
+  if (chkPatron.checked) {
+
+    if (!rutaServidor) return
+
+    if (patronLayer) {
+      map.removeLayer(patronLayer)
+    }
+
+    patronLayer = L.polyline(
+      rutaServidor.map(p => [p.lat, p.lng]),
+      {
+        color: "#00ffff",
+        weight: 2,
+        dashArray: "8 8"
+      }
+    ).addTo(map)
+
+  } else {
+
+    if (patronLayer) {
+      map.removeLayer(patronLayer)
+      patronLayer = null
+    }
+
+  }
+
+})
+
 
 
 function girarSuavemente(a, headingActual, headingObjetivo){
@@ -1542,7 +1814,23 @@ function girarSuavemente(a, headingActual, headingObjetivo){
   return headingActual + (diferencia > 0 ? maxCambio : -maxCambio)
 }
 
+function dibujarRutaServidor(){
 
+  if(!rutaCircuitoServidor) return
+
+  if(patronLayer){
+    map.removeLayer(patronLayer)
+  }
+
+  patronLayer = L.polyline(
+    rutaCircuitoServidor.map(p => [p.lat, p.lng]),
+    {
+      color: "#00ffff",
+      weight: 2,
+      dashArray: "8 8"
+    }
+  ).addTo(map)
+}
 function estaAlineadoConPista(a){
 
   let diferencia = Math.abs(a.angulo - RUMBO_PISTA_22)
@@ -1596,14 +1884,72 @@ function actualizarRotacion(a){
   const icon = el.querySelector(".icon-aircraft");
   if(!icon) return;
 
-  // Obtener offset según tipo
-  const offset = ORIENTACION_MODELOS[a.tipo] || ORIENTACION_MODELOS.DEFAULT;
+  const wrapper = el.querySelector(".icon-wrapper");
+  if(!wrapper) return;
 
+  const zoom = map.getZoom();
+
+  const escala = Math.max(
+    0.55,
+    Math.min(1.1, Math.pow(1.12, zoom - 15))
+  );
+
+  // ESCALAR SOLO EL WRAPPER (NO EL MARKER)
+  wrapper.style.transform = `scale(${escala})`;
+  wrapper.style.transformOrigin = "center";
+
+  //ROTAR SOLO EL ICONO
+  const offset = ORIENTACION_MODELOS[a.tipo] || ORIENTACION_MODELOS.DEFAULT;
   icon.style.transform = `rotate(${a.angulo + offset}deg)`;
 }
 
+map.on("zoom", () => {
+  aeronaves.forEach(a => actualizarRotacion(a))
+});
 
+function interpolarRemoto(avion, lat, lng, anguloServidor){
+
+  const actual = avion.marker.getLatLng()
+  const factor = 0.25
+
+  const nuevaLat =
+    actual.lat + (lat - actual.lat) * factor
+
+  const nuevaLng =
+    actual.lng + (lng - actual.lng) * factor
+
+  avion.marker.setLatLng([nuevaLat, nuevaLng])
+
+  // Inicializar
+  if(avion.angulo === undefined || avion.angulo === null){
+    avion.angulo = anguloServidor
+  }
+
+  // Diferencia angular correcta
+  const diff =
+    (anguloServidor - avion.angulo + 540) % 360 - 180
+
+  // Solo corregir si está completamente desfasado
+  if(
+    (avion.estado === "circuito" || avion.estado === "interceptando")
+    && Math.abs(diff) > 120
+  ){
+    avion.angulo = anguloServidor
+  }
+
+  // Interpolación suave
+  const factorGiro = 0.3
+  avion.angulo += diff * factorGiro
+  avion.angulo = (avion.angulo + 360) % 360
+
+  actualizarRotacion(avion)
+}
 function moverPorPuntos(a){
+
+  if(a.motorTaxi){
+    clearInterval(a.motorTaxi)
+    a.motorTaxi = null
+  }
 
   let i = a.indiceRuta || 0
   const ruta = a.puntosRuta
@@ -1612,12 +1958,12 @@ function moverPorPuntos(a){
   const metrosPorSegundo = taxiKnots * 0.514444
 
   let ultimoTiempo = performance.now()
-  let ultimoEnvio = 0
 
-  function mover(ahora){
+  function motor(){
 
     if(a.estado !== "taxi") return
 
+    const ahora = performance.now()
     const deltaTime = (ahora - ultimoTiempo) / 1000
     ultimoTiempo = ahora
 
@@ -1634,7 +1980,6 @@ function moverPorPuntos(a){
     if(distanciaMetros === 0){
       i++
       a.indiceRuta = i
-      requestAnimationFrame(mover)
       return
     }
 
@@ -1643,6 +1988,7 @@ function moverPorPuntos(a){
     if(distanciaMetros <= pasoMetros){
 
       a.marker.setLatLng(destino)
+      actualizarRutaRecorrida(a)
       i++
       a.indiceRuta = i
 
@@ -1654,56 +2000,96 @@ function moverPorPuntos(a){
       const nuevoLng = actual.lng + (destino.lng - actual.lng) * ratio
 
       a.marker.setLatLng([nuevoLat, nuevoLng])
+      actualizarRutaRecorrida(a)
     }
 
-    // 🔥 Rotación correcta basada en destino
-    const bearing = calcularBearing(actual, destino)
+    // 🔥 Rotación exacta desde posición actual
+    const nuevaPos = a.marker.getLatLng()
+    a.lat = nuevaPos.lat
+a.lng = nuevaPos.lng
+
+    const bearing = calcularBearing(nuevaPos, destino)
+
     a.angulo = bearing
     actualizarRotacion(a)
 
-    // 🔥 Emitir cada 100ms
-    if(!a.remoto && ahora - ultimoEnvio > 100){
-
-      const pos = a.marker.getLatLng()
-
-      socket.emit("actualizarAeronave", {
-        id: a.id,
-        lat: pos.lat,
-        lng: pos.lng,
-        altitud: a.altitud,
-        angulo: a.angulo
-      })
-
-      ultimoEnvio = ahora
+    // 🔥 Sincronización profesional
+    if(!a.remoto){
+      sincronizarMovimiento(a, nuevaPos.lat, nuevaPos.lng)
     }
-
-    requestAnimationFrame(mover)
   }
 
-  requestAnimationFrame(mover)
+  a.motorTaxi = setInterval(motor, 16)
+}
+
+
+function actualizarRutaRecorrida(a){
+
+  if(!a.ruta || !a.rutaRecorrida) return
+
+  const posActual = a.marker.getLatLng()
+
+  const puntosRestantes = a.puntosRuta.slice(a.indiceRuta)
+  const puntosRecorridos = a.puntosRuta.slice(0, a.indiceRuta)
+
+  // Actualizar línea recorrida
+  a.rutaRecorrida.setLatLngs([
+    ...puntosRecorridos,
+    posActual
+  ])
+
+  // Actualizar línea restante
+  a.ruta.setLatLngs([
+    posActual,
+    ...puntosRestantes.slice(1)
+  ])
+
+  // Opcional: efecto fade progresivo
+  const progreso = a.indiceRuta / a.puntosRuta.length
+  const nuevaOpacidad = 0.15 + progreso * 0.5
+
+  a.rutaRecorrida.setStyle({
+    opacity: nuevaOpacidad
+  })
 }
 
 function finalizarTaxi(a){
 
+  if(a.puntosRuta && a.puntosRuta.length >= 2){
+
+    const penultimo = a.puntosRuta[a.puntosRuta.length - 2]
+    const ultimo = a.puntosRuta[a.puntosRuta.length - 1]
+
+    const rumboFinal = calcularBearing(penultimo, ultimo)
+
+    a.angulo = rumboFinal
+    actualizarRotacion(a)
+  }
+
   a.estado = "idle"
-actualizarInteraccion(a)
+  actualizarInteraccion(a)
+  mostrarTaxiing(a, false)
 
-  mostrarTaxiing(a,false)
+  if(a.motorTaxi){
+    clearInterval(a.motorTaxi)
+    a.motorTaxi = null
+  }
 
-
-  // 🔥 Detener animación de ruta
   if(a.animRutaFrame){
     cancelAnimationFrame(a.animRutaFrame)
     a.animRutaFrame = null
   }
 
-  // 🔥 Eliminar línea visual
   if(a.ruta){
     map.removeLayer(a.ruta)
     a.ruta = null
   }
 
-  // 🔥 Limpiar datos
+  if(a.rutaRecorrida){
+    map.removeLayer(a.rutaRecorrida)
+    a.rutaRecorrida = null
+  }
+
   a.puntosRuta = []
   a.indiceRuta = 0
 
@@ -1711,6 +2097,41 @@ actualizarInteraccion(a)
   actualizarBotonTaxi()
 }
 
+
+function sincronizarMovimiento(a, lat, lng){
+
+  if(a.remoto) return
+
+  const ahora = performance.now()
+
+
+  if(!a.ultimoSync) a.ultimoSync = 0
+  if(ahora - a.ultimoSync < 80) return
+
+  a.ultimoSync = ahora
+
+  socket.emit("actualizarAeronave", {
+  id: a.id,
+  lat,
+  lng,
+  altitud: a.altitud,
+  angulo: a.angulo,
+  estado: a.estado
+})
+
+}
+
+function actualizarDisplaysManual(a){
+
+  document.getElementById("displayHeading").textContent =
+    String(Math.round(a.angulo)).padStart(3,"0")
+
+  document.getElementById("displaySpeed").textContent =
+    Math.round(a.velocidadObjetivo || 0)
+
+  document.getElementById("displayAlt").textContent =
+    Math.round(a.altitud || 0)
+}
 
 function mostrarTaxiing(a,estado){
   const el = a.marker.getElement()
@@ -1755,148 +2176,104 @@ function animarRuta(a){
 
 //===========CIRCUITO=============
 //=========== TRAFFIC PATTERN =============
+function proyectarPunto(lat, lng, rumbo, distanciaKm){
 
-// ================= REALISTIC LEFT TRAFFIC PATTERN RWY 22 =================
+  const R = 6371 // radio Tierra km
+  const brng = rumbo * Math.PI/180
+  const d = distanciaKm / R
 
+  const lat1 = lat * Math.PI/180
+  const lng1 = lng * Math.PI/180
+
+  const lat2 = Math.asin(
+    Math.sin(lat1)*Math.cos(d) +
+    Math.cos(lat1)*Math.sin(d)*Math.cos(brng)
+  )
+
+  const lng2 = lng1 + Math.atan2(
+    Math.sin(brng)*Math.sin(d)*Math.cos(lat1),
+    Math.cos(d)-Math.sin(lat1)*Math.sin(lat2)
+  )
+
+  return {
+    lat: lat2 * 180/Math.PI,
+    lng: lng2 * 180/Math.PI
+  }
+}
+
+// ================= LEFT TRAFFIC PATTERN RWY 22 =================
 function iniciarCircuito(){
 
   if(!aeronaveSeleccionada) return
   const a = aeronaveSeleccionada
 
-  if(a.tipo !== "C172"){
-    alert("Traffic pattern available only for C172")
-    return
-  }
+  socket.emit("iniciarCircuito", {
+    id: a.id
+  })
 
-if(a.estado === "circuito")
- return
-  a.altitud = 0
-a.estado = "circuito"
+}
+function calcularRumbo(origen, destino){
 
-  const velocidad = 60          // 60 KTAS realista
-  const patronAltitud = 1500    // 1500 ft
-  const climbFPM = 700          // climb real C172
-  const descensoFPM = 500       // descenso base/final
+  const lat1 = origen.lat * Math.PI/180
+  const lat2 = destino.lat * Math.PI/180
+  const dLon = (destino.lng - origen.lng) * Math.PI/180
 
-  const climbFPS = climbFPM / 60
-  const descensoFPS = descensoFPM / 60
+  const y = Math.sin(dLon) * Math.cos(lat2)
+  const x =
+    Math.cos(lat1)*Math.sin(lat2) -
+    Math.sin(lat1)*Math.cos(lat2)*Math.cos(dLon)
 
-  const referencia = a.marker.getLatLng()
+  const brng = Math.atan2(y,x) * 180/Math.PI
 
-  const distUpwind   = 1 * 1852
-  const distCross    = 1 * 1852
-  const distDownwind = 2 * 1852
-  const distBase     = 1 * 1852
-
-  let fase = "UPWIND"
-  let headingObjetivo = 220
-  let puntoInicioFase = referencia
-
-  a.intervaloCircuito = setInterval(()=>{
-
-    const actual = a.marker.getLatLng()
-    const distancia = map.distance(puntoInicioFase, actual)
-
-    // ================= ALTITUD REALISTA =================
-    if(fase === "UPWIND" || fase === "CROSSWIND"){
-      if(a.altitud < patronAltitud){
-        a.altitud += climbFPS * 0.05
-      }
-    }
-
-    if(fase === "BASE" || fase === "FINAL"){
-      a.altitud -= descensoFPS * 0.05
-      if(a.altitud < 0) a.altitud = 0
-    }
-
-    // ================= CAMBIO DE FASE =================
-    switch(fase){
-
-      case "UPWIND":
-        if(distancia >= distUpwind){
-          headingObjetivo = 130
-          fase = "CROSSWIND"
-          puntoInicioFase = actual
-        }
-      break
-
-      case "CROSSWIND":
-        if(distancia >= distCross){
-          headingObjetivo = 40
-          fase = "DOWNWIND"
-          puntoInicioFase = actual
-        }
-      break
-
-      case "DOWNWIND":
-        if(distancia >= distDownwind){
-          headingObjetivo = 310
-          fase = "BASE"
-          puntoInicioFase = actual
-        }
-      break
-
-      case "BASE":
-        if(distancia >= distBase){
-          headingObjetivo = 220
-          fase = "FINAL"
-          puntoInicioFase = actual
-        }
-      break
-
-      case "FINAL":
-        if(a.altitud <= 0){
-          // Touch & Go
-          fase = "UPWIND"
-          headingObjetivo = 220
-          puntoInicioFase = actual
-        }
-      break
-    }
-
-    // ================= GIRO CORRECTO =================
-    a.angulo = girarSuavemente(a, a.angulo || 220, headingObjetivo)
-    actualizarRotacion(a)
-
-    // ================= MOVIMIENTO =================
-    const mps = velocidad * 0.514444
-    const headingRad = a.angulo * Math.PI/180
-
-    const deltaLat = (Math.cos(headingRad)*mps)/111320
-    const deltaLng = (Math.sin(headingRad)*mps)/
-      (111320*Math.cos(actual.lat*Math.PI/180))
-
-    a.marker.setLatLng([
-      actual.lat + deltaLat,
-      actual.lng + deltaLng
-    ])
-const pos = a.marker.getLatLng()
-
-socket.emit("actualizarAeronave", {
-    id: a.id,
-    lat: pos.lat,
-    lng: pos.lng,
-    altitud: a.altitud,
-    angulo: a.angulo
-})
-
-  },50)
+  return (brng + 360) % 360
 }
 
 function detenerCircuito(){
 
-
   if(!aeronaveSeleccionada) return
   const a = aeronaveSeleccionada
 
-  if(a.intervaloCircuito){
-    clearInterval(a.intervaloCircuito)
-    a.intervaloCircuito = null
+  socket.emit("detenerCircuito", {
+    id: a.id
+  })
+
+}
+function generarArco(centro, radioMetros, rumboInicio, rumboFin, pasos = 20){
+
+  const puntos = []
+
+  const inicio = rumboInicio * Math.PI/180
+  const fin = rumboFin * Math.PI/180
+
+  for(let i=0; i<=pasos; i++){
+
+    const angulo = inicio + (fin - inicio) * (i/pasos)
+
+    const deltaLat = (Math.cos(angulo) * radioMetros) / 111320
+    const deltaLng = (Math.sin(angulo) * radioMetros) /
+      (111320 * Math.cos(centro.lat * Math.PI/180))
+
+    puntos.push([
+      centro.lat + deltaLat,
+      centro.lng + deltaLng
+    ])
   }
 
-  a.estado = "idle"
-  actualizarInteraccion(a)
+  return puntos
+}
 
+function puntoPlano(origen, rumbo, distanciaMetros){
+
+  const headingRad = rumbo * Math.PI/180
+
+  const deltaLat = (Math.cos(headingRad) * distanciaMetros) / 111320
+  const deltaLng = (Math.sin(headingRad) * distanciaMetros) /
+    (111320 * Math.cos(origen.lat * Math.PI/180))
+
+  return {
+    lat: origen.lat + deltaLat,
+    lng: origen.lng + deltaLng
+  }
 }
 
 // ================= FREE NAVIGATION =================
@@ -1915,13 +2292,9 @@ function cambiarRumbo(valor){
   actualizarRotacion(a)
   actualizarHeadingDisplay(a)
 
-  socket.emit("actualizarAeronave", {
-    id:a.id,
-    lat:a.marker.getLatLng().lat,
-    lng:a.marker.getLatLng().lng,
-    altitud:a.altitud,
-    angulo:a.angulo
-  })
+  const pos = a.marker.getLatLng()
+sincronizarMovimiento(a, pos.lat, pos.lng)
+
 
 }
 function actualizarHeadingDisplay(a){
@@ -2088,10 +2461,10 @@ function activarEmergencia(){
 
 function desactivarEmergencia(){
 
-  if(!marcadorPeligro) return;
+  if(!imagenPeligro) return;
 
-  map.removeLayer(marcadorPeligro);
-  marcadorPeligro = null;
+  map.removeLayer(imagenPeligro);
+  imagenPeligro = null;
 }
 function obtenerBoundsImagen(lat, lng, tamañoMetros){
 

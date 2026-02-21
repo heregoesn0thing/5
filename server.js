@@ -138,7 +138,7 @@ function iniciarMotorSala(nombreSala){
 // ✈ FASE 0 — INGRESO 45°
 // =====================================
 
-if (a.estado === "interceptando45") {
+if (a.estado === "INT") {
 
   const destino = a.puntoIngreso
 
@@ -734,7 +734,7 @@ const puntoIngreso = puntoPlano(
 aeronave.puntoIngreso = puntoIngreso
 aeronave.indiceObjetivo = indiceVientoCola
 aeronave.velocidad = 90 * 0.514444
-aeronave.estado = "interceptando45"
+aeronave.estado = "INT"
 
   iniciarMotorSala(salaNombre)
 })

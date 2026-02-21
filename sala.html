@@ -62,9 +62,6 @@ const socket = io()
 const params = new URLSearchParams(window.location.search);
 const nombreSala = params.get("nombre");
 
-socket.on("rutaCircuito", data => {
-  rutaServidor = data.ruta
-})
 if(!nombreSala){
   alert("No room specified");
   window.location.href = "/";
@@ -1869,7 +1866,7 @@ chkPatron.addEventListener("change", () => {
     }
 
     patronLayer = L.polyline(
-      rutaServidor.map(p => [p.lat, p.lng]),
+      rutaCircuitoServidor.map(p => [p.lat, p.lng]),
       {
         color: "#f0ea3a",
         weight: 2,

@@ -247,17 +247,22 @@ socket.on("rutaCircuitoActualizada", () => {
   </div>
 </div>
 <div id="panelTiempo">
-  <div class="tiempoTop">
+
+  <div class="tiempoHeader">
     <div id="relojGlobal">00:00:00</div>
-    <div id="timeControls">
-      <button id="btnConfigHora">⚙</button>
-    </div>
+    <button id="btnConfigHora" class="btnReloj">
+      ⚙
+    </button>
   </div>
 
-  <div id="configHora" class="oculto">
-    <input type="time" id="inputHora">
-    <button id="btnAplicarHora">OK</button>
+  <div id="configHora" class="oculto panelConfigReloj">
+    <label>Hora del simulador</label>
+    <input type="time" id="inputHora" step="1">
+    <button id="btnAplicarHora" class="btnAplicar">
+      Aplicar
+    </button>
   </div>
+
 </div>
 
 <div id="manualPanel">

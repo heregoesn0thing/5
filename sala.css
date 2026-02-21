@@ -589,76 +589,117 @@ html, body{
 }
 
 /* ================= PANEL TIEMPO UNIFICADO ================= */
+/* ================= PANEL TIEMPO ================= */
 
 #panelTiempo {
   position: absolute;
-  top: 20px;
+  top: 15px;
   right: 20px;
+  font-family: 'Segoe UI', sans-serif;
   z-index: 9999;
-
-  background: rgba(15, 18, 25, 0.92);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-
-  padding: 14px 18px;
-
-  box-shadow:
-    0 8px 25px rgba(0, 0, 0, 0.45),
-    inset 0 0 0 1px rgba(255,255,255,0.03);
-
-  font-family: "Segoe UI", Roboto, monospace;
-  color: #e8f0ff;
-
-  min-width: 180px;
 }
 
-.tiempoTop {
+/* Header reloj */
+.tiempoHeader {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 10px;
 }
 
+/* Reloj digital */
 #relojGlobal {
-  font-size: 26px;
+  font-size: 20px;
   font-weight: 600;
-  letter-spacing: 2px;
-  text-align: center;
-  color: #7cc7ff;
-  transition: all 0.3s ease;
+  letter-spacing: 1px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: linear-gradient(145deg, #1c1f2b, #23283a);
+  color: #00e0ff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
 }
 
-#timeControls button {
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.08);
-  color: #9ecfff;
-  border-radius: 6px;
-  padding: 4px 8px;
+/* Botón engranaje */
+.btnReloj {
+  background: #1f2433;
+  border: none;
+  color: #aaa;
+  font-size: 18px;
+  padding: 6px 10px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: 0.2s ease;
 }
 
-#timeControls button:hover {
-  background: rgba(124, 199, 255, 0.15);
-  transform: scale(1.05);
+.btnReloj:hover {
+  background: #2a3145;
+  color: #00e0ff;
+  transform: rotate(30deg);
 }
 
-#configHora {
+/* ================= PANEL DESPLEGABLE ================= */
+
+.panelConfigReloj {
   position: absolute;
-  top: 60px;
+  top: 55px;
   right: 0;
-  background: #1e1e2f;
-  padding: 12px;
-  border-radius: 10px;
-  box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+  width: 200px;
+  padding: 15px;
+  border-radius: 12px;
+
+  background: rgba(25, 30, 45, 0.95);
+  backdrop-filter: blur(8px);
+
+  box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
-.oculto{
+/* Título */
+.panelConfigReloj label {
+  font-size: 13px;
+  color: #aaa;
+  letter-spacing: 0.5px;
+}
+
+/* Input */
+.panelConfigReloj input {
+  background: #151922;
+  border: 1px solid #2c344a;
+  color: #00e0ff;
+  padding: 6px;
+  border-radius: 6px;
+  outline: none;
+  font-size: 14px;
+}
+
+.panelConfigReloj input:focus {
+  border-color: #00e0ff;
+}
+
+/* Botón aplicar */
+.btnAplicar {
+  background: linear-gradient(145deg, #008cff, #0055cc);
+  border: none;
+  color: white;
+  padding: 7px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: 0.2s ease;
+}
+
+.btnAplicar:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(0,140,255,0.4);
+}
+
+/* Clase ocultar */
+.oculto {
   opacity: 0;
   pointer-events: none;
-  transform: translateY(-8px);
+  transform: translateY(-10px);
 }

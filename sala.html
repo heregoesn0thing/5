@@ -46,7 +46,7 @@
 
 </div>
 <button id="btnEliminarModo">🗑</button>
-<button id="btnCapas" class="btn-vor">...</button>
+<button id="btnCapas" onclick="toggleOpciones()" class="btn-vor">...</button>
 
 <div id="panelCapas" class="panel-capas oculto">
   <label><input type="checkbox" id="chkVor"> ATZ</label>
@@ -1642,6 +1642,19 @@ function puedeDespegarDesdeLIB(a){
   if(diferencia > TOLERANCIA_RUMBO) return false
 
   return true
+}
+function toggleOpciones() {
+
+  const menu = document.getElementById("menuOpciones")
+
+  if (!menu) return
+
+  if (menu.style.display === "flex") {
+    menu.style.display = "none"
+  } else {
+    menu.style.display = "flex"
+  }
+
 }
 // ================= Lineas punteadas =================
 const btnCapas = document.getElementById("btnCapas")

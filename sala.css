@@ -686,48 +686,69 @@ html, body{
 #panelManual {
   display: none;
   position: fixed;
-  bottom: 20px;
+  bottom: 25px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(15,15,15,0.95);
-  padding: 10px 18px;
-  border-radius: 10px;
-  display: flex;
-  gap: 25px;
-  align-items: center;
+  width: 650px;
+
+  background: linear-gradient(180deg, #111, #1c1c1c);
+  border: 1px solid #333;
+  border-radius: 14px;
+
+  box-shadow: 0 0 25px rgba(0,0,0,0.7);
+  color: #eee;
   font-family: "Segoe UI", sans-serif;
-  box-shadow: 0 0 20px rgba(0,0,0,0.6);
   z-index: 9999;
 }
 
-.control {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #ccc;
-  font-size: 13px;
+.panel-header {
+  text-align: center;
+  padding: 10px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  font-size: 14px;
+  background: #0d0d0d;
+  border-bottom: 1px solid #333;
 }
 
-.control span {
-  min-width: 60px;
+.panel-body {
+  display: flex;
+  justify-content: space-around;
+  padding: 20px;
+}
+
+.control-group {
   text-align: center;
+  width: 30%;
+}
+
+.control-group .label {
+  font-size: 13px;
+  color: #aaa;
+  margin-bottom: 6px;
+}
+
+.control-group .value {
+  font-size: 24px;
   font-weight: bold;
+  margin-bottom: 12px;
   color: #00ffcc;
 }
 
-.control button {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  border: 1px solid #333;
-  background: #1f1f1f;
+.buttons button {
+  margin: 4px;
+  padding: 6px 14px;
+  font-size: 14px;
+  background: #222;
   color: white;
+  border: 1px solid #444;
+  border-radius: 6px;
   cursor: pointer;
-  font-weight: bold;
-  transition: 0.15s;
+  transition: 0.2s;
 }
 
-.control button:hover {
+.buttons button:hover {
   background: #00ffcc;
   color: black;
+  border-color: #00ffcc;
 }

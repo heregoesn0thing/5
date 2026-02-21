@@ -211,7 +211,7 @@ socket.on("rutaCircuitoActualizada", () => {
 
     <button onclick="activarModoRuta()">Create Route</button>
     <div class="taxi-controls">
-    <button id="btnTaxi" onclick="iniciarTaxi()">Iniciar Taxi</button>
+    <button id="btnTaxi" onclick="toggleTaxi()">Iniciar Taxi</button>
     <button onclick="eliminarRuta(aeronaveSeleccionada)">🗑 Delete</button>
 </div>
 
@@ -1182,31 +1182,31 @@ a.indiceRuta = 0
 
 // ================= TAXI =================
 
-function iniciarTaxi(){
+function toggleTaxi(){
 
   if(!aeronaveSeleccionada) return
-socket.emit("iniciarTaxi", {
+socket.emit("toggletaxi", {
     id: aeronaveSeleccionada.id
   })
-  const a = aeronaveSeleccionada
+  // const a = aeronaveSeleccionada
 
-  if(a.estado !== "idle") return
+  // if(a.estado !== "idle") return
 
-  if(!a.puntosRuta || a.puntosRuta.length < 2) return
+  // if(!a.puntosRuta || a.puntosRuta.length < 2) return
 
-  a.estado = "taxi"
-  actualizarInteraccion(a)
-  a.indiceRuta = 0
+  // a.estado = "taxi"
+  // actualizarInteraccion(a)
+  // a.indiceRuta = 0
 
-  mostrarTaxiing(a, true)
-  a.modoRuta = false
+  // mostrarTaxiing(a, true)
+  // a.modoRuta = false
 
-  moverPorPuntos(a)
-  actualizarPanelInfo(a)
-  actualizarBotonTaxi()
+  // moverPorPuntos(a)
+  // actualizarPanelInfo(a)
+  // actualizarBotonTaxi()
 
-  aeronaveSeleccionada = null
-  cerrarPanel()
+  // aeronaveSeleccionada = null
+  // cerrarPanel()
 
 }
 

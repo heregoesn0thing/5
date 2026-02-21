@@ -82,7 +82,7 @@
 </div>
 
   <button onclick="toggleMenuAcciones()" id="btnMenuPrincipal">
-    ⋮
+    🛠️
   </button>
 
 </div>
@@ -1811,8 +1811,21 @@ const rwy04 = [-13.755327, -76.229306]
 const rwy22 = [-13.734272, -76.211517]
 
 // Mostrar / ocultar panel
+
+
 btnCapas.addEventListener("click", () => {
-  panelCapas.classList.toggle("oculto")
+
+  panelCapas.classList.toggle("visible")
+  btnCapas.classList.toggle("activo")
+
+})
+
+/* Cerrar si se hace click fuera */
+document.addEventListener("click", (e) => {
+  if(!panelCapas.contains(e.target) && !btnCapas.contains(e.target)){
+    panelCapas.classList.remove("visible")
+    btnCapas.classList.remove("activo")
+  }
 })
 
 /* =======================

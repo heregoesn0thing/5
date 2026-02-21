@@ -6,8 +6,6 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <link rel="stylesheet" href="sala.css">
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet-geometryutil"></script>
-
 
 </head>
 
@@ -46,14 +44,6 @@
 
 </div>
 <button id="btnEliminarModo">🗑</button>
-<button id="btnCapas" class="btn-vor">...</button>
-
-<div id="panelCapas" class="panel-capas oculto">
-  <label><input type="checkbox" id="chkVor"> ATZ</label>
-  <label><input type="checkbox" id="chkEje"> RWY 04/22</label>
-  <label><input type="checkbox" id="chkPatron"> Aerodrome Traffic Circuit</label>
-</div>
-
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
@@ -87,7 +77,53 @@ const iconoC172 = L.divIcon({
   iconAnchor: [20, 20]
 });
 
+// Unirse realmente a la sala
+socket.on("cargarAeronaves", lista => {
 
+  lista.forEach(data => {
+
+    if (aeronaves.some(a => a.id === data.id)) return
+
+    const marker = L.marker([data.lat, data.lng], {
+      icon: crearIcono(data.id, data.tipo),
+      interactive: true
+    }).addTo(map)
+
+    const nueva = {
+      id: data.id,
+      tipo: data.tipo,
+      marker: marker,
+      remoto: true,
+      altitud: data.altitud || 0,
+      angulo: data.angulo || 0,
+      velocidadObjetivo: 0,
+      ruta: null,        
+      puntosRuta: []
+    }
+
+    aeronaves.push(nueva)
+
+    marker.on("click", function(event){
+
+      L.DomEvent.stopPropagation(event)
+
+      if (modoEliminar) {
+
+        socket.emit("eliminarAeronave", nueva.id)
+
+        modoEliminar = false
+        btnEliminar.classList.remove("activo")
+
+        return
+      }
+
+      seleccionarAeronave(nueva)
+
+    })
+
+  })
+
+})
 socket.on("horaSala", data => {
   const reloj = document.getElementById("relojGlobal");
   if(!reloj) return;
@@ -114,24 +150,8 @@ socket.on("estadoTiempo", (data) => {
   iconPause.style.display = pausado ? "none" : "block";
 
 });
-socket.on("rutaCircuito", data => {
 
-  // Guardar ruta
-  rutaCircuitoServidor = data.ruta
 
-  // Si el checkbox está activo → dibujar
-  if(chkPatron.checked){
-    dibujarRutaServidor()
-  }
-
-})
-socket.on("rutaCircuitoActualizada", () => {
-
-  if (chkPatron.checked && rutaCircuitoServidor) {
-    dibujarRutaServidor()
-  }
-
-})
 
 
 
@@ -150,15 +170,17 @@ socket.on("rutaCircuitoActualizada", () => {
     <button onclick="activarModoRuta()">Create Route</button>
     <div class="taxi-controls">
     <button id="btnTaxi" onclick="iniciarRodaje()">▶ Taxi</button>
-    <button onclick="detenerRodaje(aeronaveSeleccionada)">⏸ Pause</button>
-    <button onclick="eliminarRuta(aeronaveSeleccionada)">🗑 Delete</button>
+    <button onclick="detenerRodaje()">⏸ Pause</button>
+    <button onclick="eliminarRuta()">🗑 Delete</button>
 </div>
 
     <button onclick="despegar()">Takeoff</button>
-    <button id="btnManual">Manual Control</button>
+
+    <button onclick="activarModoManual()">Manual Control</button>
+    <button onclick="detenerModoManual()">Stop Manual</button>
     <button onclick="iniciarCircuito()">Traffic Pattern</button>
-    <button id="btnExtender">Extender +0.5 NM</button>
     <button onclick="detenerCircuito()">Stop Pattern</button>
+
     <button onclick="eliminarSeleccionada()">Remove Aircraft</button>
 
     <select id="sidSelect">
@@ -190,53 +212,38 @@ socket.on("rutaCircuitoActualizada", () => {
 </div>
 <div id="panelTiempo">
 
-  <div class="tiempoHeader">
-    <div id="relojGlobal">00:00:00</div>
-    <button id="btnConfigHora" class="btnReloj">
+  <div id="relojGlobal">00:00:00</div>
+
+  <div id="timeControls">
+
+    <button id="btnPlayPause" onclick="toggleTiempo()" title="Pausar / Reanudar">
+      <svg id="iconPlay" viewBox="0 0 24 24" width="18" height="18">
+        <polygon points="6,4 20,12 6,20" fill="currentColor"/>
+      </svg>
+      <svg id="iconPause" viewBox="0 0 24 24" width="18" height="18" style="display:none;">
+        <rect x="6" y="4" width="4" height="16" fill="currentColor"/>
+        <rect x="14" y="4" width="4" height="16" fill="currentColor"/>
+      </svg>
+    </button>
+
+    <button onclick="toggleConfig()" title="Configurar hora">
       ⚙
     </button>
+
   </div>
 
-  <div id="configHora" class="oculto panelConfigReloj">
-    <label>Simulator timer</label>
+  <div id="configHora">
     <input type="time" id="inputHora" step="1">
-    <button id="btnAplicarHora" class="btnAplicar">
-      Apply
-    </button>
+    <button onclick="cambiarHora()">✔</button>
   </div>
 
 </div>
 
-<div id="manualPanel">
 
-  <div class="mcpModule">
-    <div class="mcpTitle">HDG</div>
-    <div class="mcpControl">
-      <button id="hdgMinus" class="mcpBtn">◀</button>
-      <div id="displayHeading" class="mcpValue">000</div>
-      <button id="hdgPlus" class="mcpBtn">▶</button>
-    </div>
-  </div>
 
-  <div class="mcpModule">
-    <div class="mcpTitle">SPD</div>
-    <div class="mcpControl">
-      <button id="spdMinus" class="mcpBtn">◀</button>
-      <div id="displaySpeed" class="mcpValue">0</div>
-      <button id="spdPlus" class="mcpBtn">▶</button>
-    </div>
-  </div>
 
-  <div class="mcpModule">
-    <div class="mcpTitle">ALT</div>
-    <div class="mcpControl">
-      <button id="altMinus" class="mcpBtn">◀</button>
-      <div id="displayAlt" class="mcpValue">0</div>
-      <button id="altPlus" class="mcpBtn">▶</button>
-    </div>
-  </div>
 
-</div>
+
 
 <div id="departurePanel" class="panelOculto">
   <div class="panelHeader">
@@ -358,10 +365,14 @@ crearVOR("SCO VOR", -13.738556, -76.212750)
 
 let aeronaves = []
 let aeronaveSeleccionada = null
+let modoRuta = false
+let rutaTemporal = []
 let modoEliminar = false;
 let marcadorPeligro = null;
 let imagenPeligro = null;
 let temporizadorPeligro = null;
+
+
 const VELOCIDAD = 8
 const TIPOS = ["A320","A319","C172","AN32"]
 const RUMBO_PISTA_22 = 220
@@ -437,24 +448,29 @@ socket.on("peligroDesactivado", () => {
   }
 
 })
+const PASSWORD_PELIGRO = "0223"; // Password hardcoded
 
 function activarModoPeligro(){
 
-  const clave = prompt("Enter emergency password:");
+  const clave = prompt("Enter password to activate EMERGENCY MODE:");
+
   if(clave === null) return;
 
   if(!/^\d+$/.test(clave)){
-    alert("Only numbers allowed");
+    alert("Only numbers allowed ☠️");
     return;
   }
 
-  socket.emit("activarPeligroSala", {
-    sala: nombreSala,
-    clave: clave
-  });
+  if(clave === PASSWORD_PELIGRO){
+    activarEmergencia()
+    socket.emit("activarPeligroSala", {
+  sala: nombreSala
+})
+;
+  }else{
+    alert("Don't try again please ☠️");
+  }
 }
-let circuitoLayer = null
-
 
 // ================= TIEMPO =================
 let pausado = false;
@@ -536,8 +552,7 @@ function crearIcono(callsign, tipo){
 map.on("click", function(e){
 
   // Si estamos creando ruta
-  if(aeronaveSeleccionada && aeronaveSeleccionada.modoRuta){
-
+  if(modoRuta){
     if (aeronaveSeleccionada && aeronaveSeleccionada.estado !== "taxi") {
 
       agregarPuntoRuta(e.latlng)
@@ -600,6 +615,7 @@ function confirmarCreacion(){
     return
   }
 
+  // 🔴 VALIDACIÓN IMPORTANTE
   if(!window.tempLatLng){
     alert("Click en el mapa primero para elegir posición")
     return
@@ -608,18 +624,97 @@ function confirmarCreacion(){
   const lat = window.tempLatLng.lat
   const lng = window.tempLatLng.lng
 
-  console.log("✈ Solicitud de creación enviada:", lat, lng)
+  console.log("✈ Creando aeronave en:", lat, lng)
+
+  const marker = L.marker([lat, lng], {
+    icon: crearIcono(callsign, tipo),
+    draggable: true
+  }).addTo(map)
+
+  marker.on("drag", function(e){
+
+    const pos = e.target.getLatLng()
+
+    socket.emit("actualizarAeronave", {
+      id: callsign,
+      lat: pos.lat,
+      lng: pos.lng,
+      altitud: 0,
+      angulo: 0
+    })
+
+  })
+
+  const nueva = {
+    tipo,
+    id: callsign,
+    marker,
+    remoto: false, 
+    ruta: null,
+    puntosRuta: [],
+    angulo: 0,
+    sid: null,
+    altitud: 0,
+    velocidad: 0,
+    velocidadObjetivo: 0,
+    star: null,
+    starActivo: false,
+    faseStar: null,
+    estado: "idle",
+indiceRuta: 0,
+animFrame: null,
+    altitudObjetivo: null,
+    modoManual: false,
+    intervaloManual: null
+  }
+
+  aeronaves.push(nueva)
+
+  marker.on("click", function(event){
+
+    L.DomEvent.stopPropagation(event)
+
+    if (modoEliminar) {
+
+      socket.emit("eliminarAeronave", callsign)
+
+      modoEliminar = false
+      btnEliminar.classList.remove("activo")
+
+      return
+    }
+
+    seleccionarAeronave(nueva)
+  })
+
+  marker.on("dragstart", function(){
+
+    if(nueva.estado === "taxi")
+{      alert("Can't move while taxiing")
+      return
+    }
+
+    if(nueva.ruta){
+      eliminarRuta(nueva)
+    }
+
+    modoRuta = false
+  })
+
 
   cerrarCrearPanel()
   document.removeEventListener("click", cerrarSiClickFuera)
+modoRuta = false
+rutaTemporal = []
 
-  // 🔥 SOLO ESTO
+  // 🚀 Emitir al servidor
   socket.emit("crearAeronave", {
     id: callsign,
     tipo,
     lat,
     lng
   })
+
 }
 
 socket.on("crearAeronave", data => {
@@ -635,22 +730,18 @@ socket.on("crearAeronave", data => {
   id: data.id,
   tipo: data.tipo,
   marker: marker,
-  remoto:  true,
+  remoto: true,
   altitud: data.altitud || 0,
   angulo: data.angulo || 0,
   ruta: null,
-  rutaRecorrida: null,
   puntosRuta: [],
   estado: "idle",
   indiceRuta: 0,
-  animFrame: null,
-  modoRuta: false,
-  rutaTemporal: [],
+  animFrame: null
 }
 
 
   aeronaves.push(nueva)
-actualizarInteraccion(nueva)
 
   marker.on("click", function(event){
 
@@ -677,65 +768,28 @@ socket.on("actualizarAeronave", data => {
   const avion = aeronaves.find(a => a.id === data.id);
   if (!avion) return;
 
-  // =====================================
-  // 🔥 OBEDECER SIEMPRE AL SERVIDOR
-  // =====================================
+  // 🔥 PROTECCIÓN PROFESIONAL
+  if (!avion.remoto) return;
 
-  if (data.estado !== undefined)
-    avion.estado = data.estado;
+  avion.marker.setLatLng([data.lat, data.lng]);
 
-  if (data.altitud !== undefined)
-    avion.altitud = data.altitud;
-
-  if (data.velocidad !== undefined)
-    avion.velocidad = data.velocidad;
-
-  if (data.altitudObjetivo !== undefined)
-    avion.altitudObjetivo = data.altitudObjetivo;
-
-  if (data.velocidadObjetivo !== undefined)
-    avion.velocidadObjetivo = data.velocidadObjetivo;
-  if (data.headingObjetivo !== undefined)
-  avion.headingObjetivo = data.headingObjetivo;
-
-  if (data.angulo !== undefined)
+  if (data.angulo !== undefined) {
     avion.angulo = data.angulo;
+    actualizarRotacion(avion);
+  }
 
-  // =====================================
-  // 🛰 MOVIMIENTO VISUAL
-  // =====================================
-
-  interpolarRemoto(
-    avion,
-    data.lat,
-    data.lng,
-    data.angulo
-  );
-
-const panel = document.getElementById("manualPanel");
-
-if (aeronaveSeleccionada && avion.id === aeronaveSeleccionada.id) {
-
-  actualizarBotonManual();
-  actualizarDisplaysManual(avion);
-  actualizarPanelManual();
-}
+  if (data.altitud !== undefined) {
+    avion.altitud = data.altitud;
+  }
 
 });
 
-document.getElementById("btnExtender").addEventListener("click", () => {
-
-  const metros = 0.5 * 1852  // medio NM
-
-  socket.emit("extenderSalida", { metros })
-
-})
 socket.on("borrarAeronave", id => {
 
   const avion = aeronaves.find(a => a.id === id)
   if (!avion) return
 
-  // 🔴 DETENER TODOS LOS MOTORES
+  // 🔴 DETENER TODO ANTES DE ELIMINAR
 
   if(avion.intervaloManual){
     clearInterval(avion.intervaloManual)
@@ -752,39 +806,14 @@ socket.on("borrarAeronave", id => {
     avion.intervaloCircuito = null
   }
 
-  if(avion.motorTaxi){
-    clearInterval(avion.motorTaxi)
-    avion.motorTaxi = null
-  }
-
-  if(avion.animRemoto){
-    cancelAnimationFrame(avion.animRemoto)
-    avion.animRemoto = null
-  }
-
-  // 🔴 ELIMINAR RUTAS
-
+  // 🔴 eliminar ruta si existe
   if(avion.ruta){
     map.removeLayer(avion.ruta)
-    avion.ruta = null
   }
 
-  if(avion.rutaRecorrida){
-    map.removeLayer(avion.rutaRecorrida)
-    avion.rutaRecorrida = null
-  }
-
-  // 🔴 ELIMINAR MARKER SEGURO
-
-  if(map.hasLayer(avion.marker)){
-    map.removeLayer(avion.marker)
-  }
-
-  // 🔴 ELIMINAR DEL ARRAY
+  map.removeLayer(avion.marker)
 
   aeronaves = aeronaves.filter(a => a.id !== id)
-
-  // 🔴 LIMPIAR UI
 
   if(aeronaveSeleccionada && aeronaveSeleccionada.id === id){
     aeronaveSeleccionada = null
@@ -794,32 +823,36 @@ socket.on("borrarAeronave", id => {
 
 })
 
-function activarManual(id) {
-  if (!id) return;
 
-  socket.emit("activarManual", { id });
-}
 
 // ================= PANEL =================
 
 function seleccionarAeronave(obj){
 
-  aeronaveSeleccionada = obj;
+  aeronaveSeleccionada = obj
 
-  document.getElementById("aircraftTitle").innerText = obj.id;
+  document.getElementById("aircraftTitle").innerText = obj.id
 
-  actualizarPanelInfo(obj);
-  document.getElementById("menuAeronave").style.display = "block";
+  actualizarPanelInfo(obj)
 
-  document.getElementById("speedSlider").value = obj.velocidadObjetivo || 0;
-  document.getElementById("speedValue").innerText = obj.velocidadObjetivo || 0;
+  document.getElementById("menuAeronave").style.display = "block"
 
-  actualizarBotonTaxi();
-  actualizarDepartureInfo(obj);
-  actualizarBotonManual();
-  actualizarPanelManual(); 
+  document.getElementById("speedSlider").value = obj.velocidadObjetivo || 0
+  document.getElementById("speedValue").innerText = obj.velocidadObjetivo || 0
+
+  actualizarBotonTaxi()
+
+  actualizarDepartureInfo(obj)   // ← SIN IF
+
+  if(obj.modoManual){
+    document.getElementById("panelRumbo").classList.remove("oculto")
+    actualizarHeadingDisplay(obj)
+  }else{
+    document.getElementById("panelRumbo").classList.add("oculto")
+  }
 
 }
+
 function actualizarBotonTaxi(){
 
   const btn = document.getElementById("btnTaxi")
@@ -841,20 +874,20 @@ function actualizarBotonTaxi(){
     case "taxi":
       btn.disabled = false
       btn.style.opacity = "1"
-      btn.textContent = "Stop"
+      btn.textContent = "Detener Taxi"
       break
 
     case "idle":
       btn.disabled = false
       btn.style.opacity = "1"
-      btn.textContent = "Taxi"
+      btn.textContent = "Iniciar Taxi"
       break
 
     default:
       // Si está en vuelo, manual o circuito
       btn.disabled = true
       btn.style.opacity = "0.4"
-      btn.textContent = "Unable to taxi"
+      btn.textContent = "Taxi no disponible"
   }
 }
 
@@ -863,27 +896,19 @@ function actualizarPanelInfo(a){
   let estadoTexto = "ON GROUND"
 
   switch(a.estado){
-
-  case "taxi":
-    estadoTexto = "TAXIING"
-    break
-
-  case "vuelo":
-    estadoTexto = "AIRBORNE"
-    break
-
-  case "manual":
-    estadoTexto = "MANUAL"
-    break
-
-  case "circuito":
-    estadoTexto = "TRAFFIC PATTERN"
-    break
-
-  case "interceptando":
-    estadoTexto = "INTERCEPTING"
-    break
-}
+    case "taxi":
+      estadoTexto = "TAXIING"
+      break
+    case "vuelo":
+      estadoTexto = "AIRBORNE"
+      break
+    case "manual":
+      estadoTexto = "MANUAL"
+      break
+    case "circuito":
+      estadoTexto = "TRAFFIC PATTERN"
+      break
+  }
 
   let sidTexto = a.sid ? a.sid : "None"
 
@@ -907,65 +932,12 @@ function actualizarPanelInfo(a){
   `
 }
 
-const btnManual = document.getElementById("btnManual");
 
-btnManual.addEventListener("click", () => {
-
-  if (!aeronaveSeleccionada) return;
-
-  const a = aeronaveSeleccionada;
-
-  // 🔴 Si ya está en manual → salir
-  if (a.estado === "manual") {
-    socket.emit("salirManual", { id: a.id });
-    return;
-  }
-
-  // Cancelar taxi
-  if (a.motorTaxi) {
-    clearInterval(a.motorTaxi);
-    a.motorTaxi = null;
-  }
-
-  // Cancelar vuelo
-  if (a.intervaloVuelo) {
-    clearInterval(a.intervaloVuelo);
-    a.intervaloVuelo = null;
-  }
-
-  // Cancelar circuito
-  if (a.intervaloCircuito) {
-    clearInterval(a.intervaloCircuito);
-    a.intervaloCircuito = null;
-  }
-
-  // Cancelar STAR
-  a.starActivo = false;
-
-  socket.emit("activarManual", { id: a.id });
-
-});
-function actualizarPanelManual() {
-
-  const panel = document.getElementById("manualPanel");
-
-  if (!aeronaveSeleccionada) {
-    panel.classList.remove("activo");
-    return;
-  }
-
-  if (aeronaveSeleccionada.estado === "manual") {
-    panel.classList.add("activo");
-  } else {
-    panel.classList.remove("activo");
-  }
-}
 
 
 function cerrarPanel(){
   document.getElementById("menuAeronave").style.display = "none"
   aeronaveSeleccionada = null
-  actualizarPanelManual();
 }
 function cambiarVelocidad(valor){
 
@@ -994,9 +966,6 @@ function agregarAeronave(data, esRemota = true) {
     altitud: data.altitud || 0,
     angulo: data.angulo || 0,
     ruta: null,
-    rutaRecorrida: null,
-    modoRuta: false,
-    rutaTemporal: [],
     puntosRuta: [],
     modoManual:false,
     intervaloManual:null,
@@ -1009,77 +978,19 @@ function agregarAeronave(data, esRemota = true) {
 }
 
 // ================= ROUTE =================
+
 function activarModoRuta(){
 
+  if(!aeronaveSeleccionada) return
+
   const a = aeronaveSeleccionada
-  if(!a) return
 
   if(a.estado === "taxi"){
     alert("Aircraft is taxiing")
     return
   }
 
-  // 🔥 Limpiar rutas anteriores
-  if(a.ruta){
-    map.removeLayer(a.ruta)
-    a.ruta = null
-  }
-
-  if(a.rutaRecorrida){
-    map.removeLayer(a.rutaRecorrida)
-    a.rutaRecorrida = null
-  }
-
-  // 🔥 AHORA ES PROPIEDAD DEL OBJETO
-  a.modoRuta = true
-
-  const pos = a.marker.getLatLng()
-
-  // 🔥 Ruta temporal ahora es del objeto
-  a.rutaTemporal = [pos]
-  a.puntosRuta = a.rutaTemporal
-
-  // 🟢 Ruta futura (punteada animada)
-  a.ruta = L.polyline(a.rutaTemporal, {
-    color: "#21bd21",
-    weight: 3,
-    dashArray: "6 12",
-    dashOffset: "0"
-  }).addTo(map)
-
-  // ⚪ Ruta recorrida (inicialmente vacía)
-  a.rutaRecorrida = L.polyline([], {
-    color: "#21bd21",
-    weight: 3,
-    opacity: 0.15
-  }).addTo(map)
-
-  animarRuta(a)
-
-  actualizarBotonTaxi()
-}
-
-
-function agregarPuntoRuta(latlng){
-
-  const a = aeronaveSeleccionada
-  if(!a) return
-  if(!a.modoRuta) return
-  if(a.estado === "taxi") return
-
-  a.rutaTemporal.push(latlng)
-  a.ruta.setLatLngs(a.rutaTemporal)
-
-  actualizarBotonTaxi()
-}
-
-
-function eliminarRuta(a){
-
-  if(!a) return
-
-  if(a.estado === "taxi") return
-
+  // 🔥 Eliminar ruta anterior correctamente
   if(a.animRutaFrame){
     cancelAnimationFrame(a.animRutaFrame)
     a.animRutaFrame = null
@@ -1090,16 +1001,64 @@ function eliminarRuta(a){
     a.ruta = null
   }
 
-  if(a.rutaRecorrida){
-    map.removeLayer(a.rutaRecorrida)
-    a.rutaRecorrida = null
+  // 🔥 Crear nueva ruta independiente
+  modoRuta = true
+
+  const pos = a.marker.getLatLng()
+
+  a.puntosRuta = [pos]   // ← YA NO usamos rutaTemporal global
+
+  a.ruta = L.polyline(a.puntosRuta, {
+    color: "#21bd21",
+    weight: 3,
+    dashArray: "6 12",
+    dashOffset: "0"
+  }).addTo(map)
+
+  animarRuta(a)
+
+  actualizarBotonTaxi()
+}
+
+
+function agregarPuntoRuta(latlng){
+
+  if(!aeronaveSeleccionada) return
+
+  const a = aeronaveSeleccionada
+
+  if(a.estado === "taxi") return
+
+  if(!a.puntosRuta) return
+
+  a.puntosRuta.push(latlng)
+
+  if(a.ruta){
+    a.ruta.setLatLngs(a.puntosRuta)
   }
 
-  a.modoRuta = false
-a.rutaTemporal = []
-a.puntosRuta = []
-a.indiceRuta = 0
   actualizarBotonTaxi()
+}
+
+function eliminarRuta(){
+
+  if(!aeronaveSeleccionada) return
+
+  const a = aeronaveSeleccionada
+
+  // 🔥 Detener animación si existe
+  if(a.animRutaFrame){
+    cancelAnimationFrame(a.animRutaFrame)
+    a.animRutaFrame = null
+  }
+
+  // 🔥 Eliminar polyline del mapa
+  if(a.ruta){
+    map.removeLayer(a.ruta)
+    a.ruta = null
+  }
+a.puntosRuta = []
+
 }
 
 
@@ -1116,44 +1075,114 @@ function iniciarRodaje(){
   if(!a.puntosRuta || a.puntosRuta.length < 2) return
 
   a.estado = "taxi"
-  actualizarInteraccion(a)
+actualizarInteraccion(a)
+
   a.indiceRuta = 0
 
   mostrarTaxiing(a, true)
-  a.modoRuta = false
 
   moverPorPuntos(a)
+
   actualizarPanelInfo(a)
   actualizarBotonTaxi()
-
-  aeronaveSeleccionada = null
-  cerrarPanel()
-
 }
 
-function detenerRodaje(a){
 
-  if(!a) return
+function detenerRodaje(){
+
+  if(!aeronaveSeleccionada) return
+
+  const a = aeronaveSeleccionada
+
   if(a.estado !== "taxi") return
 
-  if(a.motorTaxi){
-    clearInterval(a.motorTaxi)
-    a.motorTaxi = null
-  }
-
   a.estado = "idle"
-  actualizarInteraccion(a)
-  mostrarTaxiing(a, false)
+actualizarInteraccion(a)
 
-  a.modoRuta = false
-  a.rutaTemporal = []
+  mostrarTaxiing(a, false)
 
   actualizarPanelInfo(a)
   actualizarBotonTaxi()
 }
 
 
+function activarModoManual(){
 
+
+  if(!aeronaveSeleccionada) return
+  const a = aeronaveSeleccionada
+
+  if(a.modoManual) return
+  if(a.estado === "taxi"|| a.estado === "vuelo"|| a.estado === "circuito"){
+    alert("Cannot activate manual during automatic modes")
+    return
+  }
+
+  a.estado = "manual"
+  a.modoManual = true
+// Si no tiene ángulo definido, usar el actual o 0
+if(a.angulo === undefined || a.angulo === null){
+  a.angulo = 0
+}
+
+// Forzar que el icono apunte al rumbo actual
+actualizarRotacion(a)
+
+  // ✅ Mostrar panel
+  document.getElementById("panelRumbo").classList.remove("oculto")
+
+  // ✅ Actualizar heading visual inmediatamente
+  actualizarHeadingDisplay(a)
+
+  if(a.intervaloManual){
+    clearInterval(a.intervaloManual)
+  }
+
+  a.intervaloManual = setInterval(()=>{
+
+    if(a.velocidadObjetivo <= 0) return
+
+    const mps = a.velocidadObjetivo * 0.514444
+    const headingRad = a.angulo * Math.PI/180
+    const actual = a.marker.getLatLng()
+
+    const deltaLat = (Math.cos(headingRad)*mps)/111320
+    const deltaLng = (Math.sin(headingRad)*mps) /
+      (111320*Math.cos(actual.lat*Math.PI/180))
+
+    const nuevaLat = actual.lat + deltaLat
+    const nuevaLng = actual.lng + deltaLng
+
+    a.marker.setLatLng([nuevaLat, nuevaLng])
+
+    socket.emit("actualizarAeronave", {
+      id:a.id,
+      lat:nuevaLat,
+      lng:nuevaLng,
+      altitud:a.altitud,
+      angulo:a.angulo
+    })
+
+  }, 50)
+
+}
+
+function detenerModoManual(){
+a.estado = "idle"
+actualizarInteraccion(a)
+
+  if(!aeronaveSeleccionada) return
+  const a = aeronaveSeleccionada
+
+  a.modoManual = false
+
+  if(a.intervaloManual){
+    clearInterval(a.intervaloManual)
+    a.intervaloManual = null
+  }
+document.getElementById("panelRumbo").classList.add("oculto")
+
+}
 function actualizarInteraccion(a){
 
   if(!a || !a.marker) return
@@ -1163,79 +1192,8 @@ function actualizarInteraccion(a){
   } else {
     a.marker.dragging.disable()
   }
-
-}
-function actualizarBotonManual() {
-
-  const btn = document.getElementById("btnManual")
-  if (!btn) return
-
-  // No hay aeronave seleccionada
-  if (!aeronaveSeleccionada) {
-    btn.disabled = true
-    btn.textContent = "Manual Control"
-    btn.style.background = "#333"
-    btn.style.cursor = "not-allowed"
-    return
-  }
-
-  btn.disabled = false
-  btn.style.cursor = "pointer"
-
-  if (aeronaveSeleccionada.estado === "manual") {
-
-    btn.textContent = "Exit Manual"
-    btn.style.background = "#e53935"   // rojo activo
-
-  } else {
-
-    btn.textContent = "Manual Control"
-    btn.style.background = "#333"
-
-  }
-}
-let ultimoInputManual = 0
-function enviarAjuste(tipo, valor) {
-
-  if (!aeronaveSeleccionada) return
-  if (aeronaveSeleccionada.estado !== "manual") return
-
-  ultimoInputManual = Date.now()
-
-  socket.emit("ajusteManual", {
-    id: aeronaveSeleccionada.id,
-    tipo,
-    valor
-  })
-}
-let intervaloCambio = null
-
-function iniciarCambio(tipo, incremento, event){
-
-  if(!aeronaveSeleccionada) return
-  if(aeronaveSeleccionada.estado !== "manual") return
-
-  let paso = incremento
-
-  if(event && event.shiftKey){
-    paso = incremento * 10
-  }
-
-  enviarAjuste(tipo, paso)
-
-  detenerCambio()
-
-  intervaloCambio = setInterval(()=>{
-    enviarAjuste(tipo, paso)
-  }, 150)
 }
 
-function detenerCambio(){
-  if(intervaloCambio){
-    clearInterval(intervaloCambio)
-    intervaloCambio = null
-  }
-}
 
 function iniciarSTAR(){
 
@@ -1352,10 +1310,7 @@ function despegar(){
     alert("Cannot takeoff while taxiing")
     return
   }
-if(a.estado === "manual"){
-  alert("Exit manual mode first");
-  return;
-}
+
   // ================= VALIDACIÓN ZONA =================
 
   const desdeRWY22 = estaAlineadoConPista(a)
@@ -1403,6 +1358,99 @@ if(a.estado === "manual"){
     clearInterval(a.intervaloVuelo)
   }
 
+  a.intervaloVuelo = setInterval(()=>{
+
+    // ================= ACELERACIÓN PROGRESIVA =================
+
+    const aceleracion = 0.8
+
+    if(a.velocidad < a.velocidadObjetivo){
+      a.velocidad += aceleracion
+      if(a.velocidad > a.velocidadObjetivo)
+        a.velocidad = a.velocidadObjetivo
+    }
+
+    // ================= ASCENSO =================
+
+    if(a.velocidad >= 25){
+
+      const climbFPM = CLIMB_RATE[a.tipo] || 2000
+      const climbFPS = climbFPM / 60
+      a.altitud += climbFPS * 0.05
+    }
+
+    // ================= EJECUTAR STAR =================
+
+    if(a.starActivo){
+      ejecutarSTAR(a)
+    }
+
+    // ================= GIRO SUAVE =================
+
+    a.angulo = girarSuavemente(
+      a,
+      a.angulo || a.headingObjetivo,
+      a.headingObjetivo
+    )
+
+    actualizarRotacion(a)
+
+    // ================= MOVIMIENTO =================
+
+    const headingRad = a.angulo * Math.PI/180
+    const actual = a.marker.getLatLng()
+
+    const mps = a.velocidad * 0.514444
+
+    const deltaLat = (Math.cos(headingRad) * mps) / 111320
+    const deltaLng = (Math.sin(headingRad) * mps) /
+                     (111320 * Math.cos(actual.lat*Math.PI/180))
+
+    a.marker.setLatLng([
+      actual.lat + deltaLat,
+      actual.lng + deltaLng
+    ])
+
+    // ================= FADE 80 NM =================
+
+    const distanciaSalida = map.distance(
+      puntoSalida,
+      a.marker.getLatLng()
+    )
+
+    if(distanciaSalida > DISTANCIA_FADE){
+
+      const progreso = (distanciaSalida - DISTANCIA_FADE) /
+                       (DISTANCIA_REMOVE - DISTANCIA_FADE)
+
+      const opacidad = 1 - Math.min(progreso,1)
+
+      a.marker.getElement().style.opacity = opacidad
+    }
+
+    if(distanciaSalida >= DISTANCIA_REMOVE){
+
+      clearInterval(a.intervaloVuelo)
+      map.removeLayer(a.marker)
+      aeronaves = aeronaves.filter(x=>x!==a)
+      cerrarPanel()
+    }
+
+    // ================= ACTUALIZAR PANEL =================
+
+    if(aeronaveSeleccionada === a){
+      actualizarPanelInfo(a)
+    }
+socket.emit("actualizarAeronave", {
+  id: a.id,
+  lat: a.marker.getLatLng().lat,
+  lng: a.marker.getLatLng().lng,
+  altitud: a.altitud,
+  angulo: a.angulo
+
+})
+
+  },50)
 }
 
 // ================= DEPARTURE INFO =================
@@ -1474,130 +1522,7 @@ function puedeDespegarDesdeLIB(a){
 
   return true
 }
-// ================= Lineas punteadas =================
-const btnCapas = document.getElementById("btnCapas")
-const panelCapas = document.getElementById("panelCapas")
 
-const chkVor = document.getElementById("chkVor")
-const chkEje = document.getElementById("chkEje")
-const chkPatron = document.getElementById("chkPatron")
-
-let circuloVor = null
-let ejePista = null
-let patronLayer = null
-let rutaCircuitoServidor = null
-
-// Coordenadas reales
-const vorPisco = [-13.744, -76.220]
-const radio5NM = 5 * 1852
-
-const rwy04 = [-13.755327, -76.229306]
-const rwy22 = [-13.734272, -76.211517]
-
-// Mostrar / ocultar panel
-btnCapas.addEventListener("click", () => {
-  panelCapas.classList.toggle("oculto")
-})
-
-/* =======================
-   5NM VOR
-======================= */
-
-chkVor.addEventListener("change", () => {
-
-  if(chkVor.checked){
-
-    circuloVor = L.circle(vorPisco, {
-      radius: radio5NM,
-      color: "#ffffff",
-      weight: 2,
-      dashArray: "6 8",
-      fill: false
-    }).addTo(map)
-
-  } else {
-    if(circuloVor){
-      map.removeLayer(circuloVor)
-      circuloVor = null
-    }
-  }
-
-})
-
-/* =======================
-   EJE PISTA
-======================= */
-
-chkEje.addEventListener("change", () => {
-
-  if(chkEje.checked){
-
-    ejePista = L.polyline([rwy04, rwy22], {
-      color: "#00ffff",
-      weight: 2,
-      dashArray: "4 6"
-    }).addTo(map)
-
-  } else {
-    if(ejePista){
-      map.removeLayer(ejePista)
-      ejePista = null
-    }
-  }
-
-})
-
-/* =======================
-   PATRÓN (placeholder)
-======================= */
-
-chkPatron.addEventListener("change", () => {
-
-  if (chkPatron.checked) {
-
-    if (!rutaCircuitoServidor) return
-
-    if (patronLayer) {
-      map.removeLayer(patronLayer)
-    }
-
-    patronLayer = L.polyline(
-      rutaCircuitoServidor.map(p => [p.lat, p.lng]),
-      {
-        color: "#f0ea3a",
-        weight: 2,
-        dashArray: "8 8"
-      }
-    ).addTo(map)
-
-  } else {
-
-    if (patronLayer) {
-      map.removeLayer(patronLayer)
-      patronLayer = null
-    }
-
-  }
-
-})
-const hdgPlus = document.getElementById("hdgPlus")
-const hdgMinus = document.getElementById("hdgMinus")
-
-const spdPlus = document.getElementById("spdPlus")
-const spdMinus = document.getElementById("spdMinus")
-
-const altPlus = document.getElementById("altPlus")
-const altMinus = document.getElementById("altMinus")
-hdgPlus.onmousedown = (e) => iniciarCambio("heading", 5, e)
-hdgMinus.onmousedown = (e) => iniciarCambio("heading", -5, e)
-
-spdPlus.onmousedown = (e) => iniciarCambio("speed", 10, e)
-spdMinus.onmousedown = (e) => iniciarCambio("speed", -10, e)
-
-altPlus.onmousedown = (e) => iniciarCambio("altitude", 500, e)
-altMinus.onmousedown = (e) => iniciarCambio("altitude", -500, e)
-
-document.addEventListener("mouseup", detenerCambio)
 
 function girarSuavemente(a, headingActual, headingObjetivo){
 
@@ -1617,23 +1542,7 @@ function girarSuavemente(a, headingActual, headingObjetivo){
   return headingActual + (diferencia > 0 ? maxCambio : -maxCambio)
 }
 
-function dibujarRutaServidor(){
 
-  if(!rutaCircuitoServidor) return
-
-  if(patronLayer){
-    map.removeLayer(patronLayer)
-  }
-
-  patronLayer = L.polyline(
-    rutaCircuitoServidor.map(p => [p.lat, p.lng]),
-    {
-      color: "#00ffff",
-      weight: 2,
-      dashArray: "8 8"
-    }
-  ).addTo(map)
-}
 function estaAlineadoConPista(a){
 
   let diferencia = Math.abs(a.angulo - RUMBO_PISTA_22)
@@ -1687,78 +1596,14 @@ function actualizarRotacion(a){
   const icon = el.querySelector(".icon-aircraft");
   if(!icon) return;
 
-  const wrapper = el.querySelector(".icon-wrapper");
-  if(!wrapper) return;
-
-  const zoom = map.getZoom();
-
-  const escala = Math.max(
-    0.55,
-    Math.min(1.1, Math.pow(1.12, zoom - 15))
-  );
-
-  // ESCALAR SOLO EL WRAPPER (NO EL MARKER)
-  wrapper.style.transform = `scale(${escala})`;
-  wrapper.style.transformOrigin = "center";
-
-  //ROTAR SOLO EL ICONO
+  // Obtener offset según tipo
   const offset = ORIENTACION_MODELOS[a.tipo] || ORIENTACION_MODELOS.DEFAULT;
+
   icon.style.transform = `rotate(${a.angulo + offset}deg)`;
 }
 
-map.on("zoom", () => {
-  aeronaves.forEach(a => actualizarRotacion(a))
-});
 
-function interpolarRemoto(avion, latServidor, lngServidor, anguloServidor){
-
-  // Guardamos destino
-  avion.destinoLat = latServidor
-  avion.destinoLng = lngServidor
-  avion.destinoAngulo = anguloServidor
-
-  if(avion.animandoRemoto) return
-  avion.animandoRemoto = true
-
-  function animar(){
-
-    if(!avion.destinoLat) {
-      avion.animandoRemoto = false
-      return
-    }
-
-    const actual = avion.marker.getLatLng()
-
-    const factor = 0.25 // suavidad (0.2–0.35 ideal)
-
-    const nuevaLat =
-      actual.lat + (avion.destinoLat - actual.lat) * factor
-
-    const nuevaLng =
-      actual.lng + (avion.destinoLng - actual.lng) * factor
-
-    avion.marker.setLatLng([nuevaLat, nuevaLng])
-
-    // 🔄 Rotación suave
-    const deltaAng =
-      avion.destinoAngulo - (avion.angulo || 0)
-
-    avion.angulo =
-      (avion.angulo || 0) + deltaAng * 0.2
-
-    actualizarRotacion(avion, avion.angulo)
-
-    requestAnimationFrame(animar)
-  }
-
-  requestAnimationFrame(animar)
-}
 function moverPorPuntos(a){
-
-  if(a.motorTaxi){
-    clearInterval(a.motorTaxi)
-    a.motorTaxi = null
-  }
 
   let i = a.indiceRuta || 0
   const ruta = a.puntosRuta
@@ -1767,12 +1612,12 @@ function moverPorPuntos(a){
   const metrosPorSegundo = taxiKnots * 0.514444
 
   let ultimoTiempo = performance.now()
+  let ultimoEnvio = 0
 
-  function motor(){
+  function mover(ahora){
 
     if(a.estado !== "taxi") return
 
-    const ahora = performance.now()
     const deltaTime = (ahora - ultimoTiempo) / 1000
     ultimoTiempo = ahora
 
@@ -1789,6 +1634,7 @@ function moverPorPuntos(a){
     if(distanciaMetros === 0){
       i++
       a.indiceRuta = i
+      requestAnimationFrame(mover)
       return
     }
 
@@ -1797,7 +1643,6 @@ function moverPorPuntos(a){
     if(distanciaMetros <= pasoMetros){
 
       a.marker.setLatLng(destino)
-      actualizarRutaRecorrida(a)
       i++
       a.indiceRuta = i
 
@@ -1809,88 +1654,56 @@ function moverPorPuntos(a){
       const nuevoLng = actual.lng + (destino.lng - actual.lng) * ratio
 
       a.marker.setLatLng([nuevoLat, nuevoLng])
-      actualizarRutaRecorrida(a)
     }
 
-    // 🔥 Rotación exacta desde posición actual
-    const nuevaPos = a.marker.getLatLng()
-    a.lat = nuevaPos.lat
-    a.lng = nuevaPos.lng
-
-    const bearing = calcularBearing(nuevaPos, destino)
-
+    // 🔥 Rotación correcta basada en destino
+    const bearing = calcularBearing(actual, destino)
     a.angulo = bearing
     actualizarRotacion(a)
 
+    // 🔥 Emitir cada 100ms
+    if(!a.remoto && ahora - ultimoEnvio > 100){
+
+      const pos = a.marker.getLatLng()
+
+      socket.emit("actualizarAeronave", {
+        id: a.id,
+        lat: pos.lat,
+        lng: pos.lng,
+        altitud: a.altitud,
+        angulo: a.angulo
+      })
+
+      ultimoEnvio = ahora
+    }
+
+    requestAnimationFrame(mover)
   }
 
-  a.motorTaxi = setInterval(motor, 16)
-}
-
-
-function actualizarRutaRecorrida(a){
-
-  if(!a.ruta || !a.rutaRecorrida) return
-
-  const posActual = a.marker.getLatLng()
-
-  const puntosRestantes = a.puntosRuta.slice(a.indiceRuta)
-  const puntosRecorridos = a.puntosRuta.slice(0, a.indiceRuta)
-
-  // Actualizar línea recorrida
-  a.rutaRecorrida.setLatLngs([
-    ...puntosRecorridos,
-    posActual
-  ])
-
-  // Actualizar línea restante
-  a.ruta.setLatLngs([
-    posActual,
-    ...puntosRestantes.slice(1)
-  ])
-
-  // Opcional: efecto fade progresivo
-  const progreso = a.indiceRuta / a.puntosRuta.length
-  const nuevaOpacidad = 0.15 + progreso * 0.5
-
-  a.rutaRecorrida.setStyle({
-    opacity: nuevaOpacidad
-  })
+  requestAnimationFrame(mover)
 }
 
 function finalizarTaxi(a){
 
-  if(a.motorTaxi){
-    clearInterval(a.motorTaxi)
-    a.motorTaxi = null
-  }
-
-  if(a.puntosRuta && a.puntosRuta.length >= 2){
-
-    const penultimo = a.puntosRuta[a.puntosRuta.length - 2]
-    const ultimo = a.puntosRuta[a.puntosRuta.length - 1]
-
-    const rumboFinal = calcularBearing(penultimo, ultimo)
-
-    a.angulo = rumboFinal
-    actualizarRotacion(a)
-  }
-
   a.estado = "idle"
-  actualizarInteraccion(a)
-  mostrarTaxiing(a, false)
+actualizarInteraccion(a)
 
-  // Limpiar ruta visual
+  mostrarTaxiing(a,false)
+
+
+  // 🔥 Detener animación de ruta
+  if(a.animRutaFrame){
+    cancelAnimationFrame(a.animRutaFrame)
+    a.animRutaFrame = null
+  }
+
+  // 🔥 Eliminar línea visual
   if(a.ruta){
     map.removeLayer(a.ruta)
     a.ruta = null
   }
 
-  if(a.rutaRecorrida){
-    map.removeLayer(a.rutaRecorrida)
-    a.rutaRecorrida = null
-  }
-
+  // 🔥 Limpiar datos
   a.puntosRuta = []
   a.indiceRuta = 0
 
@@ -1898,23 +1711,6 @@ function finalizarTaxi(a){
   actualizarBotonTaxi()
 }
 
-function actualizarDisplaysManual(a){
-
-  // HEADING REAL
-  document.getElementById("displayHeading").textContent =
-    String(Math.round(a.angulo || 0)).padStart(3,"0")
-
-  // 🔥 VELOCIDAD REAL (no objetivo)
-  document.getElementById("displaySpeed").textContent =
-    Math.round(a.velocidad || 0)
-
-  // ALTITUD REAL
-  document.getElementById("displayAlt").textContent =
-    Math.round(a.altitud || 0)
-    if(Date.now() - ultimoInputManual < 200){
-  // pequeño efecto visual
-}
-}
 
 function mostrarTaxiing(a,estado){
   const el = a.marker.getElement()
@@ -1953,166 +1749,154 @@ function animarRuta(a){
   a.animRutaFrame = requestAnimationFrame(animar)
 }
 
-function cambiarHora() {
 
-  const input = document.getElementById("inputHora");
-  if (!input) return;
-
-  const nuevaHora = input.value;
-  if (!nuevaHora) return;
-
-  // Separar HH y MM
-  const partes = nuevaHora.split(":");
-  const horas = parseInt(partes[0]);
-  const minutos = parseInt(partes[1]);
-
-  const datosHora = {
-    horas: horas,
-    minutos: minutos,
-    segundos: 0
-  };
-
-  // Actualizar visual inmediato
-  const reloj = document.getElementById("relojGlobal");
-  if (reloj) {
-    reloj.textContent =
-      `${String(horas).padStart(2,"0")}:` +
-      `${String(minutos).padStart(2,"0")}:00`;
-  }
-
-  // Enviar al servidor
-  socket.emit("cambiarHora", datosHora);
-
-  // Cerrar panel
-  const panelConfig = document.getElementById("configHora");
-  if (panelConfig) {
-    panelConfig.classList.add("oculto");
-  }
-}
-document.addEventListener("DOMContentLoaded", () => {
-
-  const btnAplicar = document.getElementById("btnAplicarHora");
-  const btnConfig = document.getElementById("btnConfig");
-  const btnPausa = document.getElementById("btnPausa");
-
-  if (btnAplicar) {
-    btnAplicar.addEventListener("click", cambiarHora);
-  }
-
-  if (btnConfig) {
-    btnConfig.addEventListener("click", () => {
-      document.getElementById("configHora").classList.toggle("oculto");
-    });
-  }
-
-  if (btnPausa) {
-    btnPausa.addEventListener("click", toggleTiempo);
-  }
-
-});
 
 
 
 //===========CIRCUITO=============
 //=========== TRAFFIC PATTERN =============
-function proyectarPunto(lat, lng, rumbo, distanciaKm){
 
-  const R = 6371 // radio Tierra km
-  const brng = rumbo * Math.PI/180
-  const d = distanciaKm / R
+// ================= REALISTIC LEFT TRAFFIC PATTERN RWY 22 =================
 
-  const lat1 = lat * Math.PI/180
-  const lng1 = lng * Math.PI/180
-
-  const lat2 = Math.asin(
-    Math.sin(lat1)*Math.cos(d) +
-    Math.cos(lat1)*Math.sin(d)*Math.cos(brng)
-  )
-
-  const lng2 = lng1 + Math.atan2(
-    Math.sin(brng)*Math.sin(d)*Math.cos(lat1),
-    Math.cos(d)-Math.sin(lat1)*Math.sin(lat2)
-  )
-
-  return {
-    lat: lat2 * 180/Math.PI,
-    lng: lng2 * 180/Math.PI
-  }
-}
-
-// ================= LEFT TRAFFIC PATTERN RWY 22 =================
 function iniciarCircuito(){
 
   if(!aeronaveSeleccionada) return
   const a = aeronaveSeleccionada
 
-  socket.emit("iniciarCircuito", {
-    id: a.id
-  })
+  if(a.tipo !== "C172"){
+    alert("Traffic pattern available only for C172")
+    return
+  }
 
-}
-function calcularRumbo(origen, destino){
+if(a.estado === "circuito")
+ return
+  a.altitud = 0
+a.estado = "circuito"
 
-  const lat1 = origen.lat * Math.PI/180
-  const lat2 = destino.lat * Math.PI/180
-  const dLon = (destino.lng - origen.lng) * Math.PI/180
+  const velocidad = 60          // 60 KTAS realista
+  const patronAltitud = 1500    // 1500 ft
+  const climbFPM = 700          // climb real C172
+  const descensoFPM = 500       // descenso base/final
 
-  const y = Math.sin(dLon) * Math.cos(lat2)
-  const x =
-    Math.cos(lat1)*Math.sin(lat2) -
-    Math.sin(lat1)*Math.cos(lat2)*Math.cos(dLon)
+  const climbFPS = climbFPM / 60
+  const descensoFPS = descensoFPM / 60
 
-  const brng = Math.atan2(y,x) * 180/Math.PI
+  const referencia = a.marker.getLatLng()
 
-  return (brng + 360) % 360
+  const distUpwind   = 1 * 1852
+  const distCross    = 1 * 1852
+  const distDownwind = 2 * 1852
+  const distBase     = 1 * 1852
+
+  let fase = "UPWIND"
+  let headingObjetivo = 220
+  let puntoInicioFase = referencia
+
+  a.intervaloCircuito = setInterval(()=>{
+
+    const actual = a.marker.getLatLng()
+    const distancia = map.distance(puntoInicioFase, actual)
+
+    // ================= ALTITUD REALISTA =================
+    if(fase === "UPWIND" || fase === "CROSSWIND"){
+      if(a.altitud < patronAltitud){
+        a.altitud += climbFPS * 0.05
+      }
+    }
+
+    if(fase === "BASE" || fase === "FINAL"){
+      a.altitud -= descensoFPS * 0.05
+      if(a.altitud < 0) a.altitud = 0
+    }
+
+    // ================= CAMBIO DE FASE =================
+    switch(fase){
+
+      case "UPWIND":
+        if(distancia >= distUpwind){
+          headingObjetivo = 130
+          fase = "CROSSWIND"
+          puntoInicioFase = actual
+        }
+      break
+
+      case "CROSSWIND":
+        if(distancia >= distCross){
+          headingObjetivo = 40
+          fase = "DOWNWIND"
+          puntoInicioFase = actual
+        }
+      break
+
+      case "DOWNWIND":
+        if(distancia >= distDownwind){
+          headingObjetivo = 310
+          fase = "BASE"
+          puntoInicioFase = actual
+        }
+      break
+
+      case "BASE":
+        if(distancia >= distBase){
+          headingObjetivo = 220
+          fase = "FINAL"
+          puntoInicioFase = actual
+        }
+      break
+
+      case "FINAL":
+        if(a.altitud <= 0){
+          // Touch & Go
+          fase = "UPWIND"
+          headingObjetivo = 220
+          puntoInicioFase = actual
+        }
+      break
+    }
+
+    // ================= GIRO CORRECTO =================
+    a.angulo = girarSuavemente(a, a.angulo || 220, headingObjetivo)
+    actualizarRotacion(a)
+
+    // ================= MOVIMIENTO =================
+    const mps = velocidad * 0.514444
+    const headingRad = a.angulo * Math.PI/180
+
+    const deltaLat = (Math.cos(headingRad)*mps)/111320
+    const deltaLng = (Math.sin(headingRad)*mps)/
+      (111320*Math.cos(actual.lat*Math.PI/180))
+
+    a.marker.setLatLng([
+      actual.lat + deltaLat,
+      actual.lng + deltaLng
+    ])
+const pos = a.marker.getLatLng()
+
+socket.emit("actualizarAeronave", {
+    id: a.id,
+    lat: pos.lat,
+    lng: pos.lng,
+    altitud: a.altitud,
+    angulo: a.angulo
+})
+
+  },50)
 }
 
 function detenerCircuito(){
 
+
   if(!aeronaveSeleccionada) return
   const a = aeronaveSeleccionada
 
-  socket.emit("detenerCircuito", {
-    id: a.id
-  })
-
-}
-function generarArco(centro, radioMetros, rumboInicio, rumboFin, pasos = 20){
-
-  const puntos = []
-
-  const inicio = rumboInicio * Math.PI/180
-  const fin = rumboFin * Math.PI/180
-
-  for(let i=0; i<=pasos; i++){
-
-    const angulo = inicio + (fin - inicio) * (i/pasos)
-
-    const deltaLat = (Math.cos(angulo) * radioMetros) / 111320
-    const deltaLng = (Math.sin(angulo) * radioMetros) /
-      (111320 * Math.cos(centro.lat * Math.PI/180))
-
-    puntos.push([
-      centro.lat + deltaLat,
-      centro.lng + deltaLng
-    ])
+  if(a.intervaloCircuito){
+    clearInterval(a.intervaloCircuito)
+    a.intervaloCircuito = null
   }
 
-  return puntos
-}
+  a.estado = "idle"
+  actualizarInteraccion(a)
 
-function puntoPlano(origen, rumbo, distanciaMetros){
-
-  const headingRad = rumbo * Math.PI/180
-
-  const deltaLat = (Math.cos(headingRad) * distanciaMetros) / 111320
-  const deltaLng = (Math.sin(headingRad) * distanciaMetros) /
-    (111320 * Math.cos(origen.lat * Math.PI/180))
-
-  return {
-    lat: origen.lat + deltaLat,
-    lng: origen.lng + deltaLng
-  }
 }
 
 // ================= FREE NAVIGATION =================
@@ -2131,6 +1915,13 @@ function cambiarRumbo(valor){
   actualizarRotacion(a)
   actualizarHeadingDisplay(a)
 
+  socket.emit("actualizarAeronave", {
+    id:a.id,
+    lat:a.marker.getLatLng().lat,
+    lng:a.marker.getLatLng().lng,
+    altitud:a.altitud,
+    angulo:a.angulo
+  })
 
 }
 function actualizarHeadingDisplay(a){
@@ -2168,19 +1959,29 @@ function eliminarSeleccionada(){
 }
 
 
-function toggleConfig() {
-  const panel = document.getElementById("configHora")
 
-  if (!panel) return
+// ================= CLOCK =================
 
-  if (panel.style.display === "block") {
-    panel.style.display = "none"
-  } else {
-    panel.style.display = "block"
-  }
+function cambiarHora() {
+
+  const nuevaHora = document.getElementById("inputHora").value;
+
+  if(!nuevaHora) return;
+
+  socket.emit("cambiarHora", {
+    hora: nuevaHora
+  });
+
+  document.getElementById("configHora").classList.remove("activo");
 }
+
+function toggleConfig(){
+  const panel = document.getElementById("configHora");
+  panel.classList.toggle("activo");
+}
+
 /* ===== PANEL ARRASTRABLE ===== */
-function initDraggablePanel(){
+(function(){
 
   const panel = document.getElementById("menuAeronave")
   const header = document.getElementById("panelHeader")
@@ -2231,120 +2032,8 @@ function initDraggablePanel(){
   document.addEventListener("touchmove", drag)
   document.addEventListener("touchend", stopDrag)
 
-}
-
-function loopVisual(){
-
-  if (aeronaveSeleccionada) {
-
-    actualizarDisplaysManual(aeronaveSeleccionada);
-
-    if (aeronaveSeleccionada.estado === "manual") {
-      document.getElementById("manualPanel").style.display = "block";
-    } else {
-      document.getElementById("manualPanel").style.display = "none";
-    }
-
-  }
-
-  requestAnimationFrame(loopVisual);
-}
-
-loopVisual();
-
-document.addEventListener("DOMContentLoaded", () => {
-
-const btnConfig = document.getElementById("btnConfig");
-  const configHora = document.getElementById("configHora");
-
-  if (btnConfig && configHora) {
-    btnConfig.addEventListener("click", () => {
-      configHora.classList.toggle("oculto");
-    });
-  }
-  const btnManual = document.getElementById("btnManual");
-
-  btnManual.addEventListener("click", () => {
-
-    if (!aeronaveSeleccionada) return;
-
-    const a = aeronaveSeleccionada;
-
-    // 🔴 Si ya está en manual → salir
-    if (a.estado === "manual") {
-      socket.emit("salirManual", { id: a.id });
-      return;
-    }
-
-    // Cancelar taxi
-    if (a.motorTaxi) {
-      clearInterval(a.motorTaxi);
-      a.motorTaxi = null;
-    }
-
-    // Cancelar vuelo
-    if (a.intervaloVuelo) {
-      clearInterval(a.intervaloVuelo);
-      a.intervaloVuelo = null;
-    }
-
-    // Cancelar circuito
-    if (a.intervaloCircuito) {
-      clearInterval(a.intervaloCircuito);
-      a.intervaloCircuito = null;
-    }
-
-    // Cancelar STAR
-    a.starActivo = false;
-
-    // Activar manual
-    socket.emit("activarManual", { id: a.id });
-
-  });
-
-});
-// ================= CONFIG RELOJ =================
-
-function toggleConfigHora() {
-  const panel = document.getElementById("configHora");
-  if (!panel) return;
-
-  panel.classList.toggle("oculto");
-}
-
-function cambiarHora() {
-
-  const input = document.getElementById("inputHora");
-  if (!input) return;
-
-  const nuevaHora = input.value;
-  if (!nuevaHora) return;
-
-  socket.emit("cambiarHora", {
-    hora: nuevaHora
-  });
-
-  // cerrar panel
-  const panel = document.getElementById("configHora");
-  if(panel){
-    panel.classList.add("oculto");
-  }
-}
-document.addEventListener("DOMContentLoaded", () => {
-
-  const btnConfig = document.getElementById("btnConfigHora");
-  const btnAplicar = document.getElementById("btnAplicarHora");
-
-  if (btnConfig) {
-    btnConfig.addEventListener("click", toggleConfigHora);
-  }
-
-  if (btnAplicar) {
-    btnAplicar.addEventListener("click", cambiarHora);
-  }
-
-});
-
+})()
+/* ===== FIN PANEL ARRASTRABLE ===== */
 function pausarTiempo(){
   socket.emit("controlTiempo", {
     accion:"pausar"
@@ -2399,10 +2088,10 @@ function activarEmergencia(){
 
 function desactivarEmergencia(){
 
-  if(!imagenPeligro) return;
+  if(!marcadorPeligro) return;
 
-  map.removeLayer(imagenPeligro);
-  imagenPeligro = null;
+  map.removeLayer(marcadorPeligro);
+  marcadorPeligro = null;
 }
 function obtenerBoundsImagen(lat, lng, tamañoMetros){
 
@@ -2423,45 +2112,7 @@ function obtenerBoundsImagen(lat, lng, tamañoMetros){
   <button onclick="cambiarRumbo(1)">1° ›</button>
   <button onclick="cambiarRumbo(10)">10° »</button>
 </div>
-<button 
-  onmousedown="iniciarCambio('heading', -1, event)"
-  onmouseup="detenerCambio()"
-  onmouseleave="detenerCambio()">
-  ◀
-</button>
 
-<button 
-  onmousedown="iniciarCambio('heading', 1, event)"
-  onmouseup="detenerCambio()"
-  onmouseleave="detenerCambio()">
-  ▶
-</button>
-<button 
-  onmousedown="iniciarCambio('speed', -1, event)"
-  onmouseup="detenerCambio()"
-  onmouseleave="detenerCambio()">
-  -
-</button>
-
-<button 
-  onmousedown="iniciarCambio('speed', 1, event)"
-  onmouseup="detenerCambio()"
-  onmouseleave="detenerCambio()">
-  +
-</button>
-<button 
-  onmousedown="iniciarCambio('altitude', -100, event)"
-  onmouseup="detenerCambio()"
-  onmouseleave="detenerCambio()">
-  ▼
-</button>
-
-<button 
-  onmousedown="iniciarCambio('altitude', 100, event)"
-  onmouseup="detenerCambio()"
-  onmouseleave="detenerCambio()">
-  ▲
-</button>
 <button id="btnDanger" onclick="activarModoPeligro()">
   ⚠
 </button>

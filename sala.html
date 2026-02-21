@@ -211,7 +211,7 @@ socket.on("rutaCircuitoActualizada", () => {
 
     <button onclick="activarModoRuta()">Create Route</button>
     <div class="taxi-controls">
-    <button id="btnTaxi" onclick="toggleTaxi()">Iniciar Taxi</button>
+    <button id="btnTaxi" onclick="iniciarTaxi()">Iniciar Taxi</button>
     <button onclick="eliminarRuta(aeronaveSeleccionada)">🗑 Delete</button>
 </div>
 
@@ -267,6 +267,54 @@ socket.on("rutaCircuitoActualizada", () => {
   </div>
 
 </div>
+
+<div id="manualPanel" style="
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: #1e1e1e;
+  padding: 15px;
+  border-radius: 10px;
+  display: none;
+  z-index: 2000;
+  width: 220px;
+  font-family: monospace;
+">
+
+  <div style="text-align:center; margin-bottom:10px;">
+    MANUAL CONTROL
+  </div>
+
+  <div>
+    Heading: <span id="displayHeading">000</span>°
+    <br>
+    <button id="hdgMinus">-</button>
+    <button id="hdgPlus">+</button>
+  </div>
+
+  <hr>
+
+  <div>
+    Speed: <span id="displaySpeed">0</span>
+    <br>
+    <button id="spdMinus">-</button>
+    <button id="spdPlus">+</button>
+  </div>
+
+  <hr>
+
+  <div>
+    Altitude: <span id="displayAlt">0</span> ft
+    <br>
+    <button id="altMinus">-</button>
+    <button id="altPlus">+</button>
+  </div>
+
+</div>
+
+
+
+
 
 <div id="departurePanel" class="panelOculto">
   <div class="panelHeader">
@@ -811,7 +859,7 @@ socket.on("actualizarAeronave", data => {
 
     actualizarBotonManual()
 
-    if (avion.estado === "manual")  {
+    if (avion.estado === "manual" || avion.estado === "taxi") {
 
       document.getElementById("panelManual").style.display = "flex"
       actualizarDisplaysManual(avion)
@@ -934,10 +982,10 @@ actualizarBotonManual()
     document.getElementById("panelRumbo").classList.add("oculto")
   }
 if(obj.estado === "manual"){
-  document.getElementById("panelManual").style.display = "flex"
+  document.getElementById("manualPanel").style.display = "block"
   actualizarDisplaysManual(obj)
 } else {
-  document.getElementById("panelManual").style.display = "none"
+  document.getElementById("manualPanel").style.display = "none"
 }
 }
 document.getElementById("btnManual")
@@ -1182,31 +1230,31 @@ a.indiceRuta = 0
 
 // ================= TAXI =================
 
-function toggleTaxi(){
+function iniciarTaxi(){
 
   if(!aeronaveSeleccionada) return
-socket.emit("toggleTaxi", {
+socket.emit("iniciarTaxi", {
     id: aeronaveSeleccionada.id
   })
-  // const a = aeronaveSeleccionada
+  const a = aeronaveSeleccionada
 
-  // if(a.estado !== "idle") return
+  if(a.estado !== "idle") return
 
-  // if(!a.puntosRuta || a.puntosRuta.length < 2) return
+  if(!a.puntosRuta || a.puntosRuta.length < 2) return
 
-  // a.estado = "taxi"
-  // actualizarInteraccion(a)
-  // a.indiceRuta = 0
+  a.estado = "taxi"
+  actualizarInteraccion(a)
+  a.indiceRuta = 0
 
-  // mostrarTaxiing(a, true)
-  // a.modoRuta = false
+  mostrarTaxiing(a, true)
+  a.modoRuta = false
 
-  // moverPorPuntos(a)
-  // actualizarPanelInfo(a)
-  // actualizarBotonTaxi()
+  moverPorPuntos(a)
+  actualizarPanelInfo(a)
+  actualizarBotonTaxi()
 
-  // aeronaveSeleccionada = null
-  // cerrarPanel()
+  aeronaveSeleccionada = null
+  cerrarPanel()
 
 }
 
@@ -2089,17 +2137,17 @@ function sincronizarMovimiento(a, lat, lng){
 
 }
 
-// function actualizarDisplaysManual(a){
+function actualizarDisplaysManual(a){
 
-//   document.getElementById("displayHeading").textContent =
-//     String(Math.round(a.angulo)).padStart(3,"0")
+  document.getElementById("displayHeading").textContent =
+    String(Math.round(a.angulo)).padStart(3,"0")
 
-//   document.getElementById("displaySpeed").textContent =
-//     Math.round(a.velocidadObjetivo || 0)
+  document.getElementById("displaySpeed").textContent =
+    Math.round(a.velocidadObjetivo || 0)
 
-//   document.getElementById("displayAlt").textContent =
-//     Math.round(a.altitud || 0)
-// }
+  document.getElementById("displayAlt").textContent =
+    Math.round(a.altitud || 0)
+}
 function actualizarDisplaysManual(avion) {
 
   if (!avion) return

@@ -268,54 +268,6 @@ socket.on("rutaCircuitoActualizada", () => {
 
 </div>
 
-<div id="manualPanel" style="
-  position: absolute;
-  bottom: 20px;
-  right: 20px;
-  background: #1e1e1e;
-  padding: 15px;
-  border-radius: 10px;
-  display: none;
-  z-index: 2000;
-  width: 220px;
-  font-family: monospace;
-">
-
-  <div style="text-align:center; margin-bottom:10px;">
-    MANUAL CONTROL
-  </div>
-
-  <div>
-    Heading: <span id="displayHeading">000</span>°
-    <br>
-    <button id="hdgMinus">-</button>
-    <button id="hdgPlus">+</button>
-  </div>
-
-  <hr>
-
-  <div>
-    Speed: <span id="displaySpeed">0</span>
-    <br>
-    <button id="spdMinus">-</button>
-    <button id="spdPlus">+</button>
-  </div>
-
-  <hr>
-
-  <div>
-    Altitude: <span id="displayAlt">0</span> ft
-    <br>
-    <button id="altMinus">-</button>
-    <button id="altPlus">+</button>
-  </div>
-
-</div>
-
-
-
-
-
 <div id="departurePanel" class="panelOculto">
   <div class="panelHeader">
     <span>Departure Information</span>
@@ -1254,7 +1206,6 @@ socket.emit("iniciarTaxi", {
   actualizarBotonTaxi()
 
   aeronaveSeleccionada = null
-  cerrarPanel()
 
 }
 

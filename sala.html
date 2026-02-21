@@ -635,7 +635,7 @@ socket.on("crearAeronave", data => {
   id: data.id,
   tipo: data.tipo,
   marker: marker,
-  remoto: true,
+  remoto: data.esPropietario ? false : true,
   altitud: data.altitud || 0,
   angulo: data.angulo || 0,
   ruta: null,
@@ -813,28 +813,7 @@ function activarManual(id) {
 
   socket.emit("activarManual", { id });
 }
-function sincronizarMovimiento(a, lat, lng){
 
-  if(a.remoto) return
-
-  const ahora = performance.now()
-
-
-  if(!a.ultimoSync) a.ultimoSync = 0
-  if(ahora - a.ultimoSync < 100) return
-
-  a.ultimoSync = ahora
-
-  socket.emit("actualizarAeronave", {
-  id: a.id,
-  lat,
-  lng,
-  altitud: a.altitud,
-  angulo: a.angulo,
-  estado: a.estado
-})
-
-}
 // ================= PANEL =================
 
 function seleccionarAeronave(obj){
@@ -1286,8 +1265,6 @@ function iniciarMotorManual(a){
       actualizarPanelInfo(a)
     }
 
-    sincronizarMovimiento(a, nuevaLat, nuevaLng)
-
   },50)
 }
 let intervaloCambio = null
@@ -1573,7 +1550,6 @@ socket.emit("eliminarAeronave", a.id)
       actualizarPanelInfo(a)
     }
 const pos = a.marker.getLatLng()
-sincronizarMovimiento(a, pos.lat, pos.lng)
 
 
   },50)
@@ -1990,10 +1966,6 @@ function moverPorPuntos(a){
     a.angulo = bearing
     actualizarRotacion(a)
 
-    // 🔥 Sincronización profesional
-    if(!a.remoto){
-      sincronizarMovimiento(a, nuevaPos.lat, nuevaPos.lng)
-    }
   }
 
   a.motorTaxi = setInterval(motor, 16)
@@ -2068,10 +2040,6 @@ function finalizarTaxi(a){
 
   actualizarPanelInfo(a)
   actualizarBotonTaxi()
-
-  // Sincronizar estado final
-  const pos = a.marker.getLatLng()
-  sincronizarMovimiento(a, pos.lat, pos.lng)
 }
 
 function actualizarDisplaysManual(a){
@@ -2306,9 +2274,6 @@ function cambiarRumbo(valor){
 
   actualizarRotacion(a)
   actualizarHeadingDisplay(a)
-
-  const pos = a.marker.getLatLng()
-sincronizarMovimiento(a, pos.lat, pos.lng)
 
 
 }

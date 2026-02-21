@@ -7,7 +7,12 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
+const btnConfig = document.getElementById("btnConfig");
+const configHora = document.getElementById("configHora");
 
+btnConfig.addEventListener("click", () => {
+  configHora.classList.toggle("oculto");
+});
 app.use(express.static(__dirname));
 
 app.get("/", (req, res) => {
@@ -87,9 +92,21 @@ function iniciarMotorSala(nombreSala){
 
   if (motoresSalas[nombreSala]) return
 
-  motoresSalas[nombreSala] = setInterval(() => {
+ motoresSalas[nombreSala] = setInterval(() => {
 
-    const sala = salas[nombreSala]
+  const sala = salas[nombreSala]
+
+  if (!sala) {
+    clearInterval(motoresSalas[nombreSala])
+    delete motoresSalas[nombreSala]
+    return
+  }
+
+  if (sala.aeronaves.length === 0) {
+    clearInterval(motoresSalas[nombreSala])
+    delete motoresSalas[nombreSala]
+    return
+  }
     if (!sala) return
 
     const intervaloMS = 50
@@ -584,11 +601,7 @@ socket.on("extenderSalida", ({ metros }) => {
 
   const sala = salas[nombreSala]
   if (!sala) return
-if (sala.aeronaves.length === 0) {
-  clearInterval(motoresSalas[nombreSala])
-  delete motoresSalas[nombreSala]
-  return
-}
+
   // Sumar extensión
   sala.extensionExtra += metros
 

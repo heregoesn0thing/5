@@ -248,16 +248,16 @@ socket.on("rutaCircuitoActualizada", () => {
 </div>
 <div id="panelTiempo">
 
-  <div id="relojGlobal">
-    12:00:00
+  <div class="tiempoTop">
+    <div id="relojGlobal">12:00:00</div>
+
+    <div id="timeControls">
+      <button id="btnPausa">⏸</button>
+      <button id="btnConfig">⚙</button>
+    </div>
   </div>
 
-  <div id="timeControls">
-    <button id="btnPausa">⏸</button>
-    <button id="btnConfig">⚙</button>
-  </div>
-
-  <div id="configHora">
+  <div id="configHora" class="oculto">
     <input type="time" id="inputHora">
     <button id="btnAplicarHora">OK</button>
   </div>

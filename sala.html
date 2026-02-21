@@ -844,14 +844,14 @@ socket.on("actualizarAeronave", data => {
   const avion = aeronaves.find(a => a.id === data.id)
   if (!avion) return
 
-  // 🔥 Actualizar datos base SIEMPRE primero
+  // 🔄 Actualizar datos
   avion.estado = data.estado
   avion.altitud = data.altitud
   avion.lat = data.lat
   avion.lng = data.lng
   avion.angulo = data.angulo
+  avion.velocidad = data.velocidad
 
-  // 🔥 Crear marker si no existe
   if (!avion.marker) {
     avion.marker = crearMarker(avion)
   }
@@ -861,33 +861,23 @@ socket.on("actualizarAeronave", data => {
     actualizarBotonManual()
 
     if (avion.estado === "manual") {
-      document.getElementById("manualPanel").style.display = "block"
+      document.getElementById("panelManual").style.display = "block"
       actualizarDisplaysManual(avion)
     } else {
-      document.getElementById("manualPanel").style.display = "none"
+      document.getElementById("panelManual").style.display = "none"
     }
   }
 
   if (avion.estado === "manual") {
     actualizarInteraccion(avion)
   }
-if (data.id === aeronaveSeleccionada?.id) {
 
-  if (data.estado === "manual") {
-    document.getElementById("panelManual").style.display = "block"
-  } else {
-    document.getElementById("panelManual").style.display = "none"
-  }
-
-}
-  
   interpolarRemoto(
     avion,
     data.lat,
     data.lng,
     data.angulo
   )
-
 })
 
 document.getElementById("btnExtender").addEventListener("click", () => {
@@ -2516,22 +2506,42 @@ function obtenerBoundsImagen(lat, lng, tamañoMetros){
   <button onclick="cambiarRumbo(10)">10° »</button>
 </div>
 <div id="panelManual">
-  <h3>Control Manual</h3>
 
-  <div class="fila">
-    <button onclick="ajustar('heading', -5)">◀ 5°</button>
-    <button onclick="ajustar('heading', 5)">5° ▶</button>
+  <div class="panel-header">
+    <span>MANUAL CONTROL</span>
   </div>
 
-  <div class="fila">
-    <button onclick="ajustar('speed', -5)">-5 kt</button>
-    <button onclick="ajustar('speed', 5)">+5 kt</button>
+  <div class="panel-body">
+
+    <div class="control-group">
+      <div class="label">HDG</div>
+      <div class="value" id="hdgValue">000°</div>
+      <div class="buttons">
+        <button onclick="ajustar('heading', -5)">−5</button>
+        <button onclick="ajustar('heading', 5)">+5</button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="label">SPD</div>
+      <div class="value" id="spdValue">000 kt</div>
+      <div class="buttons">
+        <button onclick="ajustar('speed', -5)">−5</button>
+        <button onclick="ajustar('speed', 5)">+5</button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="label">ALT</div>
+      <div class="value" id="altValue">0000 ft</div>
+      <div class="buttons">
+        <button onclick="ajustar('altitude', -100)">−100</button>
+        <button onclick="ajustar('altitude', 100)">+100</button>
+      </div>
+    </div>
+
   </div>
 
-  <div class="fila">
-    <button onclick="ajustar('altitude', -100)">-100 ft</button>
-    <button onclick="ajustar('altitude', 100)">+100 ft</button>
-  </div>
 </div>
 <button id="btnDanger" onclick="activarModoPeligro()">
   ⚠

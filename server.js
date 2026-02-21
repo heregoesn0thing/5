@@ -606,22 +606,28 @@ socket.on("activarManual", ({ id }) => {
 
   const aeronave = sala.aeronaves.find(a => a.id === id)
   if (!aeronave) return
-
   if (aeronave.owner !== socket.id) return
 
-  // 🔁 TOGGLE
   if (aeronave.estado === "manual") {
-    
+
+    // DESACTIVAR MANUAL
     aeronave.estado = "idle"
 
   } else {
 
+    // ACTIVAR MANUAL
     aeronave.estado = "manual"
+
     aeronave.ruta = null
     aeronave.indice = 0
     aeronave.progreso = 0
     aeronave.indiceObjetivo = null
-iniciarMotorSala(salaNombre)
+
+    if (!aeronave.velocidad) {
+      aeronave.velocidad = 90 * 0.514444
+    }
+
+    iniciarMotorSala(salaNombre)
   }
 
   io.to(salaNombre).emit("actualizarAeronave", {
@@ -630,6 +636,7 @@ iniciarMotorSala(salaNombre)
     lng: aeronave.lng,
     altitud: aeronave.altitud,
     angulo: aeronave.angulo,
+    velocidad: aeronave.velocidad,
     estado: aeronave.estado
   })
 })

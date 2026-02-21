@@ -279,33 +279,6 @@ html, body{
 #btnEliminarModo.activo {
   background: red;
 }
-#relojHora{ font-size:20px; margin-bottom:8px; }
-
-
-
-
-#timeControls input{
-  background: #0f172a;
-  border: 1px solid #334155;
-  color: white;
-  padding: 6px;
-  border-radius: 6px;
-}
-
-#timeControls button{
-  background: #1e293b;
-  border: none;
-  color: white;
-  padding: 6px 8px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: 0.2s;
-}
-
-#timeControls button:hover{
-  background: #334155;
-  transform: scale(1.05);
-}
 
 #createAircraftPanel{
   position: fixed;
@@ -446,30 +419,7 @@ html, body{
 .panel-capas label{
   cursor: pointer;
 }
-
-.control-btn{
-  background: #1c1c1c;
-  color: #00ff9c;
-  border: 1px solid #00ff9c;
-  padding: 8px 14px;
-  font-family: monospace;
-  font-size: 14px;
-  border-radius: 4px;
-  transition: all 0.1s ease;
-  cursor: pointer;
-}
-
-.control-btn:hover{
-  background: #003d28;
-}
-
-.control-btn:active{
-  transform: scale(0.95);
-  background: #006b46;
-}
 /* ================= MANUAL CONTROL PANEL ================= */
-
-/* ================= MCP PANEL ================= */
 
 #manualPanel {
   position: fixed;
@@ -500,9 +450,6 @@ html, body{
 
   z-index: 9999;
 }
-
-
-
 /* ================= PANEL TIEMPO ================= */
 
 #panelTiempo {

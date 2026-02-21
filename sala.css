@@ -633,30 +633,58 @@ z-index: 10000;
 
 #panelTiempo {
   position: absolute;
-  top: 15px;
-  right: 15px;
-  background: rgba(20,20,20,0.95);
-  padding: 10px 14px;
-  border-radius: 8px;
-  color: white;
-  z-index: 9999;   
-  font-family: monospace;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+
+  background: rgba(15, 18, 25, 0.92);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+
+  padding: 14px 18px;
+
+  box-shadow:
+    0 8px 25px rgba(0, 0, 0, 0.45),
+    inset 0 0 0 1px rgba(255,255,255,0.03);
+
+  font-family: "Segoe UI", Roboto, monospace;
+  color: #e8f0ff;
+
+  min-width: 180px;
 }
 
 .tiempoTop {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 10px;
 }
 
 #relojGlobal {
-  font-size: 22px;
-  font-weight: bold;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-align: center;
+  color: #7cc7ff;
+  transition: all 0.3s ease;
 }
 
 #timeControls button {
-  margin-left: 6px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #9ecfff;
+  border-radius: 6px;
+  padding: 4px 8px;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+#timeControls button:hover {
+  background: rgba(124, 199, 255, 0.15);
+  transform: scale(1.05);
 }
 
 #configHora {

@@ -211,7 +211,8 @@ socket.on("rutaCircuitoActualizada", () => {
 
     <button onclick="activarModoRuta()">Create Route</button>
     <div class="taxi-controls">
-    <button id="btnTaxi" onclick="iniciarTaxi()">Iniciar Taxi</button>
+    <button id="btnTaxi" onclick="iniciarRodaje()">▶ Taxi</button>
+    <button onclick="detenerRodaje(aeronaveSeleccionada)">⏸ Pause</button>
     <button onclick="eliminarRuta(aeronaveSeleccionada)">🗑 Delete</button>
 </div>
 
@@ -267,6 +268,54 @@ socket.on("rutaCircuitoActualizada", () => {
   </div>
 
 </div>
+
+<div id="manualPanel" style="
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: #1e1e1e;
+  padding: 15px;
+  border-radius: 10px;
+  display: none;
+  z-index: 2000;
+  width: 220px;
+  font-family: monospace;
+">
+
+  <div style="text-align:center; margin-bottom:10px;">
+    MANUAL CONTROL
+  </div>
+
+  <div>
+    Heading: <span id="displayHeading">000</span>°
+    <br>
+    <button id="hdgMinus">-</button>
+    <button id="hdgPlus">+</button>
+  </div>
+
+  <hr>
+
+  <div>
+    Speed: <span id="displaySpeed">0</span>
+    <br>
+    <button id="spdMinus">-</button>
+    <button id="spdPlus">+</button>
+  </div>
+
+  <hr>
+
+  <div>
+    Altitude: <span id="displayAlt">0</span> ft
+    <br>
+    <button id="altMinus">-</button>
+    <button id="altPlus">+</button>
+  </div>
+
+</div>
+
+
+
+
 
 <div id="departurePanel" class="panelOculto">
   <div class="panelHeader">
@@ -795,7 +844,7 @@ socket.on("actualizarAeronave", data => {
   const avion = aeronaves.find(a => a.id === data.id)
   if (!avion) return
 
-  // 🔄 Actualizar datos base
+  // 🔄 Actualizar datos
   avion.estado = data.estado
   avion.altitud = data.altitud
   avion.lat = data.lat
@@ -811,15 +860,11 @@ socket.on("actualizarAeronave", data => {
 
     actualizarBotonManual()
 
-    if (avion.estado === "manual" || avion.estado === "taxi") {
-
-      document.getElementById("panelManual").style.display = "flex"
+    if (avion.estado === "manual") {
+      document.getElementById("panelManual").style.display = "block"
       actualizarDisplaysManual(avion)
-
     } else {
-
       document.getElementById("panelManual").style.display = "none"
-
     }
   }
 
@@ -1182,12 +1227,10 @@ a.indiceRuta = 0
 
 // ================= TAXI =================
 
-function iniciarTaxi(){
+function iniciarRodaje(){
 
   if(!aeronaveSeleccionada) return
-socket.emit("iniciarTaxi", {
-    id: aeronaveSeleccionada.id
-  })
+
   const a = aeronaveSeleccionada
 
   if(a.estado !== "idle") return
@@ -1206,6 +1249,7 @@ socket.emit("iniciarTaxi", {
   actualizarBotonTaxi()
 
   aeronaveSeleccionada = null
+  cerrarPanel()
 
 }
 

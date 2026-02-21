@@ -125,35 +125,7 @@ function iniciarMotorSala(nombreSala){
 
   return
 }
-// =====================================
-// ✈ FASE TAXI
-// =====================================
-if (a.estado === "taxi") {
 
-  const velocidadMPS = a.velocidad || (10 * 0.514444)
-  const distanciaTick = velocidadMPS * (intervaloMS / 1000)
-
-  const nuevoPunto = puntoPlano(
-    { lat: a.lat, lng: a.lng },
-    a.angulo || 0,
-    distanciaTick
-  )
-
-  a.lat = nuevoPunto.lat
-  a.lng = nuevoPunto.lng
-
-  io.to(nombreSala).emit("actualizarAeronave", {
-    id: a.id,
-    lat: a.lat,
-    lng: a.lng,
-    altitud: a.altitud,
-    angulo: a.angulo,
-    velocidad: a.velocidad,
-    estado: a.estado
-  })
-
-  return
-}
       // =====================================
       // RESTO DE LÓGICA (requiere ruta)
       // =====================================
@@ -784,47 +756,7 @@ socket.on("detenerCircuito", ({ id }) => {
   aeronave.indiceObjetivo = null
 
 })
-socket.on("toggleTaxi", ({ id }) => {
 
-  const salaNombre = socket.sala
-  if (!salaNombre) return
-
-  const sala = salas[salaNombre]
-  if (!sala) return
-
-  const aeronave = sala.aeronaves.find(a => a.id === id)
-  if (!aeronave) return
-  if (aeronave.owner !== socket.id) return
-
-  // 🔁 TOGGLE
-  if (aeronave.estado === "taxi") {
-
-    // 🔴 DETENER TAXI
-    aeronave.estado = "idle"
-
-  } else {
-
-    // 🟢 INICIAR TAXI
-    aeronave.estado = "taxi"
-
-    if (!aeronave.velocidad) {
-      aeronave.velocidad = 10 * 0.514444 // 10 kt en m/s
-    }
-
-    iniciarMotorSala(salaNombre)
-  }
-
-  io.to(salaNombre).emit("actualizarAeronave", {
-    id: aeronave.id,
-    lat: aeronave.lat,
-    lng: aeronave.lng,
-    altitud: aeronave.altitud,
-    angulo: aeronave.angulo,
-    velocidad: aeronave.velocidad,
-    estado: aeronave.estado
-  })
-
-})
   // ===== ELIMINAR AERONAVE =====
   socket.on("eliminarAeronave", (id) => {
 

@@ -1185,7 +1185,7 @@ a.indiceRuta = 0
 function toggleTaxi(){
 
   if(!aeronaveSeleccionada) return
-socket.emit("toggletaxi", {
+socket.emit("toggleTaxi", {
     id: aeronaveSeleccionada.id
   })
   // const a = aeronaveSeleccionada

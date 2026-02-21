@@ -811,7 +811,7 @@ socket.on("actualizarAeronave", data => {
 
     actualizarBotonManual()
 
-    if (avion.estado === "manual" || avion.estado === "taxi") {
+    if (avion.estado === "manual")  {
 
       document.getElementById("panelManual").style.display = "flex"
       actualizarDisplaysManual(avion)

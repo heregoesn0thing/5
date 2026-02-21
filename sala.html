@@ -2517,6 +2517,14 @@ loopVisual();
 
 document.addEventListener("DOMContentLoaded", () => {
 
+const btnConfig = document.getElementById("btnConfig");
+  const configHora = document.getElementById("configHora");
+
+  if (btnConfig && configHora) {
+    btnConfig.addEventListener("click", () => {
+      configHora.classList.toggle("oculto");
+    });
+  }
   const btnManual = document.getElementById("btnManual");
 
   btnManual.addEventListener("click", () => {

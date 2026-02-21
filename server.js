@@ -7,12 +7,7 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
-const btnConfig = document.getElementById("btnConfig");
-const configHora = document.getElementById("configHora");
 
-btnConfig.addEventListener("click", () => {
-  configHora.classList.toggle("oculto");
-});
 app.use(express.static(__dirname));
 
 app.get("/", (req, res) => {

@@ -57,7 +57,7 @@
 </div>
 
   <div class="panel-body">
-
+<div><span class="label">ID</span><span class="valor" id="info-id">---</span></div>
     <div><span class="label">Estado</span><span class="valor" id="info-estado">---</span></div>
 
     <div><span class="label">Alt</span><span class="valor" id="info-altitud">---</span></div>
@@ -1987,14 +1987,28 @@ function actualizarRotacion(a){
   const icon = el.querySelector(".icon-aircraft");
   if(!icon) return;
 
-  const offset = ORIENTACION_MODELOS[a.tipo] || ORIENTACION_MODELOS.DEFAULT;
+  const wrapper = el.querySelector(".icon-wrapper");
+  if(!wrapper) return;
 
+  const zoom = map.getZoom();
+
+  const escala = Math.max(
+    0.55,
+    Math.min(1.1, Math.pow(1.12, zoom - 15))
+  );
+
+  // ESCALAR SOLO EL WRAPPER (NO EL MARKER)
+  wrapper.style.transform = `scale(${escala})`;
+  wrapper.style.transformOrigin = "center";
+
+  //ROTAR SOLO EL ICONO
+  const offset = ORIENTACION_MODELOS[a.tipo] || ORIENTACION_MODELOS.DEFAULT;
   icon.style.transform = `rotate(${a.angulo + offset}deg)`;
 }
 
-// map.on("zoom", () => {
-//   aeronaves.forEach(a => actualizarRotacion(a))
-// });
+map.on("zoom", () => {
+  aeronaves.forEach(a => actualizarRotacion(a))
+});
 
 function interpolarRemoto(avion, lat, lng, anguloServidor){
 

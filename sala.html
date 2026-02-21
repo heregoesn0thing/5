@@ -2515,25 +2515,23 @@ function obtenerBoundsImagen(lat, lng, tamañoMetros){
   <button onclick="cambiarRumbo(1)">1° ›</button>
   <button onclick="cambiarRumbo(10)">10° »</button>
 </div>
-<div id="panelManual" style="display:none; position:absolute; bottom:20px; left:20px; background:#111; color:white; padding:15px; border-radius:8px;">
-
+<div id="panelManual">
   <h3>Control Manual</h3>
 
-  <div>
+  <div class="fila">
     <button onclick="ajustar('heading', -5)">◀ 5°</button>
     <button onclick="ajustar('heading', 5)">5° ▶</button>
   </div>
 
-  <div>
+  <div class="fila">
     <button onclick="ajustar('speed', -5)">-5 kt</button>
     <button onclick="ajustar('speed', 5)">+5 kt</button>
   </div>
 
-  <div>
+  <div class="fila">
     <button onclick="ajustar('altitude', -100)">-100 ft</button>
     <button onclick="ajustar('altitude', 100)">+100 ft</button>
   </div>
-
 </div>
 <button id="btnDanger" onclick="activarModoPeligro()">
   ⚠

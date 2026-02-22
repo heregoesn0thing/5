@@ -1307,7 +1307,7 @@ cancelarAccionesAeronave(a);
       a.velocidadObjetivo = 130;
 
       actualizarPanelInfoAeronave(a);
-
+socket.emit("forzarAterrizaje", { id: a.id });
       autorizarTouchdown(a);
     }
 

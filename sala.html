@@ -1232,17 +1232,25 @@ function activarCleared(boton){
 
   const a = aeronaveSeleccionada;
 
-  // 🔥 Cancelar TODO
+  // 🔥 Cancelar TODO lo anterior
   cancelarAccionesAeronave(a);
 
-  // Solo un principal activo
+  // Quitar activo de todos los principales
   document.querySelectorAll(".landing-main")
     .forEach(btn => btn.classList.remove("activo"));
 
   boton.classList.add("activo");
 
-  document.getElementById("landingOpciones")
-    .classList.add("activo");
+  // 🔥 MOSTRAR A B C D E
+  const opciones = document.getElementById("landingOpciones");
+  if(opciones){
+    opciones.style.display = "flex"; // usa flex si están en fila
+    opciones.classList.add("activo");
+  }
+
+  // 🔥 Limpiar selección previa
+  document.querySelectorAll(".landing-choice")
+    .forEach(btn => btn.classList.remove("activo"));
 
   a.estado = "CLEARED TO LAND";
   a.landingSubOption = null;
@@ -1503,14 +1511,19 @@ function activarTouchAndGo(boton){
 
   if(!aeronaveSeleccionada) return;
 
-  // 🔥 Quitar activo de todos
+  const a = aeronaveSeleccionada;
+
+  // Quitar activo de botones principales
   document.querySelectorAll(".landing-main")
     .forEach(btn => btn.classList.remove("activo"));
 
-  // 🔥 Activar este botón
   boton.classList.add("activo");
 
-  const a = aeronaveSeleccionada;
+  // 🔥 OCULTAR A B C D E
+  const contenedor = document.getElementById("landingOpciones");
+  if(contenedor){
+    contenedor.style.display = "none";
+  }
 
   cancelarAccionesAeronave(a);
 

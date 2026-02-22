@@ -129,10 +129,6 @@ if (a.estado === "landing") {
   return
 }
 
-      // =====================================
-      // RESTO DE LÓGICA (requiere ruta)
-      // =====================================
-
       if (!a.ruta || a.ruta.length < 2) return
 
       const velocidadMPS = a.velocidad || (90 * 0.514444)
@@ -217,8 +213,8 @@ if (a.estado === "arcoInterceptacion") {
 
   a.angulo = (a.angulo + 360) % 360;
 
-  const velocidadMPS = a.velocidad || (90 * 0.514444);
-  const distanciaTick = velocidadMPS * (intervaloMS / 1000);
+  // const velocidadMPS = a.velocidad || (90 * 0.514444);
+  // const distanciaTick = velocidadMPS * (intervaloMS / 1000);
 
   const nuevoPunto = puntoPlano(
     { lat: a.lat, lng: a.lng },

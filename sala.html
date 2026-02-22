@@ -1444,7 +1444,31 @@ function moverAeronaveHacia(a, destino, callback){
   }, 50);
 }
 
+function seguirRutaTaxi(a, ruta){
 
+  if(!ruta || ruta.length === 0) return;
+
+  let indice = 0;
+
+  function moverAlSiguiente(){
+
+    if(indice >= ruta.length){
+      a.estado = "IDLE";
+      a.velocidadObjetivo = 0;
+      return;
+    }
+
+    const destino = ruta[indice];
+    indice++;
+
+    moverAeronaveHacia(a, destino, moverAlSiguiente);
+  }
+
+  a.estado = "TAXI";
+  a.velocidadObjetivo = 15;
+
+  moverAlSiguiente();
+}
 
 
 

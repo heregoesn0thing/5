@@ -1362,14 +1362,22 @@ function ejecutarTaxiAutomatico(a){
     "E": rutaTaxiE
   };
 
-  const ruta = rutasTaxi[a.landingSubOption];
+  let opcion = a.landingSubOption;
+
+  if(!opcion){
+    opcion = "E";
+    a.landingSubOption = "E";
+  }
+
+  const ruta = rutasTaxi[opcion];
 
   if(!ruta){
-    console.log("Ruta no definida:", a.landingSubOption);
+    console.log("Ruta inválida. Usando E.");
+    seguirRutaTaxi(a, rutaTaxiE);
     return;
   }
 
-  console.log("Ejecutando taxi", a.landingSubOption);
+  console.log("Ejecutando taxi", opcion);
 
   seguirRutaTaxi(a, ruta);
 }
@@ -1400,6 +1408,11 @@ function cancelarAccionesAeronave(a){
   if(a.monitorAterrizaje){
     clearInterval(a.monitorAterrizaje);
     a.monitorAterrizaje = null;
+  }
+
+  if(a.intervaloMovimiento){
+    clearInterval(a.intervaloMovimiento);
+    a.intervaloMovimiento = null;
   }
 
   if(a.animRutaFrame){

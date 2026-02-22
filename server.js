@@ -139,27 +139,19 @@ if (a.estado === "landing") {
 
 if (a.estado === "arcoInterceptacion") {
 
-  const destino = a.puntoIntercepto;
+  const A = a.ruta[a.tramoObjetivo];
+  const B = a.ruta[(a.tramoObjetivo - 1 + a.ruta.length) % a.ruta.length];
 
-  const distancia = distanciaEntre(
-    { lat: a.lat, lng: a.lng },
-    destino
-  );
+  const rumboTramo = calcularRumboServidor(A, B);
 
-  const velocidadMPS = a.velocidad || (90 * 0.514444);
-  const distanciaTick = velocidadMPS * (intervaloMS / 1000);
+  // 🔥 30° de interceptación
+  const rumboIntercepto = (rumboTramo + 30) % 360;
 
-  // 🔥 RUMBO HACIA EL PUNTO DE INTERCEPTO
-  const rumboObjetivo = calcularRumboServidor(
-    { lat: a.lat, lng: a.lng },
-    destino
-  );
-
-  const diff = diferenciaAngular(a.angulo || 0, rumboObjetivo);
   const maxGiro = 2;
+  const diff = diferenciaAngular(a.angulo || 0, rumboIntercepto);
 
   if (Math.abs(diff) < maxGiro) {
-    a.angulo = rumboObjetivo;
+    a.angulo = rumboIntercepto;
   } else {
     a.angulo += Math.sign(diff) * maxGiro;
   }
@@ -175,8 +167,19 @@ if (a.estado === "arcoInterceptacion") {
   a.lat = nuevoPunto.lat;
   a.lng = nuevoPunto.lng;
 
-  // 🎯 Cuando esté cerca → pasar a interceptación fina
-  if (distancia < 120) {
+  // 🔥 Cuando cruce el segmento → cambiar estado
+  const puntoProyectado = proyectarSobreSegmento(
+    { lat: a.lat, lng: a.lng },
+    A,
+    B
+  );
+
+  const distanciaAlTramo = distanciaEntre(
+    { lat: a.lat, lng: a.lng },
+    puntoProyectado
+  );
+
+  if (distanciaAlTramo < 80) {
     a.estado = "interceptandoTramo";
   }
 

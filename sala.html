@@ -587,39 +587,34 @@ const ORIENTACION_MODELOS = {
    RUTAS TAXI RWY 22
 ================================ */
 
-// Salida A
 const rutaTaxiA = [
   [-13.7355, -76.2135],
   [-13.7365, -76.2160],
   [-13.7375, -76.2180]
 ];
 
-// Salida B
 const rutaTaxiB = [
-  [-13.738427114745328, -76.2150643498254],
-  [-13.7395, -76.2215],
-  [-13.7410, -76.2235]
+  [-13.7358, -76.2140],
+  [-13.7370, -76.2170],
+  [-13.7385, -76.2200]
 ];
 
-// Salida C
 const rutaTaxiC = [
-  [-13.7420, -76.2245],
-  [-13.7435, -76.2260],
-  [-13.7448, -76.2275]
+  [-13.7352, -76.2125],
+  [-13.7360, -76.2145],
+  [-13.7368, -76.2165]
 ];
 
-// Salida D
 const rutaTaxiD = [
-  [-13.7460, -76.2285],
-  [-13.7470, -76.2295],
-  [-13.7485, -76.2305]
+  [-13.7359, -76.2150],
+  [-13.7375, -76.2190],
+  [-13.7390, -76.2220]
 ];
 
-// Salida E
 const rutaTaxiE = [
-  [-13.7500, -76.2315],
-  [-13.7515, -76.2325],
-  [-13.7530, -76.2335]
+  [-13.7354, -76.2130],
+  [-13.7362, -76.2150],
+  [-13.7370, -76.2170]
 ];
 const LIB_MANDI = L.latLng(-12.389000, -76.758094)
 const RUMBO_LIB_MANDI = 140
@@ -1429,7 +1424,7 @@ function moverAeronaveHacia(a, destino, callback){
     const destinoLatLng = L.latLng(destino[0], destino[1]);
     const distancia = map.distance(actual, destinoLatLng);
 
-    if(distancia < 5){
+    if(distancia < 2){
 
       clearInterval(a.intervaloMovimiento);
       a.intervaloMovimiento = null;
@@ -1438,7 +1433,8 @@ function moverAeronaveHacia(a, destino, callback){
       return;
     }
 
-    const ratio = metrosPorSegundo / distancia;
+    const paso = Math.min(metrosPorSegundo, distancia);
+    const ratio = paso / distancia;
 
     const nuevaLat = actual.lat + (destino[0] - actual.lat) * ratio;
     const nuevaLng = actual.lng + (destino[1] - actual.lng) * ratio;

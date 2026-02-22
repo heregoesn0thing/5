@@ -214,7 +214,7 @@ if (a.estado === "interceptandoTramo") {
 
   a.angulo = (a.angulo + 360) % 360;
 
-  // 🔥 recalcular diff después del giro
+  // 🔥 Recalcular diferencia
   diff = diferenciaAngular(a.angulo, rumboTramo);
 
   const nuevoPunto = puntoPlano(
@@ -226,14 +226,26 @@ if (a.estado === "interceptandoTramo") {
   a.lat = nuevoPunto.lat;
   a.lng = nuevoPunto.lng;
 
-  // 🔥 condición REAL de alineación
-  if (Math.abs(diff) < 3) {
+  // 🔥 Calcular distancia REAL al tramo
+  const puntoProyectado = proyectarSobreSegmento(
+    { lat: a.lat, lng: a.lng },
+    A,
+    B
+  );
+
+  const distanciaAlTramo = distanciaEntre(
+    { lat: a.lat, lng: a.lng },
+    puntoProyectado
+  );
+
+  // 🎯 CONDICIÓN DOBLE
+  if (Math.abs(diff) < 3 && distanciaAlTramo < 60) {
 
     a.estado = "circuito";
     a.indice = a.tramoObjetivo;
     a.progreso = 0;
 
-    console.log("Alineado al tramo → entrando en circuito");
+    console.log("✔ Captura real del tramo → entrando en circuito");
   }
 
   io.to(nombreSala).emit("actualizarAeronave", {

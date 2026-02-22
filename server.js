@@ -184,63 +184,65 @@ if (a.estado === "INT") {
       // =====================================
       if (a.estado === "interceptando") {
 
-        const destino = a.ruta[a.indiceObjetivo]
+  const destino = a.ruta[a.indiceObjetivo];
 
-        const distancia = distanciaEntre(
-          { lat: a.lat, lng: a.lng },
-          destino
-        )
+  const distancia = distanciaEntre(
+    { lat: a.lat, lng: a.lng },
+    destino
+  );
 
-        if (distancia <= distanciaTick) {
+  const velocidadMPS = a.velocidad || (90 * 0.514444);
+  const distanciaTick = velocidadMPS * (intervaloMS / 1000);
 
-          a.lat = destino.lat
-          a.lng = destino.lng
+  // 🔥 Si ya está muy cerca → entrar al circuito
+  if (distancia < 50) {
 
-          a.indice = a.indiceObjetivo
-          a.progreso = 0
-          a.estado = "circuito"
+    a.indice = a.indiceObjetivo;
+    a.progreso = 0;
+    a.estado = "circuito";
 
-        } else {
+    return;
+  }
 
-          const rumboDeseado = calcularRumboServidor(
-            { lat: a.lat, lng: a.lng },
-            destino
-          )
+  // 🎯 Rumbo deseado hacia el punto
+  const rumboDeseado = calcularRumboServidor(
+    { lat: a.lat, lng: a.lng },
+    destino
+  );
 
-          const fraccion = distanciaTick / distancia
+  // 🔄 Giro progresivo realista
+  const diff = diferenciaAngular(a.angulo || 0, rumboDeseado);
+  const maxGiro = 2; // grados por tick (suave)
 
-          a.lat += (destino.lat - a.lat) * fraccion
-          a.lng += (destino.lng - a.lng) * fraccion
+  if (Math.abs(diff) < maxGiro) {
+    a.angulo = rumboDeseado;
+  } else {
+    a.angulo += Math.sign(diff) * maxGiro;
+  }
 
-          if (a.angulo === undefined || a.angulo === null) {
-            a.angulo = rumboDeseado
-          } else {
+  a.angulo = (a.angulo + 360) % 360;
 
-            const diff = diferenciaAngular(a.angulo, rumboDeseado)
-            const maxGiro = 3
+  // ✈ Movimiento físico según heading actual
+  const nuevoPunto = puntoPlano(
+    { lat: a.lat, lng: a.lng },
+    a.angulo,
+    distanciaTick
+  );
 
-            if (Math.abs(diff) <= maxGiro) {
-              a.angulo = rumboDeseado
-            } else {
-              a.angulo += Math.sign(diff) * maxGiro
-            }
+  a.lat = nuevoPunto.lat;
+  a.lng = nuevoPunto.lng;
 
-            a.angulo = (a.angulo + 360) % 360
-          }
-        }
+  io.to(nombreSala).emit("actualizarAeronave", {
+    id: a.id,
+    lat: a.lat,
+    lng: a.lng,
+    altitud: a.altitud,
+    angulo: a.angulo,
+    estado: a.estado
+  });
 
-        io.to(nombreSala).emit("actualizarAeronave", {
-          id: a.id,
-          lat: a.lat,
-          lng: a.lng,
-          altitud: a.altitud,
-          angulo: a.angulo,
-          estado: a.estado
-        })
-
-        return
-      }
-
+  return;
+}
       // =====================================
       // ✈ FASE 2 — MOVIMIENTO NORMAL EN CIRCUITO
       // =====================================
@@ -711,7 +713,9 @@ socket.on("iniciarCircuito", ({ id }) => {
 
  // ===== INCORPORACIÓN AL PUNTO MÁS CERCANO =====
 
-// Buscar el punto más cercano del circuito
+// ===== INCORPORACIÓN DINÁMICA Y SUAVE =====
+
+// Buscar punto más cercano
 let indiceMasCercano = 0;
 let menorDistancia = Infinity;
 
@@ -728,12 +732,9 @@ aeronave.ruta.forEach((punto, i) => {
   }
 });
 
-// Configurar incorporación
 aeronave.indiceObjetivo = indiceMasCercano;
-aeronave.puntoIngreso = aeronave.ruta[indiceMasCercano];
-
-aeronave.velocidad = 90 * 0.514444;
 aeronave.estado = "interceptando";
+aeronave.velocidad = 90 * 0.514444;
 
 iniciarMotorSala(salaNombre);
 })

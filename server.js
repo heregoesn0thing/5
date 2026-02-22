@@ -138,53 +138,12 @@ if (a.estado === "landing") {
       const velocidadMPS = a.velocidad || (90 * 0.514444)
       const distanciaTick = velocidadMPS * (intervaloMS/1000)
 // =====================================
-// ✈ FASE 0 — INGRESO 45°
+// 🌀 FASE ARCO 30° ANTES DE INTERCEPTAR
 // =====================================
 
-if (a.estado === "INT") {
+if (a.estado === "arcoInterceptacion") {
 
-  const destino = a.puntoIngreso
-
-  const distancia = distanciaEntre(
-    { lat: a.lat, lng: a.lng },
-    destino
-  )
-
-  if (distancia <= distanciaTick) {
-
-    // Ahora pasa a interceptar el circuito
-    a.estado = "interceptando"
-    return
-  }
-
-  const rumboDeseado = calcularRumboServidor(
-    { lat: a.lat, lng: a.lng },
-    destino
-  )
-
-  const fraccion = distanciaTick / distancia
-
-  a.lat += (destino.lat - a.lat) * fraccion
-  a.lng += (destino.lng - a.lng) * fraccion
-  a.angulo = rumboDeseado
-
-  io.to(nombreSala).emit("actualizarAeronave", {
-    id: a.id,
-    lat: a.lat,
-    lng: a.lng,
-    altitud: a.altitud,
-    angulo: a.angulo,
-    estado: a.estado
-  })
-
-  return
-}
-      // =====================================
-      // ✈ FASE 1 — INTERCEPTANDO EL CIRCUITO
-      // =====================================
-      if (a.estado === "interceptando") {
-
-  const destino = a.ruta[a.indiceObjetivo];
+  const destino = a.puntoIntercepto;
 
   const distancia = distanciaEntre(
     { lat: a.lat, lng: a.lng },
@@ -194,35 +153,25 @@ if (a.estado === "INT") {
   const velocidadMPS = a.velocidad || (90 * 0.514444);
   const distanciaTick = velocidadMPS * (intervaloMS / 1000);
 
-  // 🔥 Si ya está muy cerca → entrar al circuito
-  if (distancia < 50) {
-
-    a.indice = a.indiceObjetivo;
-    a.progreso = 0;
-    a.estado = "circuito";
-
-    return;
-  }
-
-  // 🎯 Rumbo deseado hacia el punto
-  const rumboDeseado = calcularRumboServidor(
-    { lat: a.lat, lng: a.lng },
-    destino
+  const rumboTramo = calcularRumboServidor(
+    aeronave.ruta[a.tramoObjetivo],
+    aeronave.ruta[(a.tramoObjetivo - 1 + aeronave.ruta.length) % aeronave.ruta.length]
   );
 
-  // 🔄 Giro progresivo realista
-  const diff = diferenciaAngular(a.angulo || 0, rumboDeseado);
-  const maxGiro = 2; // grados por tick (suave)
+  // 🎯 Queremos interceptar con 30° de diferencia
+  const rumboObjetivo = (rumboTramo + 30) % 360;
+
+  const diff = diferenciaAngular(a.angulo || 0, rumboObjetivo);
+  const maxGiro = 2;
 
   if (Math.abs(diff) < maxGiro) {
-    a.angulo = rumboDeseado;
+    a.angulo = rumboObjetivo;
   } else {
     a.angulo += Math.sign(diff) * maxGiro;
   }
 
   a.angulo = (a.angulo + 360) % 360;
 
-  // ✈ Movimiento físico según heading actual
   const nuevoPunto = puntoPlano(
     { lat: a.lat, lng: a.lng },
     a.angulo,
@@ -231,6 +180,60 @@ if (a.estado === "INT") {
 
   a.lat = nuevoPunto.lat;
   a.lng = nuevoPunto.lng;
+
+  if (distancia < 80) {
+    a.estado = "interceptandoTramo";
+  }
+
+  io.to(nombreSala).emit("actualizarAeronave", {
+    id: a.id,
+    lat: a.lat,
+    lng: a.lng,
+    altitud: a.altitud,
+    angulo: a.angulo,
+    estado: a.estado
+  });
+
+  return;
+}
+      // =====================================
+      // ✈ FASE 1 — INTERCEPTANDO EL CIRCUITO
+      // =====================================
+     if (a.estado === "interceptandoTramo") {
+
+  const A = a.ruta[a.tramoObjetivo];
+  const B = a.ruta[(a.tramoObjetivo - 1 + a.ruta.length) % a.ruta.length];
+
+  const rumboTramo = calcularRumboServidor(A, B);
+
+  const diff = diferenciaAngular(a.angulo || 0, rumboTramo);
+  const maxGiro = 2;
+
+  if (Math.abs(diff) < maxGiro) {
+    a.angulo = rumboTramo;
+  } else {
+    a.angulo += Math.sign(diff) * maxGiro;
+  }
+
+  a.angulo = (a.angulo + 360) % 360;
+
+  const velocidadMPS = a.velocidad || (90 * 0.514444);
+  const distanciaTick = velocidadMPS * (intervaloMS / 1000);
+
+  const nuevoPunto = puntoPlano(
+    { lat: a.lat, lng: a.lng },
+    a.angulo,
+    distanciaTick
+  );
+
+  a.lat = nuevoPunto.lat;
+  a.lng = nuevoPunto.lng;
+
+  if (Math.abs(diff) < 5) {
+    a.estado = "circuito";
+    a.indice = a.tramoObjetivo;
+    a.progreso = 0;
+  }
 
   io.to(nombreSala).emit("actualizarAeronave", {
     id: a.id,
@@ -426,6 +429,29 @@ function generarRutaServidor(sala){
 
   return puntos
 }
+
+function proyectarSobreSegmento(P, A, B){
+
+  const APx = P.lat - A.lat;
+  const APy = P.lng - A.lng;
+
+  const ABx = B.lat - A.lat;
+  const ABy = B.lng - A.lng;
+
+  const ab2 = ABx*ABx + ABy*ABy;
+  const ap_ab = APx*ABx + APy*ABy;
+
+  let t = ap_ab / ab2;
+
+  t = Math.max(0, Math.min(1, t));
+
+  return {
+    lat: A.lat + ABx * t,
+    lng: A.lng + ABy * t
+  };
+}
+
+
 function diferenciaAngular(actual, destino) {
   return (destino - actual + 540) % 360 - 180
 }
@@ -711,29 +737,43 @@ socket.on("iniciarCircuito", ({ id }) => {
     ruta: aeronave.ruta
   })
 
- // ===== INCORPORACIÓN AL PUNTO MÁS CERCANO =====
+ // ===== INTERCEPTAR TRAMO MÁS CERCANO =====
 
-// ===== INCORPORACIÓN DINÁMICA Y SUAVE =====
+let mejor = {
+  distancia: Infinity,
+  indiceA: 0,
+  puntoIntercepto: null
+};
 
-// Buscar punto más cercano
-let indiceMasCercano = 0;
-let menorDistancia = Infinity;
+for (let i = 0; i < aeronave.ruta.length; i++) {
 
-aeronave.ruta.forEach((punto, i) => {
+  const A = aeronave.ruta[i];
+  const B = aeronave.ruta[(i - 1 + aeronave.ruta.length) % aeronave.ruta.length];
+
+  // Proyección sobre segmento
+  const punto = proyectarSobreSegmento(
+    { lat: aeronave.lat, lng: aeronave.lng },
+    A,
+    B
+  );
 
   const d = distanciaEntre(
     { lat: aeronave.lat, lng: aeronave.lng },
     punto
   );
 
-  if (d < menorDistancia) {
-    menorDistancia = d;
-    indiceMasCercano = i;
+  if (d < mejor.distancia) {
+    mejor = {
+      distancia: d,
+      indiceA: i,
+      puntoIntercepto: punto
+    };
   }
-});
+}
 
-aeronave.indiceObjetivo = indiceMasCercano;
-aeronave.estado = "interceptando";
+aeronave.tramoObjetivo = mejor.indiceA;
+aeronave.puntoIntercepto = mejor.puntoIntercepto;
+aeronave.estado = "arcoInterceptacion";
 aeronave.velocidad = 90 * 0.514444;
 
 iniciarMotorSala(salaNombre);

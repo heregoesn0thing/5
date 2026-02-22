@@ -195,15 +195,16 @@ if (a.estado === "arcoInterceptacion") {
       // =====================================
       // ✈ FASE 1 — INTERCEPTANDO EL CIRCUITO
       // =====================================
-     if (a.estado === "interceptandoTramo") {
+if (a.estado === "interceptandoTramo") {
 
   const A = a.ruta[a.tramoObjetivo];
   const B = a.ruta[(a.tramoObjetivo - 1 + a.ruta.length) % a.ruta.length];
 
   const rumboTramo = calcularRumboServidor(A, B);
 
-  const diff = diferenciaAngular(a.angulo || 0, rumboTramo);
   const maxGiro = 2;
+
+  let diff = diferenciaAngular(a.angulo || 0, rumboTramo);
 
   if (Math.abs(diff) < maxGiro) {
     a.angulo = rumboTramo;
@@ -213,8 +214,8 @@ if (a.estado === "arcoInterceptacion") {
 
   a.angulo = (a.angulo + 360) % 360;
 
-  // const velocidadMPS = a.velocidad || (90 * 0.514444);
-  // const distanciaTick = velocidadMPS * (intervaloMS / 1000);
+  // 🔥 recalcular diff después del giro
+  diff = diferenciaAngular(a.angulo, rumboTramo);
 
   const nuevoPunto = puntoPlano(
     { lat: a.lat, lng: a.lng },
@@ -225,10 +226,14 @@ if (a.estado === "arcoInterceptacion") {
   a.lat = nuevoPunto.lat;
   a.lng = nuevoPunto.lng;
 
-  if (Math.abs(diff) < 5) {
+  // 🔥 condición REAL de alineación
+  if (Math.abs(diff) < 3) {
+
     a.estado = "circuito";
     a.indice = a.tramoObjetivo;
     a.progreso = 0;
+
+    console.log("Alineado al tramo → entrando en circuito");
   }
 
   io.to(nombreSala).emit("actualizarAeronave", {

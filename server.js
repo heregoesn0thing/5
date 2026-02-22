@@ -149,13 +149,11 @@ if (a.estado === "arcoInterceptacion") {
   const velocidadMPS = a.velocidad || (90 * 0.514444);
   const distanciaTick = velocidadMPS * (intervaloMS / 1000);
 
-  const rumboTramo = calcularRumboServidor(
-  a.ruta[a.tramoObjetivo],
-  a.ruta[(a.tramoObjetivo - 1 + a.ruta.length) % a.ruta.length]
-);
-
-  // 🎯 Queremos interceptar con 30° de diferencia
-  const rumboObjetivo = (rumboTramo + 30) % 360;
+  // 🔥 RUMBO HACIA EL PUNTO DE INTERCEPTO
+  const rumboObjetivo = calcularRumboServidor(
+    { lat: a.lat, lng: a.lng },
+    destino
+  );
 
   const diff = diferenciaAngular(a.angulo || 0, rumboObjetivo);
   const maxGiro = 2;
@@ -177,7 +175,8 @@ if (a.estado === "arcoInterceptacion") {
   a.lat = nuevoPunto.lat;
   a.lng = nuevoPunto.lng;
 
-  if (distancia < 80) {
+  // 🎯 Cuando esté cerca → pasar a interceptación fina
+  if (distancia < 120) {
     a.estado = "interceptandoTramo";
   }
 

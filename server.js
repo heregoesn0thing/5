@@ -246,7 +246,15 @@ if (a.estado === "interceptandoTramo") {
 
     a.estado = "circuito";
     a.indice = a.tramoObjetivo;
-    a.progreso = 0;
+
+const A = a.ruta[a.tramoObjetivo];
+const B = a.ruta[(a.tramoObjetivo - 1 + a.ruta.length) % a.ruta.length];
+
+const distanciaSegmento = distanciaEntre(A, B);
+
+const distanciaDesdeA = distanciaEntre(A, puntoProyectado);
+
+a.progreso = distanciaDesdeA;
 
     console.log("✔ Captura limpia del tramo");
   }

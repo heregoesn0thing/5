@@ -154,9 +154,9 @@ if (a.estado === "arcoInterceptacion") {
   const distanciaTick = velocidadMPS * (intervaloMS / 1000);
 
   const rumboTramo = calcularRumboServidor(
-    aeronave.ruta[a.tramoObjetivo],
-    aeronave.ruta[(a.tramoObjetivo - 1 + aeronave.ruta.length) % aeronave.ruta.length]
-  );
+  a.ruta[a.tramoObjetivo],
+  a.ruta[(a.tramoObjetivo - 1 + a.ruta.length) % a.ruta.length]
+);
 
   // 🎯 Queremos interceptar con 30° de diferencia
   const rumboObjetivo = (rumboTramo + 30) % 360;
@@ -727,7 +727,11 @@ socket.on("iniciarCircuito", ({ id }) => {
   if (!aeronave) return
 
   if (aeronave.owner !== socket.id) return
-  if (aeronave.estado === "circuito" || aeronave.estado === "interceptando") return
+  if (
+  aeronave.estado === "circuito" ||
+  aeronave.estado === "arcoInterceptacion" ||
+  aeronave.estado === "interceptandoTramo"
+) return
 
   // 🔥 GENERAR RUTA
   aeronave.ruta = generarRutaServidor(sala)

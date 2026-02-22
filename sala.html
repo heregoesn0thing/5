@@ -94,8 +94,8 @@
       Cleared to Land
     </button>
 
-    <button class="btn-lateral landing-main touch" onclick="activarPrincipal(this)">
-      Touch & Go
+    <button onclick="activarTouchAndGo()" class="landing-main">
+    TOUCH & GO
     </button>
 
     <button class="btn-lateral landing-main goaround" onclick="activarPrincipal(this)">
@@ -1499,18 +1499,20 @@ function seguirRutaTaxi(a, ruta){
 
 
 //==========TOUCH AND GO ==========//
-function activarTouchAndGo(){
+function activarTouchAndGo(boton){
 
   if(!aeronaveSeleccionada) return;
 
-  const a = aeronaveSeleccionada;
-
-  // 🔥 Cancelar cualquier cosa activa
-  cancelarAccionesAeronave(a);
-
-  // 🔥 Anular botón CLEARED
+  // 🔥 Quitar activo de todos
   document.querySelectorAll(".landing-main")
     .forEach(btn => btn.classList.remove("activo"));
+
+  // 🔥 Activar este botón
+  boton.classList.add("activo");
+
+  const a = aeronaveSeleccionada;
+
+  cancelarAccionesAeronave(a);
 
   a.estado = "TOUCH_AND_GO";
 

@@ -771,14 +771,20 @@ socket.on("forzarAterrizaje", ({ id }) => {
   if (!aeronave) return
   if (aeronave.owner !== socket.id) return
 
-  // 🔥 CANCELAR CIRCUITO
+  // 🔥 CANCELAR TODO LO QUE CONTROLE MOVIMIENTO
+
   aeronave.ruta = null
   aeronave.indice = 0
   aeronave.progreso = 0
   aeronave.indiceObjetivo = null
   aeronave.puntoIngreso = null
 
-  // 🔥 CAMBIAR ESTADO DEFINITIVO
+  // 🔥 CANCELAR MANUAL SI ESTABA ACTIVO
+  if (aeronave.estado === "manual") {
+    aeronave.velocidad = aeronave.velocidad || (90 * 0.514444)
+  }
+
+  // 🔥 ESTADO DEFINITIVO DE ATERRIZAJE
   aeronave.estado = "landing"
 
   io.to(salaNombre).emit("actualizarAeronave", {
@@ -790,6 +796,7 @@ socket.on("forzarAterrizaje", ({ id }) => {
     velocidad: aeronave.velocidad,
     estado: aeronave.estado
   })
+
 })
   // ===== ELIMINAR AERONAVE =====
   socket.on("eliminarAeronave", (id) => {

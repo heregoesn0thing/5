@@ -709,37 +709,33 @@ socket.on("iniciarCircuito", ({ id }) => {
     ruta: aeronave.ruta
   })
 
-  // ===== INGRESO 45° A VIENTO EN COLA =====
+ // ===== INCORPORACIÓN AL PUNTO MÁS CERCANO =====
 
-const DISTANCIA_INGRESO = 0.5 * 1852 // 0.5 NM en metros
+// Buscar el punto más cercano del circuito
+let indiceMasCercano = 0;
+let menorDistancia = Infinity;
 
-// Tomamos tramo aproximado de viento en cola
-const indiceVientoCola = Math.floor(aeronave.ruta.length * 0.25)
-const puntoVientoCola = aeronave.ruta[indiceVientoCola]
+aeronave.ruta.forEach((punto, i) => {
 
-// Rumbo del tramo viento en cola
-const siguiente = (indiceVientoCola + 1) % aeronave.ruta.length
-const rumboDownwind = calcularRumboServidor(
-  puntoVientoCola,
-  aeronave.ruta[siguiente]
-)
+  const d = distanciaEntre(
+    { lat: aeronave.lat, lng: aeronave.lng },
+    punto
+  );
 
-// Crear punto de ingreso a 45°
-const rumboIngreso = (rumboDownwind - 45 + 360) % 360
+  if (d < menorDistancia) {
+    menorDistancia = d;
+    indiceMasCercano = i;
+  }
+});
 
-const puntoIngreso = puntoPlano(
-  puntoVientoCola,
-  rumboIngreso,
-  DISTANCIA_INGRESO
-)
+// Configurar incorporación
+aeronave.indiceObjetivo = indiceMasCercano;
+aeronave.puntoIngreso = aeronave.ruta[indiceMasCercano];
 
-// Guardamos datos en la aeronave
-aeronave.puntoIngreso = puntoIngreso
-aeronave.indiceObjetivo = indiceVientoCola
-aeronave.velocidad = 90 * 0.514444
-aeronave.estado = "INT"
+aeronave.velocidad = 90 * 0.514444;
+aeronave.estado = "interceptando";
 
-  iniciarMotorSala(salaNombre)
+iniciarMotorSala(salaNombre);
 })
 socket.on("detenerCircuito", ({ id }) => {
 

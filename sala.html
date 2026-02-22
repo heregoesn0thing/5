@@ -868,7 +868,11 @@ modoRuta: false,
     starActivo: false,
     faseStar: null,
     estado: "idle",
-
+intervaloActual: null,
+timeoutActual: null,
+enMovimiento: false,
+monitorAterrizaje: null,
+landingSubOption: null,
 animFrame: null,
     altitudObjetivo: null,
     
@@ -964,6 +968,11 @@ socket.on("crearAeronave", data => {
   animFrame: null,
   modoRuta: false,
   rutaTemporal: [],
+  intervaloActual: null,
+timeoutActual: null,
+enMovimiento: false,
+monitorAterrizaje: null,
+landingSubOption: null,
 }
 
 
@@ -1224,7 +1233,12 @@ function activarCleared(boton){
     return;
   }
 
-  // Solo uno activo
+  const a = aeronaveSeleccionada;
+
+  // 🔥 Cancelar TODO
+  cancelarAccionesAeronave(a);
+
+  // Solo un principal activo
   document.querySelectorAll(".landing-main")
     .forEach(btn => btn.classList.remove("activo"));
 
@@ -1233,106 +1247,105 @@ function activarCleared(boton){
   document.getElementById("landingOpciones")
     .classList.add("activo");
 
-  aeronaveSeleccionada.landingMode = "CLEARED TO LAND";
-  aeronaveSeleccionada.estado = "CLEARED TO LAND";
+  a.estado = "CLEARED TO LAND";
+  a.landingSubOption = null;
 
-  actualizarPanelInfoAeronave(aeronaveSeleccionada);
+  actualizarPanelInfoAeronave(a);
 
-  iniciarMonitoreoAterrizaje(aeronaveSeleccionada);
+  iniciarMonitoreoAterrizaje(a);
 }
 function seleccionarSubOpcion(boton){
 
-  // Quitar activo a todos
   const subBotones = document.querySelectorAll(".landing-choice");
   subBotones.forEach(btn => btn.classList.remove("activo"));
 
-  // Activar solo el seleccionado
   boton.classList.add("activo");
 
   if(!aeronaveSeleccionada) return;
 
-  // Guardar letra seleccionada
-  aeronaveSeleccionada.landingSubOption =
-    boton.textContent.trim();
+  const a = aeronaveSeleccionada;
 
-  console.log("Salida seleccionada:",
-    aeronaveSeleccionada.landingSubOption);
+  a.landingSubOption = boton.textContent.trim();
 
-  // 🔥 SI YA ESTÁ ESPERANDO EN PISTA → INICIAR TAXI
-  if(aeronaveSeleccionada.estado === "AWAITING EXIT"){
-    ejecutarTaxiAutomatico(aeronaveSeleccionada);
+  if(a.estado === "AWAITING EXIT"){
+    ejecutarTaxiAutomatico(a);
   }
 }
-function iniciarMonitoreoAterrizaje(aeronave){
+function iniciarMonitoreoAterrizaje(a){
 
-  const intervalo = setInterval(() => {
+  const rwy22 = [-13.734272, -76.211517];
 
-    if(aeronave.estado !== "CLEARED TO LAND"){
-      clearInterval(intervalo);
+  a.monitorAterrizaje = setInterval(() => {
+
+    if(a.estado !== "CLEARED TO LAND"){
+      clearInterval(a.monitorAterrizaje);
       return;
     }
 
-    const diferenciaRumbo =
-      Math.abs(aeronave.heading - rumboPista22);
+    const rumbo = a.angulo;
+    const dentroRango = rumbo >= 210 && rumbo <= 230;
 
-    const distanciaUmbral = calcularDistancia(
-      aeronave.lat,
-      aeronave.lng,
+    const distancia = calcularDistancia(
+      a.marker.getLatLng().lat,
+      a.marker.getLatLng().lng,
       rwy22[0],
       rwy22[1]
     );
 
-    const alineada = diferenciaRumbo <= 5;
-    const enFinal = distanciaUmbral < 3000;
-    const bajaAltitud = aeronave.altitud < 500;
+    const enFinal = distancia < 3000;
+    const bajaAltitud = a.altitud < 600;
 
-    if(alineada && enFinal && bajaAltitud){
-      clearInterval(intervalo);
-      autorizarTouchdown(aeronave);
+    if(dentroRango && enFinal && bajaAltitud){
+
+      clearInterval(a.monitorAterrizaje);
+      autorizarTouchdown(a);
     }
 
   }, 500);
 }
-function autorizarTouchdown(aeronave){
+function autorizarTouchdown(a){
+
+  cancelarAccionesAeronave(a);
+
+  const rwy22 = [-13.734272, -76.211517];
 
   const puntoToma = calcularPuntoDesplazado(
     rwy22[0],
     rwy22[1],
     -300,
-    rumboPista22
+    220
   );
 
-  aeronave.estado = "LANDING";
+  a.estado = "LANDING";
 
-  moverAeronaveHacia(aeronave, puntoToma, () => {
-    ejecutarRollout(aeronave);
+  moverAeronaveHacia(a, puntoToma, () => {
+    ejecutarRollout(a);
   });
 }
-function ejecutarRollout(aeronave){
+function ejecutarRollout(a){
 
-  aeronave.estado = "ROLL OUT";
-  aeronave.velocidadObjetivo = 30;
+  a.estado = "ROLL OUT";
+  a.velocidadObjetivo = 25;
 
   setTimeout(() => {
 
-    if(!aeronave.landingSubOption){
-      continuarRodajeHastaEspera(aeronave);
+    if(!a.landingSubOption){
+      continuarRodajeHastaEspera(a);
     } else {
-      ejecutarTaxiAutomatico(aeronave);
+      ejecutarTaxiAutomatico(a);
     }
 
   }, 4000);
 }
 
+function continuarRodajeHastaEspera(a){
 
-function continuarRodajeHastaEspera(aeronave){
+  a.estado = "ROLLING TO END";
 
-  aeronave.estado = "ROLLING TO END";
+  moverAeronaveHacia(a, puntoEsperaRwy22, () => {
 
-  moverAeronaveHacia(aeronave, puntoEsperaRwy22, () => {
-
-    aeronave.velocidadObjetivo = 0;
-    aeronave.estado = "AWAITING EXIT";
+    a.velocidadObjetivo = 0;
+    a.estado = "AWAITING EXIT";
 
     console.log("Esperando selección A/B/C/D/E");
 
@@ -1363,8 +1376,70 @@ function ejecutarTaxiAutomatico(aeronave){
 
   seguirRutaTaxi(aeronave, rutaSeleccionada);
 }
+function cancelarAccionesAeronave(a){
 
+  if(!a) return;
 
+  if(a.intervaloVuelo){
+    clearInterval(a.intervaloVuelo);
+    a.intervaloVuelo = null;
+  }
+
+  if(a.motorTaxi){
+    clearInterval(a.motorTaxi);
+    a.motorTaxi = null;
+  }
+
+  if(a.intervaloManual){
+    clearInterval(a.intervaloManual);
+    a.intervaloManual = null;
+  }
+
+  if(a.intervaloCircuito){
+    clearInterval(a.intervaloCircuito);
+    a.intervaloCircuito = null;
+  }
+
+  if(a.monitorAterrizaje){
+    clearInterval(a.monitorAterrizaje);
+    a.monitorAterrizaje = null;
+  }
+
+  if(a.animRutaFrame){
+    cancelAnimationFrame(a.animRutaFrame);
+    a.animRutaFrame = null;
+  }
+
+  a.enMovimiento = false;
+}
+function moverAeronaveHacia(a, destino, callback){
+
+  const velocidad = 12;
+  const metrosPorSegundo = velocidad * 0.514444;
+
+  a.intervaloActual = setInterval(() => {
+
+    const actual = a.marker.getLatLng();
+    const distancia = map.distance(actual, destino);
+
+    if(distancia < 5){
+
+      clearInterval(a.intervaloActual);
+      a.intervaloActual = null;
+
+      if(callback) callback();
+      return;
+    }
+
+    const ratio = metrosPorSegundo / distancia;
+
+    const nuevaLat = actual.lat + (destino[0] - actual.lat) * ratio;
+    const nuevaLng = actual.lng + (destino[1] - actual.lng) * ratio;
+
+    a.marker.setLatLng([nuevaLat, nuevaLng]);
+
+  }, 50);
+}
 
 
 

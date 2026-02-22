@@ -596,7 +596,7 @@ const rutaTaxiA = [
 
 // Salida B
 const rutaTaxiB = [
-  [-13.7380, -76.2195],
+  [-13.738427114745328, -76.2150643498254],
   [-13.7395, -76.2215],
   [-13.7410, -76.2235]
 ];
@@ -1357,9 +1357,7 @@ function continuarRodajeHastaEspera(a){
   });
 }
 
-function ejecutarTaxiAutomatico(aeronave){
-
-  const salida = aeronave.landingSubOption;
+function ejecutarTaxiAutomatico(a){
 
   const rutasTaxi = {
     "A": rutaTaxiA,
@@ -1369,17 +1367,16 @@ function ejecutarTaxiAutomatico(aeronave){
     "E": rutaTaxiE
   };
 
-  const rutaSeleccionada = rutasTaxi[salida];
+  const ruta = rutasTaxi[a.landingSubOption];
 
-  if(!rutaSeleccionada){
-    console.log("No existe ruta para", salida);
+  if(!ruta){
+    console.log("Ruta no definida:", a.landingSubOption);
     return;
   }
 
-  aeronave.estado = "TAXI " + salida;
-  aeronave.velocidadObjetivo = 15;
+  console.log("Ejecutando taxi", a.landingSubOption);
 
-  seguirRutaTaxi(aeronave, rutaSeleccionada);
+  seguirRutaTaxi(a, ruta);
 }
 function cancelarAccionesAeronave(a){
 
@@ -1422,15 +1419,20 @@ function moverAeronaveHacia(a, destino, callback){
   const velocidad = 12;
   const metrosPorSegundo = velocidad * 0.514444;
 
-  a.intervaloActual = setInterval(() => {
+  if(a.intervaloMovimiento){
+    clearInterval(a.intervaloMovimiento);
+  }
+
+  a.intervaloMovimiento = setInterval(() => {
 
     const actual = a.marker.getLatLng();
-    const distancia = map.distance(actual, destino);
+    const destinoLatLng = L.latLng(destino[0], destino[1]);
+    const distancia = map.distance(actual, destinoLatLng);
 
     if(distancia < 5){
 
-      clearInterval(a.intervaloActual);
-      a.intervaloActual = null;
+      clearInterval(a.intervaloMovimiento);
+      a.intervaloMovimiento = null;
 
       if(callback) callback();
       return;
@@ -1455,10 +1457,14 @@ function seguirRutaTaxi(a, ruta){
   function moverAlSiguiente(){
 
     if(indice >= ruta.length){
-      a.estado = "IDLE";
-      a.velocidadObjetivo = 0;
-      return;
-    }
+
+  a.estado = "TAXI COMPLETADO";
+  a.velocidadObjetivo = 0;
+
+  console.log("Ruta completada");
+
+  return;
+}
 
     const destino = ruta[indice];
     indice++;

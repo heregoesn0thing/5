@@ -95,7 +95,10 @@ function iniciarMotorSala(nombreSala){
     const intervaloMS = 50
 
     sala.aeronaves.forEach(a => {
-
+// 🔥 PRIORIDAD ABSOLUTA LANDING
+if (a.estado === "landing") {
+  return
+}
       // =====================================
       // ✈ MODO MANUAL — PRIORIDAD ABSOLUTA
       // =====================================
@@ -756,7 +759,38 @@ socket.on("detenerCircuito", ({ id }) => {
   aeronave.indiceObjetivo = null
 
 })
+socket.on("forzarAterrizaje", ({ id }) => {
 
+  const salaNombre = socket.sala
+  if (!salaNombre) return
+
+  const sala = salas[salaNombre]
+  if (!sala) return
+
+  const aeronave = sala.aeronaves.find(a => a.id === id)
+  if (!aeronave) return
+  if (aeronave.owner !== socket.id) return
+
+  // 🔥 CANCELAR CIRCUITO
+  aeronave.ruta = null
+  aeronave.indice = 0
+  aeronave.progreso = 0
+  aeronave.indiceObjetivo = null
+  aeronave.puntoIngreso = null
+
+  // 🔥 CAMBIAR ESTADO DEFINITIVO
+  aeronave.estado = "landing"
+
+  io.to(salaNombre).emit("actualizarAeronave", {
+    id: aeronave.id,
+    lat: aeronave.lat,
+    lng: aeronave.lng,
+    altitud: aeronave.altitud,
+    angulo: aeronave.angulo,
+    velocidad: aeronave.velocidad,
+    estado: aeronave.estado
+  })
+})
   // ===== ELIMINAR AERONAVE =====
   socket.on("eliminarAeronave", (id) => {
 

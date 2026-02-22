@@ -1276,6 +1276,7 @@ function iniciarMonitoreoAterrizaje(a){
 
     if(a.estado !== "CLEARED TO LAND"){
       clearInterval(a.monitorAterrizaje);
+      a.monitorAterrizaje = null;
       return;
     }
 
@@ -1291,15 +1292,24 @@ function iniciarMonitoreoAterrizaje(a){
 
     const enFinal = distancia < 5000;
     const bajaAltitud = a.altitud < 2000;
-if(dentroRango){
-  console.log("Condición de rumbo OK");
-  autorizarTouchdown(a);
-}
-    // if(dentroRango && enFinal && bajaAltitud){
 
-    //   clearInterval(a.monitorAterrizaje);
-    //   autorizarTouchdown(a);
-    // }
+    if(dentroRango && enFinal && bajaAltitud){
+
+      // 🔥 DETENER MONITOREO
+      clearInterval(a.monitorAterrizaje);
+      a.monitorAterrizaje = null;
+
+      // 🔥 CANCELAR TODO LO DEMÁS
+      cancelarAccionesAeronave(a);
+cancelarAccionesAeronave(a);
+      // 🔥 FORZAR ESTADO ÚNICO
+      a.estado = "LANDING";
+      a.velocidadObjetivo = 130;
+
+      actualizarPanelInfoAeronave(a);
+
+      autorizarTouchdown(a);
+    }
 
   }, 500);
 }

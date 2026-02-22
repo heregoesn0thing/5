@@ -200,33 +200,7 @@ if (a.estado === "interceptandoTramo") {
   const A = a.ruta[a.tramoObjetivo];
   const B = a.ruta[(a.tramoObjetivo - 1 + a.ruta.length) % a.ruta.length];
 
-  const rumboTramo = calcularRumboServidor(A, B);
-
-  const maxGiro = 2;
-
-  let diff = diferenciaAngular(a.angulo || 0, rumboTramo);
-
-  if (Math.abs(diff) < maxGiro) {
-    a.angulo = rumboTramo;
-  } else {
-    a.angulo += Math.sign(diff) * maxGiro;
-  }
-
-  a.angulo = (a.angulo + 360) % 360;
-
-  // 🔥 Recalcular diferencia
-  diff = diferenciaAngular(a.angulo, rumboTramo);
-
-  const nuevoPunto = puntoPlano(
-    { lat: a.lat, lng: a.lng },
-    a.angulo,
-    distanciaTick
-  );
-
-  a.lat = nuevoPunto.lat;
-  a.lng = nuevoPunto.lng;
-
-  // 🔥 Calcular distancia REAL al tramo
+  // 🔥 Proyección dinámica
   const puntoProyectado = proyectarSobreSegmento(
     { lat: a.lat, lng: a.lng },
     A,
@@ -238,14 +212,44 @@ if (a.estado === "interceptandoTramo") {
     puntoProyectado
   );
 
-  // 🎯 CONDICIÓN DOBLE
-  if (Math.abs(diff) < 3 && distanciaAlTramo < 60) {
+  // 🎯 Rumbo hacia el punto proyectado (NO rumbo del tramo todavía)
+  const rumboIntercepto = calcularRumboServidor(
+    { lat: a.lat, lng: a.lng },
+    puntoProyectado
+  );
+
+  const maxGiro = 2;
+
+  let diff = diferenciaAngular(a.angulo || 0, rumboIntercepto);
+
+  if (Math.abs(diff) < maxGiro) {
+    a.angulo = rumboIntercepto;
+  } else {
+    a.angulo += Math.sign(diff) * maxGiro;
+  }
+
+  a.angulo = (a.angulo + 360) % 360;
+
+  const nuevoPunto = puntoPlano(
+    { lat: a.lat, lng: a.lng },
+    a.angulo,
+    distanciaTick
+  );
+
+  a.lat = nuevoPunto.lat;
+  a.lng = nuevoPunto.lng;
+
+  // 🔥 Cuando esté muy cerca → ahora sí alineamos al tramo
+  if (distanciaAlTramo < 25) {
+
+    const rumboTramo = calcularRumboServidor(A, B);
+    a.angulo = rumboTramo;
 
     a.estado = "circuito";
     a.indice = a.tramoObjetivo;
     a.progreso = 0;
 
-    console.log("✔ Captura real del tramo → entrando en circuito");
+    console.log("✔ Captura limpia del tramo");
   }
 
   io.to(nombreSala).emit("actualizarAeronave", {

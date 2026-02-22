@@ -779,7 +779,9 @@ map.on("click", function(e){
   // Si NO estamos creando ruta → abrir creación
   mostrarSelectorTipo(e.latlng)
 })
-
+map.on("click", function(e){
+  console.log(e.latlng.lat, e.latlng.lng);
+});
 function mostrarSelectorTipo(latlng){
 
   window.tempLatLng = latlng;

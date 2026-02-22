@@ -1292,14 +1292,17 @@ function iniciarMonitoreoAterrizaje(a){
       rwy22[1]
     );
 
-    const enFinal = distancia < 3000;
-    const bajaAltitud = a.altitud < 600;
+    const enFinal = distancia < 5000;
+    const bajaAltitud = a.altitud < 2000;
+if(dentroRango){
+  console.log("Condición de rumbo OK");
+  autorizarTouchdown(a);
+}
+    // if(dentroRango && enFinal && bajaAltitud){
 
-    if(dentroRango && enFinal && bajaAltitud){
-
-      clearInterval(a.monitorAterrizaje);
-      autorizarTouchdown(a);
-    }
+    //   clearInterval(a.monitorAterrizaje);
+    //   autorizarTouchdown(a);
+    // }
 
   }, 500);
 }

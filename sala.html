@@ -1498,7 +1498,78 @@ function seguirRutaTaxi(a, ruta){
 }
 
 
+//==========TOUCH AND GO ==========//
+function activarTouchAndGo(){
 
+  if(!aeronaveSeleccionada) return;
+
+  const a = aeronaveSeleccionada;
+
+  // 🔥 Cancelar cualquier cosa activa
+  cancelarAccionesAeronave(a);
+
+  // 🔥 Anular botón CLEARED
+  document.querySelectorAll(".landing-main")
+    .forEach(btn => btn.classList.remove("activo"));
+
+  a.estado = "TOUCH_AND_GO";
+
+  iniciarSecuenciaTouchAndGo(a);
+}
+
+function iniciarSecuenciaTouchAndGo(a){
+
+  const puntoToma = [-13.740805457699986, -76.21702520456367];
+
+  // 🔥 Avisar al servidor que cancela circuito/manual
+  socket.emit("forzarAterrizaje", { id: a.id });
+
+  a.estado = "TNG_FINAL";
+
+  moverAeronaveHacia(a, puntoToma, () => {
+    ejecutarRodajeTouchAndGo(a);
+  });
+}
+function ejecutarRodajeTouchAndGo(a){
+
+  const puntoRotacion = [-13.743494421198944, -76.21938482107366];
+
+  a.estado = "TNG_ROLL";
+  a.velocidadObjetivo = 40; // más rápido que rollout normal
+
+  moverAeronaveHacia(a, puntoRotacion, () => {
+    iniciarAscensoTouchAndGo(a);
+  });
+}
+function iniciarAscensoTouchAndGo(a){
+
+  a.estado = "TNG_CLIMB";
+
+  const altitudObjetivo = 1500;
+  const tasaAscenso = 15; // ft por frame
+
+  const intervaloAscenso = setInterval(() => {
+
+    a.altitud += tasaAscenso;
+
+    if(a.altitud >= altitudObjetivo){
+
+      clearInterval(intervaloAscenso);
+      a.altitud = altitudObjetivo;
+
+      reingresarCircuito(a);
+    }
+
+  }, 50);
+}
+
+
+function reingresarCircuito(a){
+
+  a.estado = "REJOINING";
+
+  socket.emit("iniciarCircuito", { id: a.id });
+}
 
 
 

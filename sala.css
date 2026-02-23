@@ -57,15 +57,6 @@ html, body{
   display:none;
 }
 
-#panelBody{ padding:10px; }
-
-#panelBody button{
-  width:100%;
-  margin-top:6px;
-  padding:6px;
-  cursor:pointer;
-}
-
 #aircraftInfo{
   font-size:12px;
   margin-bottom:10px;
@@ -197,101 +188,160 @@ html, body{
   bottom: 20px;
   right: 20px;
   z-index: 2000;
-
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
+  gap: 8px;
 }
 
-/* ============================= */
-/* BOTÓN PRINCIPAL (⋮) */
-/* ============================= */
+/* Fila FAB */
+.fab-row{
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+
 #btnMenuPrincipal{
-  width: 55px;
-  height: 55px;
-  border-radius: 50%;
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
   border: none;
-
-  background: linear-gradient(145deg, #1e1e1e, #111);
+  background: #232a3d;
   color: white;
-  font-size: 22px;
+  font-size: 16px;
   cursor: pointer;
-
-  backdrop-filter: blur(6px);
-  box-shadow: 
-    0 8px 20px rgba(0,0,0,0.4),
-    inset 0 1px 2px rgba(255,255,255,0.05);
-
-  transition: all 0.25s ease;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.6);
+  transition: 0.2s ease;
+  display:flex;
+  align-items:center;
+  justify-content:center;
 }
 
 #btnMenuPrincipal:hover{
-  transform: scale(1.08);
-  box-shadow: 
-    0 10px 25px rgba(0,0,0,0.5),
-    inset 0 1px 3px rgba(255,255,255,0.08);
+  background:#2e3650;
+  transform: translateY(-1px);
 }
 
-/* ============================= */
-/* SUBMENÚ */
-/* ============================= */
 #submenuAcciones{
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 15px;
-
+  flex-direction: row;
+  gap: 8px;
+  align-items: center;
   opacity: 0;
-  transform: translateY(20px) scale(0.95);
+  transform: translateX(8px);
   pointer-events: none;
-  transition: all 0.25s ease;
+  transition: 0.2s ease;
 }
 
 #submenuAcciones.activo{
   opacity: 1;
-  transform: translateY(0) scale(1);
+  transform: translateX(0);
   pointer-events: auto;
 }
 
-/* ============================= */
-/* BOTONES INTERNOS */
-/* ============================= */
 .btn-accion{
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
+  width:42px;
+  height:42px;
+  border-radius:8px;
   border: none;
-
-  background: rgba(30,30,30,0.85);
+  background:#232a3d;
   color: white;
-  font-size: 18px;
+  font-size:16px;
   cursor: pointer;
-
-  backdrop-filter: blur(8px);
-
-  box-shadow: 
-    0 6px 15px rgba(0,0,0,0.35),
-    inset 0 1px 1px rgba(255,255,255,0.05);
-
-  transition: all 0.2s ease;
+  box-shadow:0 6px 15px rgba(0,0,0,0.6);
+  transition:0.2s ease;
+  display:flex;
+  align-items:center;
+  justify-content:center;
 }
 
 .btn-accion:hover{
-  transform: translateY(-3px) scale(1.05);
-  background: rgba(50,50,50,0.9);
+  background:#2e3650;
+  transform: translateY(-1px);
 }
-/* ESTILO ESPECIAL PARA BOTÓN STOP */
+
 .btn-menu.stop {
-  background: linear-gradient(135deg, #7f1d1d, #991b1b);
+  background:#7f1d1d;
   color: white;
-  font-weight: 600;
+  font-weight:600;
 }
 
 .btn-menu.stop:hover {
-  background: linear-gradient(135deg, #b91c1c, #dc2626);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 14px rgba(0,0,0,0.4);
+  background:#b91c1c;
 }
+
+/* Botón eliminar */
+.fab-delete{
+  width:42px;
+  height:42px;
+  border-radius:8px;
+  border:none;
+  background:#232a3d;
+  color:white;
+  font-size:16px;
+  cursor:pointer;
+  box-shadow:0 6px 15px rgba(0,0,0,0.6);
+  transition:0.2s ease;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.fab-delete.activo{
+  background:#b91c1c;
+  box-shadow:0 0 12px rgba(239,68,68,0.7);
+}
+
+.fab-delete:hover{
+  background:#b91c1c;
+}
+
+/* Clase para ocultar */
+.hidden{
+  display:none;
+}
+
+.vor-label{
+  background:#111827;
+  border:1px solid #facc15;
+  color:#facc15;
+  font-weight:700;
+  font-size:11px;
+  padding:2px 6px;
+}
+
+.vor-box{
+  stroke:#facc15;
+  stroke-width:2px;
+  fill:#facc15;
+  fill-opacity:0.25;
+}
+
+.taxi-route-mode{
+  cursor:crosshair;
+}
+
+.taxi-route-line{
+  stroke:#38bdf8;
+  stroke-width:3px;
+  stroke-dasharray:8 6;
+  fill:none;
+}
+
+.selected-plane-ring{
+  stroke:#22c55e;
+  stroke-width:2px;
+  fill:#22c55e;
+  fill-opacity:0.15;
+}
+
+/* Imagen Danger sobre superficie (metros), escala con el zoom del mapa */
+.imagen-peligro-overlay{
+  display: block;
+  pointer-events: none;
+  user-select: none;
+}
+
 /* ============================= */
 /* DANGER ⚠ */
 /* ============================= */
@@ -309,14 +359,6 @@ html, body{
     0 0 15px rgba(255,0,0,0.6),
     0 0 30px rgba(255,0,0,0.3);
   animation: pulseDanger 1.2s infinite;
-}
-
-/* ============================= */
-/* ELIMINAR */
-/* ============================= */
-#btnEliminarModo.activo{
-  background: #ff3b3b;
-  box-shadow: 0 0 12px rgba(255,0,0,0.5);
 }
 
 /* ============================= */
@@ -348,7 +390,6 @@ html, body{
   --z-panel: 2000;
   --z-modal: 3000;
 }
-#menuAeronave { z-index: var(--z-panel); }
 #createAircraftPanel { z-index: var(--z-modal); }
 #panelRumbo{
   position: fixed;
@@ -411,75 +452,6 @@ html, body{
     width: 55px;
   }
 
-}
-#menuAeronave{
-  position: absolute;
-  bottom: 20px;
-  right: 20px;
-  width: 300px;
-  background: rgba(15,15,15,0.97);
-  border: 1px solid #2f2f2f;
-  border-radius: 12px;
-  box-shadow: 0 15px 35px rgba(0,0,0,0.6);
-  backdrop-filter: blur(6px);
-  z-index: 9999;
-  display: none;
-  transition: all 0.3s ease;
-}
-
-/* HEADER */
-#panelHeader{
-  padding: 8px;
-  background: #1c1c1c;
-  border-bottom: 1px solid #333;
-  font-size: 13px;
-  font-weight: bold;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: move;
-  letter-spacing: 1px;
-}
-
-/* BODY */
-#panelBody{
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* BOTONES */
-#panelBody button{
-  padding: 6px;
-  font-size: 12px;
-  border-radius: 6px;
-}
-
-/* SELECTS */
-#panelBody select{
-  width: 100%;
-  padding: 5px;
-  border-radius: 6px;
-}
-
-/* RESPONSIVE */
-@media (max-width: 768px){
-
-  #menuAeronave{
-    width: 95%;
-    left: 2.5%;
-    right: auto;
-    bottom: 10px;
-  }
-
-  #panelBody{
-    gap: 6px;
-  }
-
-  #panelBody button{
-    font-size: 13px;
-  }
 }
 #departurePanel{
   position:absolute;
@@ -776,7 +748,13 @@ html, body{
   border: none;
   color: #aaa;
   font-size: 18px;
-  padding: 6px 10px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   border-radius: 8px;
   cursor: pointer;
   transition: 0.2s ease;
@@ -855,225 +833,266 @@ html, body{
   transform: translateY(-10px);
 }
 
-/* ========================= */
-/* PANEL LATERAL IZQUIERDO */
-/* ========================= */
+/* =========================================
+   PANEL LATERAL IZQUIERDO
+========================================= */
 
-#panelLateralIzq{
-  position: fixed;
-  top: 50%;
-  left: 0;
-
-  transform: translate(-240px, -50%);
-  transition: transform 0.35s ease;
-
-  display: flex;
-  align-items: center;
-
-  z-index: 9999;
-  font-family: "Segoe UI", sans-serif;
+#menuControles{
+  position:fixed;
+  top:50%;
+  left:0;
+  transform:translate(-260px,-50%);
+  transition:transform 0.35s ease;
+  display:flex;
+  align-items:center;
+  z-index:var(--z-panel);
 }
 
-/* Estado abierto */
-#panelLateralIzq.activo{
-  transform: translate(0, -50%);
+#menuControles.activo{
+  transform:translate(0,-50%);
 }
 
 /* PANEL INTERNO */
+
 .contenido-lateral{
-  width: 240px;
-  padding: 18px;
-  border-radius: 0 14px 14px 0;
+  width:260px;
+  padding:20px;
+  border-radius:0 16px 16px 0;
 
-  background: rgba(20,25,40,0.97);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+  background:linear-gradient(180deg,#111827,#0f172a);
+  border-right:1px solid rgba(255,255,255,0.05);
 
-  display: flex;
-  flex-direction: column;
-  gap: 25px;
+  box-shadow:0 20px 50px rgba(0,0,0,0.7);
+  backdrop-filter:blur(10px);
+
+  display:flex;
+  flex-direction:column;
+  gap:25px;
 }
 
-/* BOTÓN DESLIZANTE */
+/* BOTÓN DESPLEGAR */
+
 .boton-lateral{
-  width: 22px;
-  height: 80px;
+  width:28px;
+  height:90px;
 
-  background: linear-gradient(145deg,#1c2233,#232a3d);
-  color: #00e0ff;
+  background:#1f2433;
+  border:none;
+  color:#aaa;
 
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display:flex;
+  align-items:center;
+  justify-content:center;
 
-  border-radius: 0 10px 10px 0;
-  cursor: pointer;
+  border-radius:8px;
+  cursor:pointer;
 
-  box-shadow: 4px 4px 15px rgba(0,0,0,0.4);
-  transition: 0.3s ease;
+  transition:0.2s ease;
+
+  margin-left:6px; /* pequeño espacio del panel */
 }
 
 .boton-lateral:hover{
-  background: #2a3145;
+  background:#2a3145;
+  color:#00e0ff;
 }
 
 .boton-lateral span{
-  font-size: 18px;
-  font-weight: bold;
+  font-size:18px;
+  font-weight:bold;
 }
 
-/* GRUPOS */
+/* =========================================
+   GRUPOS
+========================================= */
+
 .grupo{
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
 }
 
 .titulo-grupo{
-  font-size: 11px;
-  letter-spacing: 1px;
-  color: #9ca3af;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
-  padding-bottom: 4px;
+  font-size:11px;
+  letter-spacing:1px;
+  color:#9ca3af;
+  padding-bottom:6px;
+  border-bottom:1px solid rgba(255,255,255,0.08);
 }
 
-/* BOTONES INTERNOS */
-.boton-lateral{
-  width: 22px;
-  height: 80px;
+/* =========================================
+   BOTONES GENERALES
+========================================= */
 
-  background: #1f2433;
-  border: none;
-  color: #aaa;
+.btn-lateral{
+  padding:9px 8px;
+  border-radius:10px;
+  border:1px solid #2c344a;
 
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background:linear-gradient(145deg,#1c2233,#232a3d);
+  color:#cbd5e1;
 
-  border-radius: 0 10px 10px 0;
-  cursor: pointer;
+  font-size:12px;
+  font-weight:600;
+  letter-spacing:0.5px;
 
-  transition: 0.2s ease;
+  cursor:pointer;
+  transition:all 0.25s ease;
 }
 
-.boton-lateral:hover{
-  background: #2a3145;
-  color: #00e0ff;
+.btn-lateral:hover{
+  border-color:#3b82f6;
+  color:white;
+  transform:translateY(-2px);
 }
 
-/* ========GRUPO 2========= */
-
-/* =============================
-   LANDING BUTTONS 
-============================= */
+/* =========================================
+   LANDING PRINCIPALES EN FILA
+========================================= */
 
 .landing-principales{
-  display: flex;
-  gap: 8px;
+  display:flex;
+  flex-direction:row;
+  gap:8px;
 }
 
-/* ESTILO BASE (todos iguales) */
-.btn-lateral.landing-main{
-  flex: 1;
-  padding: 8px 6px;
-  border-radius: 10px;
-  border: 1px solid #2c344a;
-
-  background: linear-gradient(145deg, #1c2233, #232a3d);
-  color: #cbd5e1;
-
-  font-weight: 600;
-  font-size: 12px;
-  letter-spacing: 0.5px;
-
-  transition: all 0.25s ease;
+/* Todos iguales y en fila */
+.landing-principales .landing-main{
+  flex:1;
+  padding:8px 6px;
+  font-size:11px;
+  text-align:center;
 }
 
-/* Hover general */
-.btn-lateral.landing-main:hover{
-  border-color: #3b82f6;
-  color: white;
-  transform: translateY(-2px);
-}
-
-/* =============================
+/* =========================================
    ESTADOS ACTIVOS
-============================= */
+========================================= */
 
-/* CLEARED TO LAND - VERDE */
-.btn-lateral.landing-main.activo:not(.touch):not(.goaround){
-  background: linear-gradient(145deg, #065f46, #047857);
-  border-color: #10b981;
-  color: #ecfdf5;
-  box-shadow: 0 0 12px rgba(16,185,129,0.5);
-}
-/* =============================
-   SUB BOTONES CLEARED TO LAND
-============================= */
+/* CLEARED - VERDE */
 
-.landing-opciones{
-  display: flex;
-  gap: 6px;
-  margin-top: 10px;
-
-  max-height: 0;
-  overflow: hidden;
-  opacity: 0;
-  transition: all 0.25s ease;
+.landing-main.activo:not(.touch):not(.goaround){
+  background:linear-gradient(145deg,#065f46,#047857);
+  border-color:#10b981;
+  color:#ecfdf5;
+  box-shadow:0 0 12px rgba(16,185,129,0.5);
 }
 
-.landing-opciones.activo{
-  max-height: 70px;
-  opacity: 1;
-}
-
-/* ESTILO BASE PROFESIONAL */
-.mini-btn{
-  flex: 1;
-  padding: 6px 4px;
-
-  border-radius: 8px;
-  border: 1px solid #2c344a;
-
-  background: linear-gradient(145deg, #141a28, #1c2233);
-  color: #94a3b8;
-
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-/* Hover elegante */
-.mini-btn:hover{
-  border-color: #10b981;
-  color: #e6fffa;
-  transform: translateY(-1px);
-}
-
-/* ACTIVO - VERDE PROFESIONAL */
-.mini-btn.activo{
-  background: linear-gradient(145deg, #065f46, #047857);
-  border-color: #10b981;
-  color: #ecfdf5;
-  box-shadow: 0 0 8px rgba(16,185,129,0.45);
-}
 /* TOUCH & GO - AZUL */
-.btn-lateral.landing-main.touch.activo{
-  background: linear-gradient(145deg, #1e40af, #2563eb);
-  border-color: #3b82f6;
-  color: #eff6ff;
-  box-shadow: 0 0 12px rgba(59,130,246,0.5);
+
+.landing-main.touch.activo{
+  background:linear-gradient(145deg,#1e40af,#2563eb);
+  border-color:#3b82f6;
+  color:#eff6ff;
+  box-shadow:0 0 12px rgba(59,130,246,0.5);
 }
 
 /* GO AROUND - ROJO */
-.btn-lateral.landing-main.goaround.activo{
-  background: linear-gradient(145deg, #7f1d1d, #b91c1c);
-  border-color: #ef4444;
-  color: #fef2f2;
-  box-shadow: 0 0 12px rgba(239,68,68,0.5);
+
+.landing-main.goaround.activo{
+  background:linear-gradient(145deg,#7f1d1d,#b91c1c);
+  border-color:#ef4444;
+  color:#fef2f2;
+  box-shadow:0 0 12px rgba(239,68,68,0.5);
+}
+
+/* =========================================
+   SUB BOTONES CLEARED (A-B-C-D-E)
+========================================= */
+
+.landing-opciones{
+  display:flex;
+  gap:6px;
+  margin-top:8px;
+
+  max-height:0;
+  overflow:hidden;
+  opacity:0;
+  transition:all 0.25s ease;
+}
+
+.landing-opciones.activo{
+  max-height:80px;
+  opacity:1;
+}
+
+/* MINI BOTONES */
+
+.mini-btn{
+  flex:1;
+  padding:6px 4px;
+
+  border-radius:8px;
+  border:1px solid #2c344a;
+
+  background:linear-gradient(145deg,#141a28,#1c2233);
+  color:#94a3b8;
+
+  font-size:11px;
+  font-weight:600;
+
+  cursor:pointer;
+  transition:all 0.2s ease;
+}
+
+.mini-btn:hover{
+  border-color:#10b981;
+  color:#e6fffa;
+  transform:translateY(-1px);
+}
+
+.mini-btn.activo{
+  background:linear-gradient(145deg,#065f46,#047857);
+  border-color:#10b981;
+  color:#ecfdf5;
+  box-shadow:0 0 8px rgba(16,185,129,0.45);
+}
+
+/* =========================================
+   TAXI CONTROLES
+========================================= */
+
+.taxi-row{
+  display:flex;
+  gap:8px;
+}
+
+.taxi-row .taxi-btn{
+  flex:1;
+  padding:8px 6px;
+  font-size:11px;
+  text-align:center;
+}
+
+/* =========================================
+   CIRCUIT CONTROLES
+========================================= */
+
+.circuit-row{
+  display:flex;
+  gap:8px;
+}
+
+.circuit-row .circuit-btn{
+  flex:1;
+  padding:8px 6px;
+  font-size:11px;
+  text-align:center;
+}
+
+.circuit-btn.activo{
+  background:linear-gradient(145deg,#7f1d1d,#b91c1c);
+  border-color:#ef4444;
+  color:#fef2f2;
+  box-shadow:0 0 10px rgba(239,68,68,0.55);
+}
+
+/* Estado activo taxi */
+
+.taxi-btn.activo{
+  background:linear-gradient(145deg,#78350f,#b45309);
+  border-color:#f59e0b;
+  color:white;
+  box-shadow:0 0 10px rgba(245,158,11,0.6);
 }
 /* ================= CREATE AIRCRAFT PANEL ================= */
 

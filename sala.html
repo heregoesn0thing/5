@@ -151,9 +151,14 @@
 <div class="grupo">
   <div class="titulo-grupo">DEPARTURE</div>
 
-  <button class="btn-lateral">Iniciar Sim</button>
-  <button class="btn-lateral">Pausar Sim</button>
-  <button class="btn-lateral">Reset Sim</button>
+  <div class="departure-row">
+    <button id="depBtnSID" class="btn-lateral departure-control-btn" type="button">SID</button>
+    <button id="depBtnTakeoff" class="btn-lateral departure-control-btn" type="button">TAKE OFF</button>
+  </div>
+  <div id="departureSidOpciones" class="departure-sid-opciones">
+    <button class="sid-option-btn" type="button" data-sid="KOPRA1">KOPRA1</button>
+    <button class="sid-option-btn" type="button" data-sid="TELOT1">TELOT1</button>
+  </div>
 </div>
 
 
@@ -177,9 +182,10 @@
 <div class="grupo">
   <div class="titulo-grupo">MANUAL CONTROL</div>
 
-  <button class="btn-lateral">Contact Tower</button>
-  <button class="btn-lateral">Contact Approach</button>
-  <button class="btn-lateral">Contact Ground</button>
+  <div class="manual-row">
+    <button id="btnAuto" class="btn-lateral manual-btn">AUTO</button>
+    <button id="btnManual" class="btn-lateral manual-btn">MANUAL</button>
+  </div>
 </div>
 
   </div>
@@ -193,6 +199,7 @@
 <div id="menuAcciones">
 
   <div id="submenuAcciones" class="fab-row">
+    <button id="btnCapas" class="btn-accion" type="button">...</button>
     <button id="btnDanger" class="btn-accion" onclick="activarModoPeligro()">⚠</button>
     <button id="btnDebajoDanger" class="btn-accion">N</button>
   <button onclick="actualizarSesion()" class="btn-accion">⟳</button>
@@ -205,10 +212,11 @@
   </button>
 
 </div>
-<button id="btnCapas" class="btn-vor">...</button>
 
 <div id="panelCapas" class="panel-capas oculto">
   <label><input type="checkbox" id="chkVor"> ATZ</label>
+  <label><input type="checkbox" id="chkCtr"> CTR</label>
+  <label><input type="checkbox" id="chkTma"> TMA</label>
   <label><input type="checkbox" id="chkEje"> RWY 04/22</label>
   <label><input type="checkbox" id="chkPatron"> Aerodrome Traffic Circuit</label>
 </div>
@@ -292,7 +300,9 @@ socket.on("cargarAeronaves", lista => {
       angulo: data.angulo || 0,
       velocidadObjetivo: 0,
       ruta: null,        
-      puntosRuta: []
+      puntosRuta: [],
+      sid: data.sid || null,
+      sidFase: null
     }
 
     aeronaves.push(nueva)
@@ -303,10 +313,6 @@ socket.on("cargarAeronaves", lista => {
 
       if (modoEliminar) {
 
-  if(nueva.estado !== "idle"){
-    alert("Cannot remove aircraft while operating")
-    return
-  }
 
   const confirmar = confirm("Remove aircraft " + nueva.id + "?")
   if(!confirmar) return
@@ -398,7 +404,7 @@ socket.on("rutaCircuitoActualizada", data => {
 
 </div>
 
-<div id="manualPanel" style="
+<div id="manualPanelLegacy" style="
   position: absolute;
   bottom: 20px;
   right: 20px;
@@ -668,6 +674,17 @@ const LIB_MANDI = L.latLng(-12.389000, -76.758094)
 const RUMBO_LIB_MANDI = 140
 const TOLERANCIA_RUMBO = 15
 const DISTANCIA_LIB_MANDI = 2 * 1852   // 2 NM
+const SCO_VOR = L.latLng(-13.738556, -76.212750)
+const FIX_KOPRA = L.latLng(-13.406306, -76.700917)
+const FIX_TELOT = L.latLng(-13.241667, -76.530000)
+const FIX_ESEDI = L.latLng(-12.577222, -76.951667)
+const SID_ALTITUD_INICIO_GIRO_FT = 500
+const SID_UMBRAL_FIX_M = 2000
+const SID_KOPRA_INTERCEPT_RADIAL = 307
+const SID_KOPRA_HEADING_INTERCEPT = 340
+const SID_KOPRA_HEADING_ESEDI = 346
+const SID_TELOT_INTERCEPT_RADIAL = 330
+const SID_TELOT_HEADING_INTERCEPT = 15
 const btnEliminar = document.getElementById("btnEliminarModo");
 
 btnEliminar.addEventListener("click", () => {
@@ -897,6 +914,7 @@ modoRuta: false,
   rutaTemporal: [],
     angulo: 0,
     sid: null,
+    sidFase: null,
     altitud: 0,
     velocidad: 0,
     velocidadObjetivo: 0,
@@ -929,11 +947,6 @@ actualizarInteraccion(nueva)
 
     if (modoEliminar) {
 
-  // 🚫 No permitir borrar si no está en idle
-  if(nueva.estado !== "idle"){
-    alert("Cannot remove aircraft while operating")
-    return
-  }
 
   const confirmar = confirm("Remove aircraft " + nueva.id + "?")
   if(!confirmar) return
@@ -1004,6 +1017,8 @@ socket.on("crearAeronave", data => {
   animFrame: null,
   modoRuta: false,
   rutaTemporal: [],
+  sid: data.sid || null,
+  sidFase: null,
   intervaloActual: null,
 timeoutActual: null,
 enMovimiento: false,
@@ -1234,10 +1249,12 @@ actualizarBotonManual()
   actualizarEstadoBotonOrbit()
 }
 const btnManualPanel = document.getElementById("btnManual")
+const btnAutoPanel = document.getElementById("btnAuto")
 if(btnManualPanel){
   btnManualPanel.addEventListener("click", () => {
 
     if(!aeronaveSeleccionada) return
+    if(aeronaveSeleccionada.estado === "manual") return
 
     socket.emit("activarManual", {
       id: aeronaveSeleccionada.id
@@ -1245,6 +1262,19 @@ if(btnManualPanel){
 
   })
 }
+if(btnAutoPanel){
+  btnAutoPanel.addEventListener("click", () => {
+
+    if(!aeronaveSeleccionada) return
+    if(aeronaveSeleccionada.estado !== "manual") return
+
+    socket.emit("activarManual", {
+      id: aeronaveSeleccionada.id
+    })
+
+  })
+}
+actualizarBotonManual()
 function actualizarPanelInfoAeronave(a){
 
   if(!a) return
@@ -2327,30 +2357,85 @@ function actualizarInteraccion(a){
 }
 function actualizarBotonManual() {
 
-  const btn = document.getElementById("btnManual")
-  if (!btn) return
+  const btnManual = document.getElementById("btnManual")
+  const btnAuto = document.getElementById("btnAuto")
+  if (!btnManual && !btnAuto) return
+  const estiloAutoActivo = () => {
+    if (!btnAuto) return
+    btnAuto.style.background = "linear-gradient(145deg,#065f46,#047857)"
+    btnAuto.style.borderColor = "#10b981"
+    btnAuto.style.color = "#ecfdf5"
+    btnAuto.style.boxShadow = "0 0 12px rgba(16,185,129,0.5)"
+  }
+  const estiloAutoInactivo = () => {
+    if (!btnAuto) return
+    btnAuto.style.background = "#333"
+    btnAuto.style.borderColor = "#2c344a"
+    btnAuto.style.color = "#cbd5e1"
+    btnAuto.style.boxShadow = "none"
+  }
+  const estiloManualRojo = () => {
+    if (!btnManual) return
+    btnManual.style.background = "linear-gradient(145deg,#7f1d1d,#b91c1c)"
+    btnManual.style.borderColor = "#ef4444"
+    btnManual.style.color = "#fef2f2"
+    btnManual.style.boxShadow = "0 0 12px rgba(239,68,68,0.5)"
+  }
+  const estiloManualInactivo = () => {
+    if (!btnManual) return
+    btnManual.style.background = "#333"
+    btnManual.style.borderColor = "#2c344a"
+    btnManual.style.color = "#cbd5e1"
+    btnManual.style.boxShadow = "none"
+  }
 
   // No hay aeronave seleccionada
   if (!aeronaveSeleccionada) {
-    btn.disabled = true
-    btn.textContent = "Manual Control"
-    btn.style.background = "#333"
-    btn.style.cursor = "not-allowed"
+    if (btnManual) {
+      btnManual.disabled = true
+      btnManual.textContent = "MANUAL"
+      estiloManualInactivo()
+      btnManual.style.cursor = "not-allowed"
+    }
+    if (btnAuto) {
+      btnAuto.disabled = true
+      btnAuto.textContent = "AUTO"
+      estiloAutoActivo()
+      btnAuto.style.cursor = "not-allowed"
+    }
     return
   }
 
-  btn.disabled = false
-  btn.style.cursor = "pointer"
+  if (btnManual) {
+    btnManual.disabled = false
+    btnManual.style.cursor = "pointer"
+  }
+  if (btnAuto) {
+    btnAuto.disabled = false
+    btnAuto.style.cursor = "pointer"
+  }
 
   if (aeronaveSeleccionada.estado === "manual") {
 
-    btn.textContent = "Exit Manual"
-    btn.style.background = "#e53935"   // rojo activo
+    if (btnManual) {
+      btnManual.textContent = "MANUAL"
+      estiloManualRojo()
+    }
+    if (btnAuto) {
+      btnAuto.textContent = "AUTO"
+      estiloAutoInactivo()
+    }
 
   } else {
 
-    btn.textContent = "Manual Control"
-    btn.style.background = "#333"
+    if (btnManual) {
+      btnManual.textContent = "MANUAL"
+      estiloManualInactivo()
+    }
+    if (btnAuto) {
+      btnAuto.textContent = "AUTO"
+      estiloAutoActivo()
+    }
 
   }
 }
@@ -2503,6 +2588,161 @@ function ejecutarSTAR(a){
   }
 }
 
+function ejecutarSIDSalida(a){
+  if(!a) return
+
+  const sid = (a.sid || "").toUpperCase()
+  if(!sid) return
+
+  if(sid === "KOPRA1"){
+    ejecutarSIDKOPRA1(a)
+    return
+  }
+
+  if(sid === "TELOT1"){
+    ejecutarSIDTELOT1(a)
+    return
+  }
+}
+
+function ejecutarSIDKOPRA1(a){
+  if(!a || !a.marker) return
+
+  const actual = a.marker.getLatLng()
+  if(!actual) return
+
+  if(!a.sidFase || !a.sidFase.startsWith("KOPRA1_")){
+    a.sidFase = "KOPRA1_RUNWAY"
+  }
+
+  switch(a.sidFase){
+
+    // Mantener rumbo de pista hasta 500 ft
+    case "KOPRA1_RUNWAY":
+      a.headingObjetivo = RUMBO_PISTA_22
+      if((a.altitud || 0) >= SID_ALTITUD_INICIO_GIRO_FT){
+        a.sidFase = "KOPRA1_INTERCEPT307"
+      }
+    break
+
+    // Viraje a la derecha rumbo 340 para interceptar radial 307
+    case "KOPRA1_INTERCEPT307":
+      a.headingObjetivo = SID_KOPRA_HEADING_INTERCEPT
+      if(estaEnRadial(a, SID_KOPRA_INTERCEPT_RADIAL)){
+        a.sidFase = "KOPRA1_TO_KOPRA"
+      }
+    break
+
+    // Seguir radial 307 SCO hasta KOPRA
+    case "KOPRA1_TO_KOPRA":
+    {
+      const bearingDesdeVor = calcularBearing(
+        { lat: SCO_VOR.lat, lng: SCO_VOR.lng },
+        actual
+      )
+
+      let errorRadial = SID_KOPRA_INTERCEPT_RADIAL - bearingDesdeVor
+      if(errorRadial > 180) errorRadial -= 360
+      if(errorRadial < -180) errorRadial += 360
+
+      const correccion = Math.max(-20, Math.min(20, errorRadial * 2))
+      a.headingObjetivo =
+        (SID_KOPRA_INTERCEPT_RADIAL + correccion + 360) % 360
+
+      if(map.distance(actual, FIX_KOPRA) <= SID_UMBRAL_FIX_M){
+        a.sidFase = "KOPRA1_TO_ESEDI"
+      }
+    }
+    break
+
+    // Viraje a la derecha rumbo 346 hasta ESEDI
+    case "KOPRA1_TO_ESEDI":
+      a.headingObjetivo = SID_KOPRA_HEADING_ESEDI
+      if(map.distance(actual, FIX_ESEDI) <= SID_UMBRAL_FIX_M){
+        a.sidFase = "KOPRA1_COMPLETADA"
+      }
+    break
+
+    case "KOPRA1_COMPLETADA":
+      a.headingObjetivo = SID_KOPRA_HEADING_ESEDI
+    break
+
+    default:
+      a.sidFase = "KOPRA1_RUNWAY"
+      a.headingObjetivo = RUMBO_PISTA_22
+    break
+  }
+}
+
+function ejecutarSIDTELOT1(a){
+  if(!a || !a.marker) return
+
+  const actual = a.marker.getLatLng()
+  if(!actual) return
+
+  if(!a.sidFase || !a.sidFase.startsWith("TELOT1_")){
+    a.sidFase = "TELOT1_RUNWAY"
+  }
+
+  switch(a.sidFase){
+
+    // Mantener rumbo de pista hasta 500 ft
+    case "TELOT1_RUNWAY":
+      a.headingObjetivo = RUMBO_PISTA_22
+      if((a.altitud || 0) >= SID_ALTITUD_INICIO_GIRO_FT){
+        a.sidFase = "TELOT1_INTERCEPT330"
+      }
+    break
+
+    // Viraje a la derecha rumbo 015 para interceptar radial 330
+    case "TELOT1_INTERCEPT330":
+      a.headingObjetivo = SID_TELOT_HEADING_INTERCEPT
+      if(estaEnRadial(a, SID_TELOT_INTERCEPT_RADIAL)){
+        a.sidFase = "TELOT1_TO_TELOT"
+      }
+    break
+
+    // Ir directo a TELOT
+    case "TELOT1_TO_TELOT":
+      a.headingObjetivo = calcularBearing(actual, FIX_TELOT)
+      if(map.distance(actual, FIX_TELOT) <= SID_UMBRAL_FIX_M){
+        a.sidFase = "TELOT1_TO_ESEDI"
+      }
+    break
+
+    // Continuar radial 330 SCO hasta ESEDI
+    case "TELOT1_TO_ESEDI":
+    {
+      const bearingDesdeVor = calcularBearing(
+        { lat: SCO_VOR.lat, lng: SCO_VOR.lng },
+        actual
+      )
+
+      let errorRadial = SID_TELOT_INTERCEPT_RADIAL - bearingDesdeVor
+      if(errorRadial > 180) errorRadial -= 360
+      if(errorRadial < -180) errorRadial += 360
+
+      const correccion = Math.max(-20, Math.min(20, errorRadial * 2))
+      a.headingObjetivo =
+        (SID_TELOT_INTERCEPT_RADIAL + correccion + 360) % 360
+
+      if(map.distance(actual, FIX_ESEDI) <= SID_UMBRAL_FIX_M){
+        a.sidFase = "TELOT1_COMPLETADA"
+      }
+    }
+    break
+
+    case "TELOT1_COMPLETADA":
+      a.headingObjetivo = SID_TELOT_INTERCEPT_RADIAL
+    break
+
+    default:
+      a.sidFase = "TELOT1_RUNWAY"
+      a.headingObjetivo = RUMBO_PISTA_22
+    break
+  }
+}
+
 function despegar(){
 
   if(!aeronaveSeleccionada) return
@@ -2531,23 +2771,37 @@ function despegar(){
 
   const sidSelectEl = document.getElementById("sidSelect")
   const starSelectEl = document.getElementById("starSelect")
-  const sidElegida = sidSelectEl ? sidSelectEl.value : ""
-  const starElegida = starSelectEl ? starSelectEl.value : ""
+  const sidElegida = sidSelectEl ? sidSelectEl.value : (a.sid || "")
+  const starElegida = starSelectEl ? starSelectEl.value : (a.star || "")
+  const sidNormalizada = (sidElegida || "").trim().toUpperCase()
+  const starNormalizada = (starElegida || "").trim()
 
-  if(desdeLIB && !sidElegida && !starElegida){
+  if((sidNormalizada === "KOPRA1" || sidNormalizada === "TELOT1") && !desdeRWY22){
+    alert("Selected SID requires departure aligned with RWY 22")
+    return
+  }
+
+  if(desdeLIB && !sidNormalizada && !starNormalizada){
     alert("LIB MANDI departures require SID, STAR or Free Navigation")
     return
   }
 
   // ================= INICIALIZACIÓN =================
 
-  a.sid = sidElegida || null
-  a.star = starElegida || null
+  a.sid = sidNormalizada || null
+  a.sidFase = null
+  a.star = starNormalizada || null
   a.starActivo = false
   a.altitud = 0
   a.velocidad = 0
   a.estado = "vuelo"
   a.fase = "RUNWAY"
+
+  if(a.sid === "KOPRA1"){
+    a.sidFase = "KOPRA1_RUNWAY"
+  } else if(a.sid === "TELOT1"){
+    a.sidFase = "TELOT1_RUNWAY"
+  }
 
   // Heading inicial según punto de salida
   if(desdeRWY22){
@@ -2591,6 +2845,8 @@ function despegar(){
 
     if(a.starActivo){
       ejecutarSTAR(a)
+    } else {
+      ejecutarSIDSalida(a)
     }
 
     // ================= GIRO SUAVE =================
@@ -2698,6 +2954,78 @@ function cerrarDeparture(){
   document.getElementById("departurePanel")
           .classList.add("panelOculto")
 }
+function configurarSIDDesdeDeparture(sidNombre){
+  const a = obtenerAeronaveObjetivoControles()
+  if(!a){
+    alert("Selecciona una aeronave primero")
+    return
+  }
+
+  const sidNormalizada = (sidNombre || "").trim().toUpperCase()
+  a.sid = sidNormalizada || null
+
+  actualizarDepartureInfo(a)
+  actualizarPanelInfo(a)
+  actualizarPanelInfoAeronave(a)
+}
+(function inicializarBotonesDeparture(){
+  const btnSID = document.getElementById("depBtnSID")
+  const btnTakeoff = document.getElementById("depBtnTakeoff")
+  const sidOpciones = document.getElementById("departureSidOpciones")
+  const sidBotones = Array.from(document.querySelectorAll("#departureSidOpciones .sid-option-btn"))
+
+  if(btnSID && sidOpciones){
+    btnSID.addEventListener("click", () => {
+      const a = obtenerAeronaveObjetivoControles()
+      if(!a){
+        alert("Selecciona una aeronave primero")
+        return
+      }
+
+      const sidActual = (a.sid || "").toUpperCase()
+      sidBotones.forEach(b => {
+        const sidBoton = (b.dataset.sid || "").toUpperCase()
+        b.classList.toggle("activo", sidBoton === sidActual)
+      })
+
+      sidOpciones.classList.toggle("activo")
+    })
+  }
+
+  sidBotones.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const sid = btn.dataset.sid || ""
+      configurarSIDDesdeDeparture(sid)
+
+      sidBotones.forEach(b => b.classList.remove("activo"))
+      btn.classList.add("activo")
+
+      if(sidOpciones){
+        sidOpciones.classList.remove("activo")
+      }
+    })
+  })
+
+  if(sidOpciones){
+    document.addEventListener("click", e => {
+      if(!sidOpciones.contains(e.target) && (!btnSID || !btnSID.contains(e.target))){
+        sidOpciones.classList.remove("activo")
+      }
+    })
+  }
+
+  if(btnTakeoff){
+    btnTakeoff.addEventListener("click", () => {
+      const a = obtenerAeronaveObjetivoControles()
+      if(!a){
+        alert("Selecciona una aeronave primero")
+        return
+      }
+
+      despegar()
+    })
+  }
+})()
 function generarSquawk(){
 
   const digitos = []
@@ -2734,16 +3062,25 @@ const btnCapas = document.getElementById("btnCapas")
 const panelCapas = document.getElementById("panelCapas")
 
 const chkVor = document.getElementById("chkVor")
+const chkCtr = document.getElementById("chkCtr")
+const chkTma = document.getElementById("chkTma")
 const chkEje = document.getElementById("chkEje")
 const chkPatron = document.getElementById("chkPatron")
 
 let circuloVor = null
+let circuloCtr = null
+let circuloTma = null
+let radialesTmaLayer = null
 let ejePista = null
 let patronLayer = null
 
 // Coordenadas reales
 const vorPisco = [-13.744, -76.220]
 const radio5NM = 5 * 1852
+const vorSco = [-13.738556, -76.212750]
+const radio10NM = 10 * 1852
+const radio35NM = 35 * 1852
+const separacionRadialesTma = 10
 
 const rwy04 = [-13.755327, -76.229306]
 const rwy22 = [-13.734272, -76.211517]
@@ -2786,6 +3123,110 @@ chkVor.addEventListener("change", () => {
     if(circuloVor){
       map.removeLayer(circuloVor)
       circuloVor = null
+    }
+  }
+
+})
+
+/* =======================
+   CTR 10NM (VOR SCO)
+======================= */
+
+chkCtr.addEventListener("change", () => {
+
+  if(chkCtr.checked){
+
+    circuloCtr = L.circle(vorSco, {
+      radius: radio10NM,
+      color: "#ffffff",
+      weight: 2,
+      dashArray: "6 8",
+      fill: false
+    }).addTo(map)
+
+  } else {
+    if(circuloCtr){
+      map.removeLayer(circuloCtr)
+      circuloCtr = null
+    }
+  }
+
+})
+
+/* =======================
+   TMA 35NM (VOR SCO)
+======================= */
+
+function dibujarRadialesScoEnTma(){
+
+  if(radialesTmaLayer){
+    map.removeLayer(radialesTmaLayer)
+    radialesTmaLayer = null
+  }
+
+  const radiales = []
+
+  for(let radial = 0; radial < 360; radial += separacionRadialesTma){
+    const destino = calcularPuntoDesplazado(
+      vorSco[0],
+      vorSco[1],
+      radio35NM,
+      radial
+    )
+    const puntoEtiqueta = calcularPuntoDesplazado(
+      vorSco[0],
+      vorSco[1],
+      radio35NM - 900,
+      radial
+    )
+    const textoRadial = String(radial).padStart(3, "0") + "°"
+
+    radiales.push(
+      L.polyline([vorSco, destino], {
+        color: "#000000",
+        weight: 1,
+        dashArray: "4 10",
+        opacity: 0.55,
+        interactive: false
+      })
+    )
+
+    radiales.push(
+      L.marker(puntoEtiqueta, {
+        icon: L.divIcon({
+          className: "tma-radial-label",
+          html: textoRadial
+        }),
+        interactive: false
+      })
+    )
+  }
+
+  radialesTmaLayer = L.layerGroup(radiales).addTo(map)
+}
+
+chkTma.addEventListener("change", () => {
+
+  if(chkTma.checked){
+
+    circuloTma = L.circle(vorSco, {
+      radius: radio35NM,
+      color: "#ffffff",
+      weight: 2,
+      dashArray: "6 8",
+      fill: false
+    }).addTo(map)
+
+    dibujarRadialesScoEnTma()
+
+  } else {
+    if(circuloTma){
+      map.removeLayer(circuloTma)
+      circuloTma = null
+    }
+    if(radialesTmaLayer){
+      map.removeLayer(radialesTmaLayer)
+      radialesTmaLayer = null
     }
   }
 

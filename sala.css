@@ -978,9 +978,46 @@ html, body{
   margin-bottom: 8px;
 }
 
-#levelControlSlider{
+.level-control-input-row{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#levelControlInput{
   width: 100%;
-  accent-color: #22c55e;
+  min-width: 0;
+  height: 30px;
+  padding: 4px 8px;
+  border-radius: 7px;
+  border: 1px solid rgba(134, 239, 172, 0.45);
+  background: rgba(2, 6, 23, 0.55);
+  color: #e2e8f0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+#levelControlInput:focus{
+  outline: none;
+  border-color: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+}
+
+.level-control-apply-btn{
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 1px solid rgba(34, 197, 94, 0.5);
+  background: rgba(34, 197, 94, 0.18);
+  color: #dcfce7;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  cursor: pointer;
+}
+
+.level-control-apply-btn:hover{
+  background: rgba(34, 197, 94, 0.28);
 }
 
 .level-control-readout{

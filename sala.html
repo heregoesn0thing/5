@@ -207,7 +207,20 @@
   </div>
   <div id="levelControlPanel" class="level-control-panel">
     <div class="level-control-title">INITIAL LEVEL</div>
-    <input id="levelControlSlider" type="range" min="0" max="45000" step="100" value="0">
+    <div class="level-control-input-row">
+      <input
+        id="levelControlInput"
+        class="level-control-input"
+        type="number"
+        min="0"
+        max="45000"
+        step="100"
+        value="0"
+        inputmode="numeric"
+        aria-label="Initial level in feet"
+      >
+      <button id="levelControlApplyBtn" class="level-control-apply-btn" type="button">SET</button>
+    </div>
     <div class="level-control-readout"><span id="levelControlValue">0 ft</span></div>
   </div>
   <div class="boton-lateral boton-lateral-speed" onclick="toggleSpeedControlPanel(event)">
@@ -2216,9 +2229,9 @@ function ocultarLevelControlPanel(){
 }
 
 function sincronizarLevelControlPanel(aeronave = null){
-  const slider = document.getElementById("levelControlSlider")
+  const levelInput = document.getElementById("levelControlInput")
   const valor = document.getElementById("levelControlValue")
-  if(!slider || !valor) return
+  if(!levelInput || !valor) return
 
   const a = aeronave || obtenerAeronaveVinculadaPanel() || aeronaveSeleccionada
   const altitudAeronave = Number(a && a.altitud)
@@ -2226,11 +2239,11 @@ function sincronizarLevelControlPanel(aeronave = null){
     Number.isFinite(altitudAeronave) ? altitudAeronave : 0
   )
 
-  slider.value = String(altitudFt)
+  levelInput.value = String(altitudFt)
   valor.textContent = formatearNivelAltitud(altitudFt)
 }
 
-function aplicarLevelInicialDesdeSlider(valor){
+function aplicarLevelInicialManual(valor){
   const aeronave = obtenerAeronaveObjetivoControles() || aeronaveSeleccionada
   if(!aeronave){
     return
@@ -2238,9 +2251,9 @@ function aplicarLevelInicialDesdeSlider(valor){
 
   const altitudNuevaFt = normalizarAltitudInicialCreacion(valor)
 
-  const slider = document.getElementById("levelControlSlider")
-  if(slider){
-    slider.value = String(altitudNuevaFt)
+  const levelInput = document.getElementById("levelControlInput")
+  if(levelInput){
+    levelInput.value = String(altitudNuevaFt)
   }
 
   const valorEl = document.getElementById("levelControlValue")
@@ -2256,6 +2269,12 @@ function aplicarLevelInicialDesdeSlider(valor){
   actualizarEstadoBotonTakeoff(aeronave)
   actualizarEstadoGrupoLanding()
   sincronizarEstadoAeronaveLocal(aeronave)
+}
+
+function aplicarLevelDesdeControlActual(){
+  const levelInput = document.getElementById("levelControlInput")
+  if(!levelInput) return
+  aplicarLevelInicialManual(levelInput.value)
 }
 
 function toggleLevelControlPanel(event){
@@ -2619,11 +2638,28 @@ function togglePanelIzq(){
   asignarPanelControlesAeronave(aeronave, true)
 }
 
-const levelControlSlider = document.getElementById("levelControlSlider")
-if(levelControlSlider){
-  levelControlSlider.addEventListener("input", (e) => {
-    aplicarLevelInicialDesdeSlider(e.target.value)
+const levelControlInput = document.getElementById("levelControlInput")
+if(levelControlInput){
+  levelControlInput.addEventListener("keydown", (e) => {
+    if(e.key !== "Enter") return
+    e.preventDefault()
+    aplicarLevelDesdeControlActual()
   })
+  levelControlInput.addEventListener("blur", () => {
+    aplicarLevelDesdeControlActual()
+  })
+}
+
+const levelControlApplyBtn = document.getElementById("levelControlApplyBtn")
+if(levelControlApplyBtn){
+  levelControlApplyBtn.addEventListener("click", (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    aplicarLevelDesdeControlActual()
+  })
+}
+
+if(levelControlInput || levelControlApplyBtn){
   sincronizarLevelControlPanel()
 }
 

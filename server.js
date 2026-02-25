@@ -34,6 +34,8 @@ const RUMBOS_CIRCUITO = {
   base: 310
 }
 const ALTITUD_CIRCUITO_FT = 1500
+const ASCENSO_DESCENSO_CIRCUITO_FPM = 1200
+const EPSILON_ALTITUD_MANUAL_CIRCUITO_FT = 50
 const PUNTO_ORBITA_DOWNWIND = {
   lat: -13.76459547738987,
   lng: -76.19292298449697
@@ -102,6 +104,38 @@ function limpiarOrbitacionAeronave(aeronave) {
   aeronave.orbitAcumulado = 0
 }
 
+function esEstadoCircuitoConAltitudAutomatica(estado) {
+  return (
+    estado === "CIRCUIT" ||
+    estado === "INTERCEPTING ARC" ||
+    estado === "INTERCEPTING LEG" ||
+    estado === "ORBT"
+  )
+}
+
+function actualizarAltitudCircuitoProgresiva(aeronave, intervaloMS) {
+  if (!aeronave) return
+  if (!aeronave.altitudCircuitoAutomaticaActiva) return
+  if (!esEstadoCircuitoConAltitudAutomatica(aeronave.estado)) return
+
+  const altitudActual = Number.isFinite(aeronave.altitud) ? aeronave.altitud : 0
+  const cambioPorTick =
+    (ASCENSO_DESCENSO_CIRCUITO_FPM / 60) * (intervaloMS / 1000)
+
+  if (!Number.isFinite(cambioPorTick) || cambioPorTick <= 0) {
+    return
+  }
+
+  const diferenciaAltitud = ALTITUD_CIRCUITO_FT - altitudActual
+
+  if (Math.abs(diferenciaAltitud) <= cambioPorTick) {
+    aeronave.altitud = ALTITUD_CIRCUITO_FT
+    return
+  }
+
+  aeronave.altitud = altitudActual + (Math.sign(diferenciaAltitud) * cambioPorTick)
+}
+
 // ================== RELOJ POR SALA ==================
 
 function iniciarRelojSala(nombre) {
@@ -154,6 +188,7 @@ if (a.estado === "LANDING") {
       if (procesarGoAroundEnMotor(a, intervaloMS, nombreSala)) {
         return
       }
+      actualizarAltitudCircuitoProgresiva(a, intervaloMS)
       // =====================================
       // MODO MANUAL  PRIORIDAD ABSOLUTA
       // =====================================
@@ -1176,6 +1211,7 @@ function prepararAeronaveParaCircuito(salaNombre, sala, aeronave) {
   if (!salaNombre || !sala || !aeronave) return false
 
   limpiarOrbitacionAeronave(aeronave)
+  aeronave.altitudCircuitoAutomaticaActiva = true
 
   aeronave.ruta = generarRutaServidorParaAeronave(sala, aeronave)
 
@@ -1509,6 +1545,7 @@ socket.on("crearAeronave", (data) => {
   orbitEnCurso: false,
   orbitModoContinuo: false,
   orbitDetenerSolicitado: false,
+  altitudCircuitoAutomaticaActiva: false,
   estado: "IDLE"
 });
 
@@ -1785,13 +1822,30 @@ socket.on("actualizarAeronave", (data) => {
   if (typeof data.lng !== "number") return;
   if (typeof data.altitud !== "number") return;
   if (typeof data.angulo !== "number") return;
+  const altitudAnterior = Number.isFinite(aeronave.altitud) ? aeronave.altitud : 0
+  const altitudRecibida = Number.isFinite(data.altitud)
+    ? data.altitud
+    : altitudAnterior
+  const estadoRecibido =
+    typeof data.estado === "string" ? data.estado : aeronave.estado
+  const huboCambioManualAltitud =
+    Math.abs(altitudRecibida - altitudAnterior) > EPSILON_ALTITUD_MANUAL_CIRCUITO_FT
+
+  if (
+    huboCambioManualAltitud &&
+    aeronave.altitudCircuitoAutomaticaActiva &&
+    esEstadoCircuitoConAltitudAutomatica(estadoRecibido)
+  ) {
+    aeronave.altitudCircuitoAutomaticaActiva = false
+  }
+
 if(typeof data.estado === "string"){
   aeronave.estado = data.estado
 }
 
   aeronave.lat = data.lat;
   aeronave.lng = data.lng;
-  aeronave.altitud = data.altitud;
+  aeronave.altitud = altitudRecibida;
   aeronave.angulo = data.angulo;
   if (typeof data.velocidad === "number" && Number.isFinite(data.velocidad)) {
     aeronave.velocidad = Math.max(0, data.velocidad);

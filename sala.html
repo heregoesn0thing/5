@@ -287,8 +287,22 @@ function unirseSalaActiva(){
   socket.emit("unirseSala", sala)
 }
 
+let ultimoSyncTiempoMs = 0
+function solicitarSincronizacionTiempo(forzar = false){
+  if(!socket || !socket.connected) return
+
+  const ahora = Date.now()
+  if(!forzar && (ahora - ultimoSyncTiempoMs) < 500){
+    return
+  }
+
+  ultimoSyncTiempoMs = ahora
+  socket.emit("solicitarSincronizacionTiempo")
+}
+
 socket.on("connect", () => {
   unirseSalaActiva()
+  solicitarSincronizacionTiempo(true)
 })
 socket.on("rutaCircuito", data => {
 
@@ -888,6 +902,20 @@ function toggleTiempo() {
   }
 
 }
+
+document.addEventListener("visibilitychange", function(){
+  if(document.visibilityState === "visible"){
+    solicitarSincronizacionTiempo()
+  }
+})
+
+window.addEventListener("focus", function(){
+  solicitarSincronizacionTiempo()
+})
+
+window.addEventListener("online", function(){
+  solicitarSincronizacionTiempo(true)
+})
 
 
 // ================= ICON =================

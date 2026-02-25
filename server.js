@@ -174,7 +174,11 @@ function obtenerHoraActualSala(nombre) {
   }
 
   const ahora = Date.now();
-  const delta = (ahora - reloj.timestampBase) / 1000 * reloj.velocidad;
+  const velocidadReloj =
+    Number.isFinite(reloj.velocidad) && reloj.velocidad > 0
+      ? reloj.velocidad
+      : 1;
+  const delta = (ahora - reloj.timestampBase) / 1000 * velocidadReloj;
 
   return formatearHora(reloj.tiempoBase + delta);
 }
@@ -1698,6 +1702,23 @@ socket.on("solicitarRutaCircuito", () => {
   })
 })
 
+socket.on("solicitarSincronizacionTiempo", () => {
+  const sala = socket.sala
+  if (!sala) return
+
+  const reloj = relojesSalas[sala]
+  if (!reloj) return
+
+  const horaActual = obtenerHoraActualSala(sala)
+  if (horaActual) {
+    socket.emit("horaSala", horaActual)
+  }
+
+  socket.emit("estadoTiempo", {
+    pausado: reloj.pausado
+  })
+})
+
   // ===== CREAR AERONAVE =====
 socket.on("crearAeronave", (data) => {
 
@@ -2301,7 +2322,7 @@ socket.on("setSpeedKnots", ({ id, speedKnots }) => {
 
 })
   // ===== CONTROL DEL TIEMPO =====
-socket.on("controlTiempo", ({ accion, valor }) => {
+socket.on("controlTiempo", ({ accion }) => {
 
   const sala = socket.sala;
   if (!sala) return;
@@ -2311,7 +2332,11 @@ socket.on("controlTiempo", ({ accion, valor }) => {
 
   if (!reloj.pausado) {
     const ahora = Date.now();
-    const delta = (ahora - reloj.timestampBase) / 1000 * reloj.velocidad;
+    const velocidadReloj =
+      Number.isFinite(reloj.velocidad) && reloj.velocidad > 0
+        ? reloj.velocidad
+        : 1;
+    const delta = (ahora - reloj.timestampBase) / 1000 * velocidadReloj;
     reloj.tiempoBase += delta;
     reloj.timestampBase = ahora;
   }
@@ -2325,10 +2350,8 @@ socket.on("controlTiempo", ({ accion, valor }) => {
     reloj.timestampBase = Date.now();
   }
 
-  if (accion === "velocidad") {
-    reloj.velocidad = valor;
-    reloj.timestampBase = Date.now();
-  }
+  // Mantener reloj siempre en tiempo real (x1).
+  reloj.velocidad = 1;
 
   // ðŸ”¥ NUEVO
   io.to(sala).emit("estadoTiempo", {

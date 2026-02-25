@@ -42,6 +42,15 @@ const PUNTO_ORBITA_DOWNWIND = {
 }
 const TOLERANCIA_PUNTO_ORBITA_M = 120
 const TOLERANCIA_REINGRESO_ORBITA_M = 80
+const ORBIT_TASA_VIRAJE_GRADOS_SEG = 3
+const ORBIT_SENTIDO_DERECHA = 1
+const INGRESO_DOWNWIND_ANGULO_GRADOS = 45
+const INGRESO_DOWNWIND_PREENTRY_M = 0.9 * 1852
+const INGRESO_DOWNWIND_CRUCE_M = 0.8 * 1852
+const INGRESO_DOWNWIND_GOTA_M = 1.1 * 1852
+const INGRESO_DOWNWIND_MIN_T = 0.2
+const INGRESO_DOWNWIND_MAX_T = 0.8
+const INGRESO_DOWNWIND_MIN_SEPARACION_WP_M = 80
 const KNOTS_PER_MACH = 661.47
 const SPEED_CONTROL_MAX_MACH = 10
 const SPEED_CONTROL_MAX_KNOTS = Math.round(KNOTS_PER_MACH * SPEED_CONTROL_MAX_MACH)
@@ -247,7 +256,16 @@ if (a.estado === "LANDING") {
 
 if (a.estado === "INTERCEPTING ARC") {
 
-  const destino = a.puntoIntercepto;
+  const destino =
+    (Array.isArray(a.ingresoDownwindWaypoints) && a.ingresoDownwindWaypoints.length > 0)
+      ? a.ingresoDownwindWaypoints[0]
+      : a.puntoIntercepto;
+  if (!destino) {
+    a.estado = "INTERCEPTING LEG";
+    a.interceptTicks = 0;
+    a.interceptHeadingRef = null;
+    return;
+  }
 
   const distancia = distanciaEntre(
     { lat: a.lat, lng: a.lng },
@@ -292,9 +310,24 @@ if (a.estado === "INTERCEPTING ARC") {
 
   // ðŸŽ¯ Cuando estÃ© cerca â†’ pasar a interceptaciÃ³n fina
   if (distancia < 120) {
-    a.estado = "INTERCEPTING LEG";
-    a.interceptTicks = 0;
-    a.interceptHeadingRef = null;
+    if (Array.isArray(a.ingresoDownwindWaypoints) && a.ingresoDownwindWaypoints.length > 0) {
+      a.ingresoDownwindWaypoints.shift()
+
+      if (a.ingresoDownwindWaypoints.length > 0) {
+        a.puntoIntercepto = a.ingresoDownwindWaypoints[0]
+      } else {
+        a.ingresoDownwindWaypoints = null
+        a.ingresoDownwindTipo = null
+        a.puntoIntercepto = null
+        a.estado = "INTERCEPTING LEG";
+        a.interceptTicks = 0;
+        a.interceptHeadingRef = null;
+      }
+    } else {
+      a.estado = "INTERCEPTING LEG";
+      a.interceptTicks = 0;
+      a.interceptHeadingRef = null;
+    }
   }
 
   io.to(nombreSala).emit("actualizarAeronave", {
@@ -324,6 +357,8 @@ if (a.estado === "INTERCEPTING LEG") {
   const A = a.ruta[a.tramoObjetivo];
   const B = a.ruta[(a.tramoObjetivo - 1 + a.ruta.length) % a.ruta.length];
   if (!A || !B) {
+    a.ingresoDownwindWaypoints = null
+    a.ingresoDownwindTipo = null
     a.estado = "CIRCUIT";
     a.interceptTicks = 0;
     a.interceptHeadingRef = null;
@@ -443,6 +478,8 @@ if (a.estado === "INTERCEPTING LEG") {
     if (Math.abs(diferenciaAngular(a.angulo, rumboTramo)) < 3) {
       a.angulo = rumboTramo;
     }
+    a.ingresoDownwindWaypoints = null
+    a.ingresoDownwindTipo = null
     a.estado = "CIRCUIT";
     a.interceptTicks = 0;
     a.interceptHeadingRef = null;
@@ -473,23 +510,23 @@ if (a.estado === "INTERCEPTING LEG") {
       ) return
 
       if (a.orbitEnCurso) {
-        const radioOrbit = Math.max(a.orbitRadio || (0.5 * 1852), 1)
-        const circunferencia = 2 * Math.PI * radioOrbit
-        const deltaAngular = (distanciaTick / circunferencia) * 360
+        const deltaAngular =
+          ORBIT_TASA_VIRAJE_GRADOS_SEG *
+          (intervaloMS / 1000) *
+          ORBIT_SENTIDO_DERECHA
 
-        // Giro a la derecha (clockwise): el radial desde el centro debe aumentar.
-        a.orbitBearing = (a.orbitBearing + deltaAngular) % 360
+        const headingBase = Number.isFinite(a.angulo) ? a.angulo : RUMBOS_CIRCUITO.downwind
+        a.angulo = (headingBase + deltaAngular + 360) % 360
 
         const puntoOrbit = puntoPlano(
-          a.orbitCentro,
-          a.orbitBearing,
-          radioOrbit
+          { lat: a.lat, lng: a.lng },
+          a.angulo,
+          distanciaTick
         )
 
         a.lat = puntoOrbit.lat
         a.lng = puntoOrbit.lng
-        a.angulo = (a.orbitBearing + 90) % 360
-        a.orbitAcumulado = (a.orbitAcumulado || 0) + deltaAngular
+        a.orbitAcumulado = (a.orbitAcumulado || 0) + Math.abs(deltaAngular)
 
         if (a.orbitAcumulado >= 360) {
           const continuarOrbitando =
@@ -570,47 +607,35 @@ if (a.estado === "INTERCEPTING LEG") {
         a.orbitPendiente &&
         downwindValidoOrbit
       ) {
-        const distanciaPuntoOrbit = distanciaEntre(
-          { lat: a.lat, lng: a.lng },
-          PUNTO_ORBITA_DOWNWIND
-        )
+        const rumboBase =
+          typeof a.angulo === "number" ? a.angulo : rumboSegmentoActual
+        const deltaAngularEntrada =
+          ORBIT_TASA_VIRAJE_GRADOS_SEG *
+          (intervaloMS / 1000) *
+          ORBIT_SENTIDO_DERECHA
 
-        if (distanciaPuntoOrbit <= TOLERANCIA_PUNTO_ORBITA_M) {
-          const radioOrbit = 0.5 * 1852
-          const rumboBase =
-            typeof a.angulo === "number" ? a.angulo : rumboSegmentoActual
+        a.orbitEnCurso = true
+        a.orbitPendiente = false
+        a.orbitDetenerSolicitado = false
+        a.estado = "ORBT"
+        a.angulo = (rumboBase + deltaAngularEntrada + 360) % 360
+        a.orbitCentro = null
+        a.orbitRadio = null
+        a.orbitBearing = null
+        a.orbitAcumulado = 0
 
-          const centroOrbit = puntoPlano(
-            { lat: a.lat, lng: a.lng },
-            (rumboBase + 90) % 360,
-            radioOrbit
-          )
+        io.to(nombreSala).emit("actualizarAeronave", {
+          id: a.id,
+          lat: a.lat,
+          lng: a.lng,
+          altitud: a.altitud,
+          angulo: a.angulo,
+          velocidad: a.velocidad,
+          velocidadObjetivo: a.velocidadObjetivo,
+          estado: a.estado
+        })
 
-          a.orbitEnCurso = true
-          a.orbitPendiente = false
-          a.orbitDetenerSolicitado = false
-          a.estado = "ORBT"
-          a.orbitCentro = centroOrbit
-          a.orbitRadio = radioOrbit
-          a.orbitBearing = calcularRumboServidor(
-            centroOrbit,
-            { lat: a.lat, lng: a.lng }
-          )
-          a.orbitAcumulado = 0
-
-          io.to(nombreSala).emit("actualizarAeronave", {
-            id: a.id,
-            lat: a.lat,
-            lng: a.lng,
-            altitud: a.altitud,
-            angulo: a.angulo,
-            velocidad: a.velocidad,
-            velocidadObjetivo: a.velocidadObjetivo,
-            estado: a.estado
-          })
-
-          return
-        }
+        return
       }
 
       let distanciaRestanteTick = distanciaTick
@@ -739,7 +764,7 @@ function generarRutaServidor(sala){
   const rumboInverso = 220
   const rumboIzq = 130   // tráfico izquierdo RWY 22
 
-  const lateralM = 0.75 * 1852
+  const lateralM = 1.5 * 1852
 
   
   const extensionBase = 2.0 * 1852
@@ -1068,6 +1093,128 @@ function obtenerProyeccionRutaMasCercana(posicion, ruta, tipoObjetivo = null) {
   return mejor
 }
 
+function clasificarIngresoDownwindLado(posicion, joinPoint, rumboDownwind) {
+  if (!posicion || !joinPoint || typeof rumboDownwind !== "number") {
+    return "EAST"
+  }
+
+  const referenciaEste = puntoPlano(joinPoint, (rumboDownwind + 90) % 360, 500)
+  const referenciaOeste = puntoPlano(joinPoint, (rumboDownwind + 270) % 360, 500)
+  const distanciaEste = distanciaEntre(posicion, referenciaEste)
+  const distanciaOeste = distanciaEntre(posicion, referenciaOeste)
+
+  return distanciaEste <= distanciaOeste ? "EAST" : "WEST"
+}
+
+function construirIngresoDownwind45(aeronave) {
+  if (!aeronave || !aeronave.ruta || aeronave.ruta.length < 2) return null
+
+  const posicionActual = { lat: aeronave.lat, lng: aeronave.lng }
+  const proyeccionDownwind = obtenerProyeccionRutaMasCercana(
+    posicionActual,
+    aeronave.ruta,
+    "downwind"
+  )
+
+  if (!proyeccionDownwind) return null
+
+  const indiceDownwind = proyeccionDownwind.indiceA
+  const A = aeronave.ruta[indiceDownwind]
+  const B = aeronave.ruta[(indiceDownwind - 1 + aeronave.ruta.length) % aeronave.ruta.length]
+  if (!A || !B) return null
+
+  const rumboDownwind = calcularRumboServidor(A, B)
+  const distanciaSegmento = Math.max(1, distanciaEntre(A, B))
+  const tProyeccion = Math.max(
+    0,
+    Math.min(1, (proyeccionDownwind.progreso || 0) / distanciaSegmento)
+  )
+  const tJoin = Math.max(
+    INGRESO_DOWNWIND_MIN_T,
+    Math.min(INGRESO_DOWNWIND_MAX_T, tProyeccion)
+  )
+  const latMinDownwind = Math.min(A.lat, B.lat)
+  const vieneDelSur = posicionActual.lat < latMinDownwind
+
+  const joinPoint = vieneDelSur
+    ? {
+        // Ingreso desde el sur: unirse exactamente al inicio de downwind.
+        lat: A.lat,
+        lng: A.lng
+      }
+    : {
+        lat: A.lat + (B.lat - A.lat) * tJoin,
+        lng: A.lng + (B.lng - A.lng) * tJoin
+      }
+
+  const ladoIngreso = vieneDelSur
+    ? "SOUTH"
+    : clasificarIngresoDownwindLado(
+        posicionActual,
+        joinPoint,
+        rumboDownwind
+      )
+
+  const waypoints = []
+
+  if (ladoIngreso === "SOUTH") {
+    waypoints.push(joinPoint)
+  } else {
+    const rumboIngreso45 =
+      (rumboDownwind - INGRESO_DOWNWIND_ANGULO_GRADOS + 360) % 360
+    const preEntryPoint = puntoPlano(
+      joinPoint,
+      (rumboIngreso45 + 180) % 360,
+      INGRESO_DOWNWIND_PREENTRY_M
+    )
+
+    if (ladoIngreso === "WEST") {
+      // Entrada en gota: cruza downwind hacia el lado este y luego abre la gota.
+      const puntoCruce = puntoPlano(
+        joinPoint,
+        (rumboDownwind + 90) % 360,
+        INGRESO_DOWNWIND_CRUCE_M
+      )
+      const puntoGota = puntoPlano(
+        puntoCruce,
+        (rumboDownwind + 180) % 360,
+        INGRESO_DOWNWIND_GOTA_M
+      )
+      waypoints.push(puntoCruce, puntoGota)
+    }
+
+    // Tramo final de ingreso a 45° sobre downwind.
+    waypoints.push(preEntryPoint, joinPoint)
+  }
+
+  const waypointsFiltrados = []
+  let referencia = posicionActual
+
+  waypoints.forEach(wp => {
+    if (distanciaEntre(referencia, wp) >= INGRESO_DOWNWIND_MIN_SEPARACION_WP_M) {
+      waypointsFiltrados.push(wp)
+      referencia = wp
+    }
+  })
+
+  if (waypointsFiltrados.length === 0) {
+    waypointsFiltrados.push(joinPoint)
+  }
+
+  return {
+    tramoObjetivo: indiceDownwind,
+    waypoints: waypointsFiltrados,
+    tipo:
+      ladoIngreso === "SOUTH"
+        ? "DOWNWIND_SOUTH_START"
+        : (
+          ladoIngreso === "WEST"
+            ? "DOWNWIND_TEARDROP_45"
+            : "DOWNWIND_DIRECT_45"
+        )
+  }
+}
+
 function reajustarAeronaveEnRuta(aeronave, rutaNueva) {
   if (!aeronave || !rutaNueva || rutaNueva.length < 2) return
 
@@ -1218,6 +1365,32 @@ function prepararAeronaveParaCircuito(salaNombre, sala, aeronave) {
   io.to(salaNombre).emit("rutaCircuito", {
     ruta: aeronave.ruta
   })
+
+  const ingresoDownwind = construirIngresoDownwind45(aeronave)
+  if (
+    ingresoDownwind &&
+    Array.isArray(ingresoDownwind.waypoints) &&
+    ingresoDownwind.waypoints.length > 0
+  ) {
+    aeronave.tramoObjetivo = ingresoDownwind.tramoObjetivo
+    aeronave.ingresoDownwindWaypoints = ingresoDownwind.waypoints.map(wp => ({
+      lat: wp.lat,
+      lng: wp.lng
+    }))
+    aeronave.ingresoDownwindTipo = ingresoDownwind.tipo
+    aeronave.puntoIntercepto = aeronave.ingresoDownwindWaypoints[0]
+    aeronave.estado = "INTERCEPTING ARC"
+    aeronave.interceptTicks = 0
+    aeronave.interceptHeadingRef = null
+    aeronave.velocidad = GO_AROUND_SPEED_DEFAULT_KT * 0.514444
+    aeronave.velocidadObjetivo = GO_AROUND_SPEED_DEFAULT_KT
+
+    iniciarMotorSala(salaNombre)
+    return true
+  }
+
+  aeronave.ingresoDownwindWaypoints = null
+  aeronave.ingresoDownwindTipo = null
 
   let mejor = {
     distancia: Infinity,
@@ -1546,6 +1719,8 @@ socket.on("crearAeronave", (data) => {
   orbitModoContinuo: false,
   orbitDetenerSolicitado: false,
   altitudCircuitoAutomaticaActiva: false,
+  ingresoDownwindWaypoints: null,
+  ingresoDownwindTipo: null,
   estado: "IDLE"
 });
 
@@ -1669,6 +1844,8 @@ socket.on("extenderTramoCircuito", ({ id, metros }) => {
     (aeronave.estado === "INTERCEPTING ARC" || aeronave.estado === "INTERCEPTING LEG") &&
     aeronave.ruta
   ) {
+    aeronave.ingresoDownwindWaypoints = null
+    aeronave.ingresoDownwindTipo = null
     aeronave.ruta = rutaActualizada
 
     if (proyeccionTramo) {
@@ -1743,6 +1920,8 @@ socket.on("virarCircuito", ({ id }) => {
 
   aeronave.tramoObjetivo = mejor.indiceA
   aeronave.puntoIntercepto = mejor.puntoIntercepto
+  aeronave.ingresoDownwindWaypoints = null
+  aeronave.ingresoDownwindTipo = null
   aeronave.estado = "INTERCEPTING ARC"
   aeronave.interceptTicks = 0
   aeronave.interceptHeadingRef = null

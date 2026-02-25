@@ -5850,6 +5850,7 @@ function moverPorPuntos(a){
 
     const actual = a.marker.getLatLng()
     const destino = ruta[i + 1]
+    const bearingTramo = calcularBearing(actual, destino)
 
     const distanciaMetros = map.distance(actual, destino)
 
@@ -5884,10 +5885,10 @@ function moverPorPuntos(a){
     a.lat = nuevaPos.lat
 a.lng = nuevaPos.lng
 
-    const bearing = calcularBearing(nuevaPos, destino)
-
-    a.angulo = bearing
-    actualizarRotacion(a)
+    if(Number.isFinite(bearingTramo)){
+      a.angulo = bearingTramo
+      actualizarRotacion(a)
+    }
 
     // ðŸ”¥ SincronizaciÃ³n profesional
     if(!a.remoto){

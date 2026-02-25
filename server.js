@@ -1358,7 +1358,7 @@ function emitirActualizacionAeronave(nombreSala, aeronave) {
   })
 }
 
-function prepararAeronaveParaCircuito(salaNombre, sala, aeronave) {
+function prepararAeronaveParaCircuito(salaNombre, sala, aeronave, opciones = {}) {
   if (!salaNombre || !sala || !aeronave) return false
 
   limpiarOrbitacionAeronave(aeronave)
@@ -1370,7 +1370,10 @@ function prepararAeronaveParaCircuito(salaNombre, sala, aeronave) {
     ruta: aeronave.ruta
   })
 
-  const ingresoDownwind = construirIngresoDownwind45(aeronave)
+  const usarIngresoMasCercano = opciones && opciones.modoIngreso === "nearest"
+  const ingresoDownwind = usarIngresoMasCercano
+    ? null
+    : construirIngresoDownwind45(aeronave)
   if (
     ingresoDownwind &&
     Array.isArray(ingresoDownwind.waypoints) &&
@@ -2115,7 +2118,7 @@ socket.on("activarManual", ({ id }) => {
   })
 })
 // ===== INICIAR CIRCUITO =====
-socket.on("iniciarCircuito", ({ id }) => {
+socket.on("iniciarCircuito", ({ id, modoIngreso } = {}) => {
 
   const salaNombre = socket.sala
   if (!salaNombre) return
@@ -2133,7 +2136,7 @@ socket.on("iniciarCircuito", ({ id }) => {
 ) return
 
   limpiarGoAroundAeronave(aeronave)
-  prepararAeronaveParaCircuito(salaNombre, sala, aeronave)
+  prepararAeronaveParaCircuito(salaNombre, sala, aeronave, { modoIngreso })
 })
 socket.on("iniciarGoAround", ({ id }) => {
 

@@ -2883,7 +2883,8 @@ function activarPrincipal(boton){
       detenerExtendCircuito(a, false)
 
       socket.emit("iniciarCircuito", {
-        id: a.id
+        id: a.id,
+        modoIngreso: "nearest"
       })
     })
   }
@@ -3551,7 +3552,10 @@ function reingresarCircuito(a){
 
   a.estado = "REJOINING";
 
-  socket.emit("iniciarCircuito", { id: a.id });
+  socket.emit("iniciarCircuito", {
+    id: a.id,
+    modoIngreso: "nearest"
+  });
 }
 
 
@@ -6169,7 +6173,8 @@ function iniciarCircuito(){
 
   cancelarAccionesAeronave(a)
   socket.emit("iniciarCircuito", {
-    id: a.id
+    id: a.id,
+    modoIngreso: "nearest"
   })
 
 }

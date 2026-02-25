@@ -45,6 +45,7 @@ const TOLERANCIA_REINGRESO_ORBITA_M = 80
 const ORBIT_TASA_VIRAJE_GRADOS_SEG = 3
 const ORBIT_SENTIDO_DERECHA = 1
 const INGRESO_DOWNWIND_ANGULO_GRADOS = 45
+const INGRESO_CERCANO_MAX_DISTANCIA_M = 150
 const INGRESO_DOWNWIND_PREENTRY_M = 0.9 * 1852
 const INGRESO_DOWNWIND_CRUCE_M = 0.8 * 1852
 const INGRESO_DOWNWIND_GOTA_M = 1.1 * 1852
@@ -1370,7 +1371,17 @@ function prepararAeronaveParaCircuito(salaNombre, sala, aeronave, opciones = {})
     ruta: aeronave.ruta
   })
 
-  const usarIngresoMasCercano = opciones && opciones.modoIngreso === "nearest"
+  let usarIngresoMasCercano = opciones && opciones.modoIngreso === "nearest"
+  if (!usarIngresoMasCercano && opciones && opciones.modoIngreso === "nearest-if-close") {
+    const proyeccionCercana = obtenerProyeccionRutaMasCercana(
+      { lat: aeronave.lat, lng: aeronave.lng },
+      aeronave.ruta
+    )
+    usarIngresoMasCercano =
+      Boolean(proyeccionCercana) &&
+      Number.isFinite(proyeccionCercana.distancia) &&
+      proyeccionCercana.distancia < INGRESO_CERCANO_MAX_DISTANCIA_M
+  }
   const ingresoDownwind = usarIngresoMasCercano
     ? null
     : construirIngresoDownwind45(aeronave)

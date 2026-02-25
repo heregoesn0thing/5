@@ -2884,7 +2884,7 @@ function activarPrincipal(boton){
 
       socket.emit("iniciarCircuito", {
         id: a.id,
-        modoIngreso: "nearest"
+        modoIngreso: "nearest-if-close"
       })
     })
   }
@@ -6174,7 +6174,7 @@ function iniciarCircuito(){
   cancelarAccionesAeronave(a)
   socket.emit("iniciarCircuito", {
     id: a.id,
-    modoIngreso: "nearest"
+    modoIngreso: "nearest-if-close"
   })
 
 }

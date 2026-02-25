@@ -2988,7 +2988,7 @@ function iniciarMonitoreoTouchAndGo(a){
       return
     }
 
-    if(estaEnTramoFinalRwy22(a)){
+    if(estaEnTramoFinalRwy22(a) || estaEnCorredorTouchAndGoRwy22(a)){
       ejecutarProcedimientoTouchAndGo(a)
     }
   }, 300)
@@ -3091,6 +3091,39 @@ function estaEnTramoFinalRwy22(a){
   const altitudValida = Number.isFinite(altitudActual) && altitudActual <= 2000
 
   return enFinal && altitudValida
+}
+
+function estaEnCorredorTouchAndGoRwy22(a){
+  if(!a || !a.marker) return false
+
+  const posicion = a.marker.getLatLng()
+  if(!posicion) return false
+
+  const rumbo = Number(a.angulo)
+  const diferenciaRumbo = Math.abs(
+    ((rumbo - RUMBO_RWY22 + 540) % 360) - 180
+  )
+  const alineadoAproximacion = Number.isFinite(rumbo) && diferenciaRumbo <= 30
+  if(!alineadoAproximacion) return false
+
+  const puntoTouchdown = calcularPuntoDesplazado(
+    UMBRAL_RWY22[0],
+    UMBRAL_RWY22[1],
+    DISTANCIA_TOUCHDOWN_RWY22_M,
+    RUMBO_RWY22
+  )
+
+  const distanciaTouchdown = calcularDistancia(
+    posicion.lat,
+    posicion.lng,
+    puntoTouchdown[0],
+    puntoTouchdown[1]
+  )
+
+  const altitudActual = Number(a.altitud)
+  const altitudValida = Number.isFinite(altitudActual) && altitudActual <= 2200
+
+  return distanciaTouchdown <= 1800 && altitudValida
 }
 function iniciarMonitoreoAterrizaje(a){
 

@@ -45,6 +45,12 @@ html, body{
   white-space:nowrap;
 }
 
+.callsign-label.go-around{
+  background:#b91c1c;
+  border:1px solid #ef4444;
+  color:#fff;
+}
+
 .status-label{
   position:absolute;
   top:-16px;
@@ -81,7 +87,7 @@ html, body{
   font-family: "Segoe UI", sans-serif;
   font-size: 13px;
   color: #e5e7eb;
- /* Animación desplegable */
+ /* AnimaciÃ³n desplegable */
   overflow: hidden;
   transition: all 0.3s ease;
   
@@ -107,7 +113,19 @@ html, body{
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 
-/* Cuando está colapsado */
+#panelInfoAeronave .header-title{
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#panelInfoAeronave .header-aircraft-icon{
+  color: #93c5fd;
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* Cuando estÃ¡ colapsado */
 #panelInfoAeronave.contraido{
   padding-bottom: 8px;
   height: auto;
@@ -140,7 +158,7 @@ html, body{
   transition: transform 0.3s ease;
 }
 
-/* Rotación del icono */
+/* RotaciÃ³n del icono */
 #panelInfoAeronave.contraido #panelToggleIcon{
   transform: rotate(-90deg);
 }
@@ -266,16 +284,18 @@ html, body{
 }
 
 .btn-menu.stop {
-  background:#7f1d1d;
-  color: white;
+  background:#232a3d;
+  color:#cbd5e1;
   font-weight:600;
+  cursor:default;
+  pointer-events:none;
 }
 
 .btn-menu.stop:hover {
-  background:#b91c1c;
+  background:#232a3d;
 }
 
-/* Botón eliminar */
+/* BotÃ³n eliminar */
 .fab-delete{
   width:42px;
   height:42px;
@@ -348,7 +368,7 @@ html, body{
 }
 
 /* ============================= */
-/* DANGER ⚠ */
+/* DANGER âš  */
 /* ============================= */
 #btnDanger{
   background: rgba(120,20,20,0.85);
@@ -366,8 +386,21 @@ html, body{
   animation: pulseDanger 1.2s infinite;
 }
 
+#btnWeather{
+  font-size: 8px;
+  letter-spacing: 0.4px;
+  font-weight: 700;
+  padding: 0 4px;
+}
+
+#btnWeather.activo{
+  background: #0f766e;
+  color: #ecfeff;
+  box-shadow: 0 0 12px rgba(20, 184, 166, 0.45);
+}
+
 /* ============================= */
-/* ANIMACIÓN DANGER */
+/* ANIMACIÃ“N DANGER */
 /* ============================= */
 @keyframes pulseDanger{
   0%{ box-shadow: 0 0 10px rgba(255,0,0,0.5); }
@@ -376,19 +409,6 @@ html, body{
 }
 /* =================  =================*/
 
-#panelRumbo button{
-  background: #1e2a38;
-  color: white;
-  border: none;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: 0.2s;
-}
-#panelRumbo button:hover{
-  background: #2f4257;
-}
 :root{
   --z-map: 1;
   --z-ui: 1000;
@@ -396,68 +416,7 @@ html, body{
   --z-modal: 3000;
 }
 #createAircraftPanel { z-index: var(--z-modal); }
-#panelRumbo{
-  position: fixed;
-  bottom: 15px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(15,20,30,0.95);
-  padding: 12px 16px;
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
-  z-index: 10000;
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
-
-#panelRumbo button{
-  background: #1e2f45;
-  color: white;
-  border: none;
-  padding: 8px 12px;
-  border-radius: 10px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: 0.2s;
-  font-size: 14px;
-}
-
-#panelRumbo button:hover{
-  background: #2e4766;
-}
-
-#headingDisplay{
-  font-size: 18px;
-  font-weight: bold;
-  width: 70px;
-  text-align: center;
-  color: #00e0ff;
-}
-
-
-
-/* 📱 RESPONSIVE MÓVIL */
-@media (max-width: 600px){
-
-  #panelRumbo{
-    bottom: 10px;
-    padding: 8px 10px;
-    gap: 6px;
-  }
-
-  #panelRumbo button{
-    padding: 6px 8px;
-    font-size: 12px;
-  }
-
-  #headingDisplay{
-    font-size: 14px;
-    width: 55px;
-  }
-
-}
+/* ðŸ“± RESPONSIVE MÃ“VIL */
 #departurePanel{
   position:absolute;
   top:100px;
@@ -487,14 +446,14 @@ html, body{
   padding:10px;
 }
 
-#depBtnTakeoff{
+#depBtnTakeoff.activo{
   background: linear-gradient(145deg,#065f46,#047857);
   border-color: #10b981;
   color: #ecfdf5;
   box-shadow: 0 0 10px rgba(16,185,129,0.35);
 }
 
-#depBtnTakeoff:hover{
+#depBtnTakeoff.activo:hover{
   box-shadow: 0 0 12px rgba(16,185,129,0.5);
 }
 
@@ -588,7 +547,7 @@ html, body{
 }
 
 /* ===============================
-   BOTÓN CAPAS – ESTILO RADAR PRO
+   BOTÃ“N CAPAS â€“ ESTILO RADAR PRO
 ================================ */
 
 #btnCapas{
@@ -617,7 +576,7 @@ html, body{
 
 
 /* ===============================
-   PANEL CAPAS – DISEÑO PREMIUM
+   PANEL CAPAS â€“ DISEÃ‘O PREMIUM
 ================================ */
 
 .panel-capas{
@@ -737,33 +696,58 @@ html, body{
   z-index: 9999;
 }
 
+.weather-panel{
+  position: absolute;
+  top: 56px;
+  right: 0;
+  width: 350px;
+  min-height: 278px;
+  display: none;
+  padding: 6px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.92);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+  z-index: 10001;
+}
+
+.weather-panel.activo{
+  display: block;
+}
+
 /* Header reloj */
 .tiempoHeader {
   display: flex;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.tiempoHeaderControles{
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 5px;
 }
 
 /* Reloj digital */
 #relojGlobal {
-  font-size: 20px;
+  font-size: 28px;
   font-weight: 600;
-  letter-spacing: 1px;
-  padding: 6px 14px;
+  letter-spacing: 0.5px;
+  padding: 6px 12px;
   border-radius: 8px;
   background: linear-gradient(145deg, #1c1f2b, #23283a);
   color: #00e0ff;
   box-shadow: 0 4px 12px rgba(0,0,0,0.4);
 }
 
-/* Botón engranaje */
+/* BotÃ³n engranaje */
 .btnReloj {
   background: #1f2433;
   border: none;
   color: #aaa;
-  font-size: 18px;
-  width: 36px;
-  height: 36px;
+  font-size: 16px;
+  width: 42px;
+  height: 42px;
   padding: 0;
   display: inline-flex;
   align-items: center;
@@ -801,7 +785,7 @@ html, body{
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
-/* Título */
+/* TÃ­tulo */
 .panelConfigReloj label {
   font-size: 13px;
   color: #aaa;
@@ -823,7 +807,7 @@ html, body{
   border-color: #00e0ff;
 }
 
-/* Botón aplicar */
+/* BotÃ³n aplicar */
 .btnAplicar {
   background: linear-gradient(145deg, #008cff, #0055cc);
   border: none;
@@ -856,22 +840,19 @@ html, body{
   top:auto;
   bottom:20px;
   left:0;
-  transform:translateX(-260px);
-  transition:transform 0.35s ease;
-  display:flex;
-  align-items:center;
+  display:block;
   z-index:var(--z-panel);
-}
-
-#menuControles.activo{
-  transform:translateX(0);
 }
 
 /* PANEL INTERNO */
 
 .contenido-lateral{
+  position: relative;
+  z-index: 1;
   width:260px;
   margin-top:0;
+  transform:translate(-260px, 18px);
+  transition:transform 0.35s ease;
   padding:20px;
   border-radius:0 16px 16px 0;
 
@@ -886,9 +867,18 @@ html, body{
   gap:25px;
 }
 
-/* BOTÓN DESPLEGAR */
+#menuControles.activo .contenido-lateral{
+  transform:translate(0, 18px);
+}
+
+/* BOTÃ“N DESPLEGAR */
 
 .boton-lateral{
+  position:fixed;
+  top:50%;
+  left:6px;
+  transform:translateY(-50%);
+  z-index: 2;
   width:28px;
   height:90px;
 
@@ -903,9 +893,13 @@ html, body{
   border-radius:8px;
   cursor:pointer;
 
-  transition:0.2s ease;
+  transition:left 0.35s ease, background 0.2s ease, color 0.2s ease;
 
-  margin-left:6px; /* pequeño espacio del panel */
+  margin-left:0;
+}
+
+#menuControles.activo .boton-lateral{
+  left:266px;
 }
 
 .boton-lateral:hover{
@@ -916,6 +910,171 @@ html, body{
 .boton-lateral span{
   font-size:18px;
   font-weight:bold;
+}
+
+.boton-lateral-level{
+  top: calc(50% + 220px);
+}
+
+.boton-lateral-speed{
+  top: calc(50% + 322px);
+}
+
+#menuControles:not(.activo) .boton-lateral-level,
+#menuControles:not(.activo) .boton-lateral-speed{
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.boton-lateral-level span,
+.boton-lateral-speed span{
+  font-size: 10px;
+  letter-spacing: 1px;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+.level-control-panel{
+  position: fixed;
+  top: calc(50% + 250px);
+  left: 44px;
+  width: 190px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: linear-gradient(160deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.96));
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  box-shadow: 0 12px 26px rgba(2, 6, 23, 0.55);
+  z-index: 2;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-50%) translateX(-8px);
+  transition: left 0.35s ease, opacity 0.2s ease, transform 0.2s ease;
+}
+
+.level-control-panel.activo{
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(-50%) translateX(0);
+}
+
+#menuControles.activo .level-control-panel{
+  left: 304px;
+}
+
+#menuControles:not(.activo) .level-control-panel{
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.level-control-title{
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  font-weight: 700;
+  color: #86efac;
+  margin-bottom: 8px;
+}
+
+#levelControlSlider{
+  width: 100%;
+  accent-color: #22c55e;
+}
+
+.level-control-readout{
+  margin-top: 6px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.speed-control-panel{
+  position: fixed;
+  top: calc(50% + 322px);
+  left: 44px;
+  width: 190px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: linear-gradient(160deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.96));
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  box-shadow: 0 12px 26px rgba(2, 6, 23, 0.55);
+  z-index: 2;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-50%) translateX(-8px);
+  transition: left 0.35s ease, opacity 0.2s ease, transform 0.2s ease;
+}
+
+.speed-control-panel.activo{
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(-50%) translateX(0);
+}
+
+#menuControles.activo .speed-control-panel{
+  left: 304px;
+}
+
+#menuControles:not(.activo) .speed-control-panel{
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.speed-control-title{
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  font-weight: 700;
+  color: #93c5fd;
+  padding-right: 56px;
+  margin-bottom: 8px;
+}
+
+.speed-mach-btn{
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-width: 46px;
+  height: 20px;
+  border: 1px solid rgba(56, 189, 248, 0.55);
+  border-radius: 6px;
+  background: linear-gradient(145deg, #0f172a, #1e293b);
+  color: #dbeafe;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.speed-mach-btn:hover{
+  background: linear-gradient(145deg, #0b3b5b, #1e40af);
+  border-color: #7dd3fc;
+  color: #f8fafc;
+}
+
+.speed-mach-btn.activo{
+  background: linear-gradient(145deg, #075985, #1d4ed8);
+  border-color: #93c5fd;
+  color: #eff6ff;
+}
+
+#speedControlSlider{
+  width: 100%;
+  accent-color: #38bdf8;
+}
+
+.speed-control-readout{
+  margin-top: 6px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 600;
+  color: #e2e8f0;
 }
 
 /* =========================================
@@ -1009,6 +1168,18 @@ html, body{
   border-color:#ef4444;
   color:#fef2f2;
   box-shadow:0 0 12px rgba(239,68,68,0.5);
+  animation: goaroundBlink 0.9s ease-in-out infinite;
+}
+
+@keyframes goaroundBlink{
+  0%, 100%{
+    opacity: 1;
+    box-shadow:0 0 12px rgba(239,68,68,0.5);
+  }
+  50%{
+    opacity: 0.5;
+    box-shadow:0 0 4px rgba(239,68,68,0.2);
+  }
 }
 
 /* =========================================
@@ -1197,6 +1368,20 @@ html, body{
   color:white;
   box-shadow:0 0 10px rgba(245,158,11,0.6);
 }
+
+#taxiStart.taxi-btn.activo{
+  background:linear-gradient(145deg,#065f46,#047857);
+  border-color:#10b981;
+  color:#ecfdf5;
+  box-shadow:0 0 10px rgba(16,185,129,0.55);
+}
+
+#taxiHold.taxi-btn.activo{
+  background:linear-gradient(145deg,#7f1d1d,#b91c1c);
+  border-color:#ef4444;
+  color:#fef2f2;
+  box-shadow:0 0 10px rgba(239,68,68,0.55);
+}
 /* ================= CREATE AIRCRAFT PANEL ================= */
 
 #createAircraftPanel {
@@ -1225,8 +1410,10 @@ html, body{
 /* HEADER */
 #createAircraftPanel .panelHeader {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
+  position: relative;
+  text-align: center;
 
   padding: 12px 16px;
 
@@ -1239,15 +1426,11 @@ html, body{
   letter-spacing: 0.5px;
 }
 
-/* BOTÓN CIERRE */
-#createAircraftPanel .panelHeader span:last-child {
-  font-size: 14px;
-  transition: 0.2s ease;
-}
-
-#createAircraftPanel .panelHeader span:last-child:hover {
-  color: #ff4d4d;
-  transform: scale(1.1);
+/* BOTÃ“N CIERRE */
+#createAircraftPanel .panelHeader span {
+  display: block;
+  width: 100%;
+  text-align: center;
 }
 
 /* BODY */
@@ -1290,7 +1473,7 @@ html, body{
   box-shadow: 0 0 8px rgba(0,224,255,0.4);
 }
 
-/* BOTÓN PRINCIPAL */
+/* BOTÃ“N PRINCIPAL */
 #createAircraftPanel .btnPrimary {
   margin-top: 8px;
   padding: 10px;
@@ -1310,7 +1493,7 @@ html, body{
   box-shadow: 0 10px 20px rgba(0,140,255,0.5);
 }
 
-/* ANIMACIÓN DE OCULTO */
+/* ANIMACIÃ“N DE OCULTO */
 .oculto {
   opacity: 0;
   pointer-events: none;
@@ -1319,70 +1502,189 @@ html, body{
 #panelManual {
   display: none;
   position: fixed;
-  bottom: 25px;
+  bottom: 0;
   left: 50%;
-  transform: translateX(-50%);
-  width: 650px;
+  transform: translateX(-50%) translateY(42px);
+  opacity: 0;
+  pointer-events: none;
+  width: min(88vw, 620px);
+  overflow: hidden;
 
-  background: linear-gradient(180deg, #111, #1c1c1c);
-  border: 1px solid #333;
-  border-radius: 14px;
-
-  box-shadow: 0 0 25px rgba(0,0,0,0.7);
-  color: #eee;
+  background: linear-gradient(160deg, rgba(15, 23, 42, 0.96), rgba(17, 24, 39, 0.96));
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-bottom: none;
+  border-radius: 16px 16px 0 0;
+  box-shadow: none;
+  backdrop-filter: blur(10px);
+  color: #e5e7eb;
   font-family: "Segoe UI", sans-serif;
   z-index: 9999;
+  transition: opacity 0.24s ease, transform 0.24s ease;
 }
 
-.panel-header {
-  text-align: center;
-  padding: 10px;
-  font-weight: bold;
-  letter-spacing: 2px;
-  font-size: 14px;
-  background: #0d0d0d;
-  border-bottom: 1px solid #333;
+#panelManual.activo{
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
 }
 
-.panel-body {
+#panelManual .panel-header {
   display: flex;
-  justify-content: space-around;
-  padding: 20px;
-}
-
-.control-group {
+  align-items: center;
+  justify-content: center;
+  position: relative;
   text-align: center;
-  width: 30%;
+  min-height: 30px;
+  padding: 4px 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  font-size: 9px;
+  text-transform: uppercase;
+  color: #e0f2fe;
+  background: linear-gradient(135deg, rgba(8, 47, 73, 0.92), rgba(30, 64, 175, 0.45));
+  border-bottom: 1px solid rgba(125, 211, 252, 0.35);
 }
 
-.control-group .label {
-  font-size: 13px;
-  color: #aaa;
-  margin-bottom: 6px;
+#panelManual .manual-header-title{
+  display: inline-block;
 }
 
-.control-group .value {
-  font-size: 24px;
-  font-weight: bold;
-  margin-bottom: 12px;
-  color: #00ffcc;
+#panelManual .manual-header-actions{
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.buttons button {
-  margin: 4px;
-  padding: 6px 14px;
-  font-size: 14px;
-  background: #222;
-  color: white;
-  border: 1px solid #444;
-  border-radius: 6px;
+#panelManual .manual-header-btn{
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  border: 1px solid rgba(125, 211, 252, 0.45);
+  background: linear-gradient(145deg, #0f172a, #1e293b);
+  color: #e2e8f0;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
   cursor: pointer;
-  transition: 0.2s;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
 }
 
-.buttons button:hover {
-  background: #00ffcc;
-  color: black;
-  border-color: #00ffcc;
+#panelManual .manual-header-btn:hover{
+  background: linear-gradient(145deg, #0b3b5b, #1e40af);
+  border-color: #7dd3fc;
+  color: #f8fafc;
+  transform: translateY(-1px);
+}
+
+#panelManual .manual-header-btn:active{
+  transform: translateY(0);
+}
+
+#panelManual .manual-header-btn.activo{
+  background: linear-gradient(145deg, #075985, #1d4ed8);
+  border-color: #93c5fd;
+  color: #eff6ff;
+}
+
+#panelManual #btnManualM{
+  background: linear-gradient(145deg, #065f46, #047857);
+  border-color: #34d399;
+  color: #ecfdf5;
+}
+
+#panelManual #btnManualM:hover{
+  background: linear-gradient(145deg, #047857, #059669);
+  border-color: #6ee7b7;
+  color: #f0fdf4;
+}
+
+#panelManual #btnManualM:active{
+  background: linear-gradient(145deg, #065f46, #047857);
+}
+
+#panelManual .panel-body {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 9px;
+}
+
+#panelManual .control-group {
+  text-align: center;
+  padding: 7px 6px;
+  border-radius: 9px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+#panelManual .control-group .label {
+  font-size: 9px;
+  color: #93c5fd;
+  letter-spacing: 1px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+#panelManual .control-group .value {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: #67e8f9;
+  text-shadow: 0 0 14px rgba(103, 232, 249, 0.28);
+}
+
+#panelManual .buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+}
+
+#panelManual .buttons button {
+  min-height: 26px;
+  padding: 3px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  background: linear-gradient(145deg, #0f172a, #1e293b);
+  color: #e2e8f0;
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.42);
+  transition: transform 0.15s ease, background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+#panelManual .buttons button:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(145deg, #0b3b5b, #1e40af);
+  border-color: #7dd3fc;
+  color: #f8fafc;
+}
+
+#panelManual .buttons button:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 780px) {
+  #panelManual {
+    width: min(94vw, 430px);
+    bottom: 0;
+  }
+
+  #panelManual .panel-body {
+    grid-template-columns: 1fr;
+  }
+
+  #panelManual .control-group .value {
+    font-size: 17px;
+  }
 }
 

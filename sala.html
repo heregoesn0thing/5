@@ -807,6 +807,7 @@ const rutaTaxiE = [
 const UMBRAL_RWY22 = [-13.736552242088443, -76.21347536723357]
 const RUMBO_RWY22 = 220
 const DISTANCIA_TOUCHDOWN_RWY22_M = 300
+const DISTANCIA_RODAJE_TOUCH_AND_GO_M = 300
 const VELOCIDAD_ROLLOUT_KT = 90
 const VELOCIDAD_TAXI_ATERRIZAJE_KT = 90
 const LIB_MANDI = L.latLng(-12.389000, -76.758094)
@@ -3471,34 +3472,57 @@ function activarTouchAndGo(boton){
 
 function iniciarSecuenciaTouchAndGo(a){
 
-  const puntoToma = [UMBRAL_RWY22[0], UMBRAL_RWY22[1]];
-
-  // ðŸ”¥ Avisar al servidor que cancela circuito/manual
-  socket.emit("forzarAterrizaje", { id: a.id });
-
-  a.estado = "TNG_FINAL";
-
-  moverAeronaveHacia(a, puntoToma, () => {
-    ejecutarRodajeTouchAndGo(a);
-  });
-}
-function ejecutarRodajeTouchAndGo(a){
-
-  const puntoRotacion = calcularPuntoDesplazado(
+  const puntoTouchdown = calcularPuntoDesplazado(
     UMBRAL_RWY22[0],
     UMBRAL_RWY22[1],
-    300,
+    DISTANCIA_TOUCHDOWN_RWY22_M,
     RUMBO_RWY22
-  );
+  )
 
-  a.estado = "TNG_ROLL";
+  // ðŸ”¥ Avisar al servidor que cancela circuito/manual
+  socket.emit("forzarAterrizaje", { id: a.id })
 
-  a.velocidadObjetivo = 60;
-  a.velocidad = 60;
+  a.estado = "TNG_FINAL"
+  a.velocidadObjetivo = 130
+  a.velocidad = 130 * 0.514444
+
+  moverAeronaveHacia(a, puntoTouchdown, () => {
+    a.altitud = 0
+    ejecutarRodajeTouchAndGo(a, puntoTouchdown)
+  }, {
+    descensoProgresivo: true,
+    altitudObjetivo: 0,
+    altitudInicial: Number(a.altitud)
+  })
+}
+function ejecutarRodajeTouchAndGo(a, puntoTouchdown = null){
+
+  const puntoInicioRodaje =
+    Array.isArray(puntoTouchdown) && puntoTouchdown.length === 2
+      ? puntoTouchdown
+      : calcularPuntoDesplazado(
+          UMBRAL_RWY22[0],
+          UMBRAL_RWY22[1],
+          DISTANCIA_TOUCHDOWN_RWY22_M,
+          RUMBO_RWY22
+        )
+
+  const puntoRotacion = calcularPuntoDesplazado(
+    puntoInicioRodaje[0],
+    puntoInicioRodaje[1],
+    DISTANCIA_RODAJE_TOUCH_AND_GO_M,
+    RUMBO_RWY22
+  )
+
+  a.estado = "TNG_ROLL"
+  a.altitud = 0
+
+  a.velocidadObjetivo = 60
+  a.velocidad = 60
 
   moverAeronaveHacia(a, puntoRotacion, () => {
-    iniciarAscensoTouchAndGo(a);
-  });
+    iniciarAscensoTouchAndGo(a)
+  })
 }
 function iniciarAscensoTouchAndGo(a){
 

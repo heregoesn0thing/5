@@ -269,14 +269,26 @@ const socket = io()
 const params = new URLSearchParams(window.location.search);
 const nombreSala = params.get("nombre");
 let rutaCircuitoServidor = null
-socket.on("connect", () => {
-
-  const salaGuardada = localStorage.getItem("salaActiva")
-
-  if (salaGuardada) {
-    socket.emit("unirseSala", salaGuardada)
+function obtenerSalaActiva(){
+  const salaDesdeUrl =
+    typeof nombreSala === "string" ? nombreSala.trim() : ""
+  if(salaDesdeUrl){
+    return salaDesdeUrl
   }
 
+  const salaGuardada = localStorage.getItem("salaActiva")
+  return typeof salaGuardada === "string" ? salaGuardada.trim() : ""
+}
+
+function unirseSalaActiva(){
+  const sala = obtenerSalaActiva()
+  if(!sala) return
+  localStorage.setItem("salaActiva", sala)
+  socket.emit("unirseSala", sala)
+}
+
+socket.on("connect", () => {
+  unirseSalaActiva()
 })
 socket.on("rutaCircuito", data => {
 
@@ -295,7 +307,7 @@ if(!nombreSala){
   alert("No room specified");
   window.location.href = "/";
 }else{
-  socket.emit("unirseSala", nombreSala);
+  localStorage.setItem("salaActiva", nombreSala.trim())
 }
 
 
@@ -5215,7 +5227,6 @@ function configurarSIDDesdeDeparture(sidNombre){
 
       despegar()
       actualizarEstadoBotonTakeoff(a)
-      ocultarOpcionesSID()
     })
   }
 

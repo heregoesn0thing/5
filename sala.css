@@ -937,7 +937,7 @@ html, body{
 
 .level-control-panel{
   position: fixed;
-  top: calc(50% + 250px);
+  top: calc(50% + 220px);
   left: 44px;
   width: 190px;
   padding: 10px 12px;

@@ -256,7 +256,7 @@
   <label><input type="checkbox" id="chkCtr"> CTR</label>
   <label><input type="checkbox" id="chkTma"> TMA</label>
   <label><input type="checkbox" id="chkEje"> RWY 04/22</label>
-  <label><input type="checkbox" id="chkPatron"> Aerodrome Traffic Circuit</label>
+  <label><input type="checkbox" id="chkPatron" checked> Aerodrome Traffic Circuit</label>
   <label><input type="checkbox" id="chkSidKopra1"> KOPRA1</label>
   <label><input type="checkbox" id="chkSidTelot1"> TELOT1</label>
 </div>
@@ -3282,6 +3282,11 @@ function cancelarAccionesAeronave(a){
   }
   a.touchAndGoPendiente = false;
 
+  if(a.intervaloTouchAndGoClimb){
+    clearInterval(a.intervaloTouchAndGoClimb)
+    a.intervaloTouchAndGoClimb = null
+  }
+
   if(a.intervaloMovimiento){
     clearInterval(a.intervaloMovimiento);
     a.intervaloMovimiento = null;
@@ -3560,24 +3565,62 @@ function ejecutarRodajeTouchAndGo(a, puntoTouchdown = null){
 }
 function iniciarAscensoTouchAndGo(a){
 
-  a.estado = "TNG_CLIMB";
+  if(!a || !a.marker) return
 
-  const altitudObjetivo = 1500;
-  const tasaAscenso = 15; // ft por frame
+  if(a.intervaloTouchAndGoClimb){
+    clearInterval(a.intervaloTouchAndGoClimb)
+    a.intervaloTouchAndGoClimb = null
+  }
 
-  const intervaloAscenso = setInterval(() => {
+  a.estado = "TNG_CLIMB"
+  a.angulo = Number.isFinite(a.angulo) ? a.angulo : RUMBO_RWY22
+  a.velocidadObjetivo = 90
+  a.velocidad = 90
 
-    a.altitud += tasaAscenso;
+  const altitudObjetivo = 1500
+  const tasaAscensoFtPorSegundo = 300
+  let ultimoTiempo = performance.now()
 
-    if(a.altitud >= altitudObjetivo){
+  a.intervaloTouchAndGoClimb = setInterval(() => {
+    const ahora = performance.now()
+    const deltaSegundos = Math.max(0.02, (ahora - ultimoTiempo) / 1000)
+    ultimoTiempo = ahora
 
-      clearInterval(intervaloAscenso);
-      a.altitud = altitudObjetivo;
+    a.altitud += (tasaAscensoFtPorSegundo * deltaSegundos)
 
-      reingresarCircuito(a);
+    const velocidadKnots = Number.isFinite(a.velocidadObjetivo) && a.velocidadObjetivo > 0
+      ? a.velocidadObjetivo
+      : 90
+    const distanciaTick = (velocidadKnots * 0.514444) * deltaSegundos
+
+    const actual = a.marker.getLatLng()
+    const siguiente = calcularPuntoDesplazado(
+      actual.lat,
+      actual.lng,
+      distanciaTick,
+      a.angulo
+    )
+
+    a.marker.setLatLng(siguiente)
+    a.lat = siguiente[0]
+    a.lng = siguiente[1]
+
+    if(!a.remoto){
+      sincronizarMovimiento(a, a.lat, a.lng)
     }
 
-  }, 50);
+    if(a.altitud >= altitudObjetivo){
+      clearInterval(a.intervaloTouchAndGoClimb)
+      a.intervaloTouchAndGoClimb = null
+      a.altitud = altitudObjetivo
+
+      if(!a.remoto){
+        sincronizarEstadoAeronaveLocal(a)
+      }
+
+      reingresarCircuito(a)
+    }
+  }, 50)
 }
 
 
@@ -4299,12 +4342,22 @@ function iniciarRodaje(){
   if(!a.puntosRuta || a.puntosRuta.length < 2) return
 
   a.estado = "TAXI"
+  const velocidadTaxiInicial = (() => {
+    const velocidadObjetivoActual = Number(a.velocidadObjetivo)
+    if (Number.isFinite(velocidadObjetivoActual) && velocidadObjetivoActual > 0) {
+      return velocidadObjetivoActual
+    }
+    return 15
+  })()
+  a.velocidadObjetivo = velocidadTaxiInicial
+  a.velocidad = velocidadTaxiInicial * 0.514444
   actualizarInteraccion(a)
 
   mostrarTaxiing(a, true)
   a.modoRuta = false
 
   moverPorPuntos(a)
+  sincronizarEstadoAeronaveLocal(a)
   actualizarPanelInfo(a)
   actualizarBotonTaxi()
 
@@ -4324,11 +4377,17 @@ function detenerRodaje(a){
   }
 
   a.estado = "IDLE"
+  a.velocidad = 0
+  a.velocidadObjetivo = 0
   actualizarInteraccion(a)
   mostrarTaxiing(a, false)
 
   a.modoRuta = false
   a.rutaTemporal = []
+
+  if(!a.remoto){
+    sincronizarEstadoAeronaveLocal(a)
+  }
 
   actualizarPanelInfo(a)
   actualizarBotonTaxi()
@@ -5768,7 +5827,7 @@ function dibujarRutaServidor(){
   patronLayer = L.polyline(
     rutaCircuitoServidor.map(p => [p.lat, p.lng]),
     {
-      color: "#00ffff",
+      color: "#ffff00",
       weight: 2,
       dashArray: "8 8"
     }
@@ -5942,6 +6001,8 @@ function moverPorPuntos(a){
         ? velocidadSeleccionada
         : taxiKnotsPorDefecto
     const metrosPorSegundo = taxiKnots * 0.514444
+    a.velocidadObjetivo = taxiKnots
+    a.velocidad = metrosPorSegundo
 
     if(i >= ruta.length - 1){
       finalizarTaxi(a)
@@ -6039,6 +6100,8 @@ function actualizarRutaRecorrida(a){
 
 function finalizarTaxi(a){
   a.estado = "IDLE"
+  a.velocidad = 0
+  a.velocidadObjetivo = 0
   actualizarInteraccion(a)
   mostrarTaxiing(a, false)
 
@@ -6066,6 +6129,10 @@ function finalizarTaxi(a){
   a.puntosRuta = []
   a.indiceRuta = 0
 
+  if(!a.remoto){
+    sincronizarEstadoAeronaveLocal(a)
+  }
+
   actualizarPanelInfo(a)
   actualizarBotonTaxi()
 }
@@ -6089,7 +6156,9 @@ function sincronizarMovimiento(a, lat, lng){
   lng,
   altitud: a.altitud,
   angulo: a.angulo,
-  estado: a.estado
+  estado: a.estado,
+  velocidad: Number.isFinite(a.velocidad) ? a.velocidad : 0,
+  velocidadObjetivo: Number.isFinite(a.velocidadObjetivo) ? a.velocidadObjetivo : 0
 })
 
 }

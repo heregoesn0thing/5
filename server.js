@@ -77,6 +77,9 @@ const INTERCEPT_LEG_MAX_TURN_FAR_DEG = 1.1
 const INTERCEPT_LEG_MAX_TURN_NEAR_DEG = 1.9
 const INTERCEPT_LEG_FORCE_CAPTURE_TICKS = 280
 const INTERCEPT_LEG_FORCE_CAPTURE_DISTANCE_M = 140
+const INTERCEPT_LEG_RESCUE_CAPTURE_TICKS = 120
+const INTERCEPT_LEG_RESCUE_CAPTURE_DISTANCE_M = 240
+const INTERCEPT_LEG_HARD_TIMEOUT_TICKS = 520
 // ================== UTILIDADES ==================
 
 function convertirHoraASegundos(horaStr) {
@@ -471,25 +474,74 @@ if (a.estado === "INTERCEPTING LEG") {
   const capturaForzada =
     a.interceptTicks > INTERCEPT_LEG_FORCE_CAPTURE_TICKS &&
     distanciaFinalAlTramo < INTERCEPT_LEG_FORCE_CAPTURE_DISTANCE_M;
+  const capturaRescate =
+    a.interceptTicks > INTERCEPT_LEG_RESCUE_CAPTURE_TICKS &&
+    distanciaFinalAlTramo < INTERCEPT_LEG_RESCUE_CAPTURE_DISTANCE_M;
 
-  if (capturaPrecisa || capturaCercana || capturaForzada) {
-    a.lat = proyeccionFinal.punto.lat;
-    a.lng = proyeccionFinal.punto.lng;
+  let puntoCaptura = proyeccionFinal.punto;
+  let indiceCaptura = a.tramoObjetivo;
+  let progresoCaptura = distanciaSegmento * proyeccionFinal.t;
+  let rumboCaptura = rumboTramo;
+  let capturaTimeout = false;
+
+  if (a.interceptTicks > INTERCEPT_LEG_HARD_TIMEOUT_TICKS) {
+    const proyeccionRuta = obtenerProyeccionRutaMasCercana(
+      { lat: a.lat, lng: a.lng },
+      a.ruta
+    );
+    if (proyeccionRuta) {
+      capturaTimeout = true;
+      indiceCaptura = proyeccionRuta.indiceA;
+      if (proyeccionRuta.puntoIntercepto) {
+        puntoCaptura = proyeccionRuta.puntoIntercepto;
+      }
+      if (Number.isFinite(proyeccionRuta.progreso)) {
+        progresoCaptura = proyeccionRuta.progreso;
+      }
+
+      const ACaptura = a.ruta[indiceCaptura];
+      const BCaptura = a.ruta[(indiceCaptura - 1 + a.ruta.length) % a.ruta.length];
+      if (ACaptura && BCaptura) {
+        rumboCaptura = calcularRumboServidor(ACaptura, BCaptura);
+      }
+    }
+  }
+
+  // Evita "retrocesos" visuales al capturar: nunca reducir t sobre el mismo tramo.
+  if (!capturaTimeout) {
+    const tCapturaSinRetroceso = Math.max(
+      0,
+      Math.min(1, Math.max(proyeccionFinal.t, proyeccion.t))
+    );
+    puntoCaptura = {
+      lat: A.lat + (B.lat - A.lat) * tCapturaSinRetroceso,
+      lng: A.lng + (B.lng - A.lng) * tCapturaSinRetroceso
+    };
+    progresoCaptura = distanciaSegmento * tCapturaSinRetroceso;
+  }
+
+  if (capturaPrecisa || capturaCercana || capturaForzada || capturaRescate || capturaTimeout) {
+    a.lat = puntoCaptura.lat;
+    a.lng = puntoCaptura.lng;
     a.angulo = interpolarRumbo(
-      Number.isFinite(a.angulo) ? a.angulo : rumboTramo,
-      rumboTramo,
+      Number.isFinite(a.angulo) ? a.angulo : rumboCaptura,
+      rumboCaptura,
       0.65
     );
-    if (Math.abs(diferenciaAngular(a.angulo, rumboTramo)) < 3) {
-      a.angulo = rumboTramo;
+    if (
+      capturaTimeout ||
+      Math.abs(diferenciaAngular(a.angulo, rumboCaptura)) < 3
+    ) {
+      a.angulo = rumboCaptura;
     }
     a.ingresoDownwindWaypoints = null
     a.ingresoDownwindTipo = null
     a.estado = "CIRCUIT";
     a.interceptTicks = 0;
     a.interceptHeadingRef = null;
-    a.indice = a.tramoObjetivo;
-    a.progreso = distanciaSegmento * proyeccionFinal.t;
+    a.tramoObjetivo = indiceCaptura;
+    a.indice = indiceCaptura;
+    a.progreso = progresoCaptura;
   }
 
   io.to(nombreSala).emit("actualizarAeronave", {

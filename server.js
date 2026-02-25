@@ -739,7 +739,7 @@ function generarRutaServidor(sala){
   const rumboInverso = 220
   const rumboIzq = 130   // tráfico izquierdo RWY 22
 
-  const lateralM = 1.0 * 1852
+  const lateralM = 0.75 * 1852
 
   
   const extensionBase = 2.0 * 1852

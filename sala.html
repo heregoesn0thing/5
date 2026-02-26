@@ -3173,7 +3173,7 @@ function autorizarTouchdown(a){
   const puntoVisada = calcularPuntoDesplazado(
     UMBRAL_RWY22[0],
     UMBRAL_RWY22[1],
-    -DISTANCIA_TOUCHDOWN_RWY22_M,
+    DISTANCIA_TOUCHDOWN_RWY22_M,
     RUMBO_RWY22
   )
 
@@ -3188,7 +3188,9 @@ function autorizarTouchdown(a){
   }, {
     descensoProgresivo: true,
     altitudObjetivo: 0,
-    altitudInicial: Number(a.altitud)
+    altitudInicial: Number(a.altitud),
+    rumboFijo: RUMBO_RWY22,
+    umbralCongelarRumboM: 25
   })
 }
 function ejecutarRollout(a){
@@ -3327,6 +3329,11 @@ function moverAeronaveHacia(a, destino, callback, opciones = {}){
   const velocidadPorDefecto = 12
   let ultimoTiempo = performance.now()
   const descensoProgresivo = Boolean(opciones.descensoProgresivo)
+  const rumboFijo = Number(opciones.rumboFijo)
+  const usarRumboFijo = Number.isFinite(rumboFijo)
+  const umbralCongelarRumboM = Number.isFinite(Number(opciones.umbralCongelarRumboM))
+    ? Math.max(0, Number(opciones.umbralCongelarRumboM))
+    : 8
   const altitudInicialDescenso = Number.isFinite(Number(opciones.altitudInicial))
     ? Math.max(0, Number(opciones.altitudInicial))
     : Math.max(0, Number(a.altitud) || 0)
@@ -3347,13 +3354,18 @@ function moverAeronaveHacia(a, destino, callback, opciones = {}){
     if(descensoProgresivo && distanciaInicialDescenso === null){
       distanciaInicialDescenso = Math.max(1, distancia)
     }
-    const rumboDestino = calcularBearing(
-      { lat: actual.lat, lng: actual.lng },
-      { lat: destinoLatLng.lat, lng: destinoLatLng.lng }
-    )
-    if(Number.isFinite(rumboDestino)){
-      a.angulo = rumboDestino
+    if(usarRumboFijo){
+      a.angulo = normalizarAngulo360(rumboFijo)
       actualizarRotacion(a)
+    } else if(distancia > umbralCongelarRumboM){
+      const rumboDestino = calcularBearing(
+        { lat: actual.lat, lng: actual.lng },
+        { lat: destinoLatLng.lat, lng: destinoLatLng.lng }
+      )
+      if(Number.isFinite(rumboDestino)){
+        a.angulo = rumboDestino
+        actualizarRotacion(a)
+      }
     }
     const velocidadSeleccionada = Number(a.velocidadObjetivo)
     const velocidadKnots =
@@ -3531,7 +3543,9 @@ function iniciarSecuenciaTouchAndGo(a){
   }, {
     descensoProgresivo: true,
     altitudObjetivo: 0,
-    altitudInicial: Number(a.altitud)
+    altitudInicial: Number(a.altitud),
+    rumboFijo: RUMBO_RWY22,
+    umbralCongelarRumboM: 25
   })
 }
 function ejecutarRodajeTouchAndGo(a, puntoTouchdown = null){

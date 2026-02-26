@@ -295,6 +295,11 @@ html, body{
   background:#232a3d;
 }
 
+#btnMarcaCola.activo{
+  background:#b91c1c;
+  color:#ffffff;
+}
+
 /* BotÃ³n eliminar */
 .fab-delete{
   width:42px;

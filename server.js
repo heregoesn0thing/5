@@ -36,6 +36,9 @@ const RUMBOS_CIRCUITO = {
 const ALTITUD_CIRCUITO_FT = 1500
 const ASCENSO_DESCENSO_CIRCUITO_FPM = 1200
 const EPSILON_ALTITUD_MANUAL_CIRCUITO_FT = 50
+const CLEARED_TO_LAND_BASE_TARGET_FT = 800
+const CLEARED_TO_LAND_BASE_DESCENT_FPM = 250
+const CLEARED_TO_LAND_BASE_MIN_TOTAL_DIST_M = 50
 const PUNTO_ORBITA_DOWNWIND = {
   lat: -13.76459547738987,
   lng: -76.19292298449697
@@ -149,6 +152,139 @@ function actualizarAltitudCircuitoProgresiva(aeronave, intervaloMS) {
   aeronave.altitud = altitudActual + (Math.sign(diferenciaAltitud) * cambioPorTick)
 }
 
+function limpiarDescensoClearedToLandBase(aeronave) {
+  if (!aeronave) return
+  aeronave.clearedBaseDescensoActivo = false
+  aeronave.clearedBaseAltitudInicioFt = null
+  aeronave.clearedBaseDistanciaTotalM = null
+}
+
+function calcularDistanciaRestanteBase(aeronave) {
+  if (!aeronave || !Array.isArray(aeronave.ruta) || aeronave.ruta.length < 2) {
+    return null
+  }
+
+  const ruta = aeronave.ruta
+  const totalPuntos = ruta.length
+  const indiceActual =
+    Number.isFinite(aeronave.indice)
+      ? ((aeronave.indice % totalPuntos) + totalPuntos) % totalPuntos
+      : 0
+  const progresoActual = Number.isFinite(aeronave.progreso)
+    ? Math.max(0, aeronave.progreso)
+    : 0
+
+  const A = ruta[indiceActual]
+  const indiceB = (indiceActual - 1 + totalPuntos) % totalPuntos
+  const B = ruta[indiceB]
+  if (!A || !B) return null
+
+  const rumboActual = calcularRumboServidor(A, B)
+  const tipoActual = obtenerTipoSegmentoRuta(A, B, rumboActual)
+  if (tipoActual !== "base") return 0
+
+  const distanciaSegmentoActual = distanciaEntre(A, B)
+  let restante = Math.max(0, distanciaSegmentoActual - progresoActual)
+
+  let cursor = indiceB
+  let guard = 0
+
+  while (guard < totalPuntos) {
+    const ACursor = ruta[cursor]
+    const indiceSiguiente = (cursor - 1 + totalPuntos) % totalPuntos
+    const BCursor = ruta[indiceSiguiente]
+    if (!ACursor || !BCursor) break
+
+    const rumboCursor = calcularRumboServidor(ACursor, BCursor)
+    const tipoCursor = obtenerTipoSegmentoRuta(ACursor, BCursor, rumboCursor)
+    if (tipoCursor !== "base") break
+
+    restante += distanciaEntre(ACursor, BCursor)
+    cursor = indiceSiguiente
+    guard += 1
+  }
+
+  return restante
+}
+
+function actualizarDescensoClearedToLandBase(aeronave, tipoSegmentoActual, intervaloMS) {
+  if (!aeronave) return
+
+  const enBaseCleared =
+    aeronave.estado === "CLEARED TO LAND" &&
+    tipoSegmentoActual === "base"
+
+  if (!enBaseCleared) {
+    if (aeronave.clearedBaseDescensoActivo) {
+      const altitudInicio = Number(aeronave.clearedBaseAltitudInicioFt)
+      const altitudActual = Number.isFinite(aeronave.altitud) ? aeronave.altitud : 0
+      if (
+        Number.isFinite(altitudInicio) &&
+        altitudInicio > CLEARED_TO_LAND_BASE_TARGET_FT &&
+        altitudActual > CLEARED_TO_LAND_BASE_TARGET_FT
+      ) {
+        aeronave.altitud = CLEARED_TO_LAND_BASE_TARGET_FT
+      }
+    }
+    limpiarDescensoClearedToLandBase(aeronave)
+    return
+  }
+
+  const altitudActual = Number.isFinite(aeronave.altitud) ? aeronave.altitud : 0
+
+  if (!aeronave.clearedBaseDescensoActivo) {
+    aeronave.clearedBaseDescensoActivo = true
+    aeronave.clearedBaseAltitudInicioFt = altitudActual
+    const distanciaTotal = calcularDistanciaRestanteBase(aeronave)
+    aeronave.clearedBaseDistanciaTotalM =
+      Number.isFinite(distanciaTotal) && distanciaTotal > 0
+        ? distanciaTotal
+        : null
+  }
+
+  const altitudInicio = Number(aeronave.clearedBaseAltitudInicioFt)
+  if (!Number.isFinite(altitudInicio) || altitudInicio <= CLEARED_TO_LAND_BASE_TARGET_FT) {
+    return
+  }
+
+  const distanciaTotal = Number(aeronave.clearedBaseDistanciaTotalM)
+  const distanciaRestante = calcularDistanciaRestanteBase(aeronave)
+
+  if (
+    Number.isFinite(distanciaTotal) &&
+    distanciaTotal > CLEARED_TO_LAND_BASE_MIN_TOTAL_DIST_M &&
+    Number.isFinite(distanciaRestante)
+  ) {
+    const progresoBase = Math.max(
+      0,
+      Math.min(1, 1 - (distanciaRestante / distanciaTotal))
+    )
+    const altitudInterpolada =
+      altitudInicio +
+      ((CLEARED_TO_LAND_BASE_TARGET_FT - altitudInicio) * progresoBase)
+
+    aeronave.altitud = Math.max(
+      CLEARED_TO_LAND_BASE_TARGET_FT,
+      Math.min(altitudInicio, altitudInterpolada)
+    )
+    return
+  }
+
+  const descensoPorTick =
+    (CLEARED_TO_LAND_BASE_DESCENT_FPM / 60) * (intervaloMS / 1000)
+
+  if (
+    Number.isFinite(descensoPorTick) &&
+    descensoPorTick > 0 &&
+    altitudActual > CLEARED_TO_LAND_BASE_TARGET_FT
+  ) {
+    aeronave.altitud = Math.max(
+      CLEARED_TO_LAND_BASE_TARGET_FT,
+      altitudActual - descensoPorTick
+    )
+  }
+}
+
 // ================== RELOJ POR SALA ==================
 
 function iniciarRelojSala(nombre) {
@@ -195,12 +331,15 @@ function iniciarMotorSala(nombreSala){
     const sala = salas[nombreSala]
     if (!sala) return
 
-    const intervaloMS = 50
-
-    sala.aeronaves.forEach(a => {
+	    const intervaloMS = 50
+	
+	    sala.aeronaves.forEach(a => {
+	if (a.estado !== "CLEARED TO LAND") {
+	  limpiarDescensoClearedToLandBase(a)
+	}
 // ðŸ”¥ PRIORIDAD ABSOLUTA LANDING
-if (a.estado === "LANDING") {
-  return
+	if (a.estado === "LANDING") {
+	  return
 }
       if (procesarGoAroundEnMotor(a, intervaloMS, nombreSala)) {
         return
@@ -734,14 +873,15 @@ if (a.estado === "INTERCEPTING LEG") {
         ? 0
         : a.progreso / distanciaSegmento
 
-      a.lat = A.lat + (B.lat - A.lat) * t
-      a.lng = A.lng + (B.lng - A.lng) * t
-
-      const rumboDeseado = calcularRumboServidor(A, B)
-
-      if (a.angulo === undefined || a.angulo === null) {
-        a.angulo = rumboDeseado
-      } else {
+	      a.lat = A.lat + (B.lat - A.lat) * t
+	      a.lng = A.lng + (B.lng - A.lng) * t
+	
+	      const rumboDeseado = calcularRumboServidor(A, B)
+	      const tipoSegmentoMovimiento = obtenerTipoSegmentoRuta(A, B, rumboDeseado)
+	
+	      if (a.angulo === undefined || a.angulo === null) {
+	        a.angulo = rumboDeseado
+	      } else {
 
         const diff = diferenciaAngular(a.angulo, rumboDeseado)
         const maxGiro = 3
@@ -751,12 +891,14 @@ if (a.estado === "INTERCEPTING LEG") {
         } else {
           a.angulo += Math.sign(diff) * maxGiro
         }
+	
+	        a.angulo = (a.angulo + 360) % 360
+	      }
 
-        a.angulo = (a.angulo + 360) % 360
-      }
-
-      io.to(nombreSala).emit("actualizarAeronave", {
-        id: a.id,
+	      actualizarDescensoClearedToLandBase(a, tipoSegmentoMovimiento, intervaloMS)
+	
+	      io.to(nombreSala).emit("actualizarAeronave", {
+	        id: a.id,
         lat: a.lat,
         lng: a.lng,
         altitud: a.altitud,
@@ -2314,7 +2456,16 @@ socket.on("ajusteManual", ({ id, tipo, valor }) => {
   if (!a) return
 
   if (a.owner !== socket.id) return
-  if (a.estado !== "MANUAL" && tipo !== "speed") return
+
+  const estadoActual = a.estado
+  const esManual = estadoActual === "MANUAL"
+  const esAuto = estadoActual === "AUTO"
+  const ajustePermitido =
+    tipo === "speed" ||
+    (tipo === "heading" && esManual) ||
+    (tipo === "altitude" && (esManual || esAuto))
+
+  if (!ajustePermitido) return
 
   if (tipo === "heading") {
     a.angulo = (a.angulo + valor + 360) % 360

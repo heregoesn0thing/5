@@ -296,6 +296,8 @@ let horaInicioRelojOriginalTexto = null
 let horasTranscurridasPanelTime = 0
 let segundosAcumuladosTimePanel = 0
 let ultimoSegundoRelojPanel = null
+let letraPanelAsignada = false
+let letraPanelTexto = "--"
 const METAR_API_URL = "/api/metar-decoded?ids=SPSO&hours=0"
 const RWY_22_HEADING = 220
 const SPSO_ELEVATION_FT = 39
@@ -330,6 +332,27 @@ function generarLetraAleatoriaAZ(){
   return String.fromCharCode(codigo)
 }
 
+function sincronizarContenedorLetterPendiente(){
+  const contenedorLetter = document.getElementById("metarLetterValue")
+  if(!contenedorLetter) return
+  contenedorLetter.textContent = letraPanelTexto
+}
+
+function inicializarLetterPanel(){
+  if(letraPanelAsignada) return
+  letraPanelTexto = generarLetraAleatoriaAZ()
+  letraPanelAsignada = true
+  setValorPanelMetar("metarLetterValue", letraPanelTexto)
+}
+
+function actualizarLetterPanelCadaHora(horasCumplidas){
+  if(!letraPanelAsignada || horasCumplidas < 1) return
+  for(let i = 0; i < horasCumplidas; i++){
+    letraPanelTexto = generarLetraAleatoriaAZ()
+  }
+  setValorPanelMetar("metarLetterValue", letraPanelTexto)
+}
+
 function formatearSegundosAHoraTexto(totalSegundos){
   const segundosDia = 24 * 60 * 60
   const normalizados = ((totalSegundos % segundosDia) + segundosDia) % segundosDia
@@ -358,6 +381,7 @@ function actualizarContenedorTime(horaTexto){
   if(!horaInicioRelojAsignada || !horaInicioRelojOriginalTexto){
     horaInicioRelojOriginalTexto = horaNormalizada
     horasTranscurridasPanelTime = 0
+    inicializarLetterPanel()
   }
 
   horaInicioRelojTexto = horaNormalizada
@@ -386,8 +410,11 @@ function setValorPanelMetar(id, valor){
 }
 
 function limpiarPanelMetar(){
-  CAMPOS_PANEL_METAR.forEach(id => setValorPanelMetar(id, "--"))
-  setValorPanelMetar("metarLetterValue", generarLetraAleatoriaAZ())
+  CAMPOS_PANEL_METAR.forEach(id => {
+    if(id === "metarLetterValue") return
+    setValorPanelMetar(id, "--")
+  })
+  sincronizarContenedorLetterPendiente()
 }
 
 function parsearTemperaturaMetar(token){
@@ -645,7 +672,7 @@ function aplicarRegistroMetarEnPanel(registro){
   setValorPanelMetar("metarCrossValue", registro.cross)
   setValorPanelMetar("metarTrackValue", registro.track)
   setValorPanelMetar("metarRvrValue", registro.rvr)
-  setValorPanelMetar("metarLetterValue", generarLetraAleatoriaAZ())
+  sincronizarContenedorLetterPendiente()
   setValorPanelMetar("metarQnhValue", registro.qnh)
   setValorPanelMetar("metarTlValue", registro.tl)
   setValorPanelMetar("metarTempValue", registro.temp)
@@ -716,6 +743,7 @@ function actualizarContenedorTimeCadaHora(horas, minutos, segundos){
 
   segundosAcumuladosTimePanel -= horasCumplidas * 3600
   horasTranscurridasPanelTime += horasCumplidas
+  actualizarLetterPanelCadaHora(horasCumplidas)
 
   const baseSegundos = convertirHoraTextoASegundos(
     horaInicioRelojOriginalTexto || horaInicioRelojTexto
@@ -7894,6 +7922,7 @@ window.addEventListener("DOMContentLoaded", inicializarCirculosSectorUno);
 <script>
 inicializarCirculosSectorUno();
 sincronizarContenedorTimePendiente();
+sincronizarContenedorLetterPendiente();
 cargarMetarDesdeApi();
 </script>
 

@@ -289,6 +289,7 @@ function unirseSalaActiva(){
 
 let ultimoSyncTiempoMs = 0
 let capturaHoraInicioRelojPendiente = false
+let capturaHoraInicioPorPlayPendiente = false
 let horaInicioRelojAsignada = false
 let horaInicioRelojTexto = "00:00:00"
 let horaInicioRelojOriginalTexto = null
@@ -870,16 +871,23 @@ socket.on("horaSala", data => {
 socket.on("estadoTiempo", (data) => {
   const relojActual = document.getElementById("relojGlobal")
   const textoRelojActual = relojActual ? relojActual.textContent.trim() : ""
+  const estabaPausado = pausado
 
   pausado = data.pausado;
 
-  if(!pausado && !horaInicioRelojAsignada){
+  if(
+    !pausado &&
+    estabaPausado &&
+    capturaHoraInicioPorPlayPendiente &&
+    !horaInicioRelojAsignada
+  ){
     if(textoRelojActual){
       actualizarContenedorTime(textoRelojActual)
       capturaHoraInicioRelojPendiente = false
     }else{
       capturaHoraInicioRelojPendiente = true
     }
+    capturaHoraInicioPorPlayPendiente = false
   }
 
   const iconPlay = document.getElementById("iconPlay");
@@ -1394,6 +1402,9 @@ function toggleTiempo() {
 
 
   if (pausado) {
+    if(!horaInicioRelojAsignada){
+      capturaHoraInicioPorPlayPendiente = true
+    }
     socket.emit("controlTiempo", { accion: "reanudar" });
 
   } else {

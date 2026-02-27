@@ -1964,10 +1964,13 @@ socket.on("cambiarHora", ({ hora }) => {
 
   reloj.tiempoBase = segundos;
   reloj.timestampBase = Date.now();
+  reloj.letraActual = generarLetraAleatoriaAZ();
+  reloj.letraAsignada = true;
   reloj.segundosAcumuladosLetra = 0;
   reloj.ultimoSegundoLetra = ((segundos % 86400) + 86400) % 86400;
 
   io.to(sala).emit("horaSala", formatearHora(segundos));
+  io.to(sala).emit("letraPanelSala", { letra: reloj.letraActual });
 });
 
   // ===== UNIRSE A SALA =====

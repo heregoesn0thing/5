@@ -297,6 +297,7 @@ let horasTranscurridasPanelTime = 0
 let segundosAcumuladosTimePanel = 0
 let ultimoSegundoRelojPanel = null
 let letraPanelTexto = "--"
+let modoOperacion = "controlador"
 const METAR_API_URL = "/api/metar-decoded?ids=SPSO&hours=0"
 const RWY_22_HEADING = 220
 const SPSO_ELEVATION_FT = 39
@@ -375,6 +376,28 @@ function sincronizarContenedorTimePendiente(){
   const contenedorTime = document.getElementById("sector2TimeValue")
   if(!contenedorTime) return
   contenedorTime.textContent = horaInicioRelojTexto
+}
+
+function actualizarSelectorModoOperacion(){
+  const btnControlador = document.getElementById("btnModoControlador")
+  const btnPiloto = document.getElementById("btnModoPiloto")
+
+  if(btnControlador){
+    btnControlador.classList.toggle("activo", modoOperacion === "controlador")
+    btnControlador.setAttribute("aria-pressed", String(modoOperacion === "controlador"))
+  }
+  if(btnPiloto){
+    btnPiloto.classList.toggle("activo", modoOperacion === "piloto")
+    btnPiloto.setAttribute("aria-pressed", String(modoOperacion === "piloto"))
+  }
+}
+
+function establecerModoOperacion(modo){
+  if(modo !== "controlador" && modo !== "piloto") return
+  modoOperacion = modo
+  localStorage.setItem("modoOperacionPreferido", modoOperacion)
+  document.body.dataset.modoOperacion = modoOperacion
+  actualizarSelectorModoOperacion()
 }
 
 function setValorPanelMetar(id, valor){
@@ -957,6 +980,15 @@ socket.on("rutaCircuitoActualizada", data => {
         &#9881;
       </button>
     </div>
+  </div>
+
+  <div id="selectorModoOperacion" class="selectorModoOperacion" role="group" aria-label="Modo de operacion">
+    <button id="btnModoControlador" class="btnModoOperacion" type="button" aria-pressed="true">
+      Controlador
+    </button>
+    <button id="btnModoPiloto" class="btnModoOperacion" type="button" aria-pressed="false">
+      Piloto
+    </button>
   </div>
 
   <div id="configHora" class="oculto panelConfigReloj">
@@ -7474,8 +7506,17 @@ function toggleWeatherPanel(forzarActivo = null){
   const btnConfigHora = document.getElementById("btnConfigHora")
   const btnAplicarHora = document.getElementById("btnAplicarHora")
   const btnPauseTiempo = document.getElementById("btnPauseTiempo")
+  const btnModoControlador = document.getElementById("btnModoControlador")
+  const btnModoPiloto = document.getElementById("btnModoPiloto")
   const btnWeather = document.getElementById("btnWeather")
   const inputHora = document.getElementById("inputHora")
+  const modoGuardado = localStorage.getItem("modoOperacionPreferido")
+
+  if(modoGuardado === "controlador" || modoGuardado === "piloto"){
+    modoOperacion = modoGuardado
+  }
+  document.body.dataset.modoOperacion = modoOperacion
+  actualizarSelectorModoOperacion()
 
   actualizarOpcionAeronaveWeather(Boolean(btnWeather && btnWeather.classList.contains("activo")))
 
@@ -7507,6 +7548,20 @@ function toggleWeatherPanel(forzarActivo = null){
     btnPauseTiempo.addEventListener("click", function(e){
       e.stopPropagation()
       toggleTiempo()
+    })
+  }
+
+  if(btnModoControlador){
+    btnModoControlador.addEventListener("click", function(e){
+      e.stopPropagation()
+      establecerModoOperacion("controlador")
+    })
+  }
+
+  if(btnModoPiloto){
+    btnModoPiloto.addEventListener("click", function(e){
+      e.stopPropagation()
+      establecerModoOperacion("piloto")
     })
   }
 

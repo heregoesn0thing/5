@@ -733,6 +733,41 @@ html, body{
   gap: 5px;
 }
 
+.selectorModoOperacion{
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 4px;
+  border-radius: 10px;
+  background: #151922;
+  border: 1px solid #2c344a;
+}
+
+.btnModoOperacion{
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid #2c344a;
+  background: #1f2433;
+  color: #9ca3af;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.btnModoOperacion:hover{
+  background: #2a3145;
+  color: #e2e8f0;
+}
+
+.btnModoOperacion.activo{
+  background: linear-gradient(145deg, #00c2ff, #0ea5e9);
+  border-color: #38bdf8;
+  color: #0b1324;
+}
+
 /* Reloj digital */
 #relojGlobal {
   font-size: 28px;

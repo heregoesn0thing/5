@@ -1,5 +1,6 @@
-﻿const express = require("express");
+const express = require("express");
 const http = require("http");
+const https = require("https");
 const { Server } = require("socket.io");
 
 const app = express();
@@ -18,6 +19,50 @@ app.get("/sala", (req, res) => {
   res.sendFile(__dirname + "/sala.html");
 });
 
+function descargarTextoHttps(url){
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, {
+      headers: {
+        "User-Agent": "simulador-metar-proxy/1.0"
+      }
+    }, (resp) => {
+      const status = Number(resp.statusCode || 0)
+      if(status < 200 || status >= 300){
+        resp.resume()
+        reject(new Error(`HTTP ${status}`))
+        return
+      }
+
+      let body = ""
+      resp.setEncoding("utf8")
+      resp.on("data", chunk => {
+        body += chunk
+      })
+      resp.on("end", () => resolve(body))
+    })
+
+    req.on("error", reject)
+    req.setTimeout(10000, () => {
+      req.destroy(new Error("Timeout"))
+    })
+  })
+}
+
+app.get("/api/metar-decoded", async (req, res) => {
+  const idsRaw = typeof req.query.ids === "string" ? req.query.ids : "SPSO"
+  const hoursRaw = typeof req.query.hours === "string" ? req.query.hours : "0"
+  const ids = encodeURIComponent(idsRaw.trim() || "SPSO")
+  const hours = encodeURIComponent(hoursRaw.trim() || "0")
+  const origen = `https://aviationweather.gov/api/data/metar?ids=${ids}&hours=${hours}&format=decoded`
+
+  try {
+    const contenido = await descargarTextoHttps(origen)
+    res.setHeader("Cache-Control", "no-store")
+    res.type("text/plain").send(contenido)
+  } catch (error) {
+    res.status(502).type("text/plain").send("METAR upstream unavailable")
+  }
+})
 // ================== ESTRUCTURAS ==================
 
 let salas = {};
@@ -337,7 +382,7 @@ function iniciarMotorSala(nombreSala){
 	if (a.estado !== "CLEARED TO LAND") {
 	  limpiarDescensoClearedToLandBase(a)
 	}
-// ðŸ”¥ PRIORIDAD ABSOLUTA LANDING
+// 🔥 PRIORIDAD ABSOLUTA LANDING
 	if (a.estado === "LANDING") {
 	  return
 }
@@ -398,7 +443,7 @@ function iniciarMotorSala(nombreSala){
           )
       const distanciaTick = velocidadMPS * (intervaloMS/1000)
 // =====================================
-// ðŸŒ€ FASE ARCO 30° ANTES DE INTERCEPTAR
+// 🌀 FASE ARCO 30� ANTES DE INTERCEPTAR
 // =====================================
 
 if (a.estado === "INTERCEPTING ARC") {
@@ -429,7 +474,7 @@ if (a.estado === "INTERCEPTING ARC") {
       );
   const distanciaTick = velocidadMPS * (intervaloMS / 1000);
 
-  // ðŸ”¥ RUMBO HACIA EL PUNTO DE INTERCEPTO
+  // 🔥 RUMBO HACIA EL PUNTO DE INTERCEPTO
   const rumboObjetivo = calcularRumboServidor(
     { lat: a.lat, lng: a.lng },
     destino
@@ -455,7 +500,7 @@ if (a.estado === "INTERCEPTING ARC") {
   a.lat = nuevoPunto.lat;
   a.lng = nuevoPunto.lng;
 
-  // ðŸŽ¯ Cuando estÃ© cerca â†’ pasar a interceptaciÃ³n fina
+  // 🎯 Cuando esté cerca → pasar a interceptación fina
   if (distancia < 120) {
     if (Array.isArray(a.ingresoDownwindWaypoints) && a.ingresoDownwindWaypoints.length > 0) {
       a.ingresoDownwindWaypoints.shift()
@@ -961,7 +1006,7 @@ function generarRutaServidor(sala){
 
   const rumboPista = 40
   const rumboInverso = 220
-  const rumboIzq = 130   // tráfico izquierdo RWY 22
+  const rumboIzq = 130   // tr�fico izquierdo RWY 22
 
   const lateralM = 1.5 * 1852
 
@@ -984,7 +1029,7 @@ function generarRutaServidor(sala){
   const finalExt = puntoPlano(umbral22, rumboPista, extensionDownwindM)
   const salidaExt = puntoPlano(umbral04, rumboInverso, extensionUpwindM)
 
-  // Patrón "rectangular con lados semicirculares" (tipo racetrack)
+  // Patr�n "rectangular con lados semicirculares" (tipo racetrack)
   const separacionPiernasM = lateralM * 2
   const salidaExtIzq = puntoPlano(salidaExt, rumboIzq, separacionPiernasM)
   const finalExtIzq = puntoPlano(finalExt, rumboIzq, separacionPiernasM)
@@ -1079,7 +1124,7 @@ function generarRutaServidor(sala){
   agregarRecta(salidaExtIzq, finalExtIzq, pasosRecta, false, "downwind")
 
   // 4) Lado semicircular de final: tramo base
-  // No agregamos el último punto para evitar duplicar el inicio exacto.
+  // No agregamos el �ltimo punto para evitar duplicar el inicio exacto.
   agregarSemicirculo(
     centroVirajeFinal,
     130,
@@ -1090,7 +1135,7 @@ function generarRutaServidor(sala){
   )
 
   if (puntos.length > 1) {
-    // Segmento de cierre (último -> primero) también pertenece al tramo base.
+    // Segmento de cierre (�ltimo -> primero) tambi�n pertenece al tramo base.
     puntos[puntos.length - 1].tramo = "base"
   }
 
@@ -1230,7 +1275,7 @@ function esDownwindValidoParaOrbit(tipoTramo, rumboSegmento, anguloActual) {
     diferenciaAngular(rumboReferencia, RUMBOS_CIRCUITO.downwind)
   )
 
-  // Solo consideramos downwind "real" cuando el rumbo estÃ¡ cercano a 040
+  // Solo consideramos downwind "real" cuando el rumbo está cercano a 040
   return diffDownwind <= 22
 }
 
@@ -1383,7 +1428,7 @@ function construirIngresoDownwind45(aeronave) {
       waypoints.push(puntoCruce, puntoGota)
     }
 
-    // Tramo final de ingreso a 45° sobre downwind.
+    // Tramo final de ingreso a 45� sobre downwind.
     waypoints.push(preEntryPoint, joinPoint)
   }
 
@@ -1836,7 +1881,7 @@ relojesSalas[nombre] = {
   tiempoBase: segundosIniciales,
   timestampBase: Date.now(),
   velocidad: 1,
-  pausado: false,
+  pausado: true,
 };
 
 
@@ -1886,7 +1931,7 @@ if (peligroSalas[nombre]) {
       ruta: generarRutaServidor(salas[nombre])
     });
 
-    // ðŸ”¥ SINCRONIZAR INMEDIATAMENTE
+    // 🔥 SINCRONIZAR INMEDIATAMENTE
     const horaActual = obtenerHoraActualSala(nombre);
     if (horaActual) {
       socket.emit("horaSala", horaActual);
@@ -1987,7 +2032,7 @@ socket.on("extenderSalida", ({ metros }) => {
       ? metros
       : (0.5 * 1852)
 
-  // ExtensiÃ³n general heredada + por tramo (compatibilidad)
+  // Extensión general heredada + por tramo (compatibilidad)
   sala.extensionExtra += metrosSeguros
   sala.extensionUpwindExtra = (sala.extensionUpwindExtra || 0) + metrosSeguros
   sala.extensionDownwindExtra = (sala.extensionDownwindExtra || 0) + metrosSeguros
@@ -2190,7 +2235,7 @@ socket.on("orbitarCircuito", ({ id }) => {
       aeronave.orbitModoContinuo = true
       aeronave.orbitDetenerSolicitado = false
     } else {
-      // Saldrá cuando complete la órbita actual.
+      // Saldr� cuando complete la �rbita actual.
       aeronave.orbitModoContinuo = false
       aeronave.orbitDetenerSolicitado = true
     }
@@ -2200,7 +2245,7 @@ socket.on("orbitarCircuito", ({ id }) => {
   }
 
   if (Boolean(aeronave.orbitPendiente) || Boolean(aeronave.orbitModoContinuo)) {
-    // Si aún no empezó a orbitar, se cancela inmediatamente.
+    // Si a�n no empez� a orbitar, se cancela inmediatamente.
     limpiarOrbitacionAeronave(aeronave)
     iniciarMotorSala(salaNombre)
     return
@@ -2223,10 +2268,10 @@ socket.on("actualizarAeronave", (data) => {
   const aeronave = salas[sala].aeronaves.find(a => a.id === data.id);
   if (!aeronave) return;
 
-  // ðŸ”’ Solo el dueÃ±o puede actualizar
+  // 🔒 Solo el dueño puede actualizar
   if (aeronave.owner !== socket.id) return;
 
-  // ðŸ›¡ ValidaciÃ³n bÃ¡sica de datos
+  // 🛡 Validación básica de datos
   if (typeof data.lat !== "number") return;
   if (typeof data.lng !== "number") return;
   if (typeof data.altitud !== "number") return;
@@ -2404,7 +2449,7 @@ socket.on("forzarAterrizaje", ({ id }) => {
   if (!aeronave) return
   if (aeronave.owner !== socket.id) return
 
-  // ðŸ”¥ CANCELAR TODO LO QUE CONTROLE MOVIMIENTO
+  // 🔥 CANCELAR TODO LO QUE CONTROLE MOVIMIENTO
 
   limpiarGoAroundAeronave(aeronave)
   limpiarOrbitacionAeronave(aeronave)
@@ -2414,12 +2459,12 @@ socket.on("forzarAterrizaje", ({ id }) => {
   aeronave.indiceObjetivo = null
   aeronave.puntoIngreso = null
 
-  // ðŸ”¥ CANCELAR MANUAL SI ESTABA ACTIVO
+  // 🔥 CANCELAR MANUAL SI ESTABA ACTIVO
   if (aeronave.estado === "MANUAL") {
     aeronave.velocidad = aeronave.velocidad || (90 * 0.514444)
   }
 
-  // ðŸ”¥ ESTADO DEFINITIVO DE ATERRIZAJE
+  // 🔥 ESTADO DEFINITIVO DE ATERRIZAJE
   aeronave.estado = "LANDING"
 
   io.to(salaNombre).emit("actualizarAeronave", {
@@ -2571,7 +2616,7 @@ socket.on("controlTiempo", ({ accion }) => {
   // Mantener reloj siempre en tiempo real (x1).
   reloj.velocidad = 1;
 
-  // ðŸ”¥ NUEVO
+  // 🔥 NUEVO
   io.to(sala).emit("estadoTiempo", {
     pausado: reloj.pausado
   });
@@ -2617,13 +2662,13 @@ socket.on("disconnect", () => {
     salas[nombre].jugadores =
       salas[nombre].jugadores.filter(id => id !== socket.id);
 
-    // ðŸŸ¡ Si quedÃ³ vacÃ­a, iniciar countdown
+    // 🟡 Si quedó vacía, iniciar countdown
     if (salas[nombre].jugadores.length === 0) {
 
-      // Evitar mÃºltiples timeouts
+      // Evitar múltiples timeouts
       if (timeoutsSalas[nombre]) return;
 
-      console.log(` Sala ${nombre} vacía Eliminando en 30 minutos si nadie entra.`);
+      console.log(` Sala ${nombre} vac�a. Eliminando en 5 horas si nadie entra.`);
 
       timeoutsSalas[nombre] = setTimeout(() => {
 
@@ -2648,7 +2693,7 @@ if (motoresSalas[nombre]) {
           io.emit("listaSalas", obtenerListaSalas());
         }
 
-      }, 30 * 60 * 1000); // 30 minutos
+      }, 5 * 60 * 60 * 1000); // 5 horas
     }
   }
 
@@ -2664,3 +2709,5 @@ if (motoresSalas[nombre]) {
 server.listen(PORT, () => {
   console.log("Servidor corriendo en puerto", PORT);
 });
+
+

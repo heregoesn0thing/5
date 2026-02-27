@@ -292,7 +292,7 @@ let capturaHoraInicioRelojPendiente = false
 let horaInicioRelojAsignada = false
 let horaInicioRelojTexto = "00:00:00"
 let ultimaHoraRegistradaCadaHora = null
-const METAR_TXT_URL = "metar.txt"
+const METAR_API_URL = "/api/metar-decoded?ids=SPSO&hours=0"
 const RWY_22_HEADING = 220
 const SPSO_ELEVATION_FT = 39
 const CAMPOS_PANEL_METAR = [
@@ -383,12 +383,33 @@ function extraerTokenFenomeno(tokens){
   )
 }
 
-function parsearLineaMetar(linea){
+function normalizarLineaMetar(linea){
   if(typeof linea !== "string") return null
-  const limpia = linea.trim().replace(/=+$/, "")
-  if(!/^(METAR|SPECI)\b/i.test(limpia)) return null
 
-  const match = limpia.match(/^(METAR|SPECI)\s+([A-Z]{4})\s+(\d{2})(\d{2})(\d{2})Z\s+(.+)$/i)
+  const limpia = linea.trim().replace(/=+$/, "")
+  if(!limpia) return null
+
+  if(/^(METAR|SPECI)\b/i.test(limpia)){
+    return limpia
+  }
+
+  if(/^[A-Z]{4}\s+\d{6}Z\b/i.test(limpia)){
+    return `METAR ${limpia}`
+  }
+
+  const matchEmbed = limpia.match(/(METAR|SPECI)\s+[A-Z]{4}\s+\d{6}Z.+$/i)
+  if(matchEmbed){
+    return matchEmbed[0].trim()
+  }
+
+  return null
+}
+
+function parsearLineaMetar(linea){
+  const lineaNormalizada = normalizarLineaMetar(linea)
+  if(!lineaNormalizada) return null
+
+  const match = lineaNormalizada.match(/^(METAR|SPECI)\s+([A-Z]{4})\s+(\d{2})(\d{2})(\d{2})Z\s+(.+)$/i)
   if(!match) return null
 
   const hora = Number.parseInt(match[4], 10)
@@ -514,68 +535,21 @@ function parsearLineaMetar(linea){
   }
 }
 
-function parsearRegistrosMetarTxt(texto){
+function parsearRegistrosMetarApi(texto){
   if(typeof texto !== "string" || texto.trim() === "") return []
-  const lineas = texto.split(/\r?\n/)
-  const registros = []
-  let encabezadoPendiente = null
 
-  lineas.forEach(lineaOriginal => {
-    const linea = lineaOriginal.trim()
-    if(!linea) return
+  const registros = texto
+    .split(/\r?\n/)
+    .map(linea => parsearLineaMetar(linea))
+    .filter(Boolean)
 
-    const matchEncabezado = linea.match(/^([A-Z]{1,3})\s+(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})\s*[-=]?>?$/i)
-    if(matchEncabezado){
-      const dia = matchEncabezado[2]
-      const mes = matchEncabezado[3]
-      const anio = matchEncabezado[4]
-      const hh = matchEncabezado[5]
-      const mm = matchEncabezado[6]
-      const epochUtc = Date.parse(`${anio}-${mes}-${dia}T${hh}:${mm}:00Z`)
-      encabezadoPendiente = {
-        letter: matchEncabezado[1].toUpperCase(),
-        hora: `${hh}:${mm}:00`,
-        epochUtc: Number.isFinite(epochUtc) ? epochUtc : null
-      }
-      return
-    }
-
-    if(!/^(METAR|SPECI)\b/i.test(linea)) return
-    const registro = parsearLineaMetar(linea)
-    if(!registro) return
-
-    if(encabezadoPendiente){
-      registro.letter = encabezadoPendiente.letter || registro.letter
-      if(!registro.horaUtc && encabezadoPendiente.hora){
-        registro.horaUtc = encabezadoPendiente.hora
-      }
-      if(Number.isFinite(encabezadoPendiente.epochUtc)){
-        registro.epochUtc = encabezadoPendiente.epochUtc
-      }
-      encabezadoPendiente = null
-    }
-
-    registros.push(registro)
+  const deduplicados = new Map()
+  registros.forEach(registro => {
+    deduplicados.set(registro.minutosUtc, registro)
   })
 
-  const deduplicadosPorHora = new Map()
-  registros
+  return Array.from(deduplicados.values())
     .filter(registro => Number.isFinite(registro.minutosUtc))
-    .forEach(registro => {
-      const existente = deduplicadosPorHora.get(registro.minutosUtc)
-      if(!existente){
-        deduplicadosPorHora.set(registro.minutosUtc, registro)
-        return
-      }
-
-      const epochExistente = Number.isFinite(existente.epochUtc) ? existente.epochUtc : -Infinity
-      const epochActual = Number.isFinite(registro.epochUtc) ? registro.epochUtc : -Infinity
-      if(epochActual > epochExistente){
-        deduplicadosPorHora.set(registro.minutosUtc, registro)
-      }
-    })
-
-  return Array.from(deduplicadosPorHora.values())
     .sort((a, b) => a.minutosUtc - b.minutosUtc)
 }
 
@@ -644,20 +618,20 @@ function aplicarDatosMetarPorHora(horaTexto){
   aplicarRegistroMetarEnPanel(registro)
 }
 
-async function cargarMetarDesdeTxt(){
+async function cargarMetarDesdeApi(){
   try{
-    const response = await fetch(`${METAR_TXT_URL}?t=${Date.now()}`, { cache: "no-store" })
+    const response = await fetch(`${METAR_API_URL}&t=${Date.now()}`, { cache: "no-store" })
     if(!response.ok){
       limpiarPanelMetar()
       return
     }
 
     const contenido = await response.text()
-    registrosMetar = parsearRegistrosMetarTxt(contenido)
+    registrosMetar = parsearRegistrosMetarApi(contenido)
     aplicarDatosMetarPorHora(horaInicioRelojTexto)
   }catch(error){
     limpiarPanelMetar()
-    console.warn("No se pudo cargar metar.txt", error)
+    console.warn("No se pudo cargar METAR desde AviationWeather", error)
   }
 }
 
@@ -670,6 +644,7 @@ function actualizarContenedorTimeCadaHora(horas, minutos, segundos){
 
   ultimaHoraRegistradaCadaHora = horaRedondeada
   actualizarContenedorTime(horaRedondeada)
+  cargarMetarDesdeApi()
 }
 
 function solicitarSincronizacionTiempo(forzar = false){
@@ -7786,7 +7761,7 @@ window.addEventListener("DOMContentLoaded", inicializarCirculosSectorUno);
 <script>
 inicializarCirculosSectorUno();
 sincronizarContenedorTimePendiente();
-cargarMetarDesdeTxt();
+cargarMetarDesdeApi();
 </script>
 
 </body>

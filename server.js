@@ -2578,10 +2578,11 @@ socket.on("ajusteManual", ({ id, tipo, valor }) => {
   const estadoActual = a.estado
   const esManual = estadoActual === "MANUAL"
   const esAuto = estadoActual === "AUTO"
+  const esCircuito = estadoActual === "CIRCUIT"
   const ajustePermitido =
     tipo === "speed" ||
     (tipo === "heading" && esManual) ||
-    (tipo === "altitude" && (esManual || esAuto))
+    (tipo === "altitude" && (esManual || esAuto || esCircuito))
 
   if (!ajustePermitido) return
 
@@ -2610,6 +2611,9 @@ socket.on("ajusteManual", ({ id, tipo, valor }) => {
 }
 
   if (tipo === "altitude") {
+    if (esCircuito && a.altitudCircuitoAutomaticaActiva) {
+      a.altitudCircuitoAutomaticaActiva = false
+    }
     a.altitud = Math.max(0, a.altitud + valor)
   }
 

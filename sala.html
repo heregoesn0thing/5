@@ -398,6 +398,32 @@ function establecerModoOperacion(modo){
   localStorage.setItem("modoOperacionPreferido", modoOperacion)
   document.body.dataset.modoOperacion = modoOperacion
   actualizarSelectorModoOperacion()
+  aplicarVisibilidadPanelIzquierdoPorModo()
+}
+
+function aplicarVisibilidadPanelIzquierdoPorModo(){
+  const panel = document.getElementById("menuControles")
+  if(!panel) return
+
+  const ocultar = modoOperacion === "controlador"
+  panel.classList.toggle("forzado-oculto-modo", ocultar)
+
+  if(!ocultar) return
+
+  const aeronave = obtenerAeronaveVinculadaPanel() || aeronaveSeleccionada
+  const estado = obtenerEstadoPanelLateralAeronave(aeronave)
+  if(estado){
+    estado.panelAbierto = false
+    estado.speedPanelAbierto = false
+    estado.levelPanelAbierto = false
+    estado.sidOpcionesAbiertas = false
+  }
+
+  panel.classList.remove("activo")
+  ocultarLevelControlPanel()
+  ocultarSpeedControlPanel()
+  ocultarOpcionesSID()
+  actualizarIconoPanelControles(false)
 }
 
 function setValorPanelMetar(id, valor){
@@ -2792,6 +2818,19 @@ function aplicarEstadoPanelLateralAeronave(aeronave){
     return
   }
 
+  if(modoOperacion === "controlador"){
+    estado.panelAbierto = false
+    estado.speedPanelAbierto = false
+    estado.levelPanelAbierto = false
+    estado.sidOpcionesAbiertas = false
+    panel.classList.remove("activo")
+    if(speedPanel) speedPanel.classList.remove("activo")
+    if(levelPanel) levelPanel.classList.remove("activo")
+    if(sidOpciones) sidOpciones.classList.remove("activo")
+    actualizarIconoPanelControles(false)
+    return
+  }
+
   panel.dataset.aircraftId = aeronave.id
   panel.classList.toggle("activo", estado.panelAbierto)
   aplicarEstadoLandingMainAeronave(aeronave)
@@ -3498,6 +3537,10 @@ function detenerExtendCircuito(aeronave, virarAlFinal = false){
 }
 
 function togglePanelIzq(){
+  if(modoOperacion === "controlador"){
+    return
+  }
+
   const panel = document.getElementById("menuControles");
   if(!panel) return
 
@@ -7517,6 +7560,7 @@ function toggleWeatherPanel(forzarActivo = null){
   }
   document.body.dataset.modoOperacion = modoOperacion
   actualizarSelectorModoOperacion()
+  aplicarVisibilidadPanelIzquierdoPorModo()
 
   actualizarOpcionAeronaveWeather(Boolean(btnWeather && btnWeather.classList.contains("activo")))
 

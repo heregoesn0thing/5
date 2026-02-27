@@ -884,6 +884,10 @@ html, body{
   z-index:var(--z-panel);
 }
 
+#menuControles.forzado-oculto-modo{
+  display: none !important;
+}
+
 /* PANEL INTERNO */
 
 .contenido-lateral{

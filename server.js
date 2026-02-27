@@ -966,7 +966,8 @@ function generarRutaServidor(sala){
   const lateralM = 1.5 * 1852
 
   
-  const extensionBase = 2.0 * 1852
+  const extensionDownwindBase = 1.0 * 1852
+  const extensionUpwindBase = 1.5 * 1852
   const extensionGeneral = sala.extensionExtra || 0
   const extensionDownwindExtra =
     typeof sala.extensionDownwindExtra === "number"
@@ -977,8 +978,8 @@ function generarRutaServidor(sala){
       ? sala.extensionUpwindExtra
       : extensionGeneral
 
-  const extensionDownwindM = extensionBase + extensionDownwindExtra
-  const extensionUpwindM = extensionBase + extensionUpwindExtra
+  const extensionDownwindM = extensionDownwindBase + extensionDownwindExtra
+  const extensionUpwindM = extensionUpwindBase + extensionUpwindExtra
 
   const finalExt = puntoPlano(umbral22, rumboPista, extensionDownwindM)
   const salidaExt = puntoPlano(umbral04, rumboInverso, extensionUpwindM)

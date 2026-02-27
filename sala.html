@@ -288,6 +288,390 @@ function unirseSalaActiva(){
 }
 
 let ultimoSyncTiempoMs = 0
+let capturaHoraInicioRelojPendiente = false
+let horaInicioRelojAsignada = false
+let horaInicioRelojTexto = "00:00:00"
+let ultimaHoraRegistradaCadaHora = null
+const METAR_TXT_URL = "metar.txt"
+const RWY_22_HEADING = 220
+const SPSO_ELEVATION_FT = 39
+const CAMPOS_PANEL_METAR = [
+  "metarDirValue",
+  "metarWspdValue",
+  "metarGustValue",
+  "metarCrossValue",
+  "metarTrackValue",
+  "metarRvrValue",
+  "metarLetterValue",
+  "metarQnhValue",
+  "metarTlValue",
+  "metarTempValue",
+  "metarQfeValue",
+  "metarHumValue",
+  "metarDpValue",
+  "metarUpperCovValue",
+  "metarUpperBaseValue",
+  "metarUpperTypeValue",
+  "metarLowerCovValue",
+  "metarLowerBaseValue",
+  "metarLowerTypeValue",
+  "metarPhenValue",
+  "metarVisValue",
+  "metarSupEffValue"
+]
+let registrosMetar = []
+
+function actualizarContenedorTime(horaTexto){
+  if(typeof horaTexto !== "string" || horaTexto.trim() === "") return
+
+  horaInicioRelojTexto = horaTexto.trim()
+  horaInicioRelojAsignada = true
+
+  const contenedorTime = document.getElementById("sector2TimeValue")
+  if(contenedorTime){
+    contenedorTime.textContent = horaInicioRelojTexto
+  }
+
+  aplicarDatosMetarPorHora(horaInicioRelojTexto)
+}
+
+function sincronizarContenedorTimePendiente(){
+  const contenedorTime = document.getElementById("sector2TimeValue")
+  if(!contenedorTime) return
+  contenedorTime.textContent = horaInicioRelojTexto
+}
+
+function setValorPanelMetar(id, valor){
+  const el = document.getElementById(id)
+  if(!el) return
+  const texto = valor === null || valor === undefined || valor === "" ? "--" : String(valor)
+  el.textContent = texto
+}
+
+function limpiarPanelMetar(){
+  CAMPOS_PANEL_METAR.forEach(id => setValorPanelMetar(id, "--"))
+}
+
+function parsearTemperaturaMetar(token){
+  if(typeof token !== "string") return null
+  const neg = token.startsWith("M")
+  const numero = Number.parseInt(neg ? token.slice(1) : token, 10)
+  if(!Number.isFinite(numero)) return null
+  return neg ? -numero : numero
+}
+
+function calcularHumedadRelativa(tempC, dewpointC){
+  if(!Number.isFinite(tempC) || !Number.isFinite(dewpointC)) return null
+  const expTemp = Math.exp((17.625 * tempC) / (243.04 + tempC))
+  const expDew = Math.exp((17.625 * dewpointC) / (243.04 + dewpointC))
+  return Math.max(0, Math.min(100, Math.round((expDew / expTemp) * 100)))
+}
+
+function extraerTokenFenomeno(tokens){
+  if(!Array.isArray(tokens)) return null
+  const codigosWx = [
+    "DZ","RA","SN","SG","IC","PL","GR","GS","UP",
+    "BR","FG","FU","VA","DU","SA","HZ","PY",
+    "PO","SQ","FC","SS","DS"
+  ]
+
+  return (
+    tokens.find(token =>
+      /^[+\-A-Z]{2,}$/.test(token) &&
+      codigosWx.some(codigo => token.includes(codigo))
+    ) || null
+  )
+}
+
+function parsearLineaMetar(linea){
+  if(typeof linea !== "string") return null
+  const limpia = linea.trim().replace(/=+$/, "")
+  if(!/^(METAR|SPECI)\b/i.test(limpia)) return null
+
+  const match = limpia.match(/^(METAR|SPECI)\s+([A-Z]{4})\s+(\d{2})(\d{2})(\d{2})Z\s+(.+)$/i)
+  if(!match) return null
+
+  const hora = Number.parseInt(match[4], 10)
+  const minuto = Number.parseInt(match[5], 10)
+  if(!Number.isFinite(hora) || !Number.isFinite(minuto)) return null
+
+  const cuerpo = match[6].trim()
+  const tokens = cuerpo.split(/\s+/)
+  const idxRmk = tokens.findIndex(token => token === "RMK")
+  const tokensMain = idxRmk >= 0 ? tokens.slice(0, idxRmk) : tokens
+  const rmkTexto = idxRmk >= 0 ? tokens.slice(idxRmk + 1).join(" ") : ""
+
+  const cavok = tokensMain.includes("CAVOK")
+  const windToken =
+    tokensMain.find(token => /^(VRB|\d{3})\d{2,3}(G\d{2,3})?KT$/.test(token)) || ""
+  const windMatch = windToken.match(/^(VRB|\d{3})(\d{2,3})(?:G(\d{2,3}))?KT$/)
+  const windDir = windMatch ? (windMatch[1] === "VRB" ? null : Number.parseInt(windMatch[1], 10)) : null
+  const windSpd = windMatch ? Number.parseInt(windMatch[2], 10) : null
+  const windGust = windMatch && windMatch[3] ? Number.parseInt(windMatch[3], 10) : null
+
+  let crosswindKt = null
+  let trackKt = null
+  if(Number.isFinite(windDir) && Number.isFinite(windSpd)){
+    const diff = ((windDir - RWY_22_HEADING + 540) % 360) - 180
+    const diffRad = diff * (Math.PI / 180)
+    crosswindKt = Math.round(Math.abs(windSpd * Math.sin(diffRad)))
+    trackKt = Math.round(windSpd * Math.cos(diffRad))
+  }
+
+  const visToken = tokensMain.find(token => /^\d{4}$/.test(token))
+  let visMetros = cavok ? 10000 : (visToken ? Number.parseInt(visToken, 10) : null)
+
+  const rvrToken =
+    tokensMain.find(token => /^R\d{2}[LCR]?\/[MP]?\d{4}(V[MP]?\d{4})?(FT)?$/.test(token)) || ""
+  let rvrMetros = null
+  if(rvrToken){
+    const bruto = (rvrToken.split("/")[1] || "").replace(/FT$/, "")
+    const primerTramo = bruto.includes("V") ? bruto.split("V")[0] : bruto
+    const limpio = primerTramo.replace(/[MP]/g, "")
+    const valor = Number.parseInt(limpio, 10)
+    if(Number.isFinite(valor)){
+      rvrMetros = rvrToken.endsWith("FT") ? Math.round(valor * 0.3048) : valor
+    }
+  }
+  if(!Number.isFinite(visMetros) && Number.isFinite(rvrMetros)){
+    visMetros = rvrMetros
+  }
+
+  const tempToken =
+    tokensMain.find(token => /^M?\d{2}\/M?\d{2}$/.test(token)) || ""
+  const tempMatch = tempToken.match(/^(M?\d{2})\/(M?\d{2})$/)
+  const tempC = tempMatch ? parsearTemperaturaMetar(tempMatch[1]) : null
+  const dewC = tempMatch ? parsearTemperaturaMetar(tempMatch[2]) : null
+  const humedad = calcularHumedadRelativa(tempC, dewC)
+
+  const qnhToken = tokensMain.find(token => /^Q\d{4}$/.test(token)) || ""
+  const qnh = qnhToken ? Number.parseInt(qnhToken.slice(1), 10) : null
+  const qfe = Number.isFinite(qnh)
+    ? (qnh - Math.round(SPSO_ELEVATION_FT / 30))
+    : null
+
+  const tlToken =
+    tokensMain.find(token => /^FL\d{2,3}$/.test(token)) ||
+    (rmkTexto.match(/\bTL\s*[:=]?\s*(\d{2,3})\b/i)?.[1] || "")
+  const transitionLevel = tlToken
+    ? (tlToken.startsWith("FL") ? tlToken : `FL${tlToken}`)
+    : "--"
+
+  const cloudLayers = tokensMain
+    .map(token => {
+      const cloudMatch = token.match(/^(FEW|SCT|BKN|OVC|NSC|NCD)(\d{3})(CB|TCU)?$/)
+      if(!cloudMatch) return null
+      return {
+        cov: cloudMatch[1],
+        baseCode: cloudMatch[2],
+        baseFt: Number.parseInt(cloudMatch[2], 10) * 100,
+        type: cloudMatch[3] || "-"
+      }
+    })
+    .filter(Boolean)
+
+  cloudLayers.sort((a, b) => a.baseFt - b.baseFt)
+  const lowerCloud = cloudLayers[0] || null
+  const upperCloud = cloudLayers.length > 0 ? cloudLayers[cloudLayers.length - 1] : null
+
+  const phenToken = extraerTokenFenomeno(tokensMain)
+  const supEffRaw = rmkTexto.trim()
+  const supEff =
+    supEffRaw.length > 0
+      ? (supEffRaw.length > 14 ? `${supEffRaw.slice(0, 14)}.` : supEffRaw)
+      : "--"
+
+  return {
+    horaUtc: `${String(hora).padStart(2, "0")}:${String(minuto).padStart(2, "0")}:00`,
+    minutosUtc: (hora * 60) + minuto,
+    epochUtc: null,
+    letter: "--",
+    dir: Number.isFinite(windDir) ? String(windDir).padStart(3, "0") : "VRB",
+    wspd: Number.isFinite(windSpd) ? String(windSpd).padStart(2, "0") : "--",
+    gust: Number.isFinite(windGust) ? String(windGust).padStart(2, "0") : "--",
+    cross: Number.isFinite(crosswindKt) ? String(crosswindKt) : "--",
+    track: Number.isFinite(trackKt)
+      ? `${Math.abs(trackKt)}${trackKt < 0 ? "T" : "H"}`
+      : "--",
+    rvr: Number.isFinite(rvrMetros)
+      ? String(rvrMetros)
+      : (Number.isFinite(visMetros) ? String(visMetros) : "--"),
+    qnh: Number.isFinite(qnh) ? String(qnh) : "--",
+    tl: transitionLevel,
+    temp: Number.isFinite(tempC) ? String(tempC) : "--",
+    qfe: Number.isFinite(qfe) ? String(qfe) : "--",
+    hum: Number.isFinite(humedad) ? String(humedad) : "--",
+    dp: Number.isFinite(dewC) ? String(dewC) : "--",
+    upperCov: upperCloud ? upperCloud.cov : (cavok ? "CAVOK" : "--"),
+    upperBase: upperCloud ? upperCloud.baseCode : (cavok ? "999" : "--"),
+    upperType: upperCloud ? upperCloud.type : "-",
+    lowerCov: lowerCloud ? lowerCloud.cov : (cavok ? "CAVOK" : "--"),
+    lowerBase: lowerCloud ? lowerCloud.baseCode : (cavok ? "999" : "--"),
+    lowerType: lowerCloud ? lowerCloud.type : "-",
+    phen: phenToken || "NIL",
+    vis: Number.isFinite(visMetros) ? String(visMetros) : "--",
+    supEff
+  }
+}
+
+function parsearRegistrosMetarTxt(texto){
+  if(typeof texto !== "string" || texto.trim() === "") return []
+  const lineas = texto.split(/\r?\n/)
+  const registros = []
+  let encabezadoPendiente = null
+
+  lineas.forEach(lineaOriginal => {
+    const linea = lineaOriginal.trim()
+    if(!linea) return
+
+    const matchEncabezado = linea.match(/^([A-Z]{1,3})\s+(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})\s*[-=]?>?$/i)
+    if(matchEncabezado){
+      const dia = matchEncabezado[2]
+      const mes = matchEncabezado[3]
+      const anio = matchEncabezado[4]
+      const hh = matchEncabezado[5]
+      const mm = matchEncabezado[6]
+      const epochUtc = Date.parse(`${anio}-${mes}-${dia}T${hh}:${mm}:00Z`)
+      encabezadoPendiente = {
+        letter: matchEncabezado[1].toUpperCase(),
+        hora: `${hh}:${mm}:00`,
+        epochUtc: Number.isFinite(epochUtc) ? epochUtc : null
+      }
+      return
+    }
+
+    if(!/^(METAR|SPECI)\b/i.test(linea)) return
+    const registro = parsearLineaMetar(linea)
+    if(!registro) return
+
+    if(encabezadoPendiente){
+      registro.letter = encabezadoPendiente.letter || registro.letter
+      if(!registro.horaUtc && encabezadoPendiente.hora){
+        registro.horaUtc = encabezadoPendiente.hora
+      }
+      if(Number.isFinite(encabezadoPendiente.epochUtc)){
+        registro.epochUtc = encabezadoPendiente.epochUtc
+      }
+      encabezadoPendiente = null
+    }
+
+    registros.push(registro)
+  })
+
+  const deduplicadosPorHora = new Map()
+  registros
+    .filter(registro => Number.isFinite(registro.minutosUtc))
+    .forEach(registro => {
+      const existente = deduplicadosPorHora.get(registro.minutosUtc)
+      if(!existente){
+        deduplicadosPorHora.set(registro.minutosUtc, registro)
+        return
+      }
+
+      const epochExistente = Number.isFinite(existente.epochUtc) ? existente.epochUtc : -Infinity
+      const epochActual = Number.isFinite(registro.epochUtc) ? registro.epochUtc : -Infinity
+      if(epochActual > epochExistente){
+        deduplicadosPorHora.set(registro.minutosUtc, registro)
+      }
+    })
+
+  return Array.from(deduplicadosPorHora.values())
+    .sort((a, b) => a.minutosUtc - b.minutosUtc)
+}
+
+function convertirHoraTextoAMinutos(horaTexto){
+  if(typeof horaTexto !== "string") return null
+  const match = horaTexto.trim().match(/^(\d{2}):(\d{2})(?::\d{2})?$/)
+  if(!match) return null
+  const horas = Number.parseInt(match[1], 10)
+  const minutos = Number.parseInt(match[2], 10)
+  if(!Number.isFinite(horas) || !Number.isFinite(minutos)) return null
+  return (horas * 60) + minutos
+}
+
+function seleccionarRegistroMetarPorHora(horaTexto){
+  if(!Array.isArray(registrosMetar) || registrosMetar.length === 0) return null
+  const minutosObjetivo = convertirHoraTextoAMinutos(horaTexto)
+  if(!Number.isFinite(minutosObjetivo)) return null
+
+  let elegido = null
+  for(const registro of registrosMetar){
+    if(registro.minutosUtc <= minutosObjetivo){
+      elegido = registro
+    }
+  }
+
+  return elegido || registrosMetar[registrosMetar.length - 1] || null
+}
+
+function aplicarRegistroMetarEnPanel(registro){
+  if(!registro){
+    limpiarPanelMetar()
+    return
+  }
+
+  setValorPanelMetar("metarDirValue", registro.dir)
+  setValorPanelMetar("metarWspdValue", registro.wspd)
+  setValorPanelMetar("metarGustValue", registro.gust)
+  setValorPanelMetar("metarCrossValue", registro.cross)
+  setValorPanelMetar("metarTrackValue", registro.track)
+  setValorPanelMetar("metarRvrValue", registro.rvr)
+  setValorPanelMetar("metarLetterValue", registro.letter)
+  setValorPanelMetar("metarQnhValue", registro.qnh)
+  setValorPanelMetar("metarTlValue", registro.tl)
+  setValorPanelMetar("metarTempValue", registro.temp)
+  setValorPanelMetar("metarQfeValue", registro.qfe)
+  setValorPanelMetar("metarHumValue", registro.hum)
+  setValorPanelMetar("metarDpValue", registro.dp)
+  setValorPanelMetar("metarUpperCovValue", registro.upperCov)
+  setValorPanelMetar("metarUpperBaseValue", registro.upperBase)
+  setValorPanelMetar("metarUpperTypeValue", registro.upperType)
+  setValorPanelMetar("metarLowerCovValue", registro.lowerCov)
+  setValorPanelMetar("metarLowerBaseValue", registro.lowerBase)
+  setValorPanelMetar("metarLowerTypeValue", registro.lowerType)
+  setValorPanelMetar("metarPhenValue", registro.phen)
+  setValorPanelMetar("metarVisValue", registro.vis)
+  setValorPanelMetar("metarSupEffValue", registro.supEff)
+}
+
+function aplicarDatosMetarPorHora(horaTexto){
+  if(!Array.isArray(registrosMetar) || registrosMetar.length === 0){
+    limpiarPanelMetar()
+    return
+  }
+
+  const registro = seleccionarRegistroMetarPorHora(horaTexto)
+  aplicarRegistroMetarEnPanel(registro)
+}
+
+async function cargarMetarDesdeTxt(){
+  try{
+    const response = await fetch(`${METAR_TXT_URL}?t=${Date.now()}`, { cache: "no-store" })
+    if(!response.ok){
+      limpiarPanelMetar()
+      return
+    }
+
+    const contenido = await response.text()
+    registrosMetar = parsearRegistrosMetarTxt(contenido)
+    aplicarDatosMetarPorHora(horaInicioRelojTexto)
+  }catch(error){
+    limpiarPanelMetar()
+    console.warn("No se pudo cargar metar.txt", error)
+  }
+}
+
+function actualizarContenedorTimeCadaHora(horas, minutos, segundos){
+  if(pausado) return
+  if(minutos !== 0 || segundos !== 0) return
+
+  const horaRedondeada = `${String(horas).padStart(2, "0")}:00:00`
+  if(ultimaHoraRegistradaCadaHora === horaRedondeada) return
+
+  ultimaHoraRegistradaCadaHora = horaRedondeada
+  actualizarContenedorTime(horaRedondeada)
+}
+
 function solicitarSincronizacionTiempo(forzar = false){
   if(!socket || !socket.connected) return
 
@@ -420,10 +804,26 @@ socket.on("horaSala", data => {
   if(reloj.textContent !== texto){
     reloj.textContent = texto;
   }
+
+  if(capturaHoraInicioRelojPendiente){
+    actualizarContenedorTime(texto)
+    capturaHoraInicioRelojPendiente = false
+  }
+
+  actualizarContenedorTimeCadaHora(data.horas, data.minutos, data.segundos)
 });
 socket.on("estadoTiempo", (data) => {
+  const relojActual = document.getElementById("relojGlobal")
+  const textoRelojActual = relojActual ? relojActual.textContent.trim() : ""
 
   pausado = data.pausado;
+
+  if(!pausado && !horaInicioRelojAsignada){
+    if(textoRelojActual){
+      actualizarContenedorTime(textoRelojActual)
+    }
+    capturaHoraInicioRelojPendiente = true
+  }
 
   const iconPlay = document.getElementById("iconPlay");
   const iconPause = document.getElementById("iconPause");
@@ -648,6 +1048,45 @@ function crearVOR(nombre, lat, lng){
 
 
 crearVOR("SCO VOR", -13.738556, -76.212750)
+
+function crearPuntoReferencia(nombre, lat, lng){
+  const circulo = L.circleMarker([lat, lng], {
+    radius: 7,
+    color: "#ff0000",
+    weight: 2,
+    fillColor: "#ff0000",
+    fillOpacity: 0,
+    interactive: true
+  })
+
+  circulo.bindTooltip(nombre, {
+    permanent: false,
+    direction: "top",
+    offset: [0, -6]
+  })
+
+  return circulo
+}
+
+const PUNTOS_REFERENCIA = [
+  { nombre: "Tambo de Mora", lat: -13.45848611, lng: -76.18259167 },
+  { nombre: "Desembocadura rio Pisco", lat: -13.68294722, lng: -76.22019722 },
+  { nombre: "Muelle PISCO", lat: -13.70924722, lng: -76.22163056 },
+  { nombre: "Muelle TASA", lat: -13.78750000, lng: -76.24027778 },
+  { nombre: "Paracas", lat: -13.83535278, lng: -76.25465278 },
+  { nombre: "Otuma (Salinas)", lat: -13.99833056, lng: -76.23464167 },
+  { nombre: "Puente Huamani", lat: -13.68745833, lng: -76.15829722 },
+  { nombre: "Tanguis", lat: -13.71305556, lng: -76.15333333 },
+  { nombre: "Laminadora (Aceros Arequipa)", lat: -13.78926111, lng: -76.16965556 },
+  { nombre: "Santa Cruz", lat: -13.83617778, lng: -76.13894722 },
+  { nombre: "Pozo Santo", lat: -13.89911667, lng: -76.07396389 },
+  { nombre: "Peaje", lat: -13.93232222, lng: -75.90482778 },
+  { nombre: "Sur de Peaje (3NM al Sur)", lat: -13.98148611, lng: -75.90484722 }
+]
+
+const grupoPuntosReferencia = L.layerGroup(
+  PUNTOS_REFERENCIA.map(p => crearPuntoReferencia(p.nombre, p.lat, p.lng))
+).addTo(map)
 
 // ================= VARIABLES =================
 
@@ -7104,6 +7543,57 @@ function desactivarEmergencia(){
   map.removeLayer(imagenPeligro);
   imagenPeligro = null;
 }
+
+function togglePanelDerechoCentro(){
+  inicializarCirculosSectorUno();
+
+  const panel = document.getElementById("panelDerechoCentro");
+  if(!panel) return;
+
+  panel.classList.toggle("contraido");
+
+  const boton = document.getElementById("btnPanelDerechoToggle");
+  if(!boton) return;
+
+  const expandido = !panel.classList.contains("contraido");
+  boton.setAttribute("aria-expanded", String(expandido));
+}
+
+function inicializarCirculosSectorUno(){
+  const exterior = document.getElementById("circuloExterior");
+  const interior = document.getElementById("circuloInterior");
+  if(!exterior || !interior) return;
+  if(exterior.childElementCount > 0 || interior.childElementCount > 0) return;
+
+  for(let i = 0; i < 36; i++){
+    const nodoExterior = document.createElement("div");
+    nodoExterior.className = "nodo-externo";
+    nodoExterior.style.setProperty("--i", i);
+
+    const puntoExterior = document.createElement("span");
+    puntoExterior.className = "punto-externo";
+
+    const numeroExterior = document.createElement("span");
+    numeroExterior.className = "numero-externo";
+    const numeroRosa = i === 0 ? 36 : i;
+    numeroExterior.textContent = String(numeroRosa).padStart(2, "0");
+
+    nodoExterior.appendChild(puntoExterior);
+    nodoExterior.appendChild(numeroExterior);
+    exterior.appendChild(nodoExterior);
+
+    const nodoInterior = document.createElement("div");
+    nodoInterior.className = "nodo-interno";
+    nodoInterior.style.setProperty("--i", i);
+
+    const puntoInterior = document.createElement("span");
+    puntoInterior.className = "punto-interno";
+    nodoInterior.appendChild(puntoInterior);
+    interior.appendChild(nodoInterior);
+  }
+}
+
+window.addEventListener("DOMContentLoaded", inicializarCirculosSectorUno);
 </script>
 <div id="panelManual">
 
@@ -7151,6 +7641,153 @@ function desactivarEmergencia(){
   </div>
 
 </div>
+
+<div id="panelDerechoCentro">
+  <div class="panel-derecho-contenido">
+    <section class="panel-derecho-sector panel-derecho-sector-circulo">
+      <h3 class="panel-derecho-titulo">RWY 22</h3>
+      <p class="panel-derecho-subtitulo">TKF/LND</p>
+      <div class="circulo-puntos">
+        <div id="circuloExterior" class="circulo-externo" aria-hidden="true"></div>
+        <div id="circuloInterior" class="circulo-interno" aria-hidden="true"></div>
+        <div class="centro-datos">
+          <div class="dato-card">
+            <span class="dato-label">DIR</span>
+            <div id="metarDirValue" class="dato-rect"></div>
+          </div>
+          <div class="dato-card">
+            <span class="dato-label">WSPDkt</span>
+            <div id="metarWspdValue" class="dato-rect"></div>
+          </div>
+        </div>
+      </div>
+      <div class="datos-inferiores">
+        <div class="dato-mini-card">
+          <span class="dato-mini-label">GUST</span>
+          <div id="metarGustValue" class="dato-mini-rect"></div>
+        </div>
+        <div class="dato-mini-card">
+          <span class="dato-mini-label">CROSS kt</span>
+          <div id="metarCrossValue" class="dato-mini-rect"></div>
+        </div>
+        <div class="dato-mini-card">
+          <span class="dato-mini-label">TRACK kt</span>
+          <div id="metarTrackValue" class="dato-mini-rect"></div>
+        </div>
+        <div class="dato-mini-card">
+          <span class="dato-mini-label">RVRm</span>
+          <div id="metarRvrValue" class="dato-mini-rect"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel-derecho-sector panel-derecho-sector-formulario">
+      <div class="sector2-row sector2-row-extremos">
+        <div class="sector2-card sector2-card-sm">
+          <span class="sector2-label">Time</span>
+          <div id="sector2TimeValue" class="sector2-rect"></div>
+        </div>
+        <div class="sector2-card sector2-card-sm">
+          <span class="sector2-label">Letter</span>
+          <div id="metarLetterValue" class="sector2-rect"></div>
+        </div>
+      </div>
+      <div class="sector2-row sector2-row-centro">
+        <div class="sector2-card sector2-card-md">
+          <span class="sector2-label">QNHmb</span>
+          <div id="metarQnhValue" class="sector2-rect"></div>
+        </div>
+        <div class="sector2-card sector2-card-md">
+          <span class="sector2-label">T.L.</span>
+          <div id="metarTlValue" class="sector2-rect"></div>
+        </div>
+        <div class="sector2-card sector2-card-md">
+          <span class="sector2-label">TEMPc&deg;</span>
+          <div id="metarTempValue" class="sector2-rect"></div>
+        </div>
+      </div>
+      <div class="sector2-row sector2-row-centro">
+        <div class="sector2-card sector2-card-midsm">
+          <span class="sector2-label">QFEmb</span>
+          <div id="metarQfeValue" class="sector2-rect"></div>
+        </div>
+        <div class="sector2-card sector2-card-midsm">
+          <span class="sector2-label">HUM%</span>
+          <div id="metarHumValue" class="sector2-rect"></div>
+        </div>
+        <div class="sector2-card sector2-card-midsm">
+          <span class="sector2-label">DPc&deg;</span>
+          <div id="metarDpValue" class="sector2-rect"></div>
+        </div>
+      </div>
+      <div class="sector2-group">
+        <div class="sector2-group-title">UPPER CLOUD CEILING</div>
+        <div class="sector2-row sector2-row-centro">
+          <div class="sector2-card sector2-card-midsm">
+            <span class="sector2-label">COV</span>
+            <div id="metarUpperCovValue" class="sector2-rect"></div>
+          </div>
+          <div class="sector2-card sector2-card-midsm">
+            <span class="sector2-label">BASE</span>
+            <div id="metarUpperBaseValue" class="sector2-rect"></div>
+          </div>
+          <div class="sector2-card sector2-card-midsm">
+            <span class="sector2-label">TYPE</span>
+            <div id="metarUpperTypeValue" class="sector2-rect"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sector2-group">
+        <div class="sector2-group-title">LOWER CLOUD CEILING</div>
+        <div class="sector2-row sector2-row-centro">
+          <div class="sector2-card sector2-card-midsm">
+            <span class="sector2-label">COV</span>
+            <div id="metarLowerCovValue" class="sector2-rect"></div>
+          </div>
+          <div class="sector2-card sector2-card-midsm">
+            <span class="sector2-label">BASE</span>
+            <div id="metarLowerBaseValue" class="sector2-rect"></div>
+          </div>
+          <div class="sector2-card sector2-card-midsm">
+            <span class="sector2-label">TYPE</span>
+            <div id="metarLowerTypeValue" class="sector2-rect"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sector2-group">
+        <div class="sector2-group-title">ATMOSPHERE EFFECT</div>
+        <div class="sector2-row sector2-row-centro">
+          <div class="sector2-card sector2-card-midsm">
+            <span class="sector2-label">PHEN</span>
+            <div id="metarPhenValue" class="sector2-rect"></div>
+          </div>
+          <div class="sector2-card sector2-card-midsm">
+            <span class="sector2-label">VIS m</span>
+            <div id="metarVisValue" class="sector2-rect"></div>
+          </div>
+          <div class="sector2-card sector2-card-midsm">
+            <span class="sector2-label">Sup. Eff.</span>
+            <div id="metarSupEffValue" class="sector2-rect"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+  <button id="btnPanelDerechoToggle"
+          class="panel-derecho-toggle"
+          type="button"
+          aria-label="Mostrar u ocultar panel lateral derecho"
+          aria-expanded="true"
+          onclick="togglePanelDerechoCentro()">
+    <span>&#8249;</span>
+  </button>
+</div>
+
+<script>
+inicializarCirculosSectorUno();
+sincronizarContenedorTimePendiente();
+cargarMetarDesdeTxt();
+</script>
 
 </body>
 </html>

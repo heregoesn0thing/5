@@ -135,6 +135,29 @@ function convertirHoraASegundos(horaStr) {
   return h * 3600 + m * 60 + (s || 0);
 }
 
+function convertirHoraObjetoASegundos(horaObj) {
+  if (!horaObj) return null;
+
+  const horas = Number.parseInt(horaObj.horas, 10);
+  const minutos = Number.parseInt(horaObj.minutos, 10);
+  const segundos = Number.parseInt(horaObj.segundos, 10);
+
+  if (
+    !Number.isFinite(horas) ||
+    !Number.isFinite(minutos) ||
+    !Number.isFinite(segundos)
+  ) {
+    return null;
+  }
+
+  return (horas * 3600) + (minutos * 60) + segundos;
+}
+
+function generarLetraAleatoriaAZ() {
+  const codigo = 65 + Math.floor(Math.random() * 26);
+  return String.fromCharCode(codigo);
+}
+
 function formatearHora(segundosTotales) {
   segundosTotales = Math.floor(segundosTotales % 86400);
 
@@ -343,6 +366,7 @@ function iniciarRelojSala(nombre) {
     if (!hora) return;
 
     io.to(nombre).emit("horaSala", hora);
+    actualizarLetraSalaCadaHora(nombre, hora);
 
   }, 1000);
 }
@@ -367,6 +391,39 @@ function obtenerHoraActualSala(nombre) {
 
   return formatearHora(reloj.tiempoBase + delta);
 }
+
+function actualizarLetraSalaCadaHora(nombre, horaActual) {
+  const reloj = relojesSalas[nombre];
+  if (!reloj || reloj.pausado || !reloj.letraAsignada) return;
+
+  const segundosActuales = convertirHoraObjetoASegundos(horaActual);
+  if (!Number.isFinite(segundosActuales)) return;
+
+  if (!Number.isFinite(reloj.ultimoSegundoLetra)) {
+    reloj.ultimoSegundoLetra = segundosActuales;
+    return;
+  }
+
+  let deltaSegundos = segundosActuales - reloj.ultimoSegundoLetra;
+  if (deltaSegundos < 0) {
+    deltaSegundos += 24 * 60 * 60;
+  }
+  if (deltaSegundos <= 0) return;
+
+  reloj.ultimoSegundoLetra = segundosActuales;
+  reloj.segundosAcumuladosLetra += deltaSegundos;
+
+  const horasCumplidas = Math.floor(reloj.segundosAcumuladosLetra / 3600);
+  if (horasCumplidas < 1) return;
+
+  reloj.segundosAcumuladosLetra -= horasCumplidas * 3600;
+  for (let i = 0; i < horasCumplidas; i++) {
+    reloj.letraActual = generarLetraAleatoriaAZ();
+  }
+
+  io.to(nombre).emit("letraPanelSala", { letra: reloj.letraActual });
+}
+
 function iniciarMotorSala(nombreSala){
 
   if (motoresSalas[nombreSala]) return
@@ -1882,6 +1939,10 @@ relojesSalas[nombre] = {
   timestampBase: Date.now(),
   velocidad: 1,
   pausado: true,
+  letraActual: "--",
+  letraAsignada: false,
+  segundosAcumuladosLetra: 0,
+  ultimoSegundoLetra: null
 };
 
 
@@ -1903,6 +1964,8 @@ socket.on("cambiarHora", ({ hora }) => {
 
   reloj.tiempoBase = segundos;
   reloj.timestampBase = Date.now();
+  reloj.segundosAcumuladosLetra = 0;
+  reloj.ultimoSegundoLetra = ((segundos % 86400) + 86400) % 86400;
 
   io.to(sala).emit("horaSala", formatearHora(segundos));
 });
@@ -1939,6 +2002,9 @@ if (peligroSalas[nombre]) {
     socket.emit("estadoTiempo", {
       pausado: relojesSalas[nombre].pausado
     });
+    socket.emit("letraPanelSala", {
+      letra: relojesSalas[nombre].letraActual || "--"
+    });
 
     io.emit("listaSalas", obtenerListaSalas());
   });
@@ -1970,6 +2036,9 @@ socket.on("solicitarSincronizacionTiempo", () => {
 
   socket.emit("estadoTiempo", {
     pausado: reloj.pausado
+  })
+  socket.emit("letraPanelSala", {
+    letra: reloj.letraActual || "--"
   })
 })
 
@@ -2609,8 +2678,24 @@ socket.on("controlTiempo", ({ accion }) => {
   }
 
   if (accion === "reanudar") {
+    const estabaPausado = reloj.pausado;
     reloj.pausado = false;
     reloj.timestampBase = Date.now();
+
+    const horaActual = obtenerHoraActualSala(sala);
+    const segundosActuales = convertirHoraObjetoASegundos(horaActual);
+
+    if (estabaPausado && !reloj.letraAsignada) {
+      reloj.letraActual = generarLetraAleatoriaAZ();
+      reloj.letraAsignada = true;
+      reloj.segundosAcumuladosLetra = 0;
+      reloj.ultimoSegundoLetra = Number.isFinite(segundosActuales)
+        ? segundosActuales
+        : null;
+      io.to(sala).emit("letraPanelSala", { letra: reloj.letraActual });
+    } else if (estabaPausado && Number.isFinite(segundosActuales)) {
+      reloj.ultimoSegundoLetra = segundosActuales;
+    }
   }
 
   // Mantener reloj siempre en tiempo real (x1).

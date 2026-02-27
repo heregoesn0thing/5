@@ -291,7 +291,8 @@ let ultimoSyncTiempoMs = 0
 let capturaHoraInicioRelojPendiente = false
 let horaInicioRelojAsignada = false
 let horaInicioRelojTexto = "00:00:00"
-let ultimaHoraRegistradaCadaHora = null
+let segundosAcumuladosTimePanel = 0
+let ultimoSegundoRelojPanel = null
 const METAR_API_URL = "/api/metar-decoded?ids=SPSO&hours=0"
 const RWY_22_HEADING = 220
 const SPSO_ELEVATION_FT = 39
@@ -321,11 +322,19 @@ const CAMPOS_PANEL_METAR = [
 ]
 let registrosMetar = []
 
+function generarLetraAleatoriaAZ(){
+  const codigo = 65 + Math.floor(Math.random() * 26)
+  return String.fromCharCode(codigo)
+}
+
 function actualizarContenedorTime(horaTexto){
   if(typeof horaTexto !== "string" || horaTexto.trim() === "") return
 
   horaInicioRelojTexto = horaTexto.trim()
   horaInicioRelojAsignada = true
+  const segundosInicio = convertirHoraTextoASegundos(horaInicioRelojTexto)
+  segundosAcumuladosTimePanel = 0
+  ultimoSegundoRelojPanel = Number.isFinite(segundosInicio) ? segundosInicio : null
 
   const contenedorTime = document.getElementById("sector2TimeValue")
   if(contenedorTime){
@@ -346,10 +355,14 @@ function setValorPanelMetar(id, valor){
   if(!el) return
   const texto = valor === null || valor === undefined || valor === "" ? "--" : String(valor)
   el.textContent = texto
+  if(id === "metarDirValue"){
+    actualizarIndicadorDireccionRosa(texto)
+  }
 }
 
 function limpiarPanelMetar(){
   CAMPOS_PANEL_METAR.forEach(id => setValorPanelMetar(id, "--"))
+  setValorPanelMetar("metarLetterValue", generarLetraAleatoriaAZ())
 }
 
 function parsearTemperaturaMetar(token){
@@ -563,6 +576,23 @@ function convertirHoraTextoAMinutos(horaTexto){
   return (horas * 60) + minutos
 }
 
+function convertirHoraTextoASegundos(horaTexto){
+  if(typeof horaTexto !== "string") return null
+  const match = horaTexto.trim().match(/^(\d{2}):(\d{2})(?::(\d{2}))?$/)
+  if(!match) return null
+  const horas = Number.parseInt(match[1], 10)
+  const minutos = Number.parseInt(match[2], 10)
+  const segundos = match[3] ? Number.parseInt(match[3], 10) : 0
+  if(
+    !Number.isFinite(horas) ||
+    !Number.isFinite(minutos) ||
+    !Number.isFinite(segundos)
+  ){
+    return null
+  }
+  return (horas * 3600) + (minutos * 60) + segundos
+}
+
 function seleccionarRegistroMetarPorHora(horaTexto){
   if(!Array.isArray(registrosMetar) || registrosMetar.length === 0) return null
   const minutosObjetivo = convertirHoraTextoAMinutos(horaTexto)
@@ -590,7 +620,7 @@ function aplicarRegistroMetarEnPanel(registro){
   setValorPanelMetar("metarCrossValue", registro.cross)
   setValorPanelMetar("metarTrackValue", registro.track)
   setValorPanelMetar("metarRvrValue", registro.rvr)
-  setValorPanelMetar("metarLetterValue", registro.letter)
+  setValorPanelMetar("metarLetterValue", generarLetraAleatoriaAZ())
   setValorPanelMetar("metarQnhValue", registro.qnh)
   setValorPanelMetar("metarTlValue", registro.tl)
   setValorPanelMetar("metarTempValue", registro.temp)
@@ -637,13 +667,37 @@ async function cargarMetarDesdeApi(){
 
 function actualizarContenedorTimeCadaHora(horas, minutos, segundos){
   if(pausado) return
-  if(minutos !== 0 || segundos !== 0) return
+  if(!horaInicioRelojAsignada) return
 
-  const horaRedondeada = `${String(horas).padStart(2, "0")}:00:00`
-  if(ultimaHoraRegistradaCadaHora === horaRedondeada) return
+  const totalSegundosActual =
+    (Number(horas) * 3600) + (Number(minutos) * 60) + Number(segundos)
+  if(!Number.isFinite(totalSegundosActual)) return
 
-  ultimaHoraRegistradaCadaHora = horaRedondeada
-  actualizarContenedorTime(horaRedondeada)
+  if(!Number.isFinite(ultimoSegundoRelojPanel)){
+    ultimoSegundoRelojPanel = totalSegundosActual
+    return
+  }
+
+  let deltaSegundos = totalSegundosActual - ultimoSegundoRelojPanel
+  if(deltaSegundos < 0){
+    deltaSegundos += 24 * 60 * 60
+  }
+  if(deltaSegundos <= 0) return
+
+  ultimoSegundoRelojPanel = totalSegundosActual
+  segundosAcumuladosTimePanel += deltaSegundos
+  if(segundosAcumuladosTimePanel < 3600) return
+
+  while(segundosAcumuladosTimePanel >= 3600){
+    segundosAcumuladosTimePanel -= 3600
+  }
+
+  const textoHoraActual =
+    `${String(horas).padStart(2, "0")}:` +
+    `${String(minutos).padStart(2, "0")}:` +
+    `${String(segundos).padStart(2, "0")}`
+
+  actualizarContenedorTime(textoHoraActual)
   cargarMetarDesdeApi()
 }
 
@@ -796,8 +850,10 @@ socket.on("estadoTiempo", (data) => {
   if(!pausado && !horaInicioRelojAsignada){
     if(textoRelojActual){
       actualizarContenedorTime(textoRelojActual)
+      capturaHoraInicioRelojPendiente = false
+    }else{
+      capturaHoraInicioRelojPendiente = true
     }
-    capturaHoraInicioRelojPendiente = true
   }
 
   const iconPlay = document.getElementById("iconPlay");
@@ -7544,16 +7600,22 @@ function inicializarCirculosSectorUno(){
     const nodoExterior = document.createElement("div");
     nodoExterior.className = "nodo-externo";
     nodoExterior.style.setProperty("--i", i);
+    const numeroRosa = i === 0 ? 36 : i;
+    const codigoRosa = String(numeroRosa).padStart(2, "0");
+    nodoExterior.dataset.rosa = codigoRosa;
 
     const puntoExterior = document.createElement("span");
     puntoExterior.className = "punto-externo";
 
+    const trianguloExterior = document.createElement("span");
+    trianguloExterior.className = "triangulo-externo";
+
     const numeroExterior = document.createElement("span");
     numeroExterior.className = "numero-externo";
-    const numeroRosa = i === 0 ? 36 : i;
-    numeroExterior.textContent = String(numeroRosa).padStart(2, "0");
+    numeroExterior.textContent = codigoRosa;
 
     nodoExterior.appendChild(puntoExterior);
+    nodoExterior.appendChild(trianguloExterior);
     nodoExterior.appendChild(numeroExterior);
     exterior.appendChild(nodoExterior);
 
@@ -7565,6 +7627,40 @@ function inicializarCirculosSectorUno(){
     puntoInterior.className = "punto-interno";
     nodoInterior.appendChild(puntoInterior);
     interior.appendChild(nodoInterior);
+  }
+
+  const valorDir = document.getElementById("metarDirValue")?.textContent || "";
+  actualizarIndicadorDireccionRosa(valorDir);
+}
+
+function obtenerCodigoRosaDesdeDir(dirTexto){
+  if(typeof dirTexto !== "string") return null;
+  const limpio = dirTexto.trim();
+  const match = limpio.match(/^(\d{3})$/);
+  if(!match) return null;
+
+  const primerosDos = Number.parseInt(match[1].slice(0, 2), 10);
+  if(!Number.isFinite(primerosDos)) return null;
+
+  const numeroRosa = primerosDos === 0 ? 36 : primerosDos;
+  if(numeroRosa < 1 || numeroRosa > 36) return null;
+  return String(numeroRosa).padStart(2, "0");
+}
+
+function actualizarIndicadorDireccionRosa(dirTexto){
+  const exterior = document.getElementById("circuloExterior");
+  if(!exterior) return;
+
+  const nodos = exterior.querySelectorAll(".nodo-externo");
+  if(nodos.length === 0) return;
+
+  const codigoObjetivo = obtenerCodigoRosaDesdeDir(dirTexto);
+  nodos.forEach(nodo => nodo.classList.remove("activo-dir"));
+  if(!codigoObjetivo) return;
+
+  const nodoObjetivo = exterior.querySelector(`.nodo-externo[data-rosa="${codigoObjetivo}"]`);
+  if(nodoObjetivo){
+    nodoObjetivo.classList.add("activo-dir");
   }
 }
 

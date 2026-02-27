@@ -1835,6 +1835,24 @@ html, body{
   transform: translateY(-98px);
 }
 
+#panelDerechoCentro .triangulo-externo{
+  display: none;
+  width: 18px;
+  height: 16px;
+  background: #39ff14;
+  clip-path: polygon(50% 100%, 0 0, 100% 0);
+  box-shadow: none;
+  transform: translateY(-98px);
+}
+
+#panelDerechoCentro .nodo-externo.activo-dir .punto-externo{
+  display: none;
+}
+
+#panelDerechoCentro .nodo-externo.activo-dir .triangulo-externo{
+  display: block;
+}
+
 #panelDerechoCentro .numero-externo{
   position: absolute;
   transform: translateY(-111px) rotate(calc(var(--i) * -10deg));

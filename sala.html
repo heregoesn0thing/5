@@ -291,6 +291,8 @@ let ultimoSyncTiempoMs = 0
 let capturaHoraInicioRelojPendiente = false
 let horaInicioRelojAsignada = false
 let horaInicioRelojTexto = "00:00:00"
+let horaInicioRelojOriginalTexto = null
+let horasTranscurridasPanelTime = 0
 let segundosAcumuladosTimePanel = 0
 let ultimoSegundoRelojPanel = null
 const METAR_API_URL = "/api/metar-decoded?ids=SPSO&hours=0"
@@ -327,21 +329,43 @@ function generarLetraAleatoriaAZ(){
   return String.fromCharCode(codigo)
 }
 
+function formatearSegundosAHoraTexto(totalSegundos){
+  const segundosDia = 24 * 60 * 60
+  const normalizados = ((totalSegundos % segundosDia) + segundosDia) % segundosDia
+  const horas = Math.floor(normalizados / 3600)
+  const minutos = Math.floor((normalizados % 3600) / 60)
+  const segundos = normalizados % 60
+  return (
+    `${String(horas).padStart(2, "0")}:` +
+    `${String(minutos).padStart(2, "0")}:` +
+    `${String(segundos).padStart(2, "0")}`
+  )
+}
+
+function actualizarVisualContenedorTime(horaTexto){
+  const contenedorTime = document.getElementById("sector2TimeValue")
+  if(contenedorTime){
+    contenedorTime.textContent = horaTexto
+  }
+  aplicarDatosMetarPorHora(horaTexto)
+}
+
 function actualizarContenedorTime(horaTexto){
   if(typeof horaTexto !== "string" || horaTexto.trim() === "") return
 
-  horaInicioRelojTexto = horaTexto.trim()
+  const horaNormalizada = horaTexto.trim()
+  if(!horaInicioRelojAsignada || !horaInicioRelojOriginalTexto){
+    horaInicioRelojOriginalTexto = horaNormalizada
+    horasTranscurridasPanelTime = 0
+  }
+
+  horaInicioRelojTexto = horaNormalizada
   horaInicioRelojAsignada = true
   const segundosInicio = convertirHoraTextoASegundos(horaInicioRelojTexto)
   segundosAcumuladosTimePanel = 0
   ultimoSegundoRelojPanel = Number.isFinite(segundosInicio) ? segundosInicio : null
 
-  const contenedorTime = document.getElementById("sector2TimeValue")
-  if(contenedorTime){
-    contenedorTime.textContent = horaInicioRelojTexto
-  }
-
-  aplicarDatosMetarPorHora(horaInicioRelojTexto)
+  actualizarVisualContenedorTime(horaInicioRelojTexto)
 }
 
 function sincronizarContenedorTimePendiente(){
@@ -686,18 +710,20 @@ function actualizarContenedorTimeCadaHora(horas, minutos, segundos){
 
   ultimoSegundoRelojPanel = totalSegundosActual
   segundosAcumuladosTimePanel += deltaSegundos
-  if(segundosAcumuladosTimePanel < 3600) return
+  const horasCumplidas = Math.floor(segundosAcumuladosTimePanel / 3600)
+  if(horasCumplidas < 1) return
 
-  while(segundosAcumuladosTimePanel >= 3600){
-    segundosAcumuladosTimePanel -= 3600
-  }
+  segundosAcumuladosTimePanel -= horasCumplidas * 3600
+  horasTranscurridasPanelTime += horasCumplidas
 
-  const textoHoraActual =
-    `${String(horas).padStart(2, "0")}:` +
-    `${String(minutos).padStart(2, "0")}:` +
-    `${String(segundos).padStart(2, "0")}`
+  const baseSegundos = convertirHoraTextoASegundos(
+    horaInicioRelojOriginalTexto || horaInicioRelojTexto
+  )
+  if(!Number.isFinite(baseSegundos)) return
 
-  actualizarContenedorTime(textoHoraActual)
+  const segundosPanel = baseSegundos + (horasTranscurridasPanelTime * 3600)
+  horaInicioRelojTexto = formatearSegundosAHoraTexto(segundosPanel)
+  actualizarVisualContenedorTime(horaInicioRelojTexto)
   cargarMetarDesdeApi()
 }
 

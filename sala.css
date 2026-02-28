@@ -749,6 +749,7 @@ html, body{
   display: flex;
   align-items: stretch;
   justify-content: flex-end;
+  gap: 0;
 }
 
 .selectorModoOperacionPanel .selectorModoOperacion{
@@ -761,11 +762,10 @@ html, body{
 
 .selector-modo-toggle{
   width: 28px;
-  border: 1px solid #2c344a;
-  border-left: none;
-  border-radius: 0 10px 10px 0;
-  background: linear-gradient(145deg, #1f2433, #18202f);
-  color: #cbd5e1;
+  border: none;
+  border-radius: 8px;
+  background: #1f2433;
+  color: #aaa;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -775,7 +775,7 @@ html, body{
 
 .selector-modo-toggle:hover{
   background: #2a3145;
-  color: #e2e8f0;
+  color: #00e0ff;
 }
 
 .selector-modo-toggle span{
@@ -944,7 +944,7 @@ html, body{
 #panelControladorIzquierdo{
   position: fixed;
   top: 50%;
-  left: 12px;
+  left: 0;
   transform: translateY(-50%);
   z-index: 1900;
   display: none;
@@ -970,13 +970,12 @@ html, body{
 }
 
 #panelControladorIzquierdo .panel-controlador-toggle{
-  width: 30px;
-  height: 104px;
-  border: 1px solid rgba(96, 165, 250, 0.45);
-  border-left: none;
-  border-radius: 0 12px 12px 0;
-  background: linear-gradient(165deg, #0f172a, #1e3a8a);
-  color: #dbeafe;
+  width: 28px;
+  height: 90px;
+  border: none;
+  border-radius: 8px;
+  background: #1f2433;
+  color: #aaa;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -985,8 +984,8 @@ html, body{
 }
 
 #panelControladorIzquierdo .panel-controlador-toggle:hover{
-  background: linear-gradient(165deg, #0b3b5b, #1e40af);
-  color: #f8fafc;
+  background: #2a3145;
+  color: #00e0ff;
 }
 
 #panelControladorIzquierdo .panel-controlador-toggle span{
@@ -3406,13 +3405,12 @@ html, body{
 }
 
 #panelDerechoCentro .panel-derecho-toggle{
-  width: 34px;
-  height: 96px;
-  border: 1px solid rgba(125, 211, 252, 0.4);
-  border-right: none;
-  border-radius: 12px 0 0 12px;
-  background: linear-gradient(165deg, #0f172a, #1e3a8a);
-  color: #e0f2fe;
+  width: 28px;
+  height: 90px;
+  border: none;
+  border-radius: 8px;
+  background: #1f2433;
+  color: #aaa;
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
@@ -3423,8 +3421,8 @@ html, body{
 }
 
 #panelDerechoCentro .panel-derecho-toggle:hover{
-  background: linear-gradient(165deg, #0b3b5b, #1e40af);
-  color: #f8fafc;
+  background: #2a3145;
+  color: #00e0ff;
 }
 
 #panelDerechoCentro.contraido .panel-derecho-contenido{
@@ -3437,7 +3435,7 @@ html, body{
 }
 
 #panelDerechoCentro.contraido .panel-derecho-toggle{
-  border-radius: 12px 0 0 12px;
+  border-radius: 8px;
 }
 
 #panelDerechoCentro.contraido .panel-derecho-toggle span{

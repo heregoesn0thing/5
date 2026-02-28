@@ -298,6 +298,11 @@ let segundosAcumuladosTimePanel = 0
 let ultimoSegundoRelojPanel = null
 let letraPanelTexto = "--"
 let modoOperacion = "controlador"
+let contadorRectControladorExtra = 0
+let bloqueoClickRectControladorHasta = 0
+const datosCasillerosControlador = Object.create(null)
+const STORAGE_KEY_DATOS_CASILLEROS_CONTROLADOR = "panelControladorDatosCasillerosV1"
+let temporizadorConfirmacionCheck = null
 const METAR_API_URL = "/api/metar-decoded?ids=SPSO&hours=0"
 const RWY_22_HEADING = 220
 const SPSO_ELEVATION_FT = 39
@@ -403,12 +408,20 @@ function establecerModoOperacion(modo){
 
 function aplicarVisibilidadPanelIzquierdoPorModo(){
   const panel = document.getElementById("menuControles")
+  const panelControlador = document.getElementById("panelControladorIzquierdo")
+  const vistaFlotante = document.getElementById("controladorVistaRect")
   if(!panel) return
 
-  const ocultar = modoOperacion === "controlador"
-  panel.classList.toggle("forzado-oculto-modo", ocultar)
+  const esControlador = modoOperacion === "controlador"
+  panel.classList.toggle("forzado-oculto-modo", esControlador)
+  if(panelControlador){
+    panelControlador.classList.toggle("visible-modo-controlador", esControlador)
+  }
+  if(vistaFlotante){
+    vistaFlotante.classList.toggle("visible-modo-controlador", esControlador)
+  }
 
-  if(!ocultar) return
+  if(!esControlador) return
 
   const aeronave = obtenerAeronaveVinculadaPanel() || aeronaveSeleccionada
   const estado = obtenerEstadoPanelLateralAeronave(aeronave)
@@ -424,6 +437,2402 @@ function aplicarVisibilidadPanelIzquierdoPorModo(){
   ocultarSpeedControlPanel()
   ocultarOpcionesSID()
   actualizarIconoPanelControles(false)
+}
+
+function obtenerRectControladorDespuesDeCursor(contenedor, clientY){
+  const elementos = Array.from(
+    contenedor.querySelectorAll(".panel-controlador-rect:not(.arrastrando)")
+  )
+  for(const elemento of elementos){
+    const caja = elemento.getBoundingClientRect()
+    const mitad = caja.top + (caja.height / 2)
+    if(clientY < mitad){
+      return elemento
+    }
+  }
+  return null
+}
+
+function moverRectControladorSegunCursor(contenedor, clientY, rect){
+  if(!contenedor || !rect) return
+  const referencia = obtenerRectControladorDespuesDeCursor(contenedor, clientY)
+  if(referencia){
+    contenedor.insertBefore(rect, referencia)
+    return
+  }
+  contenedor.appendChild(rect)
+}
+
+function limpiarResaltadoZonasPanelControlador(){
+  document.querySelectorAll("#panelControladorIzquierdo .panel-controlador-caja")
+    .forEach(zona => zona.classList.remove("zona-arrastre-activa"))
+}
+
+function limpiarDatosCasillerosControladorEnMemoria(){
+  Object.keys(datosCasillerosControlador).forEach((idRect) => {
+    delete datosCasillerosControlador[idRect]
+  })
+}
+
+function guardarDatosCasillerosControlador(){
+  try{
+    localStorage.setItem(
+      STORAGE_KEY_DATOS_CASILLEROS_CONTROLADOR,
+      JSON.stringify(datosCasillerosControlador)
+    )
+    return true
+  } catch(_err){
+    return false
+  }
+}
+
+function cargarDatosCasillerosControladorGuardados(){
+  try{
+    const guardado = localStorage.getItem(STORAGE_KEY_DATOS_CASILLEROS_CONTROLADOR)
+    if(!guardado) return
+    const parsed = JSON.parse(guardado)
+    if(!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return
+
+    limpiarDatosCasillerosControladorEnMemoria()
+    Object.entries(parsed).forEach(([idRect, estado]) => {
+      if(typeof idRect !== "string" || idRect.trim() === "") return
+      if(!estado || typeof estado !== "object" || Array.isArray(estado)) return
+      datosCasillerosControlador[idRect] = estado
+    })
+  } catch(_err){
+    // Ignore malformed storage and continue with empty state.
+  }
+}
+
+function limpiarTextoCasilleroControlador(texto){
+  if(typeof texto !== "string") return ""
+  return texto.replace(/\r?\n/g, " ")
+}
+
+function normalizarTextoConPrefijoFijo(texto, prefijo){
+  const limpio = limpiarTextoCasilleroControlador(texto)
+  const prefijoSeguro = typeof prefijo === "string" ? prefijo : ""
+  if(prefijoSeguro === "") return limpio
+  if(limpio === "") return prefijoSeguro
+  if(limpio.startsWith(prefijoSeguro)){
+    return prefijoSeguro + limpio.slice(prefijoSeguro.length)
+  }
+  return prefijoSeguro + limpio.replace(new RegExp(`^${prefijoSeguro}+`), "")
+}
+
+function crearEstadoCasillerosControlador(textoBase){
+  const texto = typeof textoBase === "string" ? textoBase.trim() : ""
+  return {
+    simple: texto,
+    cyan: {
+      left: {
+        col1: [texto, "", ""],
+        col2: {
+          top: "",
+          bottom: {
+            entries: [
+              { value: "", strike: false }
+            ],
+            activeIndex: 0
+          },
+          topStrike: false
+        },
+        col3: {
+          entries: [
+            { value: "", strike: false }
+          ],
+          activeIndex: 0
+        }
+      },
+      right: {
+        top: ["", "", "", ""],
+        bottom: ["", "", "", ""],
+        diagonal: {
+          topLeft: {
+            a: "",
+            b: ""
+          },
+          bottomThird: {
+            a: "",
+            b: ""
+          }
+        },
+        merged: ""
+      }
+    },
+    amarillo: {
+      col1: ["", "", ""],
+      col23: {
+        top: "@",
+        middle: {
+          left: "",
+          right: texto
+        },
+        bottom: {
+          left: ["", ""],
+          right: ""
+        }
+      },
+      col4Principal: ["", "", "", ""],
+      col4Cuarto: ["", "", "", ""]
+    }
+  }
+}
+
+function obtenerEstadoCasillerosControlador(idRect, textoBase){
+  if(typeof idRect !== "string" || idRect.trim() === ""){
+    return crearEstadoCasillerosControlador(textoBase)
+  }
+  if(!datosCasillerosControlador[idRect]){
+    datosCasillerosControlador[idRect] = crearEstadoCasillerosControlador(textoBase)
+  }
+  const estado = datosCasillerosControlador[idRect]
+  const normalizarTexto = (valor) => (
+    typeof valor === "string"
+      ? valor
+      : valor === null || valor === undefined
+        ? ""
+        : String(valor)
+  )
+  const normalizarDosDigitos = (valor) => (
+    normalizarTexto(valor).replace(/\D/g, "").slice(0, 2)
+  )
+  const normalizarAlfanumericoDosMayus = (valor) => (
+    normalizarTexto(valor).toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 2)
+  )
+  const normalizarAlfanumericoDosLibre = (valor) => (
+    normalizarTexto(valor).replace(/[^a-zA-Z0-9]/g, "").slice(0, 7)
+  )
+  const normalizarIndice = (valor, maximo) => {
+    const numero = Number.parseInt(valor, 10)
+    if(!Number.isFinite(numero)) return 0
+    if(numero < 0) return 0
+    if(numero > maximo) return maximo
+    return numero
+  }
+  if(typeof estado.simple !== "string"){
+    estado.simple = normalizarTexto(estado.simple)
+  }
+
+  const cyanActual = estado.cyan
+  const legacyCols = Array.isArray(cyanActual)
+    ? cyanActual
+    : cyanActual && typeof cyanActual === "object" && Array.isArray(cyanActual.cols)
+      ? cyanActual.cols
+      : []
+  const legacyLeft =
+    cyanActual && typeof cyanActual === "object" && !Array.isArray(cyanActual) && Array.isArray(cyanActual.left)
+      ? cyanActual.left
+      : []
+  const leftActual =
+    cyanActual && typeof cyanActual === "object" && !Array.isArray(cyanActual) &&
+    cyanActual.left && typeof cyanActual.left === "object" && !Array.isArray(cyanActual.left)
+      ? cyanActual.left
+      : null
+
+  const col1Normalizadas = []
+  for(let i = 0; i < 3; i += 1){
+    let valor = ""
+    if(leftActual && Array.isArray(leftActual.col1)){
+      valor = leftActual.col1[i]
+    }
+    if((valor === "" || valor === null || valor === undefined) && i === 0){
+      if(legacyLeft.length > 0){
+        valor = legacyLeft[0]
+      } else if(legacyCols.length > 0){
+        valor = legacyCols[0]
+      }
+    }
+    col1Normalizadas[i] = normalizarTexto(valor)
+  }
+  const MAX_ENTRADAS_BOTTOM_COL2 = 7
+  let col2TopNormalizada = ""
+  let col2BottomEntradasNormalizadas = []
+  let col2BottomIndiceActivoNormalizado = 0
+  let col2BottomIndiceActivoPreferido = null
+  let col2TopStrikeNormalizado = false
+  const agregarEntradaBottomCol2 = (valor, strike = false) => {
+    if(col2BottomEntradasNormalizadas.length >= MAX_ENTRADAS_BOTTOM_COL2) return
+    const normalizado = normalizarDosDigitos(valor)
+    col2BottomEntradasNormalizadas.push({
+      value: normalizado,
+      strike: strike === true && normalizado.trim() !== ""
+    })
+  }
+  if(leftActual){
+    const col2Actual = leftActual.col2
+    if(col2Actual && typeof col2Actual === "object" && !Array.isArray(col2Actual)){
+      col2TopNormalizada = normalizarAlfanumericoDosMayus(col2Actual.top)
+      const bottomActual = col2Actual.bottom
+      if(bottomActual && typeof bottomActual === "object" && !Array.isArray(bottomActual)){
+        if(Array.isArray(bottomActual.entries)){
+          bottomActual.entries.slice(0, MAX_ENTRADAS_BOTTOM_COL2).forEach((entrada) => {
+            if(entrada && typeof entrada === "object" && !Array.isArray(entrada)){
+              agregarEntradaBottomCol2(entrada.value, entrada.strike === true)
+            } else {
+              agregarEntradaBottomCol2(entrada, false)
+            }
+          })
+          if(bottomActual.activeIndex !== undefined && bottomActual.activeIndex !== null){
+            col2BottomIndiceActivoPreferido = normalizarIndice(
+              bottomActual.activeIndex,
+              MAX_ENTRADAS_BOTTOM_COL2 - 1
+            )
+          }
+        } else {
+          // Compatibilidad con formato anterior: value/strike/below
+          agregarEntradaBottomCol2(bottomActual.value, bottomActual.strike === true)
+          if(normalizarDosDigitos(bottomActual.below).trim() !== ""){
+            agregarEntradaBottomCol2(bottomActual.below, false)
+          }
+        }
+      } else {
+        agregarEntradaBottomCol2(bottomActual, false)
+      }
+      col2TopStrikeNormalizado = col2Actual.topStrike === true
+    } else {
+      agregarEntradaBottomCol2(col2Actual, false)
+    }
+  } else if(legacyLeft.length > 1){
+    agregarEntradaBottomCol2(legacyLeft[1], false)
+  } else if(legacyCols.length > 1){
+    agregarEntradaBottomCol2(legacyCols[1], false)
+  }
+  if(col2BottomEntradasNormalizadas.length === 0){
+    agregarEntradaBottomCol2("", false)
+  }
+  if(col2TopNormalizada.trim() === ""){
+    col2TopStrikeNormalizado = false
+  }
+  let ultimoIndiceConValorCol2Bottom = -1
+  for(let i = 0; i < col2BottomEntradasNormalizadas.length; i += 1){
+    const entrada = col2BottomEntradasNormalizadas[i]
+    if(!entrada || typeof entrada !== "object"){
+      col2BottomEntradasNormalizadas[i] = { value: "", strike: false }
+      continue
+    }
+    const valorNormalizado = normalizarDosDigitos(entrada.value)
+    entrada.value = valorNormalizado
+    if(valorNormalizado.trim() === ""){
+      entrada.strike = false
+    } else {
+      entrada.strike = entrada.strike === true
+      ultimoIndiceConValorCol2Bottom = i
+    }
+  }
+  if(col2BottomIndiceActivoPreferido !== null){
+    col2BottomIndiceActivoNormalizado = col2BottomIndiceActivoPreferido
+  } else if(ultimoIndiceConValorCol2Bottom >= 0){
+    col2BottomIndiceActivoNormalizado = ultimoIndiceConValorCol2Bottom
+  } else {
+    col2BottomIndiceActivoNormalizado = 0
+  }
+  if(
+    ultimoIndiceConValorCol2Bottom >= 0 &&
+    col2BottomIndiceActivoNormalizado < ultimoIndiceConValorCol2Bottom
+  ){
+    col2BottomIndiceActivoNormalizado = ultimoIndiceConValorCol2Bottom
+  }
+  if(
+    ultimoIndiceConValorCol2Bottom >= 0 &&
+    col2BottomIndiceActivoNormalizado > ultimoIndiceConValorCol2Bottom
+  ){
+    col2BottomIndiceActivoNormalizado = ultimoIndiceConValorCol2Bottom
+  }
+  col2BottomIndiceActivoNormalizado = normalizarIndice(
+    col2BottomIndiceActivoNormalizado,
+    MAX_ENTRADAS_BOTTOM_COL2 - 1
+  )
+  while(
+    col2BottomEntradasNormalizadas.length <= col2BottomIndiceActivoNormalizado &&
+    col2BottomEntradasNormalizadas.length < MAX_ENTRADAS_BOTTOM_COL2
+  ){
+    col2BottomEntradasNormalizadas.push({ value: "", strike: false })
+  }
+  const MAX_ENTRADAS_COL3 = 7
+  let col3EntradasNormalizadas = []
+  let col3IndiceActivoNormalizado = 0
+  let col3IndiceActivoPreferido = null
+  const agregarEntradaCol3 = (valor, strike = false) => {
+    if(col3EntradasNormalizadas.length >= MAX_ENTRADAS_COL3) return
+    const normalizado = normalizarAlfanumericoDosLibre(valor)
+    col3EntradasNormalizadas.push({
+      value: normalizado,
+      strike: strike === true && normalizado.trim() !== ""
+    })
+  }
+  if(leftActual){
+    const col3Actual = leftActual.col3
+    if(col3Actual && typeof col3Actual === "object" && !Array.isArray(col3Actual)){
+      if(Array.isArray(col3Actual.entries)){
+        col3Actual.entries.slice(0, MAX_ENTRADAS_COL3).forEach((entrada) => {
+          if(entrada && typeof entrada === "object" && !Array.isArray(entrada)){
+            agregarEntradaCol3(entrada.value, entrada.strike === true)
+          } else {
+            agregarEntradaCol3(entrada, false)
+          }
+        })
+        if(col3Actual.activeIndex !== undefined && col3Actual.activeIndex !== null){
+          col3IndiceActivoPreferido = normalizarIndice(
+            col3Actual.activeIndex,
+            MAX_ENTRADAS_COL3 - 1
+          )
+        }
+      } else {
+        agregarEntradaCol3(col3Actual.value, col3Actual.strike === true)
+        if(normalizarAlfanumericoDosLibre(col3Actual.below).trim() !== ""){
+          agregarEntradaCol3(col3Actual.below, false)
+        }
+      }
+    } else {
+      agregarEntradaCol3(col3Actual, false)
+    }
+  } else if(legacyLeft.length > 2){
+    agregarEntradaCol3(legacyLeft[2], false)
+  } else if(legacyCols.length > 2){
+    agregarEntradaCol3(legacyCols[2], false)
+  }
+  if(col3EntradasNormalizadas.length === 0){
+    agregarEntradaCol3("", false)
+  }
+  let ultimoIndiceConValorCol3 = -1
+  for(let i = 0; i < col3EntradasNormalizadas.length; i += 1){
+    const entrada = col3EntradasNormalizadas[i]
+    if(!entrada || typeof entrada !== "object"){
+      col3EntradasNormalizadas[i] = { value: "", strike: false }
+      continue
+    }
+    const valorNormalizado = normalizarAlfanumericoDosLibre(entrada.value)
+    entrada.value = valorNormalizado
+    if(valorNormalizado.trim() === ""){
+      entrada.strike = false
+    } else {
+      entrada.strike = entrada.strike === true
+      ultimoIndiceConValorCol3 = i
+    }
+  }
+  if(col3IndiceActivoPreferido !== null){
+    col3IndiceActivoNormalizado = col3IndiceActivoPreferido
+  } else if(ultimoIndiceConValorCol3 >= 0){
+    col3IndiceActivoNormalizado = ultimoIndiceConValorCol3
+  } else {
+    col3IndiceActivoNormalizado = 0
+  }
+  if(
+    ultimoIndiceConValorCol3 >= 0 &&
+    col3IndiceActivoNormalizado < ultimoIndiceConValorCol3
+  ){
+    col3IndiceActivoNormalizado = ultimoIndiceConValorCol3
+  }
+  if(
+    ultimoIndiceConValorCol3 >= 0 &&
+    col3IndiceActivoNormalizado > ultimoIndiceConValorCol3
+  ){
+    col3IndiceActivoNormalizado = ultimoIndiceConValorCol3
+  }
+  col3IndiceActivoNormalizado = normalizarIndice(
+    col3IndiceActivoNormalizado,
+    MAX_ENTRADAS_COL3 - 1
+  )
+  while(
+    col3EntradasNormalizadas.length <= col3IndiceActivoNormalizado &&
+    col3EntradasNormalizadas.length < MAX_ENTRADAS_COL3
+  ){
+    col3EntradasNormalizadas.push({ value: "", strike: false })
+  }
+
+  const topNormalizadas = []
+  const bottomNormalizadas = []
+  let diagonalTopLeftNormalizada = { a: "", b: "" }
+  let diagonalBottomThirdNormalizada = { a: "", b: "" }
+  for(let i = 0; i < 4; i += 1){
+    let valorTop = ""
+    let valorBottom = ""
+    if(cyanActual && typeof cyanActual === "object" && !Array.isArray(cyanActual)){
+      const rightActual = cyanActual.right
+      if(rightActual && typeof rightActual === "object" && !Array.isArray(rightActual)){
+        if(Array.isArray(rightActual.top)){
+          valorTop = rightActual.top[i]
+        }
+        if(Array.isArray(rightActual.bottom)){
+          valorBottom = rightActual.bottom[i]
+        }
+      }
+    }
+    topNormalizadas[i] = normalizarTexto(valorTop)
+    bottomNormalizadas[i] = normalizarTexto(valorBottom)
+  }
+  if(cyanActual && typeof cyanActual === "object" && !Array.isArray(cyanActual)){
+    const rightActual = cyanActual.right
+    if(rightActual && typeof rightActual === "object" && !Array.isArray(rightActual)){
+      const diagonalActual = rightActual.diagonal
+      if(diagonalActual && typeof diagonalActual === "object" && !Array.isArray(diagonalActual)){
+        const topLeftActual =
+          diagonalActual.topLeft && typeof diagonalActual.topLeft === "object"
+            ? diagonalActual.topLeft
+            : diagonalActual.top && typeof diagonalActual.top === "object"
+              ? diagonalActual.top
+              : null
+        const bottomThirdActual =
+          diagonalActual.bottomThird && typeof diagonalActual.bottomThird === "object"
+            ? diagonalActual.bottomThird
+            : diagonalActual.bottom && typeof diagonalActual.bottom === "object"
+              ? diagonalActual.bottom
+              : null
+        const leerLadoDiagonal = (obj, claves) => {
+          if(!obj || typeof obj !== "object" || Array.isArray(obj)) return ""
+          for(const clave of claves){
+            if(typeof obj[clave] === "string"){
+              return normalizarTexto(obj[clave])
+            }
+          }
+          return ""
+        }
+        diagonalTopLeftNormalizada = {
+          a: leerLadoDiagonal(topLeftActual, ["a", "left", "uno", "first"]),
+          b: leerLadoDiagonal(topLeftActual, ["b", "right", "dos", "second"])
+        }
+        diagonalBottomThirdNormalizada = {
+          a: leerLadoDiagonal(bottomThirdActual, ["a", "left", "uno", "first"]),
+          b: leerLadoDiagonal(bottomThirdActual, ["b", "right", "dos", "second"])
+        }
+      }
+    }
+  }
+  if(
+    diagonalTopLeftNormalizada.a.trim() === "" &&
+    diagonalTopLeftNormalizada.b.trim() === "" &&
+    topNormalizadas[0].trim() !== ""
+  ){
+    diagonalTopLeftNormalizada.a = topNormalizadas[0]
+  }
+  if(
+    diagonalBottomThirdNormalizada.a.trim() === "" &&
+    diagonalBottomThirdNormalizada.b.trim() === "" &&
+    bottomNormalizadas[2].trim() !== ""
+  ){
+    diagonalBottomThirdNormalizada.a = bottomNormalizadas[2]
+  }
+  topNormalizadas[0] = ""
+  bottomNormalizadas[2] = ""
+
+  let mergedNormalizado = ""
+  if(cyanActual && typeof cyanActual === "object" && !Array.isArray(cyanActual)){
+    const rightActual = cyanActual.right
+    if(rightActual && typeof rightActual === "object" && !Array.isArray(rightActual)){
+      mergedNormalizado = normalizarTexto(rightActual.merged)
+    }
+  }
+  if(mergedNormalizado.trim() === ""){
+    const legacyFusion = [legacyCols[3], legacyCols[4]]
+      .map(valor => normalizarTexto(valor).trim())
+      .filter(Boolean)
+      .join(" ")
+    mergedNormalizado = legacyFusion
+  }
+
+  const cyanVacio =
+    col1Normalizadas.every(valor => valor.trim() === "") &&
+    col2TopNormalizada.trim() === "" &&
+    col2BottomEntradasNormalizadas.every((entrada) => !entrada || entrada.value.trim() === "") &&
+    col3EntradasNormalizadas.every((entrada) => !entrada || entrada.value.trim() === "") &&
+    topNormalizadas.every(valor => valor.trim() === "") &&
+    bottomNormalizadas.every(valor => valor.trim() === "") &&
+    diagonalTopLeftNormalizada.a.trim() === "" &&
+    diagonalTopLeftNormalizada.b.trim() === "" &&
+    diagonalBottomThirdNormalizada.a.trim() === "" &&
+    diagonalBottomThirdNormalizada.b.trim() === "" &&
+    mergedNormalizado.trim() === ""
+  if(cyanVacio && estado.simple.trim() !== ""){
+    col1Normalizadas[0] = estado.simple
+  }
+  estado.cyan = {
+    left: {
+      col1: col1Normalizadas,
+      col2: {
+        top: col2TopNormalizada,
+        bottom: {
+          entries: col2BottomEntradasNormalizadas.slice(0, MAX_ENTRADAS_BOTTOM_COL2),
+          activeIndex: col2BottomIndiceActivoNormalizado
+        },
+        topStrike: col2TopStrikeNormalizado
+      },
+      col3: {
+        entries: col3EntradasNormalizadas.slice(0, MAX_ENTRADAS_COL3),
+        activeIndex: col3IndiceActivoNormalizado
+      }
+    },
+    right: {
+      top: topNormalizadas,
+      bottom: bottomNormalizadas,
+      diagonal: {
+        topLeft: diagonalTopLeftNormalizada,
+        bottomThird: diagonalBottomThirdNormalizada
+      },
+      merged: mergedNormalizado
+    }
+  }
+
+  const col23Actual = estado.amarillo.col23
+  if(Array.isArray(col23Actual)){
+    const textoFusionado = [col23Actual[1] || "", col23Actual[2] || ""]
+      .join(" ")
+      .trim()
+    estado.amarillo.col23 = {
+      top: col23Actual[0] || "@",
+      middle: {
+        left: "",
+        right: textoFusionado
+      },
+      bottom: {
+        left: [col23Actual[2] || "", ""],
+        right: ""
+      }
+    }
+  } else if(typeof col23Actual === "string"){
+    estado.amarillo.col23 = {
+      top: "@",
+      middle: {
+        left: "",
+        right: col23Actual
+      },
+      bottom: {
+        left: ["", ""],
+        right: ""
+      }
+    }
+  } else if(!col23Actual || typeof col23Actual !== "object"){
+    estado.amarillo.col23 = {
+      top: "@",
+      middle: {
+        left: "",
+        right: ""
+      },
+      bottom: {
+        left: ["", ""],
+        right: ""
+      }
+    }
+  } else {
+    if(typeof col23Actual.top !== "string"){
+      col23Actual.top = "@"
+    }
+    if(Array.isArray(col23Actual.middle)){
+      const textoFusionado = [col23Actual.middle[1] || "", col23Actual.middle[2] || ""]
+        .join(" ")
+        .trim()
+      col23Actual.middle = {
+        left: col23Actual.middle[0] || "",
+        right: textoFusionado
+      }
+    } else if(typeof col23Actual.middle === "string"){
+      col23Actual.middle = {
+        left: "",
+        right: col23Actual.middle
+      }
+    } else if(!col23Actual.middle || typeof col23Actual.middle !== "object"){
+      col23Actual.middle = {
+        left: "",
+        right: ""
+      }
+    }
+
+    if(typeof col23Actual.middle.left !== "string"){
+      col23Actual.middle.left =
+        col23Actual.middle.left === null || col23Actual.middle.left === undefined
+          ? ""
+          : String(col23Actual.middle.left)
+    }
+    if(typeof col23Actual.middle.right !== "string"){
+      col23Actual.middle.right =
+        col23Actual.middle.right === null || col23Actual.middle.right === undefined
+          ? ""
+          : String(col23Actual.middle.right)
+    }
+    const bottomActual = col23Actual.bottom
+    if(Array.isArray(bottomActual)){
+      col23Actual.bottom = {
+        left: [bottomActual[0] || "", ""],
+        right: bottomActual[1] || ""
+      }
+    } else if(typeof bottomActual === "string"){
+      col23Actual.bottom = {
+        left: ["", ""],
+        right: bottomActual
+      }
+    } else if(!bottomActual || typeof bottomActual !== "object"){
+      col23Actual.bottom = {
+        left: ["", ""],
+        right: ""
+      }
+    }
+
+    if(!Array.isArray(col23Actual.bottom.left)){
+      col23Actual.bottom.left = ["", ""]
+    }
+    if(col23Actual.bottom.left.length < 2){
+      col23Actual.bottom.left = [
+        col23Actual.bottom.left[0] || "",
+        col23Actual.bottom.left[1] || ""
+      ]
+    }
+    if(typeof col23Actual.bottom.right !== "string"){
+      col23Actual.bottom.right =
+        col23Actual.bottom.right === null || col23Actual.bottom.right === undefined
+          ? ""
+          : String(col23Actual.bottom.right)
+    }
+  }
+  estado.amarillo.col23.top = normalizarTextoConPrefijoFijo(estado.amarillo.col23.top, "@")
+  return estado
+}
+
+function crearCasilleroEditable(claseBase, valorInicial, onChange){
+  const celda = document.createElement("div")
+  celda.className = `${claseBase} panel-controlador-casillero-editable`
+  celda.contentEditable = "true"
+  celda.spellcheck = false
+  celda.setAttribute("role", "textbox")
+  celda.setAttribute("aria-multiline", "false")
+  celda.textContent = typeof valorInicial === "string" ? valorInicial : ""
+
+  celda.addEventListener("keydown", (e) => {
+    if(e.key === "Enter"){
+      e.preventDefault()
+    }
+  })
+
+  celda.addEventListener("input", () => {
+    const limpio = limpiarTextoCasilleroControlador(celda.textContent || "")
+    if(typeof onChange === "function"){
+      onChange(limpio)
+    }
+  })
+
+  return celda
+}
+
+function crearCasilleroEditableNumericoDosDigitos(
+  claseBase,
+  valorInicial,
+  onChange,
+  opciones = {}
+){
+  const permitirAlfanumerico =
+    (
+      opciones &&
+      (
+        opciones.permitirAlfanumerico === true ||
+        opciones.permitirAlfanumericoMayus === true
+      )
+    )
+  const forzarMayusculas =
+    opciones &&
+    (
+      opciones.forzarMayusculas === true ||
+      opciones.permitirAlfanumericoMayus === true
+    )
+  const longitudMaximaRaw = Number.parseInt(
+    opciones && opciones.longitudMaxima,
+    10
+  )
+  const longitudMaxima =
+    Number.isFinite(longitudMaximaRaw) && longitudMaximaRaw > 0
+      ? Math.min(longitudMaximaRaw, 12)
+      : 2
+  const normalizar = (valor) => {
+    const texto = limpiarTextoCasilleroControlador(
+      typeof valor === "string" ? valor : String(valor || "")
+    )
+    if(permitirAlfanumerico){
+      const textoBase = forzarMayusculas ? texto.toUpperCase() : texto
+      return textoBase.replace(/[^a-zA-Z0-9]/g, "").slice(0, longitudMaxima)
+    }
+    return texto.replace(/\D/g, "").slice(0, longitudMaxima)
+  }
+  const strikeInicial = opciones && opciones.strikeInicial === true
+  const toggleStrikeOnEnter =
+    !opciones || opciones.toggleStrikeOnEnter !== false
+  const forzarTachadoEnEnter =
+    opciones && opciones.forzarTachadoEnEnter === true
+  const bloquearEdicionSiTachado =
+    opciones && opciones.bloquearEdicionSiTachado === true
+  const onBackspaceEnVacio =
+    opciones && typeof opciones.onBackspaceEnVacio === "function"
+      ? opciones.onBackspaceEnVacio
+      : null
+  const onToggleStrike =
+    opciones && typeof opciones.onToggleStrike === "function"
+      ? opciones.onToggleStrike
+      : null
+
+  const celda = document.createElement("div")
+  celda.className = `${claseBase} panel-controlador-casillero-editable`
+  celda.contentEditable = "true"
+  celda.spellcheck = false
+  celda.setAttribute("role", "textbox")
+  celda.setAttribute("aria-multiline", "false")
+  celda.setAttribute("inputmode", permitirAlfanumerico ? "text" : "numeric")
+  celda.setAttribute(
+    "aria-label",
+    permitirAlfanumerico
+      ? `Campo alfanumerico de ${longitudMaxima} caracteres`
+      : `Numero de ${longitudMaxima} cifras`
+  )
+  let ultimoValorValido = normalizar(valorInicial)
+  celda.textContent = ultimoValorValido
+  let tachado = strikeInicial
+  celda.classList.toggle("panel-controlador-casillero-tachado", tachado)
+  const teclasNavegacion = new Set([
+    "ArrowLeft",
+    "ArrowRight",
+    "ArrowUp",
+    "ArrowDown",
+    "Home",
+    "End",
+    "Tab",
+    "Escape"
+  ])
+  const moverCursorAlFinal = () => {
+    if(document.activeElement !== celda) return
+    const seleccion = window.getSelection()
+    if(!seleccion) return
+    const rango = document.createRange()
+    rango.selectNodeContents(celda)
+    rango.collapse(false)
+    seleccion.removeAllRanges()
+    seleccion.addRange(rango)
+  }
+  const actualizarTachado = (nuevoEstado) => {
+    const final = nuevoEstado === true
+    if(tachado === final) return
+    tachado = final
+    celda.classList.toggle("panel-controlador-casillero-tachado", tachado)
+    if(onToggleStrike){
+      onToggleStrike(tachado)
+    }
+  }
+  const propagarCambio = (valor) => {
+    if(typeof onChange === "function"){
+      onChange(valor)
+    }
+  }
+  const aplicarValor = (valor, notificar = true) => {
+    const limpio = normalizar(valor)
+    ultimoValorValido = limpio
+    if((celda.textContent || "") !== limpio){
+      celda.textContent = limpio
+    }
+    if(limpio === "" && tachado){
+      actualizarTachado(false)
+    }
+    if(notificar){
+      propagarCambio(limpio)
+    }
+    return limpio
+  }
+  const obtenerActual = () => normalizar(celda.textContent || "")
+
+  celda.addEventListener("keydown", (e) => {
+    if(e.key === "Backspace" || e.key === "Delete"){
+      e.preventDefault()
+      const actual = obtenerActual()
+      if(actual === ""){
+        if(tachado){
+          actualizarTachado(false)
+        }
+        if(onBackspaceEnVacio){
+          onBackspaceEnVacio()
+        }
+        return
+      }
+      if(bloquearEdicionSiTachado && tachado){
+        aplicarValor("")
+        moverCursorAlFinal()
+        return
+      }
+      const nuevo = actual.slice(0, -1)
+      aplicarValor(nuevo)
+      moverCursorAlFinal()
+      return
+    }
+    if(e.key === "Enter"){
+      e.preventDefault()
+      if(!toggleStrikeOnEnter) return
+      const actual = obtenerActual()
+      if(actual === ""){
+        actualizarTachado(false)
+        return
+      }
+      if(forzarTachadoEnEnter){
+        actualizarTachado(true)
+        return
+      }
+      actualizarTachado(!tachado)
+      return
+    }
+    if(teclasNavegacion.has(e.key)){
+      return
+    }
+    if(e.ctrlKey || e.metaKey){
+      const tecla = String(e.key || "").toLowerCase()
+      if(tecla === "a" || tecla === "c" || tecla === "x"){
+        return
+      }
+      if(tecla === "v"){
+        if(bloquearEdicionSiTachado && tachado){
+          e.preventDefault()
+        }
+        return
+      }
+      return
+    }
+    let caracterIngresado = ""
+    if(permitirAlfanumerico){
+      if(!/^[a-zA-Z0-9]$/.test(e.key)){
+        e.preventDefault()
+        return
+      }
+      caracterIngresado = forzarMayusculas ? e.key.toUpperCase() : e.key
+    } else {
+      if(!/^\d$/.test(e.key)){
+        e.preventDefault()
+        return
+      }
+      caracterIngresado = e.key
+    }
+    e.preventDefault()
+    if(bloquearEdicionSiTachado && tachado){
+      return
+    }
+    const actual = obtenerActual()
+    if(actual.length >= longitudMaxima){
+      return
+    }
+    const nuevo = `${actual}${caracterIngresado}`.slice(0, longitudMaxima)
+    aplicarValor(nuevo)
+    moverCursorAlFinal()
+  })
+
+  celda.addEventListener("paste", (e) => {
+    if(bloquearEdicionSiTachado && tachado){
+      e.preventDefault()
+      return
+    }
+    e.preventDefault()
+    const data = (e.clipboardData || window.clipboardData)
+      ? (e.clipboardData || window.clipboardData).getData("text")
+      : ""
+    const actual = obtenerActual()
+    const pegado = normalizar(data)
+    const nuevo = `${actual}${pegado}`.slice(0, longitudMaxima)
+    aplicarValor(nuevo)
+    moverCursorAlFinal()
+  })
+
+  celda.addEventListener("focus", () => {
+    requestAnimationFrame(() => {
+      moverCursorAlFinal()
+    })
+  })
+
+  celda.addEventListener("input", () => {
+    if(bloquearEdicionSiTachado && tachado){
+      celda.textContent = ultimoValorValido
+      moverCursorAlFinal()
+      return
+    }
+    const limpio = obtenerActual()
+    if((celda.textContent || "") !== limpio || limpio !== ultimoValorValido){
+      aplicarValor(limpio)
+      moverCursorAlFinal()
+      return
+    }
+    if(limpio === "" && tachado){
+      actualizarTachado(false)
+    }
+    propagarCambio(limpio)
+  })
+
+  return celda
+}
+
+function crearCasilleroEditableConPrefijoFijo(claseBase, prefijo, valorInicial, onChange){
+  const prefijoSeguro = typeof prefijo === "string" ? prefijo : ""
+  const celda = document.createElement("div")
+  celda.className = `${claseBase} panel-controlador-casillero-con-prefijo`
+
+  const prefijoNodo = document.createElement("span")
+  prefijoNodo.className = "panel-controlador-casillero-prefijo-fijo"
+  prefijoNodo.textContent = prefijoSeguro
+  prefijoNodo.setAttribute("aria-hidden", "true")
+
+  const editable = document.createElement("span")
+  editable.className = "panel-controlador-casillero-prefijo-editable"
+  editable.contentEditable = "true"
+  editable.spellcheck = false
+  editable.setAttribute("role", "textbox")
+  editable.setAttribute("aria-multiline", "false")
+  editable.setAttribute("aria-label", "Texto editable con prefijo fijo")
+
+  const valorNormalizado = normalizarTextoConPrefijoFijo(valorInicial, prefijoSeguro)
+  editable.textContent = valorNormalizado.slice(prefijoSeguro.length)
+
+  editable.addEventListener("keydown", (e) => {
+    if(e.key === "Enter"){
+      e.preventDefault()
+    }
+  })
+
+  editable.addEventListener("input", () => {
+    const limpio = limpiarTextoCasilleroControlador(editable.textContent || "")
+    if(typeof onChange === "function"){
+      onChange(`${prefijoSeguro}${limpio}`)
+    }
+  })
+
+  celda.appendChild(prefijoNodo)
+  celda.appendChild(editable)
+  return celda
+}
+
+function obtenerContenedorVistaControlador(){
+  return (
+    document.getElementById("controladorVistaRectContenido") ||
+    document.getElementById("controladorVistaRect")
+  )
+}
+
+function mostrarConfirmacionCheckGuardado(ok){
+  const btnCheck = document.querySelector("#controladorVistaRect .controlador-vista-btn-ok")
+  if(!btnCheck) return
+  btnCheck.classList.remove("guardado-ok", "guardado-error")
+  btnCheck.classList.add(ok ? "guardado-ok" : "guardado-error")
+  if(temporizadorConfirmacionCheck){
+    clearTimeout(temporizadorConfirmacionCheck)
+  }
+  temporizadorConfirmacionCheck = setTimeout(() => {
+    btnCheck.classList.remove("guardado-ok", "guardado-error")
+    temporizadorConfirmacionCheck = null
+  }, 850)
+}
+
+function confirmarVistaControlador(){
+  const guardadoOk = guardarDatosCasillerosControlador()
+  mostrarConfirmacionCheckGuardado(guardadoOk)
+  const activo = document.activeElement
+  if(activo && typeof activo.blur === "function"){
+    activo.blur()
+  }
+}
+
+function cerrarVistaControlador(){
+  const vista = document.getElementById("controladorVistaRect")
+  const contenido = obtenerContenedorVistaControlador()
+  if(contenido){
+    contenido.innerHTML = ""
+  }
+  if(vista){
+    vista.classList.remove("con-contenido")
+    vista.classList.remove("ocultar-acciones")
+    delete vista.dataset.previewSource
+  }
+  const panel = document.getElementById("panelControladorIzquierdo")
+  if(panel){
+    panel.querySelectorAll(".panel-controlador-rect.seleccionado")
+      .forEach(item => item.classList.remove("seleccionado"))
+  }
+}
+
+function crearCeldaMiniaturaStripControlador(claseBase, miniKey = ""){
+  const celda = document.createElement("div")
+  celda.className = claseBase
+    ? `${claseBase} panel-controlador-mini-celda`
+    : "panel-controlador-mini-celda"
+  if(typeof miniKey === "string" && miniKey.trim() !== ""){
+    celda.dataset.miniKey = miniKey.trim()
+  }
+  return celda
+}
+
+function obtenerValorMiniaturaStripControladorPorRuta(estado, ruta){
+  if(!estado || typeof estado !== "object") return undefined
+  if(typeof ruta !== "string" || ruta.trim() === "") return undefined
+  return ruta.split(".").reduce((actual, segmento) => {
+    if(actual === null || actual === undefined) return undefined
+    if(/^\d+$/.test(segmento)){
+      const indice = Number.parseInt(segmento, 10)
+      if(!Number.isFinite(indice)) return undefined
+      return actual[indice]
+    }
+    return actual[segmento]
+  }, estado)
+}
+
+function obtenerTextoMiniaturaStripControladorPorRuta(estado, ruta){
+  const valor = obtenerValorMiniaturaStripControladorPorRuta(estado, ruta)
+  if(valor === null || valor === undefined) return ""
+  const texto = typeof valor === "string" ? valor : String(valor)
+  return limpiarTextoCasilleroControlador(texto)
+}
+
+function actualizarMiniaturaStripControlador(rect){
+  if(!rect) return
+  if(rect.classList.contains("panel-controlador-rect-rojo")) return
+  const idRect = typeof rect.id === "string" ? rect.id.trim() : ""
+  if(idRect === "") return
+
+  const estado = obtenerEstadoCasillerosControlador(idRect, "")
+  rect.querySelectorAll("[data-mini-key]").forEach((celda) => {
+    const ruta = celda.dataset.miniKey || ""
+    celda.textContent = obtenerTextoMiniaturaStripControladorPorRuta(estado, ruta)
+  })
+  rect.querySelectorAll("[data-mini-strike-key]").forEach((celda) => {
+    const ruta = celda.dataset.miniStrikeKey || ""
+    const valor = obtenerValorMiniaturaStripControladorPorRuta(estado, ruta)
+    const texto = limpiarTextoCasilleroControlador(celda.textContent || "")
+    celda.classList.toggle(
+      "panel-controlador-mini-celda-tachada",
+      valor === true && texto.trim() !== ""
+    )
+  })
+  const indiceActivoBottomCol2 = (() => {
+    const valor = obtenerValorMiniaturaStripControladorPorRuta(
+      estado,
+      "cyan.left.col2.bottom.activeIndex"
+    )
+    const numero = Number.parseInt(valor, 10)
+    if(!Number.isFinite(numero) || numero < 0) return 0
+    if(numero > 6) return 6
+    return numero
+  })()
+  let totalFilasVisiblesBottomCol2 = 0
+  rect.querySelectorAll("[data-mini-bottom-index]").forEach((celda) => {
+    const indice = Number.parseInt(celda.dataset.miniBottomIndex || "0", 10)
+    const indiceSeguro = Number.isFinite(indice) && indice >= 0 ? indice : 0
+    const texto = limpiarTextoCasilleroControlador(celda.textContent || "")
+    const debeMostrar =
+      indiceSeguro === 0 ||
+      indiceSeguro <= indiceActivoBottomCol2 ||
+      texto.trim() !== ""
+    celda.style.display = debeMostrar ? "flex" : "none"
+    if(debeMostrar){
+      totalFilasVisiblesBottomCol2 += 1
+    }
+  })
+  const wrapBottomMini = rect.querySelector(".layout-cyan-left-col2-bottom-wrap")
+  if(wrapBottomMini){
+    const filasMini = Math.max(totalFilasVisiblesBottomCol2, 1)
+    wrapBottomMini.style.gridTemplateRows = `repeat(${filasMini}, minmax(0, 1fr))`
+    wrapBottomMini.style.setProperty("--bottom-col2-visible-rows", String(filasMini))
+  }
+  const indiceActivoCol3 = (() => {
+    const valor = obtenerValorMiniaturaStripControladorPorRuta(
+      estado,
+      "cyan.left.col3.activeIndex"
+    )
+    const numero = Number.parseInt(valor, 10)
+    if(!Number.isFinite(numero) || numero < 0) return 0
+    if(numero > 6) return 6
+    return numero
+  })()
+  let totalFilasVisiblesCol3 = 0
+  rect.querySelectorAll("[data-mini-col3-index]").forEach((celda) => {
+    const indice = Number.parseInt(celda.dataset.miniCol3Index || "0", 10)
+    const indiceSeguro = Number.isFinite(indice) && indice >= 0 ? indice : 0
+    const texto = limpiarTextoCasilleroControlador(celda.textContent || "")
+    const debeMostrar =
+      indiceSeguro === 0 ||
+      indiceSeguro <= indiceActivoCol3 ||
+      texto.trim() !== ""
+    celda.style.display = debeMostrar ? "flex" : "none"
+    if(debeMostrar){
+      totalFilasVisiblesCol3 += 1
+    }
+  })
+  const wrapCol3Mini = rect.querySelector(".layout-cyan-left-col3-wrap")
+  if(wrapCol3Mini){
+    const filasCol3Mini = Math.max(totalFilasVisiblesCol3, 1)
+    wrapCol3Mini.style.gridTemplateRows = `repeat(${filasCol3Mini}, minmax(0, 1fr))`
+    wrapCol3Mini.style.setProperty("--col3-visible-rows", String(filasCol3Mini))
+  }
+}
+
+function construirContenidoMiniaturaStripAmarillo(){
+  const layout = document.createElement("div")
+  layout.className = "panel-controlador-layout-amarillo"
+
+  const col1 = document.createElement("div")
+  col1.className = "layout-amarillo-col1"
+  for(let i = 0; i < 3; i += 1){
+    col1.appendChild(
+      crearCeldaMiniaturaStripControlador("layout-amarillo-celda", `amarillo.col1.${i}`)
+    )
+  }
+
+  const col23 = document.createElement("div")
+  col23.className = "layout-amarillo-col23"
+
+  const filaSuperior = crearCeldaMiniaturaStripControlador(
+    "layout-amarillo-col23-fila layout-amarillo-col23-fila-top",
+    "amarillo.col23.top"
+  )
+  col23.appendChild(filaSuperior)
+
+  const filaMedia = document.createElement("div")
+  filaMedia.className = "layout-amarillo-col23-fila layout-amarillo-col23-fila-middle"
+  filaMedia.appendChild(
+    crearCeldaMiniaturaStripControlador(
+      "layout-amarillo-col23-middle-celda layout-amarillo-col23-middle-left",
+      "amarillo.col23.middle.left"
+    )
+  )
+  filaMedia.appendChild(
+    crearCeldaMiniaturaStripControlador(
+      "layout-amarillo-col23-middle-celda layout-amarillo-col23-middle-right",
+      "amarillo.col23.middle.right"
+    )
+  )
+  col23.appendChild(filaMedia)
+
+  const filaInferior = document.createElement("div")
+  filaInferior.className = "layout-amarillo-col23-fila layout-amarillo-col23-fila-bottom"
+  const bloqueInferiorIzq = document.createElement("div")
+  bloqueInferiorIzq.className = "layout-amarillo-col23-bottom-left"
+  const celdaTFlecha = document.createElement("div")
+  celdaTFlecha.className = "layout-amarillo-col23-bottom-left-celda layout-amarillo-col23-t-flecha"
+  const textoTFlecha = document.createElement("span")
+  textoTFlecha.className = "layout-amarillo-col23-t-flecha-texto"
+  textoTFlecha.textContent = "T"
+  celdaTFlecha.appendChild(textoTFlecha)
+  bloqueInferiorIzq.appendChild(celdaTFlecha)
+  bloqueInferiorIzq.appendChild(
+    crearCeldaMiniaturaStripControlador(
+      "layout-amarillo-col23-bottom-left-celda",
+      "amarillo.col23.bottom.left.1"
+    )
+  )
+  filaInferior.appendChild(bloqueInferiorIzq)
+  filaInferior.appendChild(
+    crearCeldaMiniaturaStripControlador(
+      "layout-amarillo-col23-bottom-right",
+      "amarillo.col23.bottom.right"
+    )
+  )
+  col23.appendChild(filaInferior)
+
+  const col4 = document.createElement("div")
+  col4.className = "layout-amarillo-col4"
+  for(let i = 0; i < 4; i += 1){
+    const fila = document.createElement("div")
+    fila.className = "layout-amarillo-col4-fila"
+    fila.appendChild(
+      crearCeldaMiniaturaStripControlador(
+        "layout-amarillo-col4-principal",
+        `amarillo.col4Principal.${i}`
+      )
+    )
+    fila.appendChild(
+      crearCeldaMiniaturaStripControlador(
+        "layout-amarillo-col4-cuarto",
+        `amarillo.col4Cuarto.${i}`
+      )
+    )
+    col4.appendChild(fila)
+  }
+
+  layout.appendChild(col1)
+  layout.appendChild(col23)
+  layout.appendChild(col4)
+  return layout
+}
+
+function construirContenidoMiniaturaStripCyan(){
+  const layout = document.createElement("div")
+  layout.className = "panel-controlador-layout-cyan"
+
+  const left = document.createElement("div")
+  left.className = "layout-cyan-left"
+  const col1 = document.createElement("div")
+  col1.className = "layout-cyan-col layout-cyan-left-col1"
+  for(let i = 0; i < 3; i += 1){
+    col1.appendChild(
+      crearCeldaMiniaturaStripControlador("layout-cyan-left-col1-field", `cyan.left.col1.${i}`)
+    )
+  }
+  left.appendChild(col1)
+  const col2 = document.createElement("div")
+  col2.className = "layout-cyan-col layout-cyan-left-col2"
+  const col2Top = crearCeldaMiniaturaStripControlador(
+    "layout-cyan-left-col2-top",
+    "cyan.left.col2.top"
+  )
+  col2Top.dataset.miniStrikeKey = "cyan.left.col2.topStrike"
+  col2.appendChild(col2Top)
+  const col2BottomWrap = document.createElement("div")
+  col2BottomWrap.className = "layout-cyan-left-col2-bottom-wrap"
+  for(let i = 0; i < 7; i += 1){
+    const itemBottom = crearCeldaMiniaturaStripControlador(
+      "layout-cyan-left-col2-bottom-item",
+      `cyan.left.col2.bottom.entries.${i}.value`
+    )
+    itemBottom.dataset.miniStrikeKey = `cyan.left.col2.bottom.entries.${i}.strike`
+    itemBottom.dataset.miniBottomIndex = String(i)
+    col2BottomWrap.appendChild(itemBottom)
+  }
+  col2.appendChild(col2BottomWrap)
+  left.appendChild(col2)
+  const col3 = document.createElement("div")
+  col3.className = "layout-cyan-col layout-cyan-left-col3"
+  const col3Wrap = document.createElement("div")
+  col3Wrap.className = "layout-cyan-left-col3-wrap"
+  for(let i = 0; i < 7; i += 1){
+    const itemCol3 = crearCeldaMiniaturaStripControlador(
+      "layout-cyan-left-col3-item",
+      `cyan.left.col3.entries.${i}.value`
+    )
+    itemCol3.dataset.miniStrikeKey = `cyan.left.col3.entries.${i}.strike`
+    itemCol3.dataset.miniCol3Index = String(i)
+    col3Wrap.appendChild(itemCol3)
+  }
+  col3.appendChild(col3Wrap)
+  left.appendChild(col3)
+  layout.appendChild(left)
+
+  const right = document.createElement("div")
+  right.className = "layout-cyan-right"
+  for(let i = 0; i < 4; i += 1){
+    if(i === 0){
+      const celdaTopDiagonal = document.createElement("div")
+      celdaTopDiagonal.className =
+        "layout-cyan-col layout-cyan-right-cell layout-cyan-right-top layout-cyan-right-diagonal-cell layout-cyan-right-diagonal-top-first-cell"
+      celdaTopDiagonal.classList.add(`layout-cyan-right-col-${i + 1}`)
+      celdaTopDiagonal.style.gridColumn = `${i + 1} / ${i + 2}`
+      celdaTopDiagonal.style.gridRow = "1 / 2"
+      celdaTopDiagonal.appendChild(
+        crearCeldaMiniaturaStripControlador(
+          "layout-cyan-right-diagonal-mini layout-cyan-right-diagonal-mini-a layout-cyan-right-diagonal-mini-top-first-a",
+          "cyan.right.diagonal.topLeft.a"
+        )
+      )
+      celdaTopDiagonal.appendChild(
+        crearCeldaMiniaturaStripControlador(
+          "layout-cyan-right-diagonal-mini layout-cyan-right-diagonal-mini-b",
+          "cyan.right.diagonal.topLeft.b"
+        )
+      )
+      right.appendChild(celdaTopDiagonal)
+    } else {
+      const celdaTop = crearCeldaMiniaturaStripControlador(
+        "layout-cyan-col layout-cyan-right-cell layout-cyan-right-top",
+        `cyan.right.top.${i}`
+      )
+      celdaTop.classList.add(`layout-cyan-right-col-${i + 1}`)
+      celdaTop.style.gridColumn = `${i + 1} / ${i + 2}`
+      celdaTop.style.gridRow = "1 / 2"
+      right.appendChild(celdaTop)
+    }
+
+    if(i === 2){
+      const celdaBottomDiagonal = document.createElement("div")
+      celdaBottomDiagonal.className =
+        "layout-cyan-col layout-cyan-right-cell layout-cyan-right-bottom layout-cyan-right-diagonal-cell"
+      celdaBottomDiagonal.classList.add(`layout-cyan-right-col-${i + 1}`)
+      celdaBottomDiagonal.style.gridColumn = `${i + 1} / ${i + 2}`
+      celdaBottomDiagonal.style.gridRow = "2 / 3"
+      celdaBottomDiagonal.appendChild(
+        crearCeldaMiniaturaStripControlador(
+          "layout-cyan-right-diagonal-mini layout-cyan-right-diagonal-mini-a layout-cyan-right-diagonal-mini-bottom-third-a",
+          "cyan.right.diagonal.bottomThird.a"
+        )
+      )
+      celdaBottomDiagonal.appendChild(
+        crearCeldaMiniaturaStripControlador(
+          "layout-cyan-right-diagonal-mini layout-cyan-right-diagonal-mini-b",
+          "cyan.right.diagonal.bottomThird.b"
+        )
+      )
+      right.appendChild(celdaBottomDiagonal)
+    } else {
+      const celdaBottom = crearCeldaMiniaturaStripControlador(
+        "layout-cyan-col layout-cyan-right-cell layout-cyan-right-bottom",
+        `cyan.right.bottom.${i}`
+      )
+      celdaBottom.classList.add(`layout-cyan-right-col-${i + 1}`)
+      celdaBottom.style.gridColumn = `${i + 1} / ${i + 2}`
+      celdaBottom.style.gridRow = "2 / 3"
+      right.appendChild(celdaBottom)
+    }
+  }
+
+  const celdaMerged = crearCeldaMiniaturaStripControlador(
+    "layout-cyan-col layout-cyan-right-merged",
+    "cyan.right.merged"
+  )
+  celdaMerged.style.gridColumn = "5 / 7"
+  celdaMerged.style.gridRow = "1 / 3"
+  right.appendChild(celdaMerged)
+
+  layout.appendChild(right)
+  return layout
+}
+
+function aplicarMiniaturaStripControlador(rect){
+  if(!rect) return
+  if(rect.classList.contains("panel-controlador-rect-rojo")) return
+  if(rect.dataset.miniStripInit === "1") return
+
+  rect.dataset.miniStripInit = "1"
+  rect.classList.add("panel-controlador-rect-mini")
+  rect.textContent = ""
+
+  const miniWrap = document.createElement("div")
+  miniWrap.className = "panel-controlador-mini-wrap"
+
+  const miniVista = document.createElement("div")
+  miniVista.className = "panel-controlador-mini-vista panel-controlador-vista-rect"
+
+  if(rect.classList.contains("panel-controlador-rect-cyan")){
+    miniVista.classList.add(
+      "panel-controlador-vista-rect-cyan",
+      "panel-controlador-vista-rect-layout-cyan"
+    )
+    miniVista.appendChild(construirContenidoMiniaturaStripCyan())
+  } else if(rect.classList.contains("panel-controlador-rect-amarillo")){
+    miniVista.classList.add(
+      "panel-controlador-vista-rect-amarillo",
+      "panel-controlador-vista-rect-layout-amarillo"
+    )
+    miniVista.appendChild(construirContenidoMiniaturaStripAmarillo())
+  } else {
+    miniVista.appendChild(
+      crearCeldaMiniaturaStripControlador("panel-controlador-casillero-unico", "simple")
+    )
+  }
+
+  miniWrap.appendChild(miniVista)
+  rect.appendChild(miniWrap)
+  actualizarMiniaturaStripControlador(rect)
+}
+
+function mostrarRectControladorEnVista(rect, opciones = {}){
+  const desdeHover = opciones && opciones.desdeHover === true
+  if(!rect) return
+  const vista = document.getElementById("controladorVistaRect")
+  const vistaContenido = obtenerContenedorVistaControlador()
+  if(!vista || !vistaContenido) return
+
+  const panel = document.getElementById("panelControladorIzquierdo")
+  if(panel && !desdeHover){
+    panel.querySelectorAll(".panel-controlador-rect.seleccionado")
+      .forEach(item => item.classList.remove("seleccionado"))
+    rect.classList.add("seleccionado")
+  }
+
+  vistaContenido.innerHTML = ""
+
+  const rectVista = document.createElement("div")
+  rectVista.className = "panel-controlador-vista-rect"
+  const textoRect = rect.textContent.trim()
+  const idRect = typeof rect.id === "string" ? rect.id : ""
+  const estadoCasilleros = obtenerEstadoCasillerosControlador(idRect, textoRect)
+  const esRectCyan = rect.classList.contains("panel-controlador-rect-cyan")
+  const esRectAmarillo = rect.classList.contains("panel-controlador-rect-amarillo")
+  if(esRectCyan){
+    rectVista.classList.add("panel-controlador-vista-rect-cyan")
+  } else if(esRectAmarillo){
+    rectVista.classList.add("panel-controlador-vista-rect-amarillo")
+  } else if(rect.classList.contains("panel-controlador-rect-rojo")){
+    rectVista.classList.add("panel-controlador-vista-rect-rojo")
+  }
+
+  if(esRectAmarillo){
+    rectVista.classList.add("panel-controlador-vista-rect-layout-amarillo")
+
+    const layout = document.createElement("div")
+    layout.className = "panel-controlador-layout-amarillo"
+
+    const col1 = document.createElement("div")
+    col1.className = "layout-amarillo-col1"
+    for(let i = 0; i < 3; i += 1){
+      const celda = crearCasilleroEditable(
+        "layout-amarillo-celda",
+        estadoCasilleros.amarillo.col1[i],
+        (valor) => {
+          estadoCasilleros.amarillo.col1[i] = valor
+          actualizarMiniaturaStripControlador(rect)
+        }
+      )
+      col1.appendChild(celda)
+    }
+
+    const col23 = document.createElement("div")
+    col23.className = "layout-amarillo-col23"
+    const filaSuperiorCol23 = crearCasilleroEditableConPrefijoFijo(
+      "layout-amarillo-col23-fila layout-amarillo-col23-fila-top layout-amarillo-etiqueta",
+      "@",
+      estadoCasilleros.amarillo.col23.top,
+      (valor) => {
+        estadoCasilleros.amarillo.col23.top = normalizarTextoConPrefijoFijo(valor, "@")
+        actualizarMiniaturaStripControlador(rect)
+      }
+    )
+    col23.appendChild(filaSuperiorCol23)
+
+    const filaMediaCol23 = document.createElement("div")
+    filaMediaCol23.className = "layout-amarillo-col23-fila layout-amarillo-col23-fila-middle"
+    const casilleroMedioIzq = crearCasilleroEditable(
+      "layout-amarillo-col23-middle-celda layout-amarillo-col23-middle-left layout-amarillo-etiqueta",
+      estadoCasilleros.amarillo.col23.middle.left,
+      (valor) => {
+        estadoCasilleros.amarillo.col23.middle.left = valor
+        actualizarMiniaturaStripControlador(rect)
+      }
+    )
+    filaMediaCol23.appendChild(casilleroMedioIzq)
+
+    const casilleroMedioDer = crearCasilleroEditable(
+      "layout-amarillo-col23-middle-celda layout-amarillo-col23-middle-right layout-amarillo-etiqueta",
+      estadoCasilleros.amarillo.col23.middle.right,
+      (valor) => {
+        estadoCasilleros.amarillo.col23.middle.right = valor
+        actualizarMiniaturaStripControlador(rect)
+      }
+    )
+    filaMediaCol23.appendChild(casilleroMedioDer)
+    col23.appendChild(filaMediaCol23)
+
+    const filaInferiorCol23 = document.createElement("div")
+    filaInferiorCol23.className = "layout-amarillo-col23-fila layout-amarillo-col23-fila-bottom"
+    const bloqueInferiorIzquierdo = document.createElement("div")
+    bloqueInferiorIzquierdo.className = "layout-amarillo-col23-bottom-left"
+    const casilleroTFlecha = document.createElement("div")
+    casilleroTFlecha.className = "layout-amarillo-col23-bottom-left-celda layout-amarillo-col23-t-flecha"
+    casilleroTFlecha.setAttribute("aria-label", "Indicador T con flecha a la derecha")
+    const textoTFlecha = document.createElement("span")
+    textoTFlecha.className = "layout-amarillo-col23-t-flecha-texto"
+    textoTFlecha.textContent = "T"
+    casilleroTFlecha.appendChild(textoTFlecha)
+    bloqueInferiorIzquierdo.appendChild(casilleroTFlecha)
+
+    const casilleroInferiorIzqEditable = crearCasilleroEditable(
+      "layout-amarillo-col23-bottom-left-celda layout-amarillo-etiqueta",
+      estadoCasilleros.amarillo.col23.bottom.left[1],
+      (valor) => {
+        estadoCasilleros.amarillo.col23.bottom.left[1] = valor
+        actualizarMiniaturaStripControlador(rect)
+      }
+    )
+    bloqueInferiorIzquierdo.appendChild(casilleroInferiorIzqEditable)
+    filaInferiorCol23.appendChild(bloqueInferiorIzquierdo)
+
+    const casilleroInferiorDerecho = crearCasilleroEditable(
+      "layout-amarillo-col23-bottom-right layout-amarillo-etiqueta",
+      estadoCasilleros.amarillo.col23.bottom.right,
+      (valor) => {
+        estadoCasilleros.amarillo.col23.bottom.right = valor
+        actualizarMiniaturaStripControlador(rect)
+      }
+    )
+    filaInferiorCol23.appendChild(casilleroInferiorDerecho)
+    col23.appendChild(filaInferiorCol23)
+
+    const col4 = document.createElement("div")
+    col4.className = "layout-amarillo-col4"
+    for(let i = 0; i < 4; i += 1){
+      const fila = document.createElement("div")
+      fila.className = "layout-amarillo-col4-fila"
+
+      const celdaPrincipal = crearCasilleroEditable(
+        "layout-amarillo-col4-principal",
+        estadoCasilleros.amarillo.col4Principal[i],
+        (valor) => {
+          estadoCasilleros.amarillo.col4Principal[i] = valor
+          actualizarMiniaturaStripControlador(rect)
+        }
+      )
+
+      const celdaCuarto = crearCasilleroEditable(
+        "layout-amarillo-col4-cuarto",
+        estadoCasilleros.amarillo.col4Cuarto[i],
+        (valor) => {
+          estadoCasilleros.amarillo.col4Cuarto[i] = valor
+          actualizarMiniaturaStripControlador(rect)
+        }
+      )
+
+      fila.appendChild(celdaPrincipal)
+      fila.appendChild(celdaCuarto)
+      col4.appendChild(fila)
+    }
+
+    layout.appendChild(col1)
+    layout.appendChild(col23)
+    layout.appendChild(col4)
+    rectVista.appendChild(layout)
+  } else if(esRectCyan){
+    rectVista.classList.add("panel-controlador-vista-rect-layout-cyan")
+    const layoutCyan = document.createElement("div")
+    layoutCyan.className = "panel-controlador-layout-cyan"
+
+    const left = document.createElement("div")
+    left.className = "layout-cyan-left"
+
+    const col1 = document.createElement("div")
+    col1.className = "layout-cyan-col layout-cyan-left-col1"
+    for(let i = 0; i < 3; i += 1){
+      const celdaCol1 = crearCasilleroEditable(
+        "layout-cyan-left-col1-field",
+        estadoCasilleros.cyan.left.col1[i],
+        (valor) => {
+          estadoCasilleros.cyan.left.col1[i] = valor
+          actualizarMiniaturaStripControlador(rect)
+        }
+      )
+      col1.appendChild(celdaCol1)
+    }
+    left.appendChild(col1)
+
+    const col2 = document.createElement("div")
+    col2.className = "layout-cyan-col layout-cyan-left-col2"
+    const col2Top = crearCasilleroEditableNumericoDosDigitos(
+      "layout-cyan-left-col2-top",
+      estadoCasilleros.cyan.left.col2.top,
+      (valor) => {
+        estadoCasilleros.cyan.left.col2.top = valor
+        actualizarMiniaturaStripControlador(rect)
+      },
+      {
+        strikeInicial: estadoCasilleros.cyan.left.col2.topStrike === true,
+        forzarTachadoEnEnter: true,
+        bloquearEdicionSiTachado: true,
+        permitirAlfanumericoMayus: true,
+        longitudMaxima: 2,
+        onToggleStrike: (tachado) => {
+          estadoCasilleros.cyan.left.col2.topStrike = tachado === true
+          actualizarMiniaturaStripControlador(rect)
+        }
+      }
+    )
+    const col2BottomWrap = document.createElement("div")
+    col2BottomWrap.className = "layout-cyan-left-col2-bottom-wrap"
+    const MAX_ENTRADAS_BOTTOM_COL2 = 7
+    if(
+      !estadoCasilleros.cyan.left.col2.bottom ||
+      typeof estadoCasilleros.cyan.left.col2.bottom !== "object" ||
+      Array.isArray(estadoCasilleros.cyan.left.col2.bottom)
+    ){
+      estadoCasilleros.cyan.left.col2.bottom = {
+        entries: [{ value: "", strike: false }],
+        activeIndex: 0
+      }
+    }
+    if(!Array.isArray(estadoCasilleros.cyan.left.col2.bottom.entries)){
+      estadoCasilleros.cyan.left.col2.bottom.entries = [{ value: "", strike: false }]
+    }
+    estadoCasilleros.cyan.left.col2.bottom.entries =
+      estadoCasilleros.cyan.left.col2.bottom.entries
+        .slice(0, MAX_ENTRADAS_BOTTOM_COL2)
+        .map((entrada) => {
+          if(entrada && typeof entrada === "object" && !Array.isArray(entrada)){
+            const valor = limpiarTextoCasilleroControlador(entrada.value || "")
+              .replace(/\D/g, "")
+              .slice(0, 2)
+            return {
+              value: valor,
+              strike: entrada.strike === true && valor.trim() !== ""
+            }
+          }
+          const valor = limpiarTextoCasilleroControlador(entrada || "")
+            .replace(/\D/g, "")
+            .slice(0, 2)
+          return {
+            value: valor,
+            strike: false
+          }
+        })
+    if(estadoCasilleros.cyan.left.col2.bottom.entries.length === 0){
+      estadoCasilleros.cyan.left.col2.bottom.entries.push({ value: "", strike: false })
+    }
+    while(estadoCasilleros.cyan.left.col2.bottom.entries.length < MAX_ENTRADAS_BOTTOM_COL2){
+      estadoCasilleros.cyan.left.col2.bottom.entries.push({ value: "", strike: false })
+    }
+    let indiceActivoBottom = Number.parseInt(
+      estadoCasilleros.cyan.left.col2.bottom.activeIndex,
+      10
+    )
+    if(!Number.isFinite(indiceActivoBottom) || indiceActivoBottom < 0){
+      indiceActivoBottom = 0
+    }
+    if(indiceActivoBottom > MAX_ENTRADAS_BOTTOM_COL2 - 1){
+      indiceActivoBottom = MAX_ENTRADAS_BOTTOM_COL2 - 1
+    }
+    let ultimoIndiceConValorBottom = -1
+    for(let i = 0; i < MAX_ENTRADAS_BOTTOM_COL2; i += 1){
+      const entrada = estadoCasilleros.cyan.left.col2.bottom.entries[i]
+      if(!entrada || typeof entrada !== "object"){
+        estadoCasilleros.cyan.left.col2.bottom.entries[i] = { value: "", strike: false }
+        continue
+      }
+      if((entrada.value || "").trim() !== ""){
+        ultimoIndiceConValorBottom = i
+      }
+    }
+    const minimoIndiceActivoBottom = Math.min(
+      Math.max(ultimoIndiceConValorBottom + 1, 0),
+      MAX_ENTRADAS_BOTTOM_COL2 - 1
+    )
+    if(indiceActivoBottom < minimoIndiceActivoBottom){
+      indiceActivoBottom = minimoIndiceActivoBottom
+    }
+    estadoCasilleros.cyan.left.col2.bottom.activeIndex = indiceActivoBottom
+
+    const celdasBottomCol2 = []
+    const enfocarEntradaBottomCol2 = (indice) => {
+      if(indice < 0 || indice >= celdasBottomCol2.length) return
+      const celdaObjetivo = celdasBottomCol2[indice]
+      if(!celdaObjetivo || celdaObjetivo.style.display === "none") return
+      celdaObjetivo.focus()
+      const seleccion = window.getSelection()
+      if(!seleccion) return
+      const rango = document.createRange()
+      rango.selectNodeContents(celdaObjetivo)
+      rango.collapse(false)
+      seleccion.removeAllRanges()
+      seleccion.addRange(rango)
+    }
+    const actualizarVisibilidadBottomCol2 = (indiceForzado = null) => {
+      const indiceActivo = Number.parseInt(
+        estadoCasilleros.cyan.left.col2.bottom.activeIndex,
+        10
+      )
+      let indiceActivoSeguro =
+        Number.isFinite(indiceActivo) && indiceActivo >= 0
+          ? Math.min(indiceActivo, MAX_ENTRADAS_BOTTOM_COL2 - 1)
+          : 0
+      let ultimoIndiceConValor = -1
+      for(let i = 0; i < celdasBottomCol2.length; i += 1){
+        const entrada = estadoCasilleros.cyan.left.col2.bottom.entries[i]
+        const tieneValor =
+          !!entrada &&
+          typeof entrada === "object" &&
+          typeof entrada.value === "string" &&
+          entrada.value.trim() !== ""
+        if(tieneValor){
+          ultimoIndiceConValor = i
+        }
+      }
+      const minimoIndiceActivo = Math.min(
+        Math.max(ultimoIndiceConValor + 1, 0),
+        MAX_ENTRADAS_BOTTOM_COL2 - 1
+      )
+      if(indiceActivoSeguro < minimoIndiceActivo){
+        indiceActivoSeguro = minimoIndiceActivo
+      }
+      estadoCasilleros.cyan.left.col2.bottom.activeIndex = indiceActivoSeguro
+      let filasVisibles = 0
+      for(let i = 0; i < celdasBottomCol2.length; i += 1){
+        const entrada = estadoCasilleros.cyan.left.col2.bottom.entries[i]
+        const tieneValor =
+          !!entrada &&
+          typeof entrada === "object" &&
+          typeof entrada.value === "string" &&
+          entrada.value.trim() !== ""
+        const esFilaBase = i === 0
+        const esFilaHistorica = i < indiceActivoSeguro
+        const esFilaActiva = i === indiceActivoSeguro
+        const mostrar =
+          esFilaBase ||
+          tieneValor ||
+          esFilaHistorica ||
+          esFilaActiva
+        celdasBottomCol2[i].style.display = mostrar ? "flex" : "none"
+        if(mostrar){
+          filasVisibles += 1
+        }
+      }
+      const filasBottom = Math.max(filasVisibles, 1)
+      col2BottomWrap.style.gridTemplateRows = `repeat(${filasBottom}, minmax(0, 1fr))`
+      col2BottomWrap.style.setProperty("--bottom-col2-visible-rows", String(filasBottom))
+    }
+    const sincronizarCeldasBottomCol2 = () => {
+      for(let j = 0; j < MAX_ENTRADAS_BOTTOM_COL2; j += 1){
+        const entrada = estadoCasilleros.cyan.left.col2.bottom.entries[j]
+        const entradaNormalizada =
+          entrada && typeof entrada === "object" && !Array.isArray(entrada)
+            ? entrada
+            : { value: "", strike: false }
+        const valor = limpiarTextoCasilleroControlador(entradaNormalizada.value || "")
+          .replace(/\D/g, "")
+          .slice(0, 2)
+        const tachado = entradaNormalizada.strike === true && valor.trim() !== ""
+        estadoCasilleros.cyan.left.col2.bottom.entries[j] = {
+          value: valor,
+          strike: tachado
+        }
+        const celda = celdasBottomCol2[j]
+        if(!celda) continue
+        if((celda.textContent || "") !== valor){
+          celda.textContent = valor
+        }
+        celda.classList.toggle("panel-controlador-casillero-tachado", tachado)
+      }
+    }
+
+    for(let i = 0; i < MAX_ENTRADAS_BOTTOM_COL2; i += 1){
+      const entrada = estadoCasilleros.cyan.left.col2.bottom.entries[i]
+      const celdaBottom = crearCasilleroEditableNumericoDosDigitos(
+        "layout-cyan-left-col2-bottom-item",
+        entrada.value,
+        (valor) => {
+          estadoCasilleros.cyan.left.col2.bottom.entries[i].value = valor
+          if(valor.trim() === ""){
+            estadoCasilleros.cyan.left.col2.bottom.entries[i].strike = false
+          }
+          actualizarVisibilidadBottomCol2()
+          actualizarMiniaturaStripControlador(rect)
+        },
+        {
+          strikeInicial: entrada.strike === true,
+          forzarTachadoEnEnter: true,
+          bloquearEdicionSiTachado: true,
+          onBackspaceEnVacio: () => {
+            if(i <= 0) return
+            for(let j = i; j < MAX_ENTRADAS_BOTTOM_COL2 - 1; j += 1){
+              const siguiente = estadoCasilleros.cyan.left.col2.bottom.entries[j + 1]
+              if(
+                siguiente &&
+                typeof siguiente === "object" &&
+                !Array.isArray(siguiente)
+              ){
+                const valorSiguiente = limpiarTextoCasilleroControlador(siguiente.value || "")
+                  .replace(/\D/g, "")
+                  .slice(0, 2)
+                estadoCasilleros.cyan.left.col2.bottom.entries[j] = {
+                  value: valorSiguiente,
+                  strike: siguiente.strike === true && valorSiguiente.trim() !== ""
+                }
+              } else {
+                estadoCasilleros.cyan.left.col2.bottom.entries[j] = {
+                  value: "",
+                  strike: false
+                }
+              }
+            }
+            estadoCasilleros.cyan.left.col2.bottom.entries[MAX_ENTRADAS_BOTTOM_COL2 - 1] = {
+              value: "",
+              strike: false
+            }
+            const indiceAnterior = i - 1
+            estadoCasilleros.cyan.left.col2.bottom.activeIndex = indiceAnterior
+            sincronizarCeldasBottomCol2()
+            actualizarVisibilidadBottomCol2(indiceAnterior)
+            actualizarMiniaturaStripControlador(rect)
+            requestAnimationFrame(() => {
+              enfocarEntradaBottomCol2(indiceAnterior)
+            })
+          },
+          onToggleStrike: (tachado) => {
+            const valorActual = estadoCasilleros.cyan.left.col2.bottom.entries[i].value || ""
+            const tachadoFinal = tachado === true && valorActual.trim() !== ""
+            estadoCasilleros.cyan.left.col2.bottom.entries[i].strike = tachadoFinal
+            if(tachadoFinal && i < MAX_ENTRADAS_BOTTOM_COL2 - 1){
+              const indiceSiguiente = i + 1
+              if(estadoCasilleros.cyan.left.col2.bottom.activeIndex <= i){
+                estadoCasilleros.cyan.left.col2.bottom.activeIndex = indiceSiguiente
+              }
+              actualizarVisibilidadBottomCol2(indiceSiguiente)
+              requestAnimationFrame(() => {
+                enfocarEntradaBottomCol2(indiceSiguiente)
+              })
+            } else {
+              actualizarVisibilidadBottomCol2()
+            }
+            actualizarMiniaturaStripControlador(rect)
+          }
+        }
+      )
+      celdaBottom.addEventListener("blur", () => {
+        requestAnimationFrame(() => {
+          actualizarVisibilidadBottomCol2()
+          actualizarMiniaturaStripControlador(rect)
+        })
+      })
+      celdasBottomCol2.push(celdaBottom)
+      col2BottomWrap.appendChild(celdaBottom)
+    }
+    actualizarVisibilidadBottomCol2()
+
+    col2.appendChild(col2Top)
+    col2.appendChild(col2BottomWrap)
+    left.appendChild(col2)
+
+    const col3 = document.createElement("div")
+    col3.className = "layout-cyan-col layout-cyan-left-col3"
+    const col3Wrap = document.createElement("div")
+    col3Wrap.className = "layout-cyan-left-col3-wrap"
+    const MAX_ENTRADAS_COL3 = 7
+    if(
+      !estadoCasilleros.cyan.left.col3 ||
+      typeof estadoCasilleros.cyan.left.col3 !== "object" ||
+      Array.isArray(estadoCasilleros.cyan.left.col3)
+    ){
+      const valorInicialCol3 = limpiarTextoCasilleroControlador(
+        estadoCasilleros.cyan.left.col3 || ""
+      )
+        .replace(/[^a-zA-Z0-9]/g, "")
+        .slice(0, 7)
+      estadoCasilleros.cyan.left.col3 = {
+        entries: [{ value: valorInicialCol3, strike: false }],
+        activeIndex: 0
+      }
+    }
+    if(!Array.isArray(estadoCasilleros.cyan.left.col3.entries)){
+      estadoCasilleros.cyan.left.col3.entries = [{ value: "", strike: false }]
+    }
+    estadoCasilleros.cyan.left.col3.entries =
+      estadoCasilleros.cyan.left.col3.entries
+        .slice(0, MAX_ENTRADAS_COL3)
+        .map((entrada) => {
+          if(entrada && typeof entrada === "object" && !Array.isArray(entrada)){
+            const valor = limpiarTextoCasilleroControlador(entrada.value || "")
+              .replace(/[^a-zA-Z0-9]/g, "")
+              .slice(0, 7)
+            return {
+              value: valor,
+              strike: entrada.strike === true && valor.trim() !== ""
+            }
+          }
+          const valor = limpiarTextoCasilleroControlador(entrada || "")
+            .replace(/[^a-zA-Z0-9]/g, "")
+            .slice(0, 7)
+          return {
+            value: valor,
+            strike: false
+          }
+        })
+    if(estadoCasilleros.cyan.left.col3.entries.length === 0){
+      estadoCasilleros.cyan.left.col3.entries.push({ value: "", strike: false })
+    }
+    while(estadoCasilleros.cyan.left.col3.entries.length < MAX_ENTRADAS_COL3){
+      estadoCasilleros.cyan.left.col3.entries.push({ value: "", strike: false })
+    }
+    let indiceActivoCol3 = Number.parseInt(
+      estadoCasilleros.cyan.left.col3.activeIndex,
+      10
+    )
+    if(!Number.isFinite(indiceActivoCol3) || indiceActivoCol3 < 0){
+      indiceActivoCol3 = 0
+    }
+    if(indiceActivoCol3 > MAX_ENTRADAS_COL3 - 1){
+      indiceActivoCol3 = MAX_ENTRADAS_COL3 - 1
+    }
+    let ultimoIndiceConValorCol3 = -1
+    for(let i = 0; i < MAX_ENTRADAS_COL3; i += 1){
+      const entrada = estadoCasilleros.cyan.left.col3.entries[i]
+      if(!entrada || typeof entrada !== "object"){
+        estadoCasilleros.cyan.left.col3.entries[i] = { value: "", strike: false }
+        continue
+      }
+      if((entrada.value || "").trim() !== ""){
+        ultimoIndiceConValorCol3 = i
+      }
+    }
+    const minimoIndiceActivoCol3 = Math.min(
+      Math.max(ultimoIndiceConValorCol3 + 1, 0),
+      MAX_ENTRADAS_COL3 - 1
+    )
+    if(indiceActivoCol3 < minimoIndiceActivoCol3){
+      indiceActivoCol3 = minimoIndiceActivoCol3
+    }
+    estadoCasilleros.cyan.left.col3.activeIndex = indiceActivoCol3
+
+    const celdasCol3 = []
+    const enfocarEntradaCol3 = (indice) => {
+      if(indice < 0 || indice >= celdasCol3.length) return
+      const celdaObjetivo = celdasCol3[indice]
+      if(!celdaObjetivo || celdaObjetivo.style.display === "none") return
+      celdaObjetivo.focus()
+      const seleccion = window.getSelection()
+      if(!seleccion) return
+      const rango = document.createRange()
+      rango.selectNodeContents(celdaObjetivo)
+      rango.collapse(false)
+      seleccion.removeAllRanges()
+      seleccion.addRange(rango)
+    }
+    const actualizarVisibilidadCol3 = (indiceForzado = null) => {
+      const indiceActivo = Number.parseInt(
+        estadoCasilleros.cyan.left.col3.activeIndex,
+        10
+      )
+      let indiceActivoSeguro =
+        Number.isFinite(indiceActivo) && indiceActivo >= 0
+          ? Math.min(indiceActivo, MAX_ENTRADAS_COL3 - 1)
+          : 0
+      let ultimoIndiceConValor = -1
+      for(let i = 0; i < celdasCol3.length; i += 1){
+        const entrada = estadoCasilleros.cyan.left.col3.entries[i]
+        const tieneValor =
+          !!entrada &&
+          typeof entrada === "object" &&
+          typeof entrada.value === "string" &&
+          entrada.value.trim() !== ""
+        if(tieneValor){
+          ultimoIndiceConValor = i
+        }
+      }
+      const minimoIndiceActivo = Math.min(
+        Math.max(ultimoIndiceConValor + 1, 0),
+        MAX_ENTRADAS_COL3 - 1
+      )
+      if(indiceActivoSeguro < minimoIndiceActivo){
+        indiceActivoSeguro = minimoIndiceActivo
+      }
+      estadoCasilleros.cyan.left.col3.activeIndex = indiceActivoSeguro
+      let filasVisibles = 0
+      for(let i = 0; i < celdasCol3.length; i += 1){
+        const entrada = estadoCasilleros.cyan.left.col3.entries[i]
+        const tieneValor =
+          !!entrada &&
+          typeof entrada === "object" &&
+          typeof entrada.value === "string" &&
+          entrada.value.trim() !== ""
+        const esFilaBase = i === 0
+        const esFilaHistorica = i < indiceActivoSeguro
+        const esFilaActiva = i === indiceActivoSeguro
+        const mostrar =
+          esFilaBase ||
+          tieneValor ||
+          esFilaHistorica ||
+          esFilaActiva
+        celdasCol3[i].style.display = mostrar ? "flex" : "none"
+        if(mostrar){
+          filasVisibles += 1
+        }
+      }
+      const filasCol3 = Math.max(filasVisibles, 1)
+      col3Wrap.style.gridTemplateRows = `repeat(${filasCol3}, minmax(0, 1fr))`
+      col3Wrap.style.setProperty("--col3-visible-rows", String(filasCol3))
+    }
+    const sincronizarCeldasCol3 = () => {
+      for(let j = 0; j < MAX_ENTRADAS_COL3; j += 1){
+        const entrada = estadoCasilleros.cyan.left.col3.entries[j]
+        const entradaNormalizada =
+          entrada && typeof entrada === "object" && !Array.isArray(entrada)
+            ? entrada
+            : { value: "", strike: false }
+        const valor = limpiarTextoCasilleroControlador(entradaNormalizada.value || "")
+          .replace(/[^a-zA-Z0-9]/g, "")
+          .slice(0, 7)
+        const tachado = entradaNormalizada.strike === true && valor.trim() !== ""
+        estadoCasilleros.cyan.left.col3.entries[j] = {
+          value: valor,
+          strike: tachado
+        }
+        const celda = celdasCol3[j]
+        if(!celda) continue
+        if((celda.textContent || "") !== valor){
+          celda.textContent = valor
+        }
+        celda.classList.toggle("panel-controlador-casillero-tachado", tachado)
+      }
+    }
+
+    for(let i = 0; i < MAX_ENTRADAS_COL3; i += 1){
+      const entrada = estadoCasilleros.cyan.left.col3.entries[i]
+      const celdaCol3 = crearCasilleroEditableNumericoDosDigitos(
+        "layout-cyan-left-col3-item",
+        entrada.value,
+        (valor) => {
+          estadoCasilleros.cyan.left.col3.entries[i].value = valor
+          if(valor.trim() === ""){
+            estadoCasilleros.cyan.left.col3.entries[i].strike = false
+          }
+          actualizarVisibilidadCol3()
+          actualizarMiniaturaStripControlador(rect)
+        },
+        {
+          strikeInicial: entrada.strike === true,
+          forzarTachadoEnEnter: true,
+          bloquearEdicionSiTachado: true,
+          permitirAlfanumerico: true,
+          longitudMaxima: 7,
+          onBackspaceEnVacio: () => {
+            if(i <= 0) return
+            for(let j = i; j < MAX_ENTRADAS_COL3 - 1; j += 1){
+              const siguiente = estadoCasilleros.cyan.left.col3.entries[j + 1]
+              if(
+                siguiente &&
+                typeof siguiente === "object" &&
+                !Array.isArray(siguiente)
+              ){
+                const valorSiguiente = limpiarTextoCasilleroControlador(siguiente.value || "")
+                  .replace(/[^a-zA-Z0-9]/g, "")
+                  .slice(0, 7)
+                estadoCasilleros.cyan.left.col3.entries[j] = {
+                  value: valorSiguiente,
+                  strike: siguiente.strike === true && valorSiguiente.trim() !== ""
+                }
+              } else {
+                estadoCasilleros.cyan.left.col3.entries[j] = {
+                  value: "",
+                  strike: false
+                }
+              }
+            }
+            estadoCasilleros.cyan.left.col3.entries[MAX_ENTRADAS_COL3 - 1] = {
+              value: "",
+              strike: false
+            }
+            const indiceAnterior = i - 1
+            estadoCasilleros.cyan.left.col3.activeIndex = indiceAnterior
+            sincronizarCeldasCol3()
+            actualizarVisibilidadCol3(indiceAnterior)
+            actualizarMiniaturaStripControlador(rect)
+            requestAnimationFrame(() => {
+              enfocarEntradaCol3(indiceAnterior)
+            })
+          },
+          onToggleStrike: (tachado) => {
+            const valorActual = estadoCasilleros.cyan.left.col3.entries[i].value || ""
+            const tachadoFinal = tachado === true && valorActual.trim() !== ""
+            estadoCasilleros.cyan.left.col3.entries[i].strike = tachadoFinal
+            if(tachadoFinal && i < MAX_ENTRADAS_COL3 - 1){
+              const indiceSiguiente = i + 1
+              if(estadoCasilleros.cyan.left.col3.activeIndex <= i){
+                estadoCasilleros.cyan.left.col3.activeIndex = indiceSiguiente
+              }
+              actualizarVisibilidadCol3(indiceSiguiente)
+              requestAnimationFrame(() => {
+                enfocarEntradaCol3(indiceSiguiente)
+              })
+            } else {
+              actualizarVisibilidadCol3()
+            }
+            actualizarMiniaturaStripControlador(rect)
+          }
+        }
+      )
+      celdaCol3.addEventListener("blur", () => {
+        requestAnimationFrame(() => {
+          actualizarVisibilidadCol3()
+          actualizarMiniaturaStripControlador(rect)
+        })
+      })
+      celdasCol3.push(celdaCol3)
+      col3Wrap.appendChild(celdaCol3)
+    }
+    actualizarVisibilidadCol3()
+    col3.appendChild(col3Wrap)
+    left.appendChild(col3)
+
+    layoutCyan.appendChild(left)
+
+    const right = document.createElement("div")
+    right.className = "layout-cyan-right"
+    if(
+      !estadoCasilleros.cyan.right.diagonal ||
+      typeof estadoCasilleros.cyan.right.diagonal !== "object" ||
+      Array.isArray(estadoCasilleros.cyan.right.diagonal)
+    ){
+      estadoCasilleros.cyan.right.diagonal = {
+        topLeft: { a: "", b: "" },
+        bottomThird: { a: "", b: "" }
+      }
+    }
+    if(
+      !estadoCasilleros.cyan.right.diagonal.topLeft ||
+      typeof estadoCasilleros.cyan.right.diagonal.topLeft !== "object" ||
+      Array.isArray(estadoCasilleros.cyan.right.diagonal.topLeft)
+    ){
+      estadoCasilleros.cyan.right.diagonal.topLeft = { a: "", b: "" }
+    }
+    if(
+      !estadoCasilleros.cyan.right.diagonal.bottomThird ||
+      typeof estadoCasilleros.cyan.right.diagonal.bottomThird !== "object" ||
+      Array.isArray(estadoCasilleros.cyan.right.diagonal.bottomThird)
+    ){
+      estadoCasilleros.cyan.right.diagonal.bottomThird = { a: "", b: "" }
+    }
+    estadoCasilleros.cyan.right.diagonal.topLeft.a =
+      limpiarTextoCasilleroControlador(estadoCasilleros.cyan.right.diagonal.topLeft.a || "")
+    estadoCasilleros.cyan.right.diagonal.topLeft.b =
+      limpiarTextoCasilleroControlador(estadoCasilleros.cyan.right.diagonal.topLeft.b || "")
+    estadoCasilleros.cyan.right.diagonal.bottomThird.a =
+      limpiarTextoCasilleroControlador(estadoCasilleros.cyan.right.diagonal.bottomThird.a || "")
+    estadoCasilleros.cyan.right.diagonal.bottomThird.b =
+      limpiarTextoCasilleroControlador(estadoCasilleros.cyan.right.diagonal.bottomThird.b || "")
+    for(let i = 0; i < 4; i += 1){
+      if(i === 0){
+        const celdaTopDiagonal = document.createElement("div")
+        celdaTopDiagonal.className =
+          "layout-cyan-col layout-cyan-right-cell layout-cyan-right-top layout-cyan-right-diagonal-cell layout-cyan-right-diagonal-top-first-cell"
+        celdaTopDiagonal.classList.add(`layout-cyan-right-col-${i + 1}`)
+        celdaTopDiagonal.style.gridColumn = `${i + 1} / ${i + 2}`
+        celdaTopDiagonal.style.gridRow = "1 / 2"
+        const ladoATop = crearCasilleroEditable(
+          "layout-cyan-right-diagonal-input layout-cyan-right-diagonal-input-a layout-cyan-right-diagonal-input-top-first-a",
+          estadoCasilleros.cyan.right.diagonal.topLeft.a,
+          (valor) => {
+            estadoCasilleros.cyan.right.diagonal.topLeft.a = valor
+            actualizarMiniaturaStripControlador(rect)
+          }
+        )
+        const ladoBTop = crearCasilleroEditable(
+          "layout-cyan-right-diagonal-input layout-cyan-right-diagonal-input-b",
+          estadoCasilleros.cyan.right.diagonal.topLeft.b,
+          (valor) => {
+            estadoCasilleros.cyan.right.diagonal.topLeft.b = valor
+            actualizarMiniaturaStripControlador(rect)
+          }
+        )
+        celdaTopDiagonal.appendChild(ladoATop)
+        celdaTopDiagonal.appendChild(ladoBTop)
+        right.appendChild(celdaTopDiagonal)
+      } else {
+        const celdaTop = crearCasilleroEditable(
+          "layout-cyan-col layout-cyan-right-cell layout-cyan-right-top",
+          estadoCasilleros.cyan.right.top[i],
+          (valor) => {
+            estadoCasilleros.cyan.right.top[i] = valor
+            actualizarMiniaturaStripControlador(rect)
+          }
+        )
+        celdaTop.classList.add(`layout-cyan-right-col-${i + 1}`)
+        celdaTop.style.gridColumn = `${i + 1} / ${i + 2}`
+        celdaTop.style.gridRow = "1 / 2"
+        right.appendChild(celdaTop)
+      }
+
+      if(i === 2){
+        const celdaBottomDiagonal = document.createElement("div")
+        celdaBottomDiagonal.className =
+          "layout-cyan-col layout-cyan-right-cell layout-cyan-right-bottom layout-cyan-right-diagonal-cell"
+        celdaBottomDiagonal.classList.add(`layout-cyan-right-col-${i + 1}`)
+        celdaBottomDiagonal.style.gridColumn = `${i + 1} / ${i + 2}`
+        celdaBottomDiagonal.style.gridRow = "2 / 3"
+        const ladoABottom = crearCasilleroEditable(
+          "layout-cyan-right-diagonal-input layout-cyan-right-diagonal-input-a layout-cyan-right-diagonal-input-bottom-third-a",
+          estadoCasilleros.cyan.right.diagonal.bottomThird.a,
+          (valor) => {
+            estadoCasilleros.cyan.right.diagonal.bottomThird.a = valor
+            actualizarMiniaturaStripControlador(rect)
+          }
+        )
+        const ladoBBottom = crearCasilleroEditable(
+          "layout-cyan-right-diagonal-input layout-cyan-right-diagonal-input-b",
+          estadoCasilleros.cyan.right.diagonal.bottomThird.b,
+          (valor) => {
+            estadoCasilleros.cyan.right.diagonal.bottomThird.b = valor
+            actualizarMiniaturaStripControlador(rect)
+          }
+        )
+        celdaBottomDiagonal.appendChild(ladoABottom)
+        celdaBottomDiagonal.appendChild(ladoBBottom)
+        right.appendChild(celdaBottomDiagonal)
+      } else {
+        const celdaBottom = crearCasilleroEditable(
+          "layout-cyan-col layout-cyan-right-cell layout-cyan-right-bottom",
+          estadoCasilleros.cyan.right.bottom[i],
+          (valor) => {
+            estadoCasilleros.cyan.right.bottom[i] = valor
+            actualizarMiniaturaStripControlador(rect)
+          }
+        )
+        celdaBottom.classList.add(`layout-cyan-right-col-${i + 1}`)
+        celdaBottom.style.gridColumn = `${i + 1} / ${i + 2}`
+        celdaBottom.style.gridRow = "2 / 3"
+        right.appendChild(celdaBottom)
+      }
+    }
+
+    const celdaMerged = crearCasilleroEditable(
+      "layout-cyan-col layout-cyan-right-merged",
+      estadoCasilleros.cyan.right.merged,
+      (valor) => {
+        estadoCasilleros.cyan.right.merged = valor
+        actualizarMiniaturaStripControlador(rect)
+      }
+    )
+    celdaMerged.style.gridColumn = "5 / 7"
+    celdaMerged.style.gridRow = "1 / 3"
+    right.appendChild(celdaMerged)
+
+    layoutCyan.appendChild(right)
+    rectVista.appendChild(layoutCyan)
+  } else {
+    const casilleroSimple = crearCasilleroEditable(
+      "panel-controlador-casillero-unico",
+      estadoCasilleros.simple,
+      (valor) => {
+        estadoCasilleros.simple = valor
+        actualizarMiniaturaStripControlador(rect)
+      }
+    )
+    rectVista.appendChild(casilleroSimple)
+  }
+
+  vistaContenido.appendChild(rectVista)
+  vista.classList.add("con-contenido")
+  vista.classList.toggle("ocultar-acciones", desdeHover)
+  vista.dataset.previewSource = desdeHover ? "hover" : "click"
+}
+
+function restaurarVistaControladorTrasHover(){
+  const vista = document.getElementById("controladorVistaRect")
+  const panel = document.getElementById("panelControladorIzquierdo")
+  if(!vista || !panel) return
+  if(vista.dataset.previewSource !== "hover") return
+
+  const seleccionado = panel.querySelector(".panel-controlador-rect.seleccionado")
+  if(seleccionado){
+    mostrarRectControladorEnVista(seleccionado)
+    return
+  }
+
+  const contenido = obtenerContenedorVistaControlador()
+  if(contenido){
+    contenido.innerHTML = ""
+  }
+  vista.classList.remove("con-contenido")
+  vista.classList.remove("ocultar-acciones")
+  delete vista.dataset.previewSource
+}
+
+function registrarEventosRectControlador(rect, panel){
+  if(!rect || rect.dataset.dragInitRect === "1") return
+  rect.dataset.dragInitRect = "1"
+
+  rect.addEventListener("dragstart", (e) => {
+    rect.classList.add("arrastrando")
+    if(e.dataTransfer){
+      e.dataTransfer.effectAllowed = "move"
+      e.dataTransfer.setData("text/plain", rect.id)
+    }
+  })
+
+  rect.addEventListener("dragend", () => {
+    rect.classList.remove("arrastrando")
+    bloqueoClickRectControladorHasta = Date.now() + 160
+    limpiarResaltadoZonasPanelControlador()
+  })
+
+  rect.addEventListener("click", () => {
+    if(Date.now() < bloqueoClickRectControladorHasta) return
+    mostrarRectControladorEnVista(rect)
+  })
+
+  rect.addEventListener("mouseenter", () => {
+    if(rect.classList.contains("arrastrando")) return
+    mostrarRectControladorEnVista(rect, { desdeHover: true })
+  })
+
+  rect.addEventListener("mouseleave", () => {
+    restaurarVistaControladorTrasHover()
+  })
+}
+
+function crearRectControlador(color){
+  const panel = document.getElementById("panelControladorIzquierdo")
+  const contenedor = document.getElementById("controladorSector2Drop")
+  if(!panel || !contenedor) return
+
+  contadorRectControladorExtra += 1
+  const idRect = `controladorRect${contadorRectControladorExtra}`
+  const rect = document.createElement("div")
+  rect.id = idRect
+  rect.className = "panel-controlador-rect"
+  rect.classList.add(
+    color === "amarillo"
+      ? "panel-controlador-rect-amarillo"
+      : "panel-controlador-rect-cyan"
+  )
+  rect.draggable = true
+  const numeroStrip = String(contadorRectControladorExtra).padStart(2, "0")
+  const tipoStrip = color === "amarillo"
+    ? "Departure Flight Strip"
+    : "Arrival Flight Strip"
+  rect.setAttribute("aria-label", `${tipoStrip} ${numeroStrip}`)
+  datosCasillerosControlador[idRect] = crearEstadoCasillerosControlador("")
+
+  aplicarMiniaturaStripControlador(rect)
+  registrarEventosRectControlador(rect, panel)
+  contenedor.appendChild(rect)
+}
+
+function inicializarPanelControladorDragDrop(){
+  const panel = document.getElementById("panelControladorIzquierdo")
+  if(!panel) return
+  if(panel.dataset.dragInit === "1") return
+  panel.dataset.dragInit = "1"
+  const btnAgregarRectCyan = document.getElementById("btnAgregarRectCyan")
+  const btnAgregarRectAmarillo = document.getElementById("btnAgregarRectAmarillo")
+
+  const idsActuales = Array.from(
+    panel.querySelectorAll(".panel-controlador-rect[id^='controladorRect']")
+  )
+    .map(rect => Number.parseInt(rect.id.replace("controladorRect", ""), 10))
+    .filter(idNum => Number.isFinite(idNum))
+  if(idsActuales.length > 0){
+    contadorRectControladorExtra = Math.max(contadorRectControladorExtra, ...idsActuales)
+  }
+
+  panel.querySelectorAll(".panel-controlador-rect").forEach(rect => {
+    aplicarMiniaturaStripControlador(rect)
+    registrarEventosRectControlador(rect, panel)
+  })
+
+  panel.querySelectorAll(".panel-controlador-caja").forEach(zona => {
+    zona.addEventListener("dragenter", (e) => {
+      e.preventDefault()
+      zona.classList.add("zona-arrastre-activa")
+    })
+
+    zona.addEventListener("dragover", (e) => {
+      e.preventDefault()
+      if(e.dataTransfer){
+        e.dataTransfer.dropEffect = "move"
+      }
+      zona.classList.add("zona-arrastre-activa")
+      const rectArrastrado = panel.querySelector(".panel-controlador-rect.arrastrando")
+      if(!rectArrastrado) return
+      moverRectControladorSegunCursor(zona, e.clientY, rectArrastrado)
+    })
+
+    zona.addEventListener("dragleave", (e) => {
+      if(zona.contains(e.relatedTarget)) return
+      zona.classList.remove("zona-arrastre-activa")
+    })
+
+    zona.addEventListener("drop", (e) => {
+      e.preventDefault()
+      zona.classList.remove("zona-arrastre-activa")
+      const rectArrastrado =
+        panel.querySelector(".panel-controlador-rect.arrastrando") ||
+        document.getElementById(
+          (e.dataTransfer && e.dataTransfer.getData("text/plain")) || ""
+        )
+      if(!rectArrastrado) return
+      moverRectControladorSegunCursor(zona, e.clientY, rectArrastrado)
+    })
+  })
+
+  if(btnAgregarRectCyan){
+    btnAgregarRectCyan.addEventListener("click", (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      crearRectControlador("cyan")
+    })
+  }
+
+  if(btnAgregarRectAmarillo){
+    btnAgregarRectAmarillo.addEventListener("click", (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      crearRectControlador("amarillo")
+    })
+  }
 }
 
 function setValorPanelMetar(id, valor){
@@ -1008,12 +3417,22 @@ socket.on("rutaCircuitoActualizada", data => {
     </div>
   </div>
 
-  <div id="selectorModoOperacion" class="selectorModoOperacion" role="group" aria-label="Modo de operacion">
-    <button id="btnModoControlador" class="btnModoOperacion" type="button" aria-pressed="true">
-      Controlador
-    </button>
-    <button id="btnModoPiloto" class="btnModoOperacion" type="button" aria-pressed="false">
-      Piloto
+  <div id="selectorModoOperacionPanel" class="selectorModoOperacionPanel">
+    <div id="selectorModoOperacion" class="selectorModoOperacion" role="group" aria-label="Modo de operacion">
+      <button id="btnModoControlador" class="btnModoOperacion" type="button" aria-pressed="true">
+        Controlador
+      </button>
+      <button id="btnModoPiloto" class="btnModoOperacion" type="button" aria-pressed="false">
+        Piloto
+      </button>
+    </div>
+    <button id="btnSelectorModoToggle"
+            class="selector-modo-toggle"
+            type="button"
+            aria-label="Mostrar u ocultar selector Controlador/Piloto"
+            aria-expanded="true"
+            onclick="toggleSelectorModoOperacion()">
+      <span>&#8250;</span>
     </button>
   </div>
 
@@ -7561,6 +9980,7 @@ function toggleWeatherPanel(forzarActivo = null){
   document.body.dataset.modoOperacion = modoOperacion
   actualizarSelectorModoOperacion()
   aplicarVisibilidadPanelIzquierdoPorModo()
+  inicializarPanelControladorDragDrop()
 
   actualizarOpcionAeronaveWeather(Boolean(btnWeather && btnWeather.classList.contains("activo")))
 
@@ -7739,6 +10159,30 @@ function togglePanelDerechoCentro(){
   boton.setAttribute("aria-expanded", String(expandido));
 }
 
+function toggleSelectorModoOperacion(){
+  const panel = document.getElementById("selectorModoOperacionPanel");
+  const boton = document.getElementById("btnSelectorModoToggle");
+  if(!panel || !boton) return;
+
+  panel.classList.toggle("contraido");
+  const expandido = !panel.classList.contains("contraido");
+  boton.setAttribute("aria-expanded", String(expandido));
+}
+
+function togglePanelControladorIzquierdo(){
+  const panel = document.getElementById("panelControladorIzquierdo");
+  const boton = document.getElementById("btnPanelControladorToggle");
+  if(!panel || !boton) return;
+
+  panel.classList.toggle("contraido");
+  const expandido = !panel.classList.contains("contraido");
+  boton.setAttribute("aria-expanded", String(expandido));
+
+  if(!expandido){
+    cerrarVistaControlador();
+  }
+}
+
 function inicializarCirculosSectorUno(){
   const exterior = document.getElementById("circuloExterior");
   const interior = document.getElementById("circuloInterior");
@@ -7862,7 +10306,71 @@ window.addEventListener("DOMContentLoaded", inicializarCirculosSectorUno);
 
 </div>
 
-<div id="panelDerechoCentro">
+<div id="panelControladorIzquierdo">
+  <div class="panel-controlador-contenido">
+    <div class="panel-controlador-acciones">
+      <button
+        id="btnAgregarRectCyan"
+        class="panel-controlador-btn panel-controlador-btn-cyan"
+        type="button"
+        aria-label="Add Arrival Flight Strip"
+        title="Add Arrival Flight Strip"
+      >
+        &#8600; A
+      </button>
+      <button
+        id="btnAgregarRectAmarillo"
+        class="panel-controlador-btn panel-controlador-btn-amarillo"
+        type="button"
+        aria-label="Add Departure Flight Strip"
+        title="Add Departure Flight Strip"
+      >
+        &#8599; D
+      </button>
+    </div>
+    <section class="panel-controlador-sector panel-controlador-sector-uno">
+      <div id="controladorSector1Drop" class="panel-controlador-caja" data-sector="1">
+        <div id="controladorWorkAreas" class="panel-controlador-rect panel-controlador-rect-rojo" draggable="true">
+          Work Areas
+        </div>
+      </div>
+    </section>
+    <section class="panel-controlador-sector panel-controlador-sector-dos">
+      <div id="controladorSector2Drop" class="panel-controlador-caja" data-sector="2"></div>
+    </section>
+  </div>
+  <button id="btnPanelControladorToggle"
+          class="panel-controlador-toggle"
+          type="button"
+          aria-label="Mostrar u ocultar panel de creacion de strips"
+          aria-expanded="true"
+          onclick="togglePanelControladorIzquierdo()">
+    <span>&#8249;</span>
+  </button>
+</div>
+<div id="controladorVistaRect" class="panel-controlador-vista-flotante" aria-live="polite">
+  <div class="controlador-vista-acciones">
+    <button
+      type="button"
+      class="controlador-vista-btn controlador-vista-btn-ok"
+      aria-label="Confirmar cambios"
+      onclick="confirmarVistaControlador()"
+    >
+      &#10003;
+    </button>
+    <button
+      type="button"
+      class="controlador-vista-btn controlador-vista-btn-cerrar"
+      aria-label="Cerrar vista real"
+      onclick="cerrarVistaControlador()"
+    >
+      &#10005;
+    </button>
+  </div>
+  <div id="controladorVistaRectContenido" class="controlador-vista-contenido"></div>
+</div>
+
+<div id="panelDerechoCentro" class="contraido">
   <div class="panel-derecho-contenido">
     <section class="panel-derecho-sector panel-derecho-sector-circulo">
       <h3 class="panel-derecho-titulo">RWY 22</h3>
@@ -7997,7 +10505,7 @@ window.addEventListener("DOMContentLoaded", inicializarCirculosSectorUno);
           class="panel-derecho-toggle"
           type="button"
           aria-label="Mostrar u ocultar panel lateral derecho"
-          aria-expanded="true"
+          aria-expanded="false"
           onclick="togglePanelDerechoCentro()">
     <span>&#8249;</span>
   </button>
@@ -8007,6 +10515,9 @@ window.addEventListener("DOMContentLoaded", inicializarCirculosSectorUno);
 inicializarCirculosSectorUno();
 sincronizarContenedorTimePendiente();
 sincronizarContenedorLetterPendiente();
+cargarDatosCasillerosControladorGuardados();
+inicializarPanelControladorDragDrop();
+aplicarVisibilidadPanelIzquierdoPorModo();
 cargarMetarDesdeApi();
 </script>
 

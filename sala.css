@@ -696,7 +696,7 @@ html, body{
 #panelTiempo {
   position: absolute;
   top: 15px;
-  right: 20px;
+  right: 6px;
   font-family: 'Segoe UI', sans-serif;
   z-index: 9999;
 }
@@ -723,13 +723,15 @@ html, body{
 .tiempoHeader {
   display: flex;
   align-items: flex-start;
-  gap: 5px;
+  justify-content: flex-end;
+  gap: 8px;
+  width: 100%;
 }
 
 .tiempoHeaderControles{
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-end;
   gap: 5px;
 }
 
@@ -749,6 +751,7 @@ html, body{
   display: flex;
   align-items: stretch;
   justify-content: flex-end;
+  width: 100%;
   gap: 0;
 }
 

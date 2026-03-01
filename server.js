@@ -1,4 +1,4 @@
-const express = require("express");
+ï»¿const express = require("express");
 const http = require("http");
 const https = require("https");
 const { Server } = require("socket.io");
@@ -84,14 +84,10 @@ const EPSILON_ALTITUD_MANUAL_CIRCUITO_FT = 50
 const CLEARED_TO_LAND_BASE_TARGET_FT = 800
 const CLEARED_TO_LAND_BASE_DESCENT_FPM = 250
 const CLEARED_TO_LAND_BASE_MIN_TOTAL_DIST_M = 50
-const PUNTO_ORBITA_DOWNWIND = {
-  lat: -13.76459547738987,
-  lng: -76.19292298449697
-}
-const TOLERANCIA_PUNTO_ORBITA_M = 120
 const TOLERANCIA_REINGRESO_ORBITA_M = 80
 const ORBIT_TASA_VIRAJE_GRADOS_SEG = 3
 const ORBIT_SENTIDO_DERECHA = 1
+const ORBIT_SENTIDO_IZQUIERDA = -1
 const INGRESO_DOWNWIND_ANGULO_GRADOS = 45
 const INGRESO_CERCANO_MAX_DISTANCIA_M = 150
 const INGRESO_DOWNWIND_PREENTRY_M = 0.9 * 1852
@@ -116,8 +112,30 @@ const GO_AROUND_INTERCEPT_TOL = 3
 const GO_AROUND_CLIMB_TARGET_FT = 2000
 const GO_AROUND_CLIMB_RATE_FPM = 1200
 const GO_AROUND_SPEED_DEFAULT_KT = 90
+const GO_AROUND_SPEED_TARGET_KT = 250
+const GO_AROUND_ACCEL_KT_POR_SEG = 8
 const GO_AROUND_MANUAL_SWITCH_DISTANCE_M = 5 * 1852
+const GO_AROUND_FINAL_HEADING_ACTIVACION_TOL = 35
+const GO_AROUND_FINAL_MAX_DIST_M = 1800
 const INTERCEPT_LEG_LOOKAHEAD_MIN_M = 90
+
+function normalizarSentidoOrbitTexto(valor) {
+  if (typeof valor === "number" && Number.isFinite(valor)) {
+    return valor < 0 ? "LEFT" : "RIGHT"
+  }
+
+  const texto = typeof valor === "string" ? valor.trim().toUpperCase() : ""
+  if (texto === "LEFT" || texto === "L" || texto === "IZQUIERDA") {
+    return "LEFT"
+  }
+  return "RIGHT"
+}
+
+function obtenerSignoSentidoOrbit(valor) {
+  return normalizarSentidoOrbitTexto(valor) === "LEFT"
+    ? ORBIT_SENTIDO_IZQUIERDA
+    : ORBIT_SENTIDO_DERECHA
+}
 const INTERCEPT_LEG_LOOKAHEAD_MAX_M = 430
 const INTERCEPT_LEG_BLEND_DISTANCE_M = 900
 const INTERCEPT_LEG_HEADING_SMOOTH_FACTOR = 0.24
@@ -168,6 +186,17 @@ function formatearHora(segundosTotales) {
   return { horas: h, minutos: m, segundos: s };
 }
 
+function horaObjetoATexto(horaObj) {
+  if (!horaObj) return null;
+
+  const horas = String(horaObj.horas ?? "00").padStart(2, "0");
+  const minutos = String(horaObj.minutos ?? "00").padStart(2, "0");
+  const segundos = String(horaObj.segundos ?? "00").padStart(2, "0");
+
+  return horas + ":" + minutos + ":" + segundos;
+}
+
+
 function obtenerListaSalas() {
   return Object.keys(salas).map(nombre => ({
     nombre,
@@ -178,6 +207,10 @@ function obtenerListaSalas() {
 function limpiarOrbitacionAeronave(aeronave) {
   if (!aeronave) return
 
+  if (typeof aeronave.orbitSentido !== "string") {
+    aeronave.orbitSentido = "RIGHT"
+  }
+
   aeronave.orbitPendiente = false
   aeronave.orbitEnCurso = false
   aeronave.orbitModoContinuo = false
@@ -186,6 +219,7 @@ function limpiarOrbitacionAeronave(aeronave) {
   aeronave.orbitRadio = null
   aeronave.orbitBearing = null
   aeronave.orbitAcumulado = 0
+  aeronave.orbitFueraCircuitoActivo = false
 }
 
 function esEstadoCircuitoConAltitudAutomatica(estado) {
@@ -482,7 +516,8 @@ function iniciarMotorSala(nombreSala){
     angulo: a.angulo,
     velocidad: a.velocidad,
     velocidadObjetivo: a.velocidadObjetivo,
-    estado: a.estado
+    estado: a.estado,
+    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido)
   })
 
   return
@@ -500,7 +535,7 @@ function iniciarMotorSala(nombreSala){
           )
       const distanciaTick = velocidadMPS * (intervaloMS/1000)
 // =====================================
-// ðŸŒ€ FASE ARCO 30° ANTES DE INTERCEPTAR
+// ðŸŒ€ FASE ARCO 30ï¿½ ANTES DE INTERCEPTAR
 // =====================================
 
 if (a.estado === "INTERCEPTING ARC") {
@@ -587,7 +622,8 @@ if (a.estado === "INTERCEPTING ARC") {
     angulo: a.angulo,
     velocidad: a.velocidad,
     velocidadObjetivo: a.velocidadObjetivo,
-    estado: a.estado
+    estado: a.estado,
+    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido)
   });
 
   return;
@@ -793,7 +829,8 @@ if (a.estado === "INTERCEPTING LEG") {
     angulo: a.angulo,
     velocidad: a.velocidad,
     velocidadObjetivo: a.velocidadObjetivo,
-    estado: a.estado
+    estado: a.estado,
+    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido)
   });
 
   return;
@@ -811,8 +848,7 @@ if (a.estado === "INTERCEPTING LEG") {
         const deltaAngular =
           ORBIT_TASA_VIRAJE_GRADOS_SEG *
           (intervaloMS / 1000) *
-          ORBIT_SENTIDO_DERECHA
-
+          obtenerSignoSentidoOrbit(a.orbitSentido)
         const headingBase = Number.isFinite(a.angulo) ? a.angulo : RUMBOS_CIRCUITO.downwind
         a.angulo = (headingBase + deltaAngular + 360) % 360
 
@@ -879,7 +915,8 @@ if (a.estado === "INTERCEPTING LEG") {
           angulo: a.angulo,
           velocidad: a.velocidad,
           velocidadObjetivo: a.velocidadObjetivo,
-          estado: a.estado
+          estado: a.estado,
+    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido)
         })
 
         return
@@ -910,11 +947,11 @@ if (a.estado === "INTERCEPTING LEG") {
         const deltaAngularEntrada =
           ORBIT_TASA_VIRAJE_GRADOS_SEG *
           (intervaloMS / 1000) *
-          ORBIT_SENTIDO_DERECHA
-
+          obtenerSignoSentidoOrbit(a.orbitSentido)
         a.orbitEnCurso = true
         a.orbitPendiente = false
         a.orbitDetenerSolicitado = false
+        a.orbitFueraCircuitoActivo = false
         a.estado = "ORBT"
         a.angulo = (rumboBase + deltaAngularEntrada + 360) % 360
         a.orbitCentro = null
@@ -930,7 +967,8 @@ if (a.estado === "INTERCEPTING LEG") {
           angulo: a.angulo,
           velocidad: a.velocidad,
           velocidadObjetivo: a.velocidadObjetivo,
-          estado: a.estado
+          estado: a.estado,
+    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido)
         })
 
         return
@@ -1007,7 +1045,8 @@ if (a.estado === "INTERCEPTING LEG") {
         angulo: a.angulo,
         velocidad: a.velocidad,
         velocidadObjetivo: a.velocidadObjetivo,
-        estado: a.estado
+        estado: a.estado,
+    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido)
       })
 
     })
@@ -1063,7 +1102,7 @@ function generarRutaServidor(sala){
 
   const rumboPista = 40
   const rumboInverso = 220
-  const rumboIzq = 130   // tráfico izquierdo RWY 22
+  const rumboIzq = 130   // trï¿½fico izquierdo RWY 22
 
   const lateralM = 1.5 * 1852
 
@@ -1086,7 +1125,7 @@ function generarRutaServidor(sala){
   const finalExt = puntoPlano(umbral22, rumboPista, extensionDownwindM)
   const salidaExt = puntoPlano(umbral04, rumboInverso, extensionUpwindM)
 
-  // Patrón "rectangular con lados semicirculares" (tipo racetrack)
+  // Patrï¿½n "rectangular con lados semicirculares" (tipo racetrack)
   const separacionPiernasM = lateralM * 2
   const salidaExtIzq = puntoPlano(salidaExt, rumboIzq, separacionPiernasM)
   const finalExtIzq = puntoPlano(finalExt, rumboIzq, separacionPiernasM)
@@ -1181,7 +1220,7 @@ function generarRutaServidor(sala){
   agregarRecta(salidaExtIzq, finalExtIzq, pasosRecta, false, "downwind")
 
   // 4) Lado semicircular de final: tramo base
-  // No agregamos el último punto para evitar duplicar el inicio exacto.
+  // No agregamos el ï¿½ltimo punto para evitar duplicar el inicio exacto.
   agregarSemicirculo(
     centroVirajeFinal,
     130,
@@ -1192,7 +1231,7 @@ function generarRutaServidor(sala){
   )
 
   if (puntos.length > 1) {
-    // Segmento de cierre (último -> primero) también pertenece al tramo base.
+    // Segmento de cierre (ï¿½ltimo -> primero) tambiï¿½n pertenece al tramo base.
     puntos[puntos.length - 1].tramo = "base"
   }
 
@@ -1485,7 +1524,7 @@ function construirIngresoDownwind45(aeronave) {
       waypoints.push(puntoCruce, puntoGota)
     }
 
-    // Tramo final de ingreso a 45° sobre downwind.
+    // Tramo final de ingreso a 45ï¿½ sobre downwind.
     waypoints.push(preEntryPoint, joinPoint)
   }
 
@@ -1643,6 +1682,40 @@ function inicializarGoAroundAeronave(aeronave) {
   aeronave.goAroundLastDist = null
 }
 
+function puedeActivarGoAroundEnFinal(sala, aeronave) {
+  if (!sala || !aeronave) return false
+
+  const rumboActual = Number(aeronave.angulo)
+  if (Number.isFinite(rumboActual)) {
+    const errorRumbo = Math.abs(
+      diferenciaAngular(rumboActual, GO_AROUND_TRIGGER_HEADING)
+    )
+    if (errorRumbo > GO_AROUND_FINAL_HEADING_ACTIVACION_TOL) {
+      return false
+    }
+  }
+
+  let rutaReferencia = aeronave.ruta
+  if (!rutaReferencia || rutaReferencia.length < 2) {
+    rutaReferencia = generarRutaServidorParaAeronave(sala, aeronave)
+  }
+  if (!rutaReferencia || rutaReferencia.length < 2) {
+    return false
+  }
+
+  const proyeccionFinal = obtenerProyeccionRutaMasCercana(
+    { lat: aeronave.lat, lng: aeronave.lng },
+    rutaReferencia,
+    "final"
+  )
+
+  return Boolean(
+    proyeccionFinal &&
+      Number.isFinite(proyeccionFinal.distancia) &&
+      proyeccionFinal.distancia <= GO_AROUND_FINAL_MAX_DIST_M
+  )
+}
+
 function emitirActualizacionAeronave(nombreSala, aeronave) {
   io.to(nombreSala).emit("actualizarAeronave", {
     id: aeronave.id,
@@ -1652,7 +1725,8 @@ function emitirActualizacionAeronave(nombreSala, aeronave) {
     angulo: aeronave.angulo,
     velocidad: aeronave.velocidad,
     velocidadObjetivo: aeronave.velocidadObjetivo,
-    estado: aeronave.estado
+    estado: aeronave.estado,
+    orbitSentido: normalizarSentidoOrbitTexto(aeronave.orbitSentido)
   })
 }
 
@@ -1814,10 +1888,16 @@ function procesarGoAroundEnMotor(aeronave, intervaloMS, nombreSala) {
     return false
   }
 
-  const velocidadObjetivoKt =
+  const velocidadBaseKt =
     (Number.isFinite(aeronave.velocidadObjetivo) && aeronave.velocidadObjetivo > 0)
       ? aeronave.velocidadObjetivo
       : GO_AROUND_SPEED_DEFAULT_KT
+  const incrementoVelocidadKt =
+    GO_AROUND_ACCEL_KT_POR_SEG * (intervaloMS / 1000)
+  const velocidadObjetivoKt = Math.min(
+    GO_AROUND_SPEED_TARGET_KT,
+    Math.max(GO_AROUND_SPEED_DEFAULT_KT, velocidadBaseKt) + incrementoVelocidadKt
+  )
   const velocidadMPS = velocidadObjetivoKt * 0.514444
   const distanciaTick = velocidadMPS * (intervaloMS / 1000)
 
@@ -1939,6 +2019,7 @@ relojesSalas[nombre] = {
   timestampBase: Date.now(),
   velocidad: 1,
   pausado: true,
+  panelHoraInicio: null,
   letraActual: "--",
   letraAsignada: false,
   segundosAcumuladosLetra: 0,
@@ -2003,7 +2084,8 @@ if (peligroSalas[nombre]) {
       socket.emit("horaSala", horaActual);
     }
     socket.emit("estadoTiempo", {
-      pausado: relojesSalas[nombre].pausado
+      pausado: relojesSalas[nombre].pausado,
+      panelHora: relojesSalas[nombre].panelHoraInicio || null
     });
     socket.emit("letraPanelSala", {
       letra: relojesSalas[nombre].letraActual || "--"
@@ -2038,7 +2120,8 @@ socket.on("solicitarSincronizacionTiempo", () => {
   }
 
   socket.emit("estadoTiempo", {
-    pausado: reloj.pausado
+    pausado: reloj.pausado,
+    panelHora: reloj.panelHoraInicio || null
   })
   socket.emit("letraPanelSala", {
     letra: reloj.letraActual || "--"
@@ -2065,6 +2148,7 @@ socket.on("crearAeronave", (data) => {
   orbitEnCurso: false,
   orbitModoContinuo: false,
   orbitDetenerSolicitado: false,
+  orbitSentido: "RIGHT",
   altitudCircuitoAutomaticaActiva: false,
   ingresoDownwindWaypoints: null,
   ingresoDownwindTipo: null,
@@ -2086,6 +2170,7 @@ socket.on("crearAeronave", (data) => {
   orbitEnCurso: false,
   orbitModoContinuo: false,
   orbitDetenerSolicitado: false,
+  orbitSentido: "RIGHT",
   owner: socket.id
 });
 
@@ -2277,7 +2362,7 @@ socket.on("virarCircuito", ({ id }) => {
   iniciarMotorSala(salaNombre)
 })
 
-socket.on("orbitarCircuito", ({ id }) => {
+socket.on("orbitarCircuito", ({ id, sentido } = {}) => {
 
   const salaNombre = socket.sala
   if (!salaNombre) return
@@ -2289,25 +2374,83 @@ socket.on("orbitarCircuito", ({ id }) => {
   if (!aeronave) return
   if (aeronave.owner !== socket.id) return
 
-  if (
-    aeronave.estado !== "CIRCUIT" &&
-    aeronave.estado !== "ORBT" &&
-    aeronave.estado !== "INTERCEPTING ARC" &&
-    aeronave.estado !== "INTERCEPTING LEG"
-  ) {
+  if (!aeronave.ruta || aeronave.ruta.length < 2) {
+    aeronave.ruta = generarRutaServidorParaAeronave(sala, aeronave)
+  }
+  if (!aeronave.ruta || aeronave.ruta.length < 2) return
+
+  const estadoCompatibleConCircuito =
+    aeronave.estado === "CIRCUIT" ||
+    aeronave.estado === "ORBT" ||
+    aeronave.estado === "INTERCEPTING ARC" ||
+    aeronave.estado === "INTERCEPTING LEG"
+
+  const sentidoSolicitado = normalizarSentidoOrbitTexto(sentido)
+  const sentidoActual = normalizarSentidoOrbitTexto(aeronave.orbitSentido)
+  if (!estadoCompatibleConCircuito) {
+    limpiarOrbitacionAeronave(aeronave)
+
+    const proyeccionInicial = obtenerProyeccionRutaMasCercana(
+      { lat: aeronave.lat, lng: aeronave.lng },
+      aeronave.ruta
+    )
+    if (proyeccionInicial) {
+      aeronave.indice = proyeccionInicial.indiceA
+      aeronave.progreso = proyeccionInicial.progreso
+    }
+
+    aeronave.orbitSentido = sentidoSolicitado
+    aeronave.orbitPendiente = false
+    aeronave.orbitEnCurso = true
+    aeronave.orbitModoContinuo = true
+    aeronave.orbitDetenerSolicitado = false
+    aeronave.orbitAcumulado = 0
+    aeronave.orbitFueraCircuitoActivo = true
+    aeronave.estado = "ORBT"
+
+    if (!Number.isFinite(aeronave.angulo)) {
+      aeronave.angulo = RUMBOS_CIRCUITO.downwind
+    }
+    if (!Number.isFinite(aeronave.velocidad) || aeronave.velocidad <= 0) {
+      aeronave.velocidad = 90 * 0.514444
+    }
+
+    iniciarMotorSala(salaNombre)
     return
   }
 
-  if (!aeronave.ruta || aeronave.ruta.length < 2) return
-
   if (aeronave.orbitEnCurso) {
+    if (sentidoSolicitado !== sentidoActual) {
+      aeronave.orbitSentido = sentidoSolicitado
+      aeronave.orbitModoContinuo = true
+      aeronave.orbitDetenerSolicitado = false
+      iniciarMotorSala(salaNombre)
+      return
+    }
+
     const activarContinuo = !Boolean(aeronave.orbitModoContinuo)
 
     if (activarContinuo) {
       aeronave.orbitModoContinuo = true
       aeronave.orbitDetenerSolicitado = false
     } else {
-      // Saldrá cuando complete la órbita actual.
+      if (aeronave.orbitFueraCircuitoActivo) {
+        limpiarOrbitacionAeronave(aeronave)
+        aeronave.estado = "MANUAL"
+        aeronave.ruta = null
+        aeronave.indice = 0
+        aeronave.progreso = 0
+        aeronave.indiceObjetivo = null
+        aeronave.tramoObjetivo = null
+        aeronave.puntoIntercepto = null
+        aeronave.ingresoDownwindWaypoints = null
+        aeronave.ingresoDownwindTipo = null
+        emitirActualizacionAeronave(salaNombre, aeronave)
+        iniciarMotorSala(salaNombre)
+        return
+      }
+
+      // Saldra cuando complete la orbita actual.
       aeronave.orbitModoContinuo = false
       aeronave.orbitDetenerSolicitado = true
     }
@@ -2317,16 +2460,38 @@ socket.on("orbitarCircuito", ({ id }) => {
   }
 
   if (Boolean(aeronave.orbitPendiente) || Boolean(aeronave.orbitModoContinuo)) {
-    // Si aún no empezó a orbitar, se cancela inmediatamente.
+    if (sentidoSolicitado !== sentidoActual) {
+      aeronave.orbitSentido = sentidoSolicitado
+      aeronave.orbitModoContinuo = true
+      aeronave.orbitDetenerSolicitado = false
+      aeronave.orbitPendiente = true
+      iniciarMotorSala(salaNombre)
+      return
+    }
+
+    // Si aun no empezo a orbitar, se cancela inmediatamente.
     limpiarOrbitacionAeronave(aeronave)
     iniciarMotorSala(salaNombre)
     return
   }
 
   limpiarOrbitacionAeronave(aeronave)
+  aeronave.orbitSentido = sentidoSolicitado
+  aeronave.orbitPendiente = false
+  aeronave.orbitEnCurso = true
   aeronave.orbitModoContinuo = true
   aeronave.orbitDetenerSolicitado = false
-  aeronave.orbitPendiente = true
+  aeronave.orbitAcumulado = 0
+  aeronave.orbitFueraCircuitoActivo = false
+  aeronave.estado = "ORBT"
+
+  if (!Number.isFinite(aeronave.angulo)) {
+    aeronave.angulo = RUMBOS_CIRCUITO.downwind
+  }
+  if (!Number.isFinite(aeronave.velocidad) || aeronave.velocidad <= 0) {
+    aeronave.velocidad = 90 * 0.514444
+  }
+
   iniciarMotorSala(salaNombre)
 })
 
@@ -2391,7 +2556,8 @@ if(typeof data.estado === "string"){
   angulo: aeronave.angulo,
   velocidad: aeronave.velocidad,
   velocidadObjetivo: aeronave.velocidadObjetivo,
-  estado: aeronave.estado
+  estado: aeronave.estado,
+    orbitSentido: normalizarSentidoOrbitTexto(aeronave.orbitSentido)
 });
 
 
@@ -2437,7 +2603,8 @@ socket.on("activarManual", ({ id }) => {
     angulo: aeronave.angulo,
     velocidad: aeronave.velocidad,
     velocidadObjetivo: aeronave.velocidadObjetivo,
-    estado: aeronave.estado
+    estado: aeronave.estado,
+    orbitSentido: normalizarSentidoOrbitTexto(aeronave.orbitSentido)
   })
 })
 // ===== INICIAR CIRCUITO =====
@@ -2474,20 +2641,40 @@ socket.on("iniciarGoAround", ({ id }) => {
 
   if (aeronave.owner !== socket.id) return
 
-  inicializarGoAroundAeronave(aeronave)
-
-  const enCircuito =
-    aeronave.estado === "CIRCUIT" ||
-    aeronave.estado === "INTERCEPTING ARC" ||
-    aeronave.estado === "INTERCEPTING LEG" ||
-    aeronave.estado === "ORBT"
-
-  if (enCircuito && aeronave.ruta && aeronave.ruta.length >= 2) {
-    iniciarMotorSala(salaNombre)
+  if (!puedeActivarGoAroundEnFinal(sala, aeronave)) {
+    socket.emit("goAroundRechazado", {
+      id: aeronave.id,
+      motivo: "FINAL_ONLY"
+    })
     return
   }
 
-  prepararAeronaveParaCircuito(salaNombre, sala, aeronave)
+  inicializarGoAroundAeronave(aeronave)
+  aeronave.goAroundFase = "TO_RADIAL"
+  aeronave.estado = "GO AROUND"
+
+  limpiarOrbitacionAeronave(aeronave)
+  aeronave.ruta = null
+  aeronave.indice = 0
+  aeronave.progreso = 0
+  aeronave.tramoObjetivo = null
+  aeronave.puntoIntercepto = null
+  aeronave.ingresoDownwindWaypoints = null
+  aeronave.ingresoDownwindTipo = null
+
+  if (
+    !Number.isFinite(aeronave.velocidadObjetivo) ||
+    aeronave.velocidadObjetivo <= 0
+  ) {
+    aeronave.velocidadObjetivo = GO_AROUND_SPEED_DEFAULT_KT
+  }
+
+  if (!Number.isFinite(aeronave.velocidad) || aeronave.velocidad <= 0) {
+    aeronave.velocidad = aeronave.velocidadObjetivo * 0.514444
+  }
+
+  emitirActualizacionAeronave(salaNombre, aeronave)
+  iniciarMotorSala(salaNombre)
 })
 socket.on("detenerCircuito", ({ id }) => {
 
@@ -2547,7 +2734,8 @@ socket.on("forzarAterrizaje", ({ id }) => {
     angulo: aeronave.angulo,
     velocidad: aeronave.velocidad,
     velocidadObjetivo: aeronave.velocidadObjetivo,
-    estado: aeronave.estado
+    estado: aeronave.estado,
+    orbitSentido: normalizarSentidoOrbitTexto(aeronave.orbitSentido)
   })
 
 })
@@ -2625,7 +2813,8 @@ socket.on("ajusteManual", ({ id, tipo, valor }) => {
     angulo: a.angulo,
     velocidad: a.velocidad,
     velocidadObjetivo: a.velocidadObjetivo,
-    estado: a.estado
+    estado: a.estado,
+    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido)
   })
 
 })
@@ -2656,7 +2845,8 @@ socket.on("setSpeedKnots", ({ id, speedKnots }) => {
     angulo: a.angulo,
     velocidad: a.velocidad,
     velocidadObjetivo: a.velocidadObjetivo,
-    estado: a.estado
+    estado: a.estado,
+    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido)
   })
 
 })
@@ -2692,6 +2882,13 @@ socket.on("controlTiempo", ({ accion }) => {
     const horaActual = obtenerHoraActualSala(sala);
     const segundosActuales = convertirHoraObjetoASegundos(horaActual);
 
+    if (estabaPausado) {
+      const horaPlayTexto = horaObjetoATexto(horaActual);
+      if (horaPlayTexto) {
+        reloj.panelHoraInicio = horaPlayTexto;
+      }
+    }
+
     if (estabaPausado && !reloj.letraAsignada) {
       reloj.letraActual = generarLetraAleatoriaAZ();
       reloj.letraAsignada = true;
@@ -2710,7 +2907,8 @@ socket.on("controlTiempo", ({ accion }) => {
 
   // ðŸ”¥ NUEVO
   io.to(sala).emit("estadoTiempo", {
-    pausado: reloj.pausado
+    pausado: reloj.pausado,
+    panelHora: reloj.panelHoraInicio || null
   });
 
 });
@@ -2729,7 +2927,6 @@ socket.on("activarPeligroSala", ({ clave }) => {
   if (!sala) return;
 
   if(clave !== PASSWORD){
-    socket.emit("errorPeligro", "Incorrect password");
     return;
   }
 
@@ -2760,7 +2957,7 @@ socket.on("disconnect", () => {
       // Evitar mÃºltiples timeouts
       if (timeoutsSalas[nombre]) return;
 
-      console.log(` Sala ${nombre} vacía. Eliminando en 5 horas si nadie entra.`);
+      console.log(` Sala ${nombre} vacÃ­a. Eliminando en 5 horas si nadie entra.`);
 
       timeoutsSalas[nombre] = setTimeout(() => {
 

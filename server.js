@@ -2592,6 +2592,8 @@ socket.on("activarManual", ({ id }) => {
   if (!aeronave) return
   if (!socketPuedeControlarAeronave(salaNombre, sala, aeronave, socket.id)) return
 
+  if (aeronave.estado === "PILOTAGE") return
+
   limpiarOrbitacionAeronave(aeronave)
 
   if (aeronave.estado === "MANUAL") {

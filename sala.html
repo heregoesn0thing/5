@@ -4553,6 +4553,7 @@ function iniciarOrbitFueraCircuitoHaciaObjetivo(aeronave, sentido, opciones = {}
   aeronave.orbitFueraCircuitoPendienteSentido = sentidoNormalizado
   marcarOrbitSolicitado(aeronave, true, sentidoNormalizado)
   aeronave.estado = "PILOTAGE"
+  actualizarBotonManual()
   actualizarAnimacionMarcaPilotageSentido(aeronave, sentidoNormalizado)
   const opcionesPilotage = prepararDefaultsPilotageSiNoAsignados(aeronave)
 
@@ -4581,6 +4582,7 @@ function iniciarOrbitFueraCircuitoHaciaObjetivo(aeronave, sentido, opciones = {}
   actualizarCallsignLabelEstado(aeronave)
   actualizarPanelInfoAeronave(aeronave)
   actualizarPanelInfo(aeronave)
+  actualizarPanelManualSegunEstado(aeronave)
   if(!aeronave.remoto){
     sincronizarEstadoAeronaveLocal(aeronave)
   }
@@ -4605,6 +4607,7 @@ function iniciarPilotageDirectoHaciaObjetivo(aeronave, lat, lng, opciones = {}){
   actualizarEstadoBotonOrbit()
 
   aeronave.estado = "PILOTAGE"
+  actualizarBotonManual()
   const opcionesPilotage = prepararDefaultsPilotageSiNoAsignados(aeronave)
 
   moverAeronaveHacia(aeronave, [lat, lng], () => {
@@ -4614,6 +4617,7 @@ function iniciarPilotageDirectoHaciaObjetivo(aeronave, lat, lng, opciones = {}){
   actualizarCallsignLabelEstado(aeronave)
   actualizarPanelInfoAeronave(aeronave)
   actualizarPanelInfo(aeronave)
+  actualizarPanelManualSegunEstado(aeronave)
   if(!aeronave.remoto){
     sincronizarEstadoAeronaveLocal(aeronave)
   }
@@ -4768,6 +4772,7 @@ function procesarClickMapaPilotage(latlng){
     cancelarAccionesAeronave(aeronave)
     marcarOrbitSolicitado(aeronave, false)
     aeronave.estado = "PILOTAGE"
+    actualizarBotonManual()
     const opcionesPilotage = prepararDefaultsPilotageSiNoAsignados(aeronave)
 
     moverAeronaveHacia(aeronave, [lat, lng], () => {
@@ -4777,6 +4782,7 @@ function procesarClickMapaPilotage(latlng){
     actualizarCallsignLabelEstado(aeronave)
     actualizarPanelInfoAeronave(aeronave)
     actualizarPanelInfo(aeronave)
+    actualizarPanelManualSegunEstado(aeronave)
     if(!aeronave.remoto){
       sincronizarEstadoAeronaveLocal(aeronave)
     }
@@ -5766,6 +5772,10 @@ function activarModoAutoDesdeControles(){
 
   detenerSeguimientoManualEye()
 
+  if(aeronaveObjetivo.estado === "PILOTAGE"){
+    return
+  }
+
   if(aeronaveObjetivo.estado !== "MANUAL") return
 
   socket.emit("activarManual", {
@@ -5778,6 +5788,9 @@ if(btnManualPanel){
     const aeronaveObjetivo = obtenerAeronaveObjetivoControles()
     if(!aeronaveObjetivo){
       alert("Select an aircraft first")
+      return
+    }
+    if(aeronaveObjetivo.estado === "PILOTAGE"){
       return
     }
     if(aeronaveObjetivo.estado === "MANUAL") return
@@ -9320,10 +9333,14 @@ function actualizarBotonManual() {
   if (btnManual) {
     btnManual.disabled = false
     btnManual.style.cursor = "pointer"
+    btnManual.style.opacity = ""
+    btnManual.title = ""
   }
   if (btnAuto) {
     btnAuto.disabled = false
     btnAuto.style.cursor = "pointer"
+    btnAuto.style.opacity = ""
+    btnAuto.title = ""
   }
 
   if (aeronaveSeleccionada.estado === "MANUAL") {

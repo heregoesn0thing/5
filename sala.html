@@ -3960,6 +3960,7 @@ const PILOTAGE_DEFAULT_ALTITUDE_FT = 2000
 const PILOTAGE_DEFAULT_SPEED_INITIAL_KT = 90
 const PILOTAGE_DEFAULT_SPEED_TARGET_KT = 180
 const PILOTAGE_DEFAULT_SPEED_ACCEL_KT_PER_SEC = 12
+const PILOTAGE_CONTINUATION_STEP_METERS = 20 * 1852
 const RUMBO_PISTA_22 = 220
 const RUMBO_CIRCUITO_DOWNWIND = 40
 const EXTEND_CIRCUITO_INTERVALO_MS = 500
@@ -4583,10 +4584,7 @@ function iniciarPilotageDirectoHaciaObjetivo(aeronave, lat, lng, opciones = {}){
   const opcionesPilotage = prepararDefaultsPilotageSiNoAsignados(aeronave)
 
   moverAeronaveHacia(aeronave, [lat, lng], () => {
-    if(!aeronave.remoto){
-      sincronizarEstadoAeronaveLocal(aeronave)
-    }
-    finalizarModoPilotagePendiente(aeronave)
+    manejarLlegadaObjetivoPilotage(aeronave)
   }, opcionesPilotage)
 
   actualizarCallsignLabelEstado(aeronave)
@@ -4597,6 +4595,59 @@ function iniciarPilotageDirectoHaciaObjetivo(aeronave, lat, lng, opciones = {}){
   }
 
   return true
+}
+
+function continuarMovimientoPilotageSiSinCambio(aeronave){
+  if(!aeronave || aeronave.estado !== "PILOTAGE"){
+    return false
+  }
+
+  if(!aeronave.marker || typeof aeronave.marker.getLatLng !== "function"){
+    return false
+  }
+
+  const posicionActual = aeronave.marker.getLatLng()
+  if(!posicionActual){
+    return false
+  }
+
+  const rumboActual = normalizarAngulo360(Number(aeronave.angulo) || 0)
+  const siguiente = calcularPuntoDesplazado(
+    Number(posicionActual.lat),
+    Number(posicionActual.lng),
+    PILOTAGE_CONTINUATION_STEP_METERS,
+    rumboActual
+  )
+  if(!Array.isArray(siguiente) || siguiente.length < 2){
+    return false
+  }
+
+  const latDestino = Number(siguiente[0])
+  const lngDestino = Number(siguiente[1])
+  if(!Number.isFinite(latDestino) || !Number.isFinite(lngDestino)){
+    return false
+  }
+
+  moverAeronaveHacia(aeronave, [latDestino, lngDestino], () => {
+    if(!aeronave.remoto){
+      sincronizarEstadoAeronaveLocal(aeronave)
+    }
+    continuarMovimientoPilotageSiSinCambio(aeronave)
+  })
+
+  return true
+}
+
+function manejarLlegadaObjetivoPilotage(aeronave){
+  if(!aeronave){
+    return
+  }
+
+  if(!aeronave.remoto){
+    sincronizarEstadoAeronaveLocal(aeronave)
+  }
+  finalizarModoPilotagePendiente(aeronave)
+  continuarMovimientoPilotageSiSinCambio(aeronave)
 }
 
 function procesarClickMapaPilotage(latlng){
@@ -4673,10 +4724,7 @@ function procesarClickMapaPilotage(latlng){
     const opcionesPilotage = prepararDefaultsPilotageSiNoAsignados(aeronave)
 
     moverAeronaveHacia(aeronave, [lat, lng], () => {
-      if(!aeronave.remoto){
-        sincronizarEstadoAeronaveLocal(aeronave)
-      }
-      finalizarModoPilotagePendiente(aeronave)
+      manejarLlegadaObjetivoPilotage(aeronave)
     }, opcionesPilotage)
 
     actualizarCallsignLabelEstado(aeronave)
@@ -4696,10 +4744,7 @@ function procesarClickMapaPilotage(latlng){
     const opcionesPilotage = prepararDefaultsPilotageSiNoAsignados(aeronave)
 
     moverAeronaveHacia(aeronave, [lat, lng], () => {
-      if(!aeronave.remoto){
-        sincronizarEstadoAeronaveLocal(aeronave)
-      }
-      finalizarModoPilotagePendiente(aeronave)
+      manejarLlegadaObjetivoPilotage(aeronave)
     }, opcionesPilotage)
 
     actualizarCallsignLabelEstado(aeronave)

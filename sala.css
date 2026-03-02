@@ -2726,76 +2726,109 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
 
 .pilotage-target-marker{
   position:relative;
-  width:20px;
-  height:20px;
-  transform-origin:50% 50%;
-  animation:pilotageSpin 1.8s linear infinite;
+  width:30px;
+  height:30px;
   pointer-events:none;
 }
 
-.pilotage-target-marker.pilotage-spin-right{
-  animation-direction:normal;
+.pilotage-target-marker.pilotage-spin-right .pilotage-target-ring{
+  animation-timing-function:cubic-bezier(0.12,0.7,0.2,1);
 }
 
-.pilotage-target-marker.pilotage-spin-left{
-  animation-direction:reverse;
+.pilotage-target-marker.pilotage-spin-left .pilotage-target-ring{
+  animation-timing-function:cubic-bezier(0.2,0.78,0.26,1);
 }
 
 .pilotage-target-glow{
   position:absolute;
-  inset:2px;
+  left:50%;
+  top:50%;
+  width:16px;
+  height:16px;
+  margin-left:-8px;
+  margin-top:-8px;
   border-radius:50%;
   background:radial-gradient(
     circle,
-    rgba(191,219,254,0.95) 0%,
-    rgba(96,165,250,0.45) 48%,
-    rgba(59,130,246,0) 78%
+    rgba(255,247,168,0.95) 0%,
+    rgba(251,191,36,0.58) 55%,
+    rgba(245,158,11,0) 100%
   );
-  filter:drop-shadow(0 0 6px rgba(96,165,250,0.95));
+  animation:pilotageGlow 1.5s ease-in-out infinite;
 }
 
 .pilotage-target-ring{
   position:absolute;
-  inset:1px;
+  left:50%;
+  top:50%;
+  width:8px;
+  height:8px;
+  margin-left:-4px;
+  margin-top:-4px;
   border-radius:50%;
-  border:2px solid rgba(219,234,254,0.95);
-  border-right-color:rgba(59,130,246,0.18);
-  border-bottom-color:rgba(59,130,246,0.28);
-  animation:pilotagePulse 1.2s ease-in-out infinite alternate;
+  border:2px solid rgba(254,243,199,0.98);
+  box-shadow:
+    0 0 10px rgba(245,158,11,0.95),
+    0 0 3px rgba(255,255,255,0.85);
+  opacity:0;
+  transform:scale(0.25);
+  animation:pilotageWave 1.8s ease-out infinite;
+}
+
+.pilotage-target-ring.pilotage-target-ring-alt{
+  animation-delay:0.9s;
 }
 
 .pilotage-target-core{
   position:absolute;
   left:50%;
   top:50%;
-  width:5px;
-  height:5px;
-  margin-left:-2.5px;
-  margin-top:-2.5px;
+  width:6px;
+  height:6px;
+  margin-left:-3px;
+  margin-top:-3px;
   border-radius:50%;
-  background:#eff6ff;
+  background:#fff7c2;
+  animation:pilotageCoreGlow 0.9s ease-in-out infinite alternate;
   box-shadow:
-    0 0 8px rgba(191,219,254,1),
-    0 0 3px rgba(255,255,255,0.95);
+    0 0 14px rgba(251,191,36,1),
+    0 0 8px rgba(245,158,11,0.95),
+    0 0 2px rgba(255,255,255,1);
 }
 
-@keyframes pilotageSpin{
-  from{
-    transform:rotate(0deg);
-  }
-  to{
-    transform:rotate(360deg);
-  }
-}
-
-@keyframes pilotagePulse{
+@keyframes pilotageGlow{
   0%{
-    transform:scale(0.9);
-    opacity:0.72;
+    transform:translateZ(0) scale(0.85);
+    opacity:0.75;
   }
   100%{
-    transform:scale(1.08);
+    transform:translateZ(0) scale(1.28);
+    opacity:0.2;
+  }
+}
+
+@keyframes pilotageWave{
+  0%{
+    transform:translateZ(0) scale(0.25);
     opacity:1;
+  }
+  70%{
+    opacity:0.55;
+  }
+  100%{
+    transform:translateZ(0) scale(3.7);
+    opacity:0;
+  }
+}
+
+@keyframes pilotageCoreGlow{
+  0%{
+    transform:translateZ(0) scale(0.95);
+    filter:brightness(1);
+  }
+  100%{
+    transform:translateZ(0) scale(1.15);
+    filter:brightness(1.2);
   }
 }
 

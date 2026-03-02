@@ -204,6 +204,24 @@ function obtenerListaSalas() {
   }));
 }
 
+function socketPuedeControlarAeronave(salaNombre, sala, aeronave, socketId) {
+  if (!sala || !aeronave) return false
+
+  const ownerId = typeof aeronave.owner === "string" ? aeronave.owner.trim() : ""
+  if (ownerId === "") {
+    aeronave.owner = socketId
+    if (typeof salaNombre === "string" && salaNombre !== "") {
+      io.to(salaNombre).emit("ownerAeronaveActualizado", {
+        id: aeronave.id,
+        owner: socketId
+      })
+    }
+    return true
+  }
+
+  return ownerId === socketId
+}
+
 function limpiarOrbitacionAeronave(aeronave) {
   if (!aeronave) return
 
@@ -2215,7 +2233,7 @@ socket.on("extenderTramoCircuito", ({ id, metros }) => {
 
   const aeronave = sala.aeronaves.find(a => a.id === id)
   if (!aeronave) return
-  if (aeronave.owner !== socket.id) return
+  if (!socketPuedeControlarAeronave(nombreSala, sala, aeronave, socket.id)) return
 
   const metrosSeguros =
     typeof metros === "number" && Number.isFinite(metros) && metros > 0
@@ -2313,7 +2331,7 @@ socket.on("virarCircuito", ({ id }) => {
 
   const aeronave = sala.aeronaves.find(a => a.id === id)
   if (!aeronave) return
-  if (aeronave.owner !== socket.id) return
+  if (!socketPuedeControlarAeronave(salaNombre, sala, aeronave, socket.id)) return
 
   limpiarOrbitacionAeronave(aeronave)
   limpiarGoAroundAeronave(aeronave)
@@ -2372,7 +2390,7 @@ socket.on("orbitarCircuito", ({ id, sentido } = {}) => {
 
   const aeronave = sala.aeronaves.find(a => a.id === id)
   if (!aeronave) return
-  if (aeronave.owner !== socket.id) return
+  if (!socketPuedeControlarAeronave(salaNombre, sala, aeronave, socket.id)) return
 
   if (!aeronave.ruta || aeronave.ruta.length < 2) {
     aeronave.ruta = generarRutaServidorParaAeronave(sala, aeronave)
@@ -2506,7 +2524,7 @@ socket.on("actualizarAeronave", (data) => {
   if (!aeronave) return;
 
   // 🔒 Solo el dueño puede actualizar
-  if (aeronave.owner !== socket.id) return;
+  if (!socketPuedeControlarAeronave(sala, salas[sala], aeronave, socket.id)) return;
 
   // 🛡 Validación básica de datos
   if (typeof data.lat !== "number") return;
@@ -2572,7 +2590,7 @@ socket.on("activarManual", ({ id }) => {
 
   const aeronave = sala.aeronaves.find(a => a.id === id)
   if (!aeronave) return
-  if (aeronave.owner !== socket.id) return
+  if (!socketPuedeControlarAeronave(salaNombre, sala, aeronave, socket.id)) return
 
   limpiarOrbitacionAeronave(aeronave)
 
@@ -2618,7 +2636,7 @@ socket.on("iniciarCircuito", ({ id, modoIngreso } = {}) => {
   const aeronave = sala.aeronaves.find(a => a.id === id)
   if (!aeronave) return
 
-  if (aeronave.owner !== socket.id) return
+  if (!socketPuedeControlarAeronave(salaNombre, sala, aeronave, socket.id)) return
   if (
   aeronave.estado === "CIRCUIT" ||
   aeronave.estado === "INTERCEPTING ARC" ||
@@ -2639,7 +2657,7 @@ socket.on("iniciarGoAround", ({ id }) => {
   const aeronave = sala.aeronaves.find(a => a.id === id)
   if (!aeronave) return
 
-  if (aeronave.owner !== socket.id) return
+  if (!socketPuedeControlarAeronave(salaNombre, sala, aeronave, socket.id)) return
 
   if (!puedeActivarGoAroundEnFinal(sala, aeronave)) {
     socket.emit("goAroundRechazado", {
@@ -2685,7 +2703,7 @@ socket.on("detenerCircuito", ({ id }) => {
   const aeronave = sala.aeronaves.find(a => a.id === id)
   if (!aeronave) return
 
-  if (aeronave.owner !== socket.id) return
+  if (!socketPuedeControlarAeronave(salaNombre, sala, aeronave, socket.id)) return
 
   limpiarGoAroundAeronave(aeronave)
   aeronave.estado = "IDLE"
@@ -2706,7 +2724,7 @@ socket.on("forzarAterrizaje", ({ id }) => {
 
   const aeronave = sala.aeronaves.find(a => a.id === id)
   if (!aeronave) return
-  if (aeronave.owner !== socket.id) return
+  if (!socketPuedeControlarAeronave(salaNombre, sala, aeronave, socket.id)) return
 
   // 🔥 CANCELAR TODO LO QUE CONTROLE MOVIMIENTO
 
@@ -2761,7 +2779,7 @@ socket.on("ajusteManual", ({ id, tipo, valor }) => {
   const a = sala.aeronaves.find(av => av.id === id)
   if (!a) return
 
-  if (a.owner !== socket.id) return
+  if (!socketPuedeControlarAeronave(salaNombre, sala, a, socket.id)) return
 
   const estadoActual = a.estado
   const esManual = estadoActual === "MANUAL"
@@ -2829,7 +2847,7 @@ socket.on("setSpeedKnots", ({ id, speedKnots }) => {
   const a = sala.aeronaves.find(av => av.id === id)
   if (!a) return
 
-  if (a.owner !== socket.id) return
+  if (!socketPuedeControlarAeronave(salaNombre, sala, a, socket.id)) return
 
   if (typeof speedKnots !== "number" || !Number.isFinite(speedKnots)) return
 
@@ -2947,6 +2965,20 @@ socket.on("activarPeligroSala", ({ clave }) => {
 socket.on("disconnect", () => {
 
   for (let nombre in salas) {
+
+    const aeronavesLiberadas = []
+    salas[nombre].aeronaves.forEach((aeronave) => {
+      if(!aeronave) return
+      if(aeronave.owner !== socket.id) return
+
+      aeronave.owner = null
+      aeronavesLiberadas.push(aeronave.id)
+    })
+    if(aeronavesLiberadas.length > 0){
+      io.to(nombre).emit("aeronavesLiberadas", {
+        ids: aeronavesLiberadas
+      })
+    }
 
     salas[nombre].jugadores =
       salas[nombre].jugadores.filter(id => id !== socket.id);

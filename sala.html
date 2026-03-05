@@ -226,20 +226,15 @@
   </div>
   <div id="levelControlPanel" class="level-control-panel">
     <div class="level-control-title">INITIAL LEVEL</div>
-    <div class="level-control-input-row">
-      <input
-        id="levelControlInput"
-        class="level-control-input"
-        type="number"
-        min="0"
-        max="45000"
-        step="100"
-        value="0"
-        inputmode="numeric"
-        aria-label="Initial level in feet"
-      >
-      <button id="levelControlApplyBtn" class="level-control-apply-btn" type="button">SET</button>
-    </div>
+    <input
+      id="levelControlSlider"
+      type="range"
+      min="0"
+      max="45000"
+      step="100"
+      value="0"
+      aria-label="Initial level in feet"
+    >
     <div class="level-control-readout"><span id="levelControlValue">0 ft</span></div>
   </div>
   <div class="boton-lateral boton-lateral-speed" onclick="toggleSpeedControlPanel(event)">
@@ -4103,9 +4098,10 @@ const DISTANCIA_TOUCHDOWN_RWY22_M = 300
 const DISTANCIA_RODAJE_TOUCH_AND_GO_M = 300
 const VELOCIDAD_ROLLOUT_KT = 90
 const VELOCIDAD_ROLLOUT_FINAL_KT = 20
-const VELOCIDAD_TAXI_MAX_KT = 10
+const VELOCIDAD_TAXI_DEFAULT_KT = 10
+const VELOCIDAD_TAXI_MAX_KT = 30
 const ACELERACION_TAXI_KT_POR_SEG = 2
-const VELOCIDAD_TAXI_ATERRIZAJE_KT = VELOCIDAD_TAXI_MAX_KT
+const VELOCIDAD_TAXI_ATERRIZAJE_KT = VELOCIDAD_TAXI_DEFAULT_KT
 const LIB_MANDI = L.latLng(-12.389000, -76.758094)
 const RUMBO_LIB_MANDI = 140
 const TOLERANCIA_RUMBO = 15
@@ -6593,7 +6589,7 @@ function ocultarLevelControlPanel(){
 }
 
 function sincronizarLevelControlPanel(aeronave = null){
-  const levelInput = document.getElementById("levelControlInput")
+  const levelInput = document.getElementById("levelControlSlider")
   const valor = document.getElementById("levelControlValue")
   if(!levelInput || !valor) return
 
@@ -6615,7 +6611,7 @@ function aplicarLevelInicialManual(valor){
 
   const altitudNuevaFt = normalizarAltitudInicialCreacion(valor)
 
-  const levelInput = document.getElementById("levelControlInput")
+  const levelInput = document.getElementById("levelControlSlider")
   if(levelInput){
     levelInput.value = String(altitudNuevaFt)
   }
@@ -6636,7 +6632,7 @@ function aplicarLevelInicialManual(valor){
 }
 
 function aplicarLevelDesdeControlActual(){
-  const levelInput = document.getElementById("levelControlInput")
+  const levelInput = document.getElementById("levelControlSlider")
   if(!levelInput) return
   aplicarLevelInicialManual(levelInput.value)
 }
@@ -7119,28 +7115,57 @@ function togglePanelIzq(){
   asignarPanelControlesAeronave(aeronave, true)
 }
 
-const levelControlInput = document.getElementById("levelControlInput")
-if(levelControlInput){
-  levelControlInput.addEventListener("keydown", (e) => {
-    if(e.key !== "Enter") return
-    e.preventDefault()
-    aplicarLevelDesdeControlActual()
-  })
-  levelControlInput.addEventListener("blur", () => {
-    aplicarLevelDesdeControlActual()
-  })
+function obtenerPrecisionStepSlider(step){
+  if(!Number.isFinite(step) || step <= 0){
+    return 0
+  }
+
+  const texto = String(step)
+  if(!texto.includes(".")){
+    return 0
+  }
+
+  return texto.split(".")[1].length
 }
 
-const levelControlApplyBtn = document.getElementById("levelControlApplyBtn")
-if(levelControlApplyBtn){
-  levelControlApplyBtn.addEventListener("click", (e) => {
+function ajustarSliderConRueda(slider, deltaY){
+  if(!slider || !Number.isFinite(deltaY) || deltaY === 0){
+    return
+  }
+
+  const valorActual = Number.parseFloat(slider.value)
+  const minRaw = Number.parseFloat(slider.min)
+  const maxRaw = Number.parseFloat(slider.max)
+  const stepRaw = Number.parseFloat(slider.step)
+  const min = Number.isFinite(minRaw) ? minRaw : 0
+  const max = Number.isFinite(maxRaw) ? maxRaw : min
+  const step = Number.isFinite(stepRaw) && stepRaw > 0 ? stepRaw : 1
+  const actual = Number.isFinite(valorActual) ? valorActual : min
+  const direccion = deltaY < 0 ? 1 : -1
+  const siguiente = Math.max(min, Math.min(max, actual + (direccion * step)))
+
+  if(Math.abs(siguiente - actual) <= Number.EPSILON){
+    return
+  }
+
+  const precision = obtenerPrecisionStepSlider(step)
+  slider.value = precision > 0 ? siguiente.toFixed(precision) : String(Math.round(siguiente))
+  slider.dispatchEvent(new Event("input", { bubbles: true }))
+}
+
+const levelControlInput = document.getElementById("levelControlSlider")
+if(levelControlInput){
+  levelControlInput.addEventListener("input", () => {
+    aplicarLevelDesdeControlActual()
+  })
+  levelControlInput.addEventListener("wheel", (e) => {
     e.preventDefault()
     e.stopPropagation()
-    aplicarLevelDesdeControlActual()
-  })
+    ajustarSliderConRueda(levelControlInput, e.deltaY)
+  }, { passive: false })
 }
 
-if(levelControlInput || levelControlApplyBtn){
+if(levelControlInput){
   sincronizarLevelControlPanel()
 }
 
@@ -7149,6 +7174,11 @@ if(speedControlSlider){
   speedControlSlider.addEventListener("input", (e) => {
     aplicarSpeedDesdeSlider(e.target.value)
   })
+  speedControlSlider.addEventListener("wheel", (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    ajustarSliderConRueda(speedControlSlider, e.deltaY)
+  }, { passive: false })
 }
 
 const speedMachBtn = document.getElementById("speedMachBtn")
@@ -9212,7 +9242,7 @@ function iniciarRodaje(){
   if(!a.puntosRuta || a.puntosRuta.length < 2) return
 
   a.estado = "TAXI"
-  a.velocidadObjetivo = 0
+  a.velocidadObjetivo = VELOCIDAD_TAXI_DEFAULT_KT
   a.velocidad = 0
   actualizarInteraccion(a)
 
@@ -10871,7 +10901,7 @@ function moverPorPuntos(a){
       VELOCIDAD_TAXI_MAX_KT,
       Number.isFinite(Number(a.velocidadObjetivo))
         ? Number(a.velocidadObjetivo)
-        : 0
+        : VELOCIDAD_TAXI_DEFAULT_KT
     )
   )
 
@@ -10885,13 +10915,30 @@ function moverPorPuntos(a){
     const deltaTime = Math.max(0.016, (ahora - ultimoTiempo) / 1000)
     ultimoTiempo = ahora
 
-    velocidadTaxiActualKt = Math.min(
-      VELOCIDAD_TAXI_MAX_KT,
-      velocidadTaxiActualKt + (ACELERACION_TAXI_KT_POR_SEG * deltaTime)
+    const velocidadObjetivoTaxiKt = Math.max(
+      0,
+      Math.min(
+        VELOCIDAD_TAXI_MAX_KT,
+        Number.isFinite(Number(a.velocidadObjetivo))
+          ? Number(a.velocidadObjetivo)
+          : VELOCIDAD_TAXI_DEFAULT_KT
+      )
     )
 
+    if(velocidadTaxiActualKt < velocidadObjetivoTaxiKt){
+      velocidadTaxiActualKt = Math.min(
+        velocidadObjetivoTaxiKt,
+        velocidadTaxiActualKt + (ACELERACION_TAXI_KT_POR_SEG * deltaTime)
+      )
+    } else if(velocidadTaxiActualKt > velocidadObjetivoTaxiKt){
+      velocidadTaxiActualKt = Math.max(
+        velocidadObjetivoTaxiKt,
+        velocidadTaxiActualKt - (ACELERACION_TAXI_KT_POR_SEG * deltaTime)
+      )
+    }
+
     const metrosPorSegundo = velocidadTaxiActualKt * 0.514444
-    a.velocidadObjetivo = velocidadTaxiActualKt
+    a.velocidadObjetivo = velocidadObjetivoTaxiKt
     a.velocidad = metrosPorSegundo
 
     if(i >= ruta.length - 1){

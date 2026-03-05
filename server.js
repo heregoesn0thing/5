@@ -1122,7 +1122,8 @@ function generarRutaServidor(sala){
   const rumboInverso = 220
   const rumboIzq = 130   // tr�fico izquierdo RWY 22
 
-  const lateralM = 1.5 * 1852
+  const separacionFinalDownwindM = 1.5 * 1852
+  const lateralM = separacionFinalDownwindM / 2
 
   
   const extensionDownwindBase = 1.0 * 1852
@@ -1144,7 +1145,7 @@ function generarRutaServidor(sala){
   const salidaExt = puntoPlano(umbral04, rumboInverso, extensionUpwindM)
 
   // Patr�n "rectangular con lados semicirculares" (tipo racetrack)
-  const separacionPiernasM = lateralM * 2
+  const separacionPiernasM = separacionFinalDownwindM
   const salidaExtIzq = puntoPlano(salidaExt, rumboIzq, separacionPiernasM)
   const finalExtIzq = puntoPlano(finalExt, rumboIzq, separacionPiernasM)
 

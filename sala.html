@@ -177,7 +177,7 @@
   <div class="titulo-grupo">CIRCUIT</div>
 
   <div class="circuit-row">
-    <button class="btn-lateral circuit-btn" id="circuitStart">START</button>
+    <button class="btn-lateral circuit-btn" id="circuitStart">JOIN</button>
     <button class="btn-lateral circuit-btn" id="circuitExtend">EXTEND</button>
     <button
       class="btn-lateral circuit-btn"
@@ -4325,27 +4325,29 @@ map.on("click", function(e){
   }
 
   const panel = document.getElementById("createAircraftPanel")
+  if(panel && panel.classList.contains("activo")){
+    cerrarPanelCrearAeronave()
+  }
+})
+map.on("contextmenu", function(e){
+  if(e && e.originalEvent){
+    e.originalEvent.preventDefault()
+  }
+
+  if(aeronaveSeleccionada && aeronaveSeleccionada.modoRuta){
+    eliminarUltimoTramoRuta(aeronaveSeleccionada)
+    return
+  }
+
+  const panel = document.getElementById("createAircraftPanel")
   if(modoOperacion === "controlador"){
     if(panel && panel.classList.contains("activo")){
       cerrarPanelCrearAeronave()
     }
     return
   }
-  if(panel && panel.classList.contains("activo")){
-    cerrarPanelCrearAeronave()
-    return
-  }
 
-  // Si NO estamos creando ruta â†’ abrir creaciÃ³n
   mostrarSelectorTipo(e.latlng)
-})
-map.on("contextmenu", function(e){
-  if(aeronaveSeleccionada && aeronaveSeleccionada.modoRuta){
-    if(e && e.originalEvent){
-      e.originalEvent.preventDefault()
-    }
-    eliminarUltimoTramoRuta(aeronaveSeleccionada)
-  }
 })
 map.on("click", function(e){
   console.log(e.latlng.lat, e.latlng.lng);
@@ -4834,7 +4836,7 @@ function cerrarSiClickFuera(e){
   const panel = document.getElementById("createAircraftPanel")
   if(!panel || !panel.classList.contains("activo")) return
 
-  // El click en mapa se controla en map.on("click")
+  // El click en mapa se controla en map.on("click") / map.on("contextmenu")
   if(e.target.closest("#map")) return
 
   if(!panel.contains(e.target)){

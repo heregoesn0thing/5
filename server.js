@@ -136,6 +136,15 @@ function obtenerSignoSentidoOrbit(valor) {
     ? ORBIT_SENTIDO_IZQUIERDA
     : ORBIT_SENTIDO_DERECHA
 }
+function obtenerVelocidadMPSParaRuta(a, fallbackMps = GO_AROUND_SPEED_DEFAULT_KT * 0.514444) {
+  if (a && typeof a.velocidadObjetivo === "number" && Number.isFinite(a.velocidadObjetivo)) {
+    return Math.max(0, a.velocidadObjetivo) * 0.514444
+  }
+  if (a && typeof a.velocidad === "number" && Number.isFinite(a.velocidad)) {
+    return Math.max(0, a.velocidad)
+  }
+  return fallbackMps
+}
 const INTERCEPT_LEG_LOOKAHEAD_MAX_M = 430
 const INTERCEPT_LEG_BLEND_DISTANCE_M = 900
 const INTERCEPT_LEG_HEADING_SMOOTH_FACTOR = 0.24
@@ -543,14 +552,7 @@ function iniciarMotorSala(nombreSala){
 
       if (!a.ruta || a.ruta.length < 2) return
 
-      const velocidadMPS =
-        (Number.isFinite(a.velocidadObjetivo) && a.velocidadObjetivo > 0)
-          ? a.velocidadObjetivo * 0.514444
-          : (
-            (Number.isFinite(a.velocidad) && a.velocidad > 0)
-              ? a.velocidad
-              : (90 * 0.514444)
-          )
+      const velocidadMPS = obtenerVelocidadMPSParaRuta(a)
       const distanciaTick = velocidadMPS * (intervaloMS/1000)
 // =====================================
 // 🌀 FASE ARCO 30� ANTES DE INTERCEPTAR
@@ -574,14 +576,7 @@ if (a.estado === "INTERCEPTING ARC") {
     destino
   );
 
-  const velocidadMPS =
-    (Number.isFinite(a.velocidadObjetivo) && a.velocidadObjetivo > 0)
-      ? a.velocidadObjetivo * 0.514444
-      : (
-        (Number.isFinite(a.velocidad) && a.velocidad > 0)
-          ? a.velocidad
-          : (90 * 0.514444)
-      );
+  const velocidadMPS = obtenerVelocidadMPSParaRuta(a);
   const distanciaTick = velocidadMPS * (intervaloMS / 1000);
 
   // 🔥 RUMBO HACIA EL PUNTO DE INTERCEPTO

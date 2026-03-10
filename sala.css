@@ -709,7 +709,7 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
   --escala-ui-secundaria-inversa: 1.25;
   --panel-izq-width: 218px;
   --panel-izq-offset: 5px;
-  --panel-izq-gap: 5px;
+  --panel-izq-gap: 3px;
 }
 #panelInfoAeronave,
 #menuAcciones,
@@ -2589,7 +2589,7 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
 }
 
 #menuControles.activo .boton-lateral{
-  left: var(--panel-izq-width);
+  left: calc(var(--panel-izq-width) + var(--panel-izq-gap));
 }
 
 .boton-lateral:hover{
@@ -3575,7 +3575,7 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
   position: fixed;
   top: 50%;
   right: 0;
-  transform: translateY(-58%);
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
   z-index: 3500;

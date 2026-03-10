@@ -3359,7 +3359,7 @@ const iconoC172 = L.divIcon({
   html: `
     <img src="img/c172.svg"
          style="
-           width:40px;
+           width:24px;
            transform: rotate(0deg);
            transform-origin: center;
          "
@@ -4327,71 +4327,100 @@ window.addEventListener("online", function(){
 
 
 // ================= ICON =================
+const AIRCRAFT_LENGTH_M = {
+  C172: 8.3,
+  AN32: 23.8,
+  A319: 33.8,
+  A320: 37.6,
+  F22: 18.9,
+  B2: 21.0
+}
+const AIRCRAFT_ICON_BASE_TYPE = "A320"
+const AIRCRAFT_ICON_BASE_WIDTH_PX = 48
+const AIRCRAFT_ICON_MIN_PX = 18
+const AIRCRAFT_ICON_MAX_PX = 60
+const AIRCRAFT_ICON_OVERRIDES_PX = {
+  B2: 52,
+  RFL: 42,
+  "???": 40,
+  H: 34
+}
+function calcularAnchoIconoAvion(tipo){
+  const override = AIRCRAFT_ICON_OVERRIDES_PX[tipo]
+  if(Number.isFinite(override)) return override
+  const baseLen = AIRCRAFT_LENGTH_M[AIRCRAFT_ICON_BASE_TYPE] || 37.6
+  const length = AIRCRAFT_LENGTH_M[tipo]
+  if(!Number.isFinite(length)) return 40
+  const ratio = Math.sqrt(length / baseLen)
+  const width = AIRCRAFT_ICON_BASE_WIDTH_PX * ratio
+  return Math.max(AIRCRAFT_ICON_MIN_PX, Math.min(AIRCRAFT_ICON_MAX_PX, Math.round(width)))
+}
 function crearIcono(callsign, tipo){
 
   let contenidoAvion;
+  const anchoPx = calcularAnchoIconoAvion(tipo)
 
   if(tipo === "C172"){
     contenidoAvion = `
       <img src="img/c172.svg"
            class="icon-aircraft"
-           style="width:28px;">
+           style="width:${anchoPx}px;">
     `;
   } 
   else if(tipo === "AN32"){
     contenidoAvion = `
       <img src="img/an32.svg"
            class="icon-aircraft"
-           style="width:32px;">
+           style="width:${anchoPx}px;">
     `;
   }
   else if(tipo === "A319"){
     contenidoAvion = `
       <img src="img/a320.svg"
            class="icon-aircraft"
-           style="width:38px;">
+           style="width:${anchoPx}px;">
     `;
   }
   else if(tipo === "A320"){
     contenidoAvion = `
       <img src="img/a320.svg"
            class="icon-aircraft"
-           style="width:40px;">
+           style="width:${anchoPx}px;">
     `;
   }
   else if(tipo === "F22"){
     contenidoAvion = `
       <img src="img/F22.svg"
            class="icon-aircraft"
-           style="width:40px;">
+           style="width:${anchoPx}px;">
     `;
   }
   else if(tipo === "RFL"){
     contenidoAvion = `
       <img src="img/RFL.svg"
            class="icon-aircraft"
-           style="width:40px;">
+           style="width:${anchoPx}px;">
     `;
   }
   else if(tipo === "B2"){
     contenidoAvion = `
       <img src="img/B2.svg"
            class="icon-aircraft"
-           style="width:40px;">
+           style="width:${anchoPx}px;">
     `;
   }
   else if(tipo === "???"){
     contenidoAvion = `
       <img src="img/UFO.gif"
            class="icon-aircraft"
-           style="width:40px;">
+           style="width:${anchoPx}px;">
     `;
   }
   else if(tipo === "H"){
     contenidoAvion = `
       <img src="img/H.gif"
            class="icon-aircraft"
-           style="width:40px;">
+           style="width:${anchoPx}px;">
     `;
   }
   else {

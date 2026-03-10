@@ -1118,9 +1118,9 @@ function generarRutaServidor(sala){
   const umbral04 = { lat: -13.755327, lng: -76.229306 }
   const umbral22 = { lat: -13.736552242088443, lng: -76.21347536723357 }
 
-  const rumboPista = 40
-  const rumboInverso = 220
-  const rumboIzq = 130   // tr�fico izquierdo RWY 22
+  const rumboPista = calcularRumboServidor(umbral04, umbral22)
+  const rumboInverso = calcularRumboServidor(umbral22, umbral04)
+  const rumboIzq = (rumboInverso - 90 + 360) % 360   // tr�fico izquierdo RWY 22
 
   const separacionFinalDownwindM = 1.5 * 1852
   const lateralM = separacionFinalDownwindM / 2
@@ -1151,6 +1151,10 @@ function generarRutaServidor(sala){
 
   const centroVirajeSalida = puntoPlano(salidaExt, rumboIzq, lateralM)
   const centroVirajeFinal = puntoPlano(finalExt, rumboIzq, lateralM)
+  const radialSalidaInicio = (rumboInverso + 90) % 360
+  const radialSalidaFin = (rumboPista + 90) % 360
+  const radialFinalInicio = radialSalidaFin
+  const radialFinalFin = radialSalidaInicio
 
   const distanciaRectaM = distanciaEntre(finalExt, salidaExt)
   const longitudSemicirculoM = Math.PI * lateralM
@@ -1210,13 +1214,21 @@ function generarRutaServidor(sala){
     radialFin,
     pasos,
     tipoTramo,
-    incluirFin = true
+    incluirFin = true,
+    sentido = null
   ) {
     const limite = incluirFin ? pasos : (pasos - 1)
 
     for (let i = 1; i <= limite; i++) {
       const t = i / pasos
-      const radial = interpolarRumbo(radialInicio, radialFin, t)
+      let radial = interpolarRumbo(radialInicio, radialFin, t)
+      if (sentido === "cw") {
+        const delta = (radialInicio - radialFin + 360) % 360
+        radial = (radialInicio - (delta * t) + 360) % 360
+      } else if (sentido === "ccw") {
+        const delta = (radialFin - radialInicio + 360) % 360
+        radial = (radialInicio + (delta * t)) % 360
+      }
       const punto = puntoPlano(centro, radial, lateralM)
       registrarPunto(punto, tipoTramo)
     }
@@ -1233,20 +1245,29 @@ function generarRutaServidor(sala){
   )
 
   // 2) Lado semicircular de salida: tramo crosswind
-  agregarSemicirculo(centroVirajeSalida, 310, 130, pasosSemicirculo, "crosswind")
+  agregarSemicirculo(
+    centroVirajeSalida,
+    radialSalidaInicio,
+    radialSalidaFin,
+    pasosSemicirculo,
+    "crosswind",
+    true,
+    "cw"
+  )
 
-  // 3) Downwind (040): salidaExtIzq -> finalExtIzq
+  // 3) Downwind (opuesto a final): salidaExtIzq -> finalExtIzq
   agregarRecta(salidaExtIzq, finalExtIzq, pasosRecta, false, "downwind")
 
   // 4) Lado semicircular de final: tramo base
-  // No agregamos el �ltimo punto para evitar duplicar el inicio exacto.
+
   agregarSemicirculo(
     centroVirajeFinal,
-    130,
-    310,
+    radialFinalInicio,
+    radialFinalFin,
     pasosSemicirculo,
     "base",
-    false
+    false,
+    "cw"
   )
 
   if (puntos.length > 1) {
@@ -1761,10 +1782,52 @@ function prepararAeronaveParaCircuito(salaNombre, sala, aeronave, opciones = {})
     ruta: aeronave.ruta
   })
 
+  const modoIngresoRaw =
+    opciones && typeof opciones.modoIngreso === "string"
+      ? opciones.modoIngreso.trim().toLowerCase()
+      : ""
+  const mapaIngresoPorTramo = {
+    upwind: "upwind",
+    upw: "upwind",
+    uw: "upwind",
+    crosswind: "crosswind",
+    cw: "crosswind",
+    downwind: "downwind",
+    dw: "downwind",
+    base: "base",
+    bs: "base",
+    final: "final",
+    fnl: "final"
+  }
+  const tipoObjetivo = mapaIngresoPorTramo[modoIngresoRaw] || null
+  const posicionActual = { lat: aeronave.lat, lng: aeronave.lng }
+
+  if (tipoObjetivo) {
+    const proyeccionTramo = obtenerProyeccionRutaMasCercana(
+      posicionActual,
+      aeronave.ruta,
+      tipoObjetivo
+    )
+    if (proyeccionTramo) {
+      aeronave.tramoObjetivo = proyeccionTramo.indiceA
+      aeronave.puntoIntercepto = proyeccionTramo.puntoIntercepto
+      aeronave.ingresoDownwindWaypoints = null
+      aeronave.ingresoDownwindTipo = null
+      aeronave.estado = "INTERCEPTING ARC"
+      aeronave.interceptTicks = 0
+      aeronave.interceptHeadingRef = null
+      aeronave.velocidad = GO_AROUND_SPEED_DEFAULT_KT * 0.514444
+      aeronave.velocidadObjetivo = GO_AROUND_SPEED_DEFAULT_KT
+
+      iniciarMotorSala(salaNombre)
+      return true
+    }
+  }
+
   let usarIngresoMasCercano = opciones && opciones.modoIngreso === "nearest"
   if (!usarIngresoMasCercano && opciones && opciones.modoIngreso === "nearest-if-close") {
     const proyeccionCercana = obtenerProyeccionRutaMasCercana(
-      { lat: aeronave.lat, lng: aeronave.lng },
+      posicionActual,
       aeronave.ruta
     )
     usarIngresoMasCercano =

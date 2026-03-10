@@ -84,6 +84,28 @@
 ================================= -->
 <div id="menuControles">
 
+  <section id="panelTcasLateral" class="tcas-panel">
+    <div class="tcas-head">
+      <span class="tcas-title">TCAS II</span>
+      <span id="tcasMode" class="tcas-mode">TA/RA</span>
+      <span id="tcasLevel" class="tcas-level tcas-level-clear">CLEAR</span>
+    </div>
+    <div id="tcasDisplay" class="tcas-display" aria-hidden="true">
+      <svg id="tcasSvg" class="tcas-svg" viewBox="0 0 200 200"></svg>
+      <div id="tcasRangeLabel" class="tcas-range-label">RNG 5 NM</div>
+    </div>
+    <div id="tcasSummary" class="tcas-summary">No traffic in envelope</div>
+    <div class="tcas-legend">
+      <span class="legend-item legend-item-other">OTHER</span>
+      <span class="legend-item legend-item-prox">PROX</span>
+      <span class="legend-item legend-item-ta">TA</span>
+      <span class="legend-item legend-item-ra">RA</span>
+    </div>
+    <div id="tcasList" class="tcas-list">
+      <div class="tcas-empty">No intruders</div>
+    </div>
+  </section>
+
   <div class="contenido-lateral">
 
    <!-- ===============================
@@ -108,7 +130,7 @@
 </div>
 
     <!-- GRUPO LANDING CONTROL -->
-    <div class="grupo">
+    <div class="grupo" id="grupoLanding">
 
       <div class="titulo-grupo">LANDING CONTROL</div>
 
@@ -156,7 +178,7 @@
     <!-- ===============================
      GRUPO DEPARTURE
 ================================= -->
-<div class="grupo">
+<div class="grupo" id="grupoDeparture">
   <div class="titulo-grupo">DEPARTURE</div>
 
   <div class="departure-row">
@@ -177,7 +199,12 @@
   <div class="titulo-grupo">CIRCUIT</div>
 
   <div class="circuit-row">
-    <button class="btn-lateral circuit-btn" id="circuitStart">JOIN</button>
+    <button
+      class="btn-lateral circuit-btn"
+      id="circuitStart"
+      aria-expanded="false"
+      aria-controls="circuitJoinOpciones"
+    >JOIN</button>
     <button class="btn-lateral circuit-btn" id="circuitExtend">EXTEND</button>
     <button
       class="btn-lateral circuit-btn"
@@ -188,6 +215,14 @@
     >
       ORBIT
     </button>
+  </div>
+  <div id="circuitJoinOpciones" class="circuit-join-opciones" aria-hidden="true">
+    <button class="btn-lateral circuit-btn circuit-join-btn" data-join="dct" type="button">DCT</button>
+    <button class="btn-lateral circuit-btn circuit-join-btn" data-join="upw" type="button">UPW</button>
+    <button class="btn-lateral circuit-btn circuit-join-btn" data-join="cw" type="button">CW</button>
+    <button class="btn-lateral circuit-btn circuit-join-btn" data-join="dw" type="button">DW</button>
+    <button class="btn-lateral circuit-btn circuit-join-btn" data-join="bs" type="button">BS</button>
+    <button class="btn-lateral circuit-btn circuit-join-btn" data-join="fnl" type="button">FNL</button>
   </div>
   <div id="circuitOrbitOpciones" class="circuit-orbit-opciones" aria-hidden="true">
     <button class="btn-lateral circuit-btn circuit-orbit-btn" id="circuitOrbitLeft" type="button">
@@ -488,6 +523,7 @@ function aplicarVisibilidadPanelIzquierdoPorModo(){
   ocultarLevelControlPanel()
   ocultarSpeedControlPanel()
   ocultarOpcionesSID()
+  ocultarOpcionesJoin()
   actualizarIconoPanelControles(false)
 }
 
@@ -3673,12 +3709,29 @@ crearTriangulo("ASOXI", -12.760556, -76.606389)
 crearTriangulo("LIB MANDI", -12.389000, -76.758094)
 
 const MARCADOR_CUADRADO_MIN_ZOOM = 15
+const MARCADOR_ESTACIONAMIENTO_MIN_ZOOM = 17
 const marcadoresCuadradosLetras = []
+const marcadoresEstacionamiento = []
 
 function actualizarVisibilidadMarcadoresCuadrados(){
   const visible = map.getZoom() >= MARCADOR_CUADRADO_MIN_ZOOM
 
   marcadoresCuadradosLetras.forEach((marker) => {
+    const estaVisible = map.hasLayer(marker)
+    if(visible && !estaVisible){
+      marker.addTo(map)
+      return
+    }
+    if(!visible && estaVisible){
+      map.removeLayer(marker)
+    }
+  })
+}
+
+function actualizarVisibilidadMarcadoresEstacionamiento(){
+  const visible = map.getZoom() >= MARCADOR_ESTACIONAMIENTO_MIN_ZOOM
+
+  marcadoresEstacionamiento.forEach((marker) => {
     const estaVisible = map.hasLayer(marker)
     if(visible && !estaVisible){
       marker.addTo(map)
@@ -3728,6 +3781,44 @@ function crearMarcadorCuadradoTexto(texto, lat, lng){
   actualizarVisibilidadMarcadoresCuadrados()
 }
 
+function crearMarcadorEstacionamientoTexto(texto, lat, lng){
+  const etiqueta = (
+    typeof texto === "string" && texto.trim() !== ""
+      ? texto.trim().toUpperCase().slice(0, 2)
+      : "?"
+  )
+  const fontSize = etiqueta.length > 1 ? 8 : 10
+
+  const icono = L.divIcon({
+    className: "",
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+    html: `
+      <div style="
+        width:14px;
+        height:14px;
+        background:#0f172a;
+        color:#38bdf8;
+        border:1px solid #38bdf8;
+        border-radius:3px;
+        text-align:center;
+        line-height:14px;
+        font-size:${fontSize}px;
+        font-weight:700;
+      ">${etiqueta}</div>
+    `
+  })
+
+  const marker = L.marker([lat, lng], {
+    icon: icono,
+    interactive: false,
+    keyboard: false
+  }).addTo(map)
+
+  marcadoresEstacionamiento.push(marker)
+  actualizarVisibilidadMarcadoresEstacionamiento()
+}
+
 crearMarcadorCuadradoTexto("A", -13.733902493389621, -76.21261341259267)
 crearMarcadorCuadradoTexto("B", -13.738170018277401, -76.21602272105403)
 crearMarcadorCuadradoTexto("C", -13.741910037971731, -76.21918350335592)
@@ -3740,6 +3831,27 @@ crearMarcadorCuadradoTexto("E", -13.735823103119126, -76.21490261870042)
 crearMarcadorCuadradoTexto("E1", -13.742139161660083, -76.22096466804422)
 crearMarcadorCuadradoTexto("E1", -13.739448868570289, -76.21966600052123)
 crearMarcadorCuadradoTexto("A1", -13.73796853423051, -76.21790276313085)
+
+// Puestos de estacionamiento
+crearMarcadorEstacionamientoTexto("1", -13.73699731, -76.21831038)
+crearMarcadorEstacionamientoTexto("2A", -13.73673047, -76.21808020)
+crearMarcadorEstacionamientoTexto("2B", -13.73676178, -76.21804211)
+crearMarcadorEstacionamientoTexto("3", -13.73646156, -76.21785258)
+crearMarcadorEstacionamientoTexto("4", -13.73619353, -76.21762402)
+crearMarcadorEstacionamientoTexto("5", -13.73589621, -76.21742664)
+crearMarcadorEstacionamientoTexto("6", -13.73576425, -76.21731318)
+crearMarcadorEstacionamientoTexto("7", -13.73577139, -76.21700359)
+crearMarcadorEstacionamientoTexto("8", -13.73567451, -76.21692029)
+crearMarcadorEstacionamientoTexto("9", -13.73557670, -76.21683740)
+crearMarcadorEstacionamientoTexto("10", -13.73548050, -76.21675469)
+crearMarcadorEstacionamientoTexto("11", -13.73538385, -76.21667038)
+crearMarcadorEstacionamientoTexto("12", -13.73528697, -76.21658708)
+crearMarcadorEstacionamientoTexto("13", -13.73543532, -76.21640653)
+crearMarcadorEstacionamientoTexto("14", -13.73553221, -76.21648984)
+crearMarcadorEstacionamientoTexto("15", -13.73562909, -76.21657314)
+crearMarcadorEstacionamientoTexto("16", -13.73572598, -76.21665644)
+crearMarcadorEstacionamientoTexto("17", -13.73582286, -76.21673974)
+crearMarcadorEstacionamientoTexto("18", -13.73591975, -76.21682304)
 
 const PLANTA_LA_LOBERA = {
   // 13°46'27"S, 076°13'35"W
@@ -5805,6 +5917,566 @@ if(btnAutoPanel){
   })
 }
 actualizarBotonManual()
+
+const TCAS_NIVEL_PRIORIDAD = {
+  CLEAR: 0,
+  OTHER: 1,
+  PROX: 2,
+  TA: 3,
+  RA: 4
+}
+
+const TCAS_UMBRALES = {
+  RA: { distanciaNm: 1.2, deltaFt: 800 },
+  TA: { distanciaNm: 3.0, deltaFt: 1200 },
+  PROX: { distanciaNm: 6.0, deltaFt: 1200 }
+}
+
+const TCAS_MAX_OBJETIVOS = 30
+const TCAS_MAX_TRAFFIC_DISPLAY = 12
+const TCAS_RANGO_VISUAL_NM = 5
+const TCAS_FILTRO_VERTICAL_FT = 2700
+const TCAS_UMBRAL_TENDENCIA_FPM = 300
+const TCAS_SVG_NS = "http://www.w3.org/2000/svg"
+const TCAS_RADAR_CENTRO_PX = 100
+const TCAS_RADAR_RADIO_PX = 88
+const TCAS_TENDENCIA_MEMORIA = new Map()
+
+function obtenerPosicionAeronaveTcas(aeronave){
+  if(!aeronave) return null
+
+  if(aeronave.marker && typeof aeronave.marker.getLatLng === "function"){
+    const posicionMarker = aeronave.marker.getLatLng()
+    if(
+      posicionMarker &&
+      Number.isFinite(posicionMarker.lat) &&
+      Number.isFinite(posicionMarker.lng)
+    ){
+      return posicionMarker
+    }
+  }
+
+  const lat = Number(aeronave.lat)
+  const lng = Number(aeronave.lng)
+  if(Number.isFinite(lat) && Number.isFinite(lng)){
+    return {
+      lat,
+      lng
+    }
+  }
+
+  return null
+}
+
+function obtenerAltitudTcasFt(aeronave){
+  const altitud = Number(aeronave && aeronave.altitud)
+  return Number.isFinite(altitud) ? altitud : 0
+}
+
+function esAeronaveEnSuperficieTcas(aeronave){
+  if(!aeronave) return true
+
+  const estado = String(aeronave.estado || "").toUpperCase()
+  if(
+    estado === "IDLE" ||
+    estado === "TAXI" ||
+    estado === "ROLLOUT"
+  ){
+    return true
+  }
+
+  return Math.abs(obtenerAltitudTcasFt(aeronave)) <= 100
+}
+
+function clasificarNivelTcas(distanciaNm, deltaAltitudFt){
+  if(
+    distanciaNm <= TCAS_UMBRALES.RA.distanciaNm &&
+    deltaAltitudFt <= TCAS_UMBRALES.RA.deltaFt
+  ){
+    return "RA"
+  }
+
+  if(
+    distanciaNm <= TCAS_UMBRALES.TA.distanciaNm &&
+    deltaAltitudFt <= TCAS_UMBRALES.TA.deltaFt
+  ){
+    return "TA"
+  }
+
+  if(
+    distanciaNm <= TCAS_UMBRALES.PROX.distanciaNm &&
+    deltaAltitudFt <= TCAS_UMBRALES.PROX.deltaFt
+  ){
+    return "PROX"
+  }
+
+  if(
+    distanciaNm <= TCAS_RANGO_VISUAL_NM &&
+    deltaAltitudFt <= TCAS_FILTRO_VERTICAL_FT
+  ){
+    return "OTHER"
+  }
+
+  return null
+}
+
+function crearElementoSvgTcas(tag, atributos = {}){
+  const el = document.createElementNS(TCAS_SVG_NS, tag)
+  Object.entries(atributos).forEach(([clave, valor]) => {
+    el.setAttribute(clave, String(valor))
+  })
+  return el
+}
+
+function obtenerSimboloTextoTcas(nivel){
+  switch(nivel){
+  case "RA":
+    return "■"
+  case "TA":
+    return "●"
+  case "PROX":
+    return "◆"
+  case "OTHER":
+    return "◇"
+  default:
+    return "·"
+  }
+}
+
+function obtenerEstiloSimboloTcas(nivel){
+  switch(nivel){
+  case "RA":
+    return { fill: "#ef4444", stroke: "#fecaca" }
+  case "TA":
+    return { fill: "#f59e0b", stroke: "#fde68a" }
+  case "PROX":
+    return { fill: "#e5e7eb", stroke: "#f8fafc" }
+  case "OTHER":
+    return { fill: "none", stroke: "#e2e8f0" }
+  default:
+    return { fill: "#94a3b8", stroke: "#cbd5e1" }
+  }
+}
+
+function formatearAltitudRelativaTcas(deltaAltitudFt){
+  if(!Number.isFinite(deltaAltitudFt)){
+    return "--"
+  }
+
+  const centenas = Math.round(Math.abs(deltaAltitudFt) / 100)
+  const signo = deltaAltitudFt >= 0 ? "+" : "-"
+  return signo + String(centenas).padStart(2, "0")
+}
+
+function actualizarTendenciaVerticalTcas(aeronave){
+  if(!aeronave) return 0
+
+  const id = typeof aeronave.id === "string" ? aeronave.id.trim() : ""
+  if(id === ""){
+    return 0
+  }
+
+  const altitudActualFt = obtenerAltitudTcasFt(aeronave)
+  const ahoraMs = Date.now()
+  const previa = TCAS_TENDENCIA_MEMORIA.get(id)
+
+  let tendencia = 0
+
+  if(
+    previa &&
+    Number.isFinite(previa.altitudFt) &&
+    Number.isFinite(previa.timestampMs)
+  ){
+    const deltaMs = ahoraMs - previa.timestampMs
+    if(deltaMs >= 800){
+      const deltaFt = altitudActualFt - previa.altitudFt
+      const tasaFpm = (deltaFt * 60000) / deltaMs
+
+      if(tasaFpm >= TCAS_UMBRAL_TENDENCIA_FPM){
+        tendencia = 1
+      } else if(tasaFpm <= -TCAS_UMBRAL_TENDENCIA_FPM){
+        tendencia = -1
+      }
+    } else if(Number.isFinite(previa.tendencia)){
+      tendencia = previa.tendencia
+    }
+  }
+
+  TCAS_TENDENCIA_MEMORIA.set(id, {
+    altitudFt: altitudActualFt,
+    timestampMs: ahoraMs,
+    tendencia
+  })
+
+  return tendencia
+}
+
+function obtenerFlechaTendenciaVerticalTcas(tendencia){
+  if(tendencia > 0) return "↑"
+  if(tendencia < 0) return "↓"
+  return ""
+}
+
+function dibujarDisplayTcas(intrusos = []){
+  const svg = document.getElementById("tcasSvg")
+  if(!svg) return
+
+  svg.innerHTML = ""
+
+  const radios = [0.25, 0.5, 0.75, 1]
+  radios.forEach(escala => {
+    const circulo = crearElementoSvgTcas("circle", {
+      cx: TCAS_RADAR_CENTRO_PX,
+      cy: TCAS_RADAR_CENTRO_PX,
+      r: TCAS_RADAR_RADIO_PX * escala,
+      fill: "none",
+      stroke: "rgba(148, 163, 184, 0.26)",
+      "stroke-width": 1
+    })
+    svg.appendChild(circulo)
+  })
+
+  const ejeVertical = crearElementoSvgTcas("line", {
+    x1: TCAS_RADAR_CENTRO_PX,
+    y1: TCAS_RADAR_CENTRO_PX - TCAS_RADAR_RADIO_PX,
+    x2: TCAS_RADAR_CENTRO_PX,
+    y2: TCAS_RADAR_CENTRO_PX + TCAS_RADAR_RADIO_PX,
+    stroke: "rgba(148, 163, 184, 0.2)",
+    "stroke-width": 1
+  })
+  const ejeHorizontal = crearElementoSvgTcas("line", {
+    x1: TCAS_RADAR_CENTRO_PX - TCAS_RADAR_RADIO_PX,
+    y1: TCAS_RADAR_CENTRO_PX,
+    x2: TCAS_RADAR_CENTRO_PX + TCAS_RADAR_RADIO_PX,
+    y2: TCAS_RADAR_CENTRO_PX,
+    stroke: "rgba(148, 163, 184, 0.2)",
+    "stroke-width": 1
+  })
+  svg.appendChild(ejeVertical)
+  svg.appendChild(ejeHorizontal)
+
+  const ownship = crearElementoSvgTcas("polygon", {
+    points: "100,95 95,106 105,106",
+    fill: "#e2e8f0",
+    stroke: "#f8fafc",
+    "stroke-width": 1
+  })
+  svg.appendChild(ownship)
+
+  const topMarker = crearElementoSvgTcas("polygon", {
+    points: "100,8 95,16 105,16",
+    fill: "#93c5fd",
+    stroke: "none"
+  })
+  svg.appendChild(topMarker)
+
+  intrusos.forEach(intruso => {
+    const distanciaRecortada = Math.max(
+      0,
+      Math.min(TCAS_RANGO_VISUAL_NM, Number(intruso.distanciaNm) || 0)
+    )
+    const radioPx = (distanciaRecortada / TCAS_RANGO_VISUAL_NM) * TCAS_RADAR_RADIO_PX
+    const rumboRelativo = Number(intruso.bearingRelDeg) || 0
+    const rumboRad = rumboRelativo * Math.PI / 180
+    const x = TCAS_RADAR_CENTRO_PX + (Math.sin(rumboRad) * radioPx)
+    const y = TCAS_RADAR_CENTRO_PX - (Math.cos(rumboRad) * radioPx)
+    const estilo = obtenerEstiloSimboloTcas(intruso.nivel)
+
+    if(intruso.nivel === "TA"){
+      svg.appendChild(crearElementoSvgTcas("circle", {
+        cx: x,
+        cy: y,
+        r: 4.2,
+        fill: estilo.fill,
+        stroke: estilo.stroke,
+        "stroke-width": 1.1
+      }))
+    } else if(intruso.nivel === "RA"){
+      svg.appendChild(crearElementoSvgTcas("rect", {
+        x: x - 4.2,
+        y: y - 4.2,
+        width: 8.4,
+        height: 8.4,
+        fill: estilo.fill,
+        stroke: estilo.stroke,
+        "stroke-width": 1.1
+      }))
+    } else {
+      const diamondPoints = [
+        `${x},${y - 4.5}`,
+        `${x + 4.5},${y}`,
+        `${x},${y + 4.5}`,
+        `${x - 4.5},${y}`
+      ].join(" ")
+      svg.appendChild(crearElementoSvgTcas("polygon", {
+        points: diamondPoints,
+        fill: estilo.fill,
+        stroke: estilo.stroke,
+        "stroke-width": 1.1
+      }))
+    }
+
+    const altX = Math.max(10, Math.min(188, x + 7))
+    const altY = Math.max(10, Math.min(188, y - 6))
+    const flechaTendencia = obtenerFlechaTendenciaVerticalTcas(intruso.tendenciaVertical)
+    svg.appendChild(crearElementoSvgTcas("text", {
+      x: altX,
+      y: altY,
+      fill: estilo.stroke,
+      "font-size": 9,
+      "font-family": "Consolas, Courier New, monospace",
+      "font-weight": 700
+    })).textContent = formatearAltitudRelativaTcas(intruso.deltaAltitudFt) + flechaTendencia
+  })
+}
+
+function obtenerTraficoTcas(aeronaveReferencia){
+  const sinTrafico = {
+    nivel: "CLEAR",
+    total: 0,
+    conteo: {
+      OTHER: 0,
+      PROX: 0,
+      TA: 0,
+      RA: 0
+    },
+    intrusos: []
+  }
+
+  if(
+    !aeronaveReferencia ||
+    !Array.isArray(aeronaves) ||
+    !map ||
+    typeof map.distance !== "function"
+  ){
+    return sinTrafico
+  }
+
+  const posicionReferencia = obtenerPosicionAeronaveTcas(aeronaveReferencia)
+  if(!posicionReferencia){
+    return sinTrafico
+  }
+
+  const altitudReferenciaFt = obtenerAltitudTcasFt(aeronaveReferencia)
+  const propiaEnSuperficie = esAeronaveEnSuperficieTcas(aeronaveReferencia)
+  const headingPropio = normalizarAngulo360(
+    Number(aeronaveReferencia.angulo) || 0
+  )
+  const intrusos = []
+  const conteo = {
+    OTHER: 0,
+    PROX: 0,
+    TA: 0,
+    RA: 0
+  }
+
+  aeronaves.forEach(candidata => {
+    if(!candidata || candidata.id === aeronaveReferencia.id) return
+
+    if(propiaEnSuperficie && esAeronaveEnSuperficieTcas(candidata)){
+      return
+    }
+
+    const posicionCandidata = obtenerPosicionAeronaveTcas(candidata)
+    if(!posicionCandidata) return
+
+    const distanciaMetros = map.distance(posicionReferencia, posicionCandidata)
+    if(!Number.isFinite(distanciaMetros) || distanciaMetros < 0) return
+
+    const distanciaNm = distanciaMetros / 1852
+    const deltaAltitudFt = Math.round(
+      obtenerAltitudTcasFt(candidata) - altitudReferenciaFt
+    )
+    const tendenciaVertical = actualizarTendenciaVerticalTcas(candidata)
+    const bearingAbsoluto = calcularBearing(posicionReferencia, posicionCandidata)
+    const bearingRelDeg = Number.isFinite(bearingAbsoluto)
+      ? normalizarAngulo360(bearingAbsoluto - headingPropio)
+      : 0
+
+    const nivel = clasificarNivelTcas(
+      distanciaNm,
+      Math.abs(deltaAltitudFt)
+    )
+
+    if(!nivel) return
+
+    intrusos.push({
+      id: (
+        typeof candidata.id === "string" &&
+        candidata.id.trim() !== ""
+      )
+        ? candidata.id.trim()
+        : "---",
+      nivel,
+      distanciaNm,
+      deltaAltitudFt,
+      tendenciaVertical,
+      bearingRelDeg
+    })
+
+    if(conteo[nivel] !== undefined){
+      conteo[nivel]++
+    }
+  })
+
+  intrusos.sort((a, b) => {
+    const prioridadA = TCAS_NIVEL_PRIORIDAD[a.nivel] || 0
+    const prioridadB = TCAS_NIVEL_PRIORIDAD[b.nivel] || 0
+
+    if(prioridadA !== prioridadB){
+      return prioridadB - prioridadA
+    }
+
+    return a.distanciaNm - b.distanciaNm
+  })
+
+  if(intrusos.length === 0){
+    return sinTrafico
+  }
+
+  return {
+    nivel: intrusos[0].nivel,
+    total: intrusos.length,
+    conteo,
+    intrusos: intrusos.slice(0, TCAS_MAX_OBJETIVOS),
+    intrusosDisplay: intrusos.slice(0, TCAS_MAX_TRAFFIC_DISPLAY)
+  }
+}
+
+function actualizarPanelTcas(aeronave){
+  const nivelEl = document.getElementById("tcasLevel")
+  const modoEl = document.getElementById("tcasMode")
+  const resumenEl = document.getElementById("tcasSummary")
+  const listaEl = document.getElementById("tcasList")
+  const rangoEl = document.getElementById("tcasRangeLabel")
+  if(!nivelEl || !resumenEl || !listaEl) return
+  const finalizarRenderTcas = () => {
+    requestAnimationFrame(actualizarPosicionBotonLateralCentro)
+  }
+
+  if(rangoEl){
+    rangoEl.textContent = "RNG " + TCAS_RANGO_VISUAL_NM + " NM"
+  }
+  if(modoEl){
+    modoEl.textContent = "TA/RA"
+  }
+
+  const clasesNivel = [
+    "tcas-level-clear",
+    "tcas-level-other",
+    "tcas-level-prox",
+    "tcas-level-ta",
+    "tcas-level-ra"
+  ]
+
+  const aplicarNivel = (nivel) => {
+    nivelEl.classList.remove(...clasesNivel)
+    const clasePorNivel = {
+      CLEAR: "tcas-level-clear",
+      OTHER: "tcas-level-other",
+      PROX: "tcas-level-prox",
+      TA: "tcas-level-ta",
+      RA: "tcas-level-ra"
+    }
+    nivelEl.classList.add(clasePorNivel[nivel] || "tcas-level-clear")
+    nivelEl.textContent = nivel
+  }
+
+  if(!aeronave){
+    aplicarNivel("CLEAR")
+    resumenEl.textContent = "No traffic in envelope"
+    dibujarDisplayTcas([])
+    listaEl.innerHTML = ""
+    const vacioEl = document.createElement("div")
+    vacioEl.className = "tcas-empty"
+    vacioEl.textContent = "No intruders"
+    listaEl.appendChild(vacioEl)
+    finalizarRenderTcas()
+    return
+  }
+
+  const trafico = obtenerTraficoTcas(aeronave)
+  aplicarNivel(trafico.nivel)
+  dibujarDisplayTcas(trafico.intrusosDisplay || [])
+
+  if(trafico.total === 0){
+    resumenEl.textContent = "No traffic in envelope"
+    listaEl.innerHTML = ""
+    const vacioEl = document.createElement("div")
+    vacioEl.className = "tcas-empty"
+    vacioEl.textContent = "No intruders"
+    listaEl.appendChild(vacioEl)
+    finalizarRenderTcas()
+    return
+  }
+
+  const resumenPartes = []
+  if(trafico.conteo.RA > 0){
+    resumenPartes.push(trafico.conteo.RA + " RA")
+  }
+  if(trafico.conteo.TA > 0){
+    resumenPartes.push(trafico.conteo.TA + " TA")
+  }
+  if(trafico.conteo.PROX > 0){
+    resumenPartes.push(trafico.conteo.PROX + " PROX")
+  }
+  if(trafico.conteo.OTHER > 0){
+    resumenPartes.push(trafico.conteo.OTHER + " OTHER")
+  }
+
+  resumenEl.textContent = resumenPartes.join(" | ")
+
+  listaEl.innerHTML = ""
+  trafico.intrusos.forEach(intruso => {
+    const filaEl = document.createElement("div")
+    filaEl.className = "tcas-row tcas-row-" + intruso.nivel.toLowerCase()
+
+    const simboloEl = document.createElement("span")
+    simboloEl.className = "tcas-row-symbol"
+    simboloEl.textContent = obtenerSimboloTextoTcas(intruso.nivel)
+
+    const idEl = document.createElement("span")
+    idEl.className = "tcas-row-id"
+    idEl.textContent = intruso.id
+
+    const distEl = document.createElement("span")
+    distEl.className = "tcas-row-dist"
+    distEl.textContent = intruso.distanciaNm.toFixed(1) + " NM"
+
+    const altEl = document.createElement("span")
+    altEl.className = "tcas-row-alt"
+    altEl.textContent = formatearAltitudRelativaTcas(intruso.deltaAltitudFt)
+
+    const trendEl = document.createElement("span")
+    trendEl.className = "tcas-row-trend"
+    const flechaTendencia = obtenerFlechaTendenciaVerticalTcas(intruso.tendenciaVertical)
+    if(flechaTendencia){
+      trendEl.textContent = flechaTendencia
+      trendEl.classList.add(
+        intruso.tendenciaVertical > 0
+          ? "tcas-row-trend-up"
+          : "tcas-row-trend-down"
+      )
+    } else {
+      trendEl.textContent = "·"
+      trendEl.classList.add("tcas-row-trend-level")
+    }
+
+    filaEl.appendChild(simboloEl)
+    filaEl.appendChild(idEl)
+    filaEl.appendChild(distEl)
+    filaEl.appendChild(altEl)
+    filaEl.appendChild(trendEl)
+    listaEl.appendChild(filaEl)
+  })
+
+  finalizarRenderTcas()
+}
+
+requestAnimationFrame(() => {
+  actualizarPanelTcas(null)
+})
+
 function actualizarPanelInfoAeronave(a){
 
   if(!a) return
@@ -5838,6 +6510,8 @@ document.getElementById("header-id").textContent = a.id || "---"
 
   document.getElementById("info-lng").textContent =
     a.lng !== undefined ? a.lng.toFixed(5) : "-"
+
+  actualizarPanelTcas(a)
 }
 
 function limpiarPanelInfoAeronave(){
@@ -5856,6 +6530,7 @@ function limpiarPanelInfoAeronave(){
   asignarTexto("info-dme", "---")
   asignarTexto("info-lat", "---")
   asignarTexto("info-lng", "---")
+  actualizarPanelTcas(null)
 
   const aircraftInfoEl = document.getElementById("aircraftInfo")
   if(aircraftInfoEl){
@@ -5986,10 +6661,72 @@ function togglePanelInfo(){
 
 }
 
+let resizeObserverBotonLateralCentro = null
+let listenerResizeBotonLateralCentro = false
+
+function obtenerBotonLateralPrincipal(){
+  return document.querySelector(
+    "#menuControles > .boton-lateral:not(.boton-lateral-level):not(.boton-lateral-speed)"
+  )
+}
+
+function actualizarPosicionBotonLateralCentro(){
+  const menu = document.getElementById("menuControles")
+  const contenido = menu ? menu.querySelector(".contenido-lateral") : null
+  const boton = obtenerBotonLateralPrincipal()
+  if(!contenido || !boton) return
+
+  const botonMetar = document.getElementById("btnMetar")
+  if(botonMetar){
+    const rectMetar = botonMetar.getBoundingClientRect()
+    if(
+      Number.isFinite(rectMetar.top) &&
+      Number.isFinite(rectMetar.height) &&
+      rectMetar.height > 0
+    ){
+      const topPxMetar = rectMetar.top + (rectMetar.height / 2)
+      boton.style.top = Math.round(topPxMetar) + "px"
+      return
+    }
+  }
+
+  const rect = contenido.getBoundingClientRect()
+  if(
+    !Number.isFinite(rect.top) ||
+    !Number.isFinite(rect.height) ||
+    rect.height <= 0
+  ){
+    return
+  }
+
+  const topPx = rect.top + (rect.height / 2)
+  boton.style.top = Math.round(topPx) + "px"
+}
+
+function inicializarAlineacionBotonLateralCentro(){
+  const menu = document.getElementById("menuControles")
+  if(!menu) return
+
+  if(typeof ResizeObserver === "function" && !resizeObserverBotonLateralCentro){
+    resizeObserverBotonLateralCentro = new ResizeObserver(() => {
+      actualizarPosicionBotonLateralCentro()
+    })
+    resizeObserverBotonLateralCentro.observe(menu)
+  }
+
+  if(!listenerResizeBotonLateralCentro){
+    window.addEventListener("resize", actualizarPosicionBotonLateralCentro)
+    listenerResizeBotonLateralCentro = true
+  }
+
+  requestAnimationFrame(actualizarPosicionBotonLateralCentro)
+}
+
 function actualizarIconoPanelControles(abierto){
   const icono = document.getElementById("iconoLateral")
   if(!icono) return
   icono.textContent = abierto ? "\u2039" : "\u203A"
+  requestAnimationFrame(actualizarPosicionBotonLateralCentro)
 }
 
 function crearEstadoPanelLateralAeronave(){
@@ -6380,6 +7117,8 @@ function actualizarPanelManualSegunEstado(avion){
 function actualizarDisponibilidadControlesPanelLateral(avion){
   const manualActivo = Boolean(avion && avion.estado === "MANUAL")
 
+  actualizarVisibilidadLandingDeparture(avion)
+
   const botonesBloqueables = Array.from(
     document.querySelectorAll(
       [
@@ -6442,6 +7181,7 @@ function actualizarDisponibilidadControlesPanelLateral(avion){
 
   if(manualActivo){
     ocultarOpcionesSID()
+    ocultarOpcionesJoin()
     ocultarSpeedControlPanel()
     ocultarLevelControlPanel()
     return
@@ -6950,11 +7690,59 @@ function normalizarSentidoOrbitCliente(sentido){
   return "RIGHT"
 }
 
+function obtenerModoIngresoJoin(valor){
+  const clave = String(valor || "").trim().toLowerCase()
+  if(clave === "dct") return "nearest"
+  if(clave === "upw") return "upwind"
+  if(clave === "cw") return "crosswind"
+  if(clave === "dw") return "downwind"
+  if(clave === "bs") return "base"
+  if(clave === "fnl") return "final"
+  return "nearest-if-close"
+}
+
+function mostrarOpcionesJoin(){
+  const contenedor = document.getElementById("circuitJoinOpciones")
+  const btnJoin = document.getElementById("circuitStart")
+  if(!contenedor) return
+
+  ocultarOpcionesOrbit()
+  contenedor.classList.add("activo")
+  contenedor.setAttribute("aria-hidden", "false")
+  if(btnJoin){
+    btnJoin.setAttribute("aria-expanded", "true")
+  }
+}
+
+function ocultarOpcionesJoin(){
+  const contenedor = document.getElementById("circuitJoinOpciones")
+  const btnJoin = document.getElementById("circuitStart")
+  if(!contenedor) return
+
+  contenedor.classList.remove("activo")
+  contenedor.setAttribute("aria-hidden", "true")
+  if(btnJoin){
+    btnJoin.setAttribute("aria-expanded", "false")
+  }
+}
+
+function toggleOpcionesJoin(){
+  const contenedor = document.getElementById("circuitJoinOpciones")
+  if(!contenedor) return
+
+  if(contenedor.classList.contains("activo")){
+    ocultarOpcionesJoin()
+  } else {
+    mostrarOpcionesJoin()
+  }
+}
+
 function mostrarOpcionesOrbit(){
   const contenedor = document.getElementById("circuitOrbitOpciones")
   const btnOrbit = document.getElementById("circuitTurn")
   if(!contenedor) return
 
+  ocultarOpcionesJoin()
   contenedor.classList.add("activo")
   contenedor.setAttribute("aria-hidden", "false")
   if(btnOrbit){
@@ -7296,6 +8084,9 @@ function activarPrincipal(boton){
   const circuitStart = document.getElementById("circuitStart")
   const circuitExtend = document.getElementById("circuitExtend")
   const circuitTurn = document.getElementById("circuitTurn")
+  const circuitJoinButtons = Array.from(
+    document.querySelectorAll("#circuitJoinOpciones .circuit-join-btn")
+  )
   const circuitOrbitLeft = document.getElementById("circuitOrbitLeft")
   const circuitOrbitP = document.getElementById("circuitOrbitP")
   const circuitOrbitRight = document.getElementById("circuitOrbitRight")
@@ -7348,6 +8139,23 @@ function activarPrincipal(boton){
 
   }
 
+  function iniciarCircuitoConModo(modoIngreso){
+    const a = obtenerAeronaveObjetivoControles()
+    if(!a){
+      alert("Select an aircraft first")
+      return
+    }
+
+    cancelarAccionesAeronave(a)
+    marcarOrbitSolicitado(a, false)
+    detenerExtendCircuito(a, false)
+
+    socket.emit("iniciarCircuito", {
+      id: a.id,
+      modoIngreso
+    })
+  }
+
   if(taxiCreate){
     taxiCreate.addEventListener("click", () => {
       const a = obtenerAeronaveObjetivoControles()
@@ -7394,17 +8202,17 @@ function activarPrincipal(boton){
         alert("Select an aircraft first")
         return
       }
-
-      cancelarAccionesAeronave(a)
-      marcarOrbitSolicitado(a, false)
-      detenerExtendCircuito(a, false)
-
-      socket.emit("iniciarCircuito", {
-        id: a.id,
-        modoIngreso: "nearest-if-close"
-      })
+      toggleOpcionesJoin()
     })
   }
+
+  circuitJoinButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const modoIngreso = obtenerModoIngresoJoin(btn.dataset.join)
+      iniciarCircuitoConModo(modoIngreso)
+      ocultarOpcionesJoin()
+    })
+  })
 
   if(circuitExtend){
     circuitExtend.addEventListener("click", () => {
@@ -8810,6 +9618,25 @@ function puedeUsarControlesLanding(aeronave){
   )
 }
 
+function actualizarVisibilidadLandingDeparture(aeronave){
+  const grupoLanding = document.getElementById("grupoLanding")
+  const grupoDeparture = document.getElementById("grupoDeparture")
+  if(!grupoLanding && !grupoDeparture){
+    return
+  }
+
+  const altitudActual = Number(aeronave && aeronave.altitud)
+  if(!aeronave || !Number.isFinite(altitudActual)){
+    if(grupoLanding) grupoLanding.style.display = ""
+    if(grupoDeparture) grupoDeparture.style.display = ""
+    return
+  }
+
+  const enSuelo = Math.round(altitudActual) === 0
+  if(grupoLanding) grupoLanding.style.display = enSuelo ? "none" : ""
+  if(grupoDeparture) grupoDeparture.style.display = enSuelo ? "" : "none"
+}
+
 function actualizarEstadoGrupoLanding(){
   const botonesLanding = Array.from(
     document.querySelectorAll("#menuControles .landing-main")
@@ -9222,12 +10049,7 @@ function reanclarRutaTaxiAlPuntoActual(a){
   }
 
   if(a.rutaRecorrida){
-    const puntosRecorridos = a.puntosRuta.slice(0, indiceActual)
-    const latLngsRecorridos = puntosRecorridos.length > 0
-      ? [...puntosRecorridos, posicionActual]
-      : []
-
-    a.rutaRecorrida.setLatLngs(latLngsRecorridos)
+    a.rutaRecorrida.setLatLngs([])
   }
 }
 
@@ -9293,6 +10115,7 @@ function detenerRodaje(a){
 function actualizarInteraccion(a){
 
   if(!a || !a.marker) return
+  if(!a.marker.dragging) return
 
   if(a.estado === "IDLE"){
     a.marker.dragging.enable()
@@ -10829,6 +11652,7 @@ function actualizarRotacion(a){
 map.on("zoom", () => {
   aeronaves.forEach(a => actualizarRotacion(a))
   actualizarVisibilidadMarcadoresCuadrados()
+  actualizarVisibilidadMarcadoresEstacionamiento()
   aplicarPatronDiagonalAzulLobera(zonaPlantaLaLobera)
 });
 
@@ -10957,6 +11781,7 @@ function moverPorPuntos(a){
     if(distanciaMetros === 0){
       i++
       a.indiceRuta = i
+      actualizarRutaRecorrida(a)
       return
     }
 
@@ -10965,9 +11790,9 @@ function moverPorPuntos(a){
     if(distanciaMetros <= pasoMetros){
 
       a.marker.setLatLng(destino)
-      actualizarRutaRecorrida(a)
       i++
       a.indiceRuta = i
+      actualizarRutaRecorrida(a)
 
     } else {
 
@@ -10977,6 +11802,7 @@ function moverPorPuntos(a){
       const nuevoLng = actual.lng + (destino.lng - actual.lng) * ratio
 
       a.marker.setLatLng([nuevoLat, nuevoLng])
+      a.indiceRuta = i
       actualizarRutaRecorrida(a)
     }
 
@@ -11001,32 +11827,24 @@ a.lng = nuevaPos.lng
 
 function actualizarRutaRecorrida(a){
 
-  if(!a.ruta || !a.rutaRecorrida) return
+  if(!a || !a.ruta || !Array.isArray(a.puntosRuta)) return
 
   const posActual = a.marker.getLatLng()
 
-  const puntosRestantes = a.puntosRuta.slice(a.indiceRuta)
-  const puntosRecorridos = a.puntosRuta.slice(0, a.indiceRuta)
-  const latLngsRecorridos = puntosRecorridos.length > 0
-    ? [...puntosRecorridos, posActual]
-    : []
-
-  // Actualizar lÃ­nea recorrida
-  a.rutaRecorrida.setLatLngs(latLngsRecorridos)
+  const indiceActual = Number.isFinite(a.indiceRuta) && a.indiceRuta >= 0
+    ? Math.floor(a.indiceRuta)
+    : 0
+  const puntosRestantes = a.puntosRuta.slice(indiceActual + 1)
 
   // Actualizar lÃ­nea restante
   a.ruta.setLatLngs([
     posActual,
-    ...puntosRestantes.slice(1)
+    ...puntosRestantes
   ])
 
-  // Opcional: efecto fade progresivo
-  const progreso = a.indiceRuta / a.puntosRuta.length
-  const nuevaOpacidad = 0.15 + progreso * 0.5
-
-  a.rutaRecorrida.setStyle({
-    opacity: nuevaOpacidad
-  })
+  if(a.rutaRecorrida){
+    a.rutaRecorrida.setLatLngs([])
+  }
 }
 
 function finalizarTaxi(a){
@@ -11425,6 +12243,7 @@ function inicializarEdicionValoresManual(){
 }
 
 window.addEventListener("DOMContentLoaded", inicializarEdicionValoresManual)
+window.addEventListener("DOMContentLoaded", inicializarAlineacionBotonLateralCentro)
 
 // ================= CLOCK =================
 
@@ -11709,12 +12528,20 @@ function togglePanelDerechoCentro(){
   if(!panel) return;
 
   panel.classList.toggle("contraido");
+  actualizarIconoPanelDerechoCentro();
+}
 
-  const boton = document.getElementById("btnPanelDerechoToggle");
-  if(!boton) return;
+function actualizarIconoPanelDerechoCentro(){
+  const panel = document.getElementById("panelDerechoCentro");
+  const boton = document.getElementById("btnMetar");
+  if(!panel || !boton) return;
+
+  const icono = boton.querySelector("span");
+  if(!icono) return;
 
   const expandido = !panel.classList.contains("contraido");
   boton.setAttribute("aria-expanded", String(expandido));
+  icono.textContent = expandido ? "\u203A" : "\u2039";
 }
 
 function toggleSelectorModoOperacion(){
@@ -12107,13 +12934,13 @@ window.addEventListener("DOMContentLoaded", inicializarCirculosSectorUno);
       </div>
     </section>
   </div>
-  <button id="btnPanelDerechoToggle"
-          class="panel-derecho-toggle"
+  <button id="btnMetar"
+          class="panel-derecho-toggle boton-lateral"
           type="button"
           aria-label="Mostrar u ocultar panel lateral derecho"
           aria-expanded="false"
           onclick="togglePanelDerechoCentro()">
-    <span>&#8249;</span>
+    <span>&#8250;</span>
   </button>
 </div>
 
@@ -12125,6 +12952,7 @@ cargarDatosCasillerosControladorGuardados();
 inicializarPanelControladorDragDrop();
 aplicarVisibilidadPanelIzquierdoPorModo();
 cargarMetarDesdeApi();
+actualizarIconoPanelDerechoCentro();
 </script>
 
 

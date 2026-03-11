@@ -28,6 +28,8 @@
         <option value="A320">A320</option>
         <option value="A319">A319</option>
         <option value="C172">C172</option>
+        <option value="BE20">BE20</option>
+        <option value="B190">B190</option>
         <option value="AN32">AN32</option>
         <option value="B738WX" data-weather-only="true" hidden disabled>B738 WX</option>
         <option value="B2" data-weather-only="true" hidden disabled>B2</option>
@@ -4163,6 +4165,8 @@ const TAKEOFF_PROFILE_A32X = {
 // ===== CONFIGURACIÃ“N ORIENTACIÃ“N SVG =====
 const ORIENTACION_MODELOS = {
   C172: -45,
+  BE20: 0,
+  B190: 0,
   AN32: 0,
   A319: 0,
   A320: 0,
@@ -4329,6 +4333,8 @@ window.addEventListener("online", function(){
 // ================= ICON =================
 const AIRCRAFT_LENGTH_M = {
   C172: 8.3,
+  BE20: 13.3,
+  B190: 17.7,
   AN32: 23.8,
   A319: 33.8,
   A320: 37.6,
@@ -4367,6 +4373,20 @@ function crearIcono(callsign, tipo){
            style="width:${anchoPx}px;">
     `;
   } 
+  else if(tipo === "BE20"){
+    contenidoAvion = `
+      <img src="img/BE20.svg"
+           class="icon-aircraft"
+           style="width:${anchoPx}px;">
+    `;
+  }
+  else if(tipo === "B190"){
+    contenidoAvion = `
+      <img src="img/B190.svg"
+           class="icon-aircraft"
+           style="width:${anchoPx}px;">
+    `;
+  }
   else if(tipo === "AN32"){
     contenidoAvion = `
       <img src="img/an32.svg"

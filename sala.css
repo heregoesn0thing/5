@@ -755,7 +755,7 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
   --panel-izq-offset: 5px;
   --panel-izq-gap: 3px;
   --panel-controles-right-offset: 78px;
-  --boton-lateral-offset-y: -250px;
+  --boton-lateral-offset-y: -260px;
 }
 #panelInfoAeronave,
 #menuAcciones,

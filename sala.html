@@ -56,28 +56,58 @@
 <div id="panelInfoAeronave" class="estado-IDLE">
 
   <div class="panel-header" onclick="togglePanelInfo()">
-  <div class="header-title">
-    <span class="header-aircraft-icon" aria-hidden="true">&#9992;</span>
-    <span id="header-id">---</span>
+    <div class="header-title">
+      <span class="header-aircraft-icon" aria-hidden="true">&#9992;</span>
+      <span id="header-id">---</span>
+    </div>
+    <div class="header-controls">
+      <button id="btnPanelInfoTCAS"
+              class="panel-info-toggle"
+              type="button"
+              aria-pressed="false"
+              title="Mostrar TCAS">
+        TCAS
+      </button>
+      <div class="estado-indicador"></div>
+      <span id="panelToggleIcon">&#9654;</span>
+    </div>
   </div>
-  <div class="header-controls">
-    <div class="estado-indicador"></div>
-    <span id="panelToggleIcon">&#9654;</span>
-  </div>
-</div>
 
   <div class="panel-body">
-    <div><span class="label">State</span><span class="valor" id="info-estado">---</span></div>
+    <div class="panel-info-view">
+      <div><span class="label">State</span><span class="valor" id="info-estado">---</span></div>
 
-    <div><span class="label">Alt</span><span class="valor" id="info-altitud">---</span></div>
-    <div><span class="label">Spd</span><span class="valor" id="info-velocidad">---</span></div>
+      <div><span class="label">Alt</span><span class="valor" id="info-altitud">---</span></div>
+      <div><span class="label">Spd</span><span class="valor" id="info-velocidad">---</span></div>
 
-    <div><span class="label">HDG</span><span class="valor" id="info-heading">---</span></div>
-    <div><span class="label">DME</span><span class="valor" id="info-dme">---</span></div>
-    <div><span class="label">Lat</span><span class="valor" id="info-lat">---</span></div>
+      <div><span class="label">HDG</span><span class="valor" id="info-heading">---</span></div>
+      <div><span class="label">DME</span><span class="valor" id="info-dme">---</span></div>
+      <div><span class="label">Lat</span><span class="valor" id="info-lat">---</span></div>
 
-    <div><span class="label">Lng</span><span class="valor" id="info-lng">---</span></div>
+      <div><span class="label">Lng</span><span class="valor" id="info-lng">---</span></div>
+    </div>
 
+    <section id="panelTcasLateral" class="tcas-panel panel-tcas-view" aria-hidden="true">
+      <div class="tcas-head">
+        <span class="tcas-title">TCAS II</span>
+        <span id="tcasMode" class="tcas-mode">TA/RA</span>
+        <span id="tcasLevel" class="tcas-level tcas-level-clear">CLEAR</span>
+      </div>
+      <div id="tcasDisplay" class="tcas-display" aria-hidden="true">
+        <svg id="tcasSvg" class="tcas-svg" viewBox="0 0 200 200"></svg>
+        <div id="tcasRangeLabel" class="tcas-range-label">RNG 5 NM</div>
+      </div>
+      <div id="tcasSummary" class="tcas-summary">No traffic in envelope</div>
+      <div class="tcas-legend">
+        <span class="legend-item legend-item-other">OTHER</span>
+        <span class="legend-item legend-item-prox">PROX</span>
+        <span class="legend-item legend-item-ta">TA</span>
+        <span class="legend-item legend-item-ra">RA</span>
+      </div>
+      <div id="tcasList" class="tcas-list">
+        <div class="tcas-empty">No intruders</div>
+      </div>
+    </section>
   </div>
 
 </div>
@@ -85,28 +115,6 @@
      PANEL MENU CONTROLES
 ================================= -->
 <div id="menuControles">
-
-  <section id="panelTcasLateral" class="tcas-panel">
-    <div class="tcas-head">
-      <span class="tcas-title">TCAS II</span>
-      <span id="tcasMode" class="tcas-mode">TA/RA</span>
-      <span id="tcasLevel" class="tcas-level tcas-level-clear">CLEAR</span>
-    </div>
-    <div id="tcasDisplay" class="tcas-display" aria-hidden="true">
-      <svg id="tcasSvg" class="tcas-svg" viewBox="0 0 200 200"></svg>
-      <div id="tcasRangeLabel" class="tcas-range-label">RNG 5 NM</div>
-    </div>
-    <div id="tcasSummary" class="tcas-summary">No traffic in envelope</div>
-    <div class="tcas-legend">
-      <span class="legend-item legend-item-other">OTHER</span>
-      <span class="legend-item legend-item-prox">PROX</span>
-      <span class="legend-item legend-item-ta">TA</span>
-      <span class="legend-item legend-item-ra">RA</span>
-    </div>
-    <div id="tcasList" class="tcas-list">
-      <div class="tcas-empty">No intruders</div>
-    </div>
-  </section>
 
   <div class="contenido-lateral">
 
@@ -250,16 +258,9 @@
     <button id="btnAuto" class="btn-lateral manual-btn">AUTO</button>
     <button id="btnManual" class="btn-lateral manual-btn">MANUAL</button>
   </div>
-</div>
-
-  </div>
-
-  <!-- BotÃ³n lateral desplegable -->
-  <div class="boton-lateral" onclick="togglePanelIzq()">
-    <span id="iconoLateral">&#8250;</span>
-  </div>
-  <div class="boton-lateral boton-lateral-level" onclick="toggleLevelControlPanel(event)">
-    <span>LEVEL</span>
+  <div class="manual-row manual-row-secondary">
+    <button class="btn-lateral manual-btn boton-lateral-level" type="button" onclick="toggleLevelControlPanel(event)">LEVEL</button>
+    <button class="btn-lateral manual-btn boton-lateral-speed" type="button" onclick="toggleSpeedControlPanel(event)">SPEED</button>
   </div>
   <div id="levelControlPanel" class="level-control-panel">
     <div class="level-control-title">INITIAL LEVEL</div>
@@ -274,14 +275,19 @@
     >
     <div class="level-control-readout"><span id="levelControlValue">0 ft</span></div>
   </div>
-  <div class="boton-lateral boton-lateral-speed" onclick="toggleSpeedControlPanel(event)">
-    <span>SPEED</span>
-  </div>
   <div id="speedControlPanel" class="speed-control-panel">
     <button id="speedMachBtn" class="speed-mach-btn" type="button">MACH</button>
     <div class="speed-control-title">SPEED</div>
     <input id="speedControlSlider" type="range" min="0" max="450" step="1" value="0">
     <div class="speed-control-readout"><span id="speedControlValue">0</span> <span id="speedControlUnit">kt</span></div>
+  </div>
+</div>
+
+  </div>
+
+  <!-- BotÃ³n lateral desplegable -->
+  <div class="boton-lateral" onclick="togglePanelIzq()">
+    <span id="iconoLateral">&#8250;</span>
   </div>
 
 </div>
@@ -3381,7 +3387,8 @@ socket.on("cargarAeronaves", lista => {
 
     const marker = L.marker([data.lat, data.lng], {
       icon: crearIcono(data.id, data.tipo),
-      interactive: true
+      interactive: true,
+      draggable: true
     }).addTo(map)
 
     const ownerId = typeof data.owner === "string" ? data.owner : ""
@@ -3426,6 +3433,9 @@ socket.on("cargarAeronaves", lista => {
 	    }
 
     aeronaves.push(nueva)
+    inicializarArrastreAeronave(nueva)
+    inicializarRotacionConRueda(nueva)
+    actualizarInteraccion(nueva)
 
     marker.on("click", function(event){
 
@@ -3592,9 +3602,9 @@ socket.on("rutaCircuitoActualizada", data => {
     </button>
   </div>
 
-  <div id="weatherPanel" class="weather-panel"></div>
-
 </div>
+
+<div id="weatherPanel" class="weather-panel"></div>
 
 <div id="manualPanelLegacy" style="
   position: absolute;
@@ -4208,10 +4218,14 @@ const rutaTaxiE = [
   [-13.754665168052108, -76.22945044203743],
   [-13.753288816507235, -76.22956850272134]
 ];
+const UMBRAL_RWY04 = [-13.755327, -76.229306]
 const UMBRAL_RWY22 = [-13.736552242088443, -76.21347536723357]
 const RUMBO_RWY22 = 220
 const DISTANCIA_TOUCHDOWN_RWY22_M = 300
 const DISTANCIA_RODAJE_TOUCH_AND_GO_M = 300
+const NOMBRE_PUNTO_REFERENCIA_TOUCH_AND_GO = "Muelle TASA"
+const DISTANCIA_GIRO_TOUCH_AND_GO_SCO_VOR_M = 3.1 * 1852
+const TOLERANCIA_EJE_PISTA_RWY22_M = 120
 const VELOCIDAD_ROLLOUT_KT = 90
 const VELOCIDAD_ROLLOUT_FINAL_KT = 20
 const VELOCIDAD_TAXI_DEFAULT_KT = 10
@@ -5092,15 +5106,10 @@ clearedToLandPendiente: false,
     panelLateralEstado: crearEstadoPanelLateralAeronave(),
     
   }
-marker.on("drag", function(e){
-
-  const pos = e.target.getLatLng()
-
-  sincronizarMovimiento(nueva, pos.lat, pos.lng)
-})
-
   aeronaves.push(nueva)
-actualizarInteraccion(nueva)
+  inicializarArrastreAeronave(nueva)
+  inicializarRotacionConRueda(nueva)
+  actualizarInteraccion(nueva)
 
   marker.on("click", function(event){
 
@@ -5124,22 +5133,6 @@ actualizarInteraccion(nueva)
     seleccionarAeronave(nueva)
   })
 
-  marker.on("dragstart", function(){
-
-  if(nueva.estado !== "IDLE"){
-    nueva.marker.dragging.disable()
-    return
-  }
-
-  if(nueva.ruta){
-    eliminarRuta(nueva)
-  }
-
-  nueva.modoRuta = false
-})
-
-
-
   cerrarPanelCrearAeronave()
 
 
@@ -5161,7 +5154,8 @@ socket.on("crearAeronave", data => {
 
   const marker = L.marker([data.lat, data.lng], {
     icon: crearIcono(data.id, data.tipo),
-    interactive: true
+    interactive: true,
+    draggable: true
   }).addTo(map)
 
   const ownerId = typeof data.owner === "string" ? data.owner : ""
@@ -5213,7 +5207,9 @@ clearedToLandPendiente: false,
 
 
   aeronaves.push(nueva)
-actualizarInteraccion(nueva)
+  inicializarArrastreAeronave(nueva)
+  inicializarRotacionConRueda(nueva)
+  actualizarInteraccion(nueva)
 
   marker.on("click", function(event){
 
@@ -5368,6 +5364,10 @@ function refrescarUITrasCambioOwner(aeronaveActualizada = null){
   actualizarEstadoBotonOrbit()
   actualizarEstadoBotonExtend()
   actualizarEstadoBotonSesionPiloto()
+  if(aeronaveAntes && aeronaveAntes.id !== obj.id){
+    actualizarInteraccion(aeronaveAntes)
+  }
+  actualizarInteraccion(obj)
 }
 
 socket.on("ownerAeronaveActualizado", ({ id, owner } = {}) => {
@@ -6710,6 +6710,39 @@ function togglePanelInfo(){
 
 }
 
+function setPanelInfoView(view){
+  const panel = document.getElementById("panelInfoAeronave")
+  const infoView = panel ? panel.querySelector(".panel-info-view") : null
+  const tcasView = panel ? panel.querySelector(".panel-tcas-view") : null
+  const toggleBtn = document.getElementById("btnPanelInfoTCAS")
+  if(!panel || !infoView || !tcasView || !toggleBtn) return
+
+  const mostrarTcas = view === "tcas"
+  infoView.style.display = mostrarTcas ? "none" : "flex"
+  tcasView.style.display = mostrarTcas ? "block" : "none"
+  tcasView.setAttribute("aria-hidden", String(!mostrarTcas))
+  toggleBtn.textContent = mostrarTcas ? "INFO" : "TCAS"
+  toggleBtn.setAttribute("aria-pressed", String(mostrarTcas))
+  toggleBtn.title = mostrarTcas ? "Mostrar INFO" : "Mostrar TCAS"
+}
+
+function togglePanelInfoView(){
+  const toggleBtn = document.getElementById("btnPanelInfoTCAS")
+  const mostrandoTcas = toggleBtn && toggleBtn.getAttribute("aria-pressed") === "true"
+  setPanelInfoView(mostrandoTcas ? "info" : "tcas")
+}
+
+function inicializarTogglePanelInfoView(){
+  const toggleBtn = document.getElementById("btnPanelInfoTCAS")
+  if(toggleBtn){
+    toggleBtn.addEventListener("click", (e) => {
+      e.stopPropagation()
+      togglePanelInfoView()
+    })
+  }
+  setPanelInfoView("info")
+}
+
 let resizeObserverBotonLateralCentro = null
 let listenerResizeBotonLateralCentro = false
 
@@ -6720,47 +6753,39 @@ function obtenerBotonLateralPrincipal(){
 }
 
 function actualizarPosicionBotonLateralCentro(){
-  const menu = document.getElementById("menuControles")
-  const contenido = menu ? menu.querySelector(".contenido-lateral") : null
   const boton = obtenerBotonLateralPrincipal()
-  if(!contenido || !boton) return
+  const menu = document.getElementById("menuControles")
+  const btnWeather = document.getElementById("btnWeather")
+  if(!boton || !menu) return
 
-  const botonMetar = document.getElementById("btnMetar")
-  if(botonMetar){
-    const rectMetar = botonMetar.getBoundingClientRect()
-    if(
-      Number.isFinite(rectMetar.top) &&
-      Number.isFinite(rectMetar.height) &&
-      rectMetar.height > 0
-    ){
-      const topPxMetar = rectMetar.top + (rectMetar.height / 2)
-      boton.style.top = Math.round(topPxMetar) + "px"
-      return
-    }
-  }
-
-  const rect = contenido.getBoundingClientRect()
-  if(
-    !Number.isFinite(rect.top) ||
-    !Number.isFinite(rect.height) ||
-    rect.height <= 0
-  ){
+  if(btnWeather){
+    const menuRect = menu.getBoundingClientRect()
+    const weatherRect = btnWeather.getBoundingClientRect()
+    const centroWeatherY = weatherRect.top + (weatherRect.height / 2)
+    boton.style.top = `${centroWeatherY - menuRect.top}px`
     return
   }
 
-  const topPx = rect.top + (rect.height / 2)
-  boton.style.top = Math.round(topPx) + "px"
+  boton.style.top = "50%"
 }
 
 function inicializarAlineacionBotonLateralCentro(){
   const menu = document.getElementById("menuControles")
   if(!menu) return
+  const menuAcciones = document.getElementById("menuAcciones")
+  const btnWeather = document.getElementById("btnWeather")
 
   if(typeof ResizeObserver === "function" && !resizeObserverBotonLateralCentro){
     resizeObserverBotonLateralCentro = new ResizeObserver(() => {
       actualizarPosicionBotonLateralCentro()
     })
     resizeObserverBotonLateralCentro.observe(menu)
+    if(menuAcciones){
+      resizeObserverBotonLateralCentro.observe(menuAcciones)
+    }
+    if(btnWeather){
+      resizeObserverBotonLateralCentro.observe(btnWeather)
+    }
   }
 
   if(!listenerResizeBotonLateralCentro){
@@ -6941,7 +6966,8 @@ function aplicarEstadoLandingMainAeronave(aeronave){
       aeronave.estado === "TOUCH AND GO" ||
       aeronave.estado === "TNG_FINAL" ||
       aeronave.estado === "TNG_ROLL" ||
-      aeronave.estado === "TNG_CLIMB"
+      aeronave.estado === "TNG_CLIMB" ||
+      aeronave.estado === "TNG_INTERCEPT"
     ){
       clave = "TOUCH"
     } else if(
@@ -8495,11 +8521,15 @@ function seleccionarSubOpcion(boton){
 function estaEnTramoFinalRwy22(a){
   if(!a || !a.marker) return false
 
+  const toleranciaRumbo =
+    Number.isFinite(arguments[1]) && Number(arguments[1]) >= 0
+      ? Number(arguments[1])
+      : 15
   const rumbo = Number(a.angulo)
   const diferenciaRumbo = Math.abs(
     ((rumbo - RUMBO_RWY22 + 540) % 360) - 180
   )
-  const alineadoFinal = Number.isFinite(rumbo) && diferenciaRumbo <= 15
+  const alineadoFinal = Number.isFinite(rumbo) && diferenciaRumbo <= toleranciaRumbo
   if(!alineadoFinal) return false
 
   const posicion = a.marker.getLatLng()
@@ -8529,6 +8559,330 @@ function estaEnTramoFinalRwy22(a){
   const altitudValida = Number.isFinite(altitudActual) && altitudActual <= 2000
 
   return enFinal && altitudValida
+}
+
+function obtenerPuntoReferenciaPorNombre(nombre){
+  const nombreBuscado = String(nombre || "").trim().toLowerCase()
+  if(!nombreBuscado) return null
+
+  const punto = PUNTOS_REFERENCIA.find(item =>
+    String(item && item.nombre ? item.nombre : "").trim().toLowerCase() === nombreBuscado
+  )
+  if(!punto) return null
+
+  const lat = Number(punto.lat)
+  const lng = Number(punto.lng)
+  if(!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+
+  return {
+    nombre: punto.nombre,
+    lat,
+    lng
+  }
+}
+
+function obtenerDistanciaMinimaRutaCircuitoTramo(posicion, tramo){
+  if(!posicion || !Array.isArray(rutaCircuitoServidor)) return Number.POSITIVE_INFINITY
+
+  let distanciaMinima = Number.POSITIVE_INFINITY
+
+  rutaCircuitoServidor.forEach(punto => {
+    if(!punto || punto.tramo !== tramo) return
+
+    const lat = Number(punto.lat)
+    const lng = Number(punto.lng)
+    if(!Number.isFinite(lat) || !Number.isFinite(lng)) return
+
+    const distancia = calcularDistancia(
+      posicion.lat,
+      posicion.lng,
+      lat,
+      lng
+    )
+
+    if(Number.isFinite(distancia) && distancia < distanciaMinima){
+      distanciaMinima = distancia
+    }
+  })
+
+  return distanciaMinima
+}
+
+function calcularPuntoSobreEjeRwy22(distanciaFirmadaMetros){
+  const distanciaFirmada = Number(distanciaFirmadaMetros)
+  if(!Number.isFinite(distanciaFirmada)) return null
+
+  const rumbo = distanciaFirmada >= 0
+    ? RUMBO_RWY22
+    : normalizarAngulo360(RUMBO_RWY22 + 180)
+
+  return calcularPuntoDesplazado(
+    UMBRAL_RWY22[0],
+    UMBRAL_RWY22[1],
+    Math.abs(distanciaFirmada),
+    rumbo
+  )
+}
+
+function proyectarPuntoSobreEjeRwy22(posicion){
+  if(!posicion) return null
+
+  const origenLat = Number(UMBRAL_RWY22[0])
+  const origenLng = Number(UMBRAL_RWY22[1])
+  const latPos = Number(posicion.lat)
+  const lngPos = Number(posicion.lng)
+  const latFactor = 111320
+  const lngFactor = 111320 * Math.cos(origenLat * Math.PI / 180)
+  if(
+    !Number.isFinite(latPos) ||
+    !Number.isFinite(lngPos) ||
+    !Number.isFinite(lngFactor) ||
+    Math.abs(lngFactor) < 1e-6
+  ){
+    return null
+  }
+
+  const ejeNorth = (Number(UMBRAL_RWY04[0]) - origenLat) * latFactor
+  const ejeEast = (Number(UMBRAL_RWY04[1]) - origenLng) * lngFactor
+  const posNorth = (latPos - origenLat) * latFactor
+  const posEast = (lngPos - origenLng) * lngFactor
+  const longitudEje = Math.hypot(ejeNorth, ejeEast)
+  if(longitudEje <= 1e-6){
+    return null
+  }
+
+  const distanciaFirmadaMetros =
+    ((posNorth * ejeNorth) + (posEast * ejeEast)) / longitudEje
+
+  return {
+    distanciaFirmadaMetros,
+    punto: calcularPuntoSobreEjeRwy22(distanciaFirmadaMetros)
+  }
+}
+
+function obtenerDistanciaLateralEjeRwy22(posicion){
+  if(!posicion) return Number.POSITIVE_INFINITY
+
+  const proyeccion = proyectarPuntoSobreEjeRwy22(posicion)
+  const puntoEje = Array.isArray(proyeccion && proyeccion.punto)
+    ? proyeccion.punto
+    : null
+  const latPos = Number(posicion.lat)
+  const lngPos = Number(posicion.lng)
+  const latEje = Number(Array.isArray(puntoEje) ? puntoEje[0] : NaN)
+  const lngEje = Number(Array.isArray(puntoEje) ? puntoEje[1] : NaN)
+  if(
+    !Number.isFinite(latPos) ||
+    !Number.isFinite(lngPos) ||
+    !Number.isFinite(latEje) ||
+    !Number.isFinite(lngEje)
+  ){
+    return Number.POSITIVE_INFINITY
+  }
+
+  return calcularDistancia(latPos, lngPos, latEje, lngEje)
+}
+
+function estaAlineadoEjePistaRwy22(a, toleranciaMetros = TOLERANCIA_EJE_PISTA_RWY22_M){
+  if(!a || !a.marker) return false
+
+  const posicion = a.marker.getLatLng()
+  if(!posicion) return false
+
+  const distanciaLateral = obtenerDistanciaLateralEjeRwy22(posicion)
+  return Number.isFinite(distanciaLateral) && distanciaLateral <= toleranciaMetros
+}
+
+function estaEnTramoBaseRwy22(a){
+  if(!a || !a.marker) return false
+
+  const posicion = a.marker.getLatLng()
+  if(!posicion) return false
+
+  const altitudActual = Number(a.altitud)
+  const altitudValida = Number.isFinite(altitudActual) && altitudActual <= 2200
+  if(!altitudValida) return false
+
+  const distanciaRutaBase = obtenerDistanciaMinimaRutaCircuitoTramo(posicion, "base")
+  return Number.isFinite(distanciaRutaBase) && distanciaRutaBase <= 1400
+}
+
+function puedeActivarTouchAndGoEnBaseOFinal(a){
+  return estaEnTramoBaseRwy22(a) || estaEnTramoFinalRwy22(a)
+}
+
+function obtenerPuntoSalidaTouchAndGoPorMuelleTasa(){
+  const puntoRotacion = calcularPuntoDesplazado(
+    UMBRAL_RWY22[0],
+    UMBRAL_RWY22[1],
+    DISTANCIA_TOUCHDOWN_RWY22_M + DISTANCIA_RODAJE_TOUCH_AND_GO_M,
+    RUMBO_RWY22
+  )
+  const origen = {
+    lat: Number(Array.isArray(puntoRotacion) ? puntoRotacion[0] : NaN),
+    lng: Number(Array.isArray(puntoRotacion) ? puntoRotacion[1] : NaN)
+  }
+  const distanciaFallback = 5500
+  if(!Number.isFinite(origen.lat) || !Number.isFinite(origen.lng)){
+    return calcularPuntoDesplazado(
+      UMBRAL_RWY22[0],
+      UMBRAL_RWY22[1],
+      distanciaFallback,
+      RUMBO_RWY22
+    )
+  }
+
+  const scoLat = Number(SCO_VOR && SCO_VOR.lat)
+  const scoLng = Number(SCO_VOR && SCO_VOR.lng)
+  const latFactor = 111320
+  const lngFactor = 111320 * Math.cos(origen.lat * Math.PI / 180)
+  if(
+    !Number.isFinite(scoLat) ||
+    !Number.isFinite(scoLng) ||
+    !Number.isFinite(lngFactor) ||
+    Math.abs(lngFactor) < 1e-6
+  ){
+    return calcularPuntoDesplazado(
+      origen.lat,
+      origen.lng,
+      distanciaFallback,
+      RUMBO_RWY22
+    )
+  }
+
+  const deltaNorth = (scoLat - origen.lat) * latFactor
+  const deltaEast = (scoLng - origen.lng) * lngFactor
+  const rumboRad = (RUMBO_RWY22 * Math.PI) / 180
+  const vectorNorth = Math.cos(rumboRad)
+  const vectorEast = Math.sin(rumboRad)
+  const distanciaProyectada = (deltaNorth * vectorNorth) + (deltaEast * vectorEast)
+  const distanciaLateral = Math.abs(
+    (deltaNorth * vectorEast) - (deltaEast * vectorNorth)
+  )
+  const discriminante =
+    (DISTANCIA_GIRO_TOUCH_AND_GO_SCO_VOR_M ** 2) -
+    (distanciaLateral ** 2)
+  const raizDiscriminante =
+    Number.isFinite(discriminante) && discriminante >= 0
+      ? Math.sqrt(discriminante)
+      : Number.NaN
+  const candidatos = [
+    distanciaProyectada + raizDiscriminante,
+    distanciaProyectada - raizDiscriminante
+  ].filter(valor => Number.isFinite(valor) && valor >= 0)
+  const distanciaSegura = candidatos.length > 0
+    ? Math.min(...candidatos)
+    : distanciaFallback
+
+  return calcularPuntoDesplazado(
+    origen.lat,
+    origen.lng,
+    distanciaSegura,
+    RUMBO_RWY22
+  )
+}
+
+function desactivarSeleccionLandingTouchAndGo(a){
+  if(!a) return
+
+  actualizarEstadoLandingMainAeronave(a, null)
+  actualizarEstadoOpcionesLandingAeronave(a, false)
+
+  const aeronavePanel = obtenerAeronaveVinculadaPanel()
+  if(aeronavePanel && aeronavePanel.id === a.id){
+    aplicarEstadoLandingMainAeronave(a)
+  }
+}
+
+function continuarAscensoTouchAndGoHasta(a, altitudObjetivo = 1500){
+  if(!a) return
+
+  if(a.intervaloTouchAndGoClimb){
+    clearInterval(a.intervaloTouchAndGoClimb)
+    a.intervaloTouchAndGoClimb = null
+  }
+
+  const altitudInicial = Math.max(0, Number(a.altitud) || 0)
+  if(altitudInicial >= altitudObjetivo){
+    a.altitud = altitudObjetivo
+    return
+  }
+
+  const deltaAltitudTotal = Math.max(1, altitudObjetivo - altitudInicial)
+  const tasaAscensoMinFPM = 300
+  const tasaAscensoMaxFPM = 1200
+  let ultimoTiempo = performance.now()
+
+  a.intervaloTouchAndGoClimb = setInterval(() => {
+    if(!a.marker){
+      clearInterval(a.intervaloTouchAndGoClimb)
+      a.intervaloTouchAndGoClimb = null
+      return
+    }
+
+    const ahora = performance.now()
+    const deltaSegundos = Math.max(0.02, (ahora - ultimoTiempo) / 1000)
+    ultimoTiempo = ahora
+
+    const progresoAscenso = Math.max(
+      0,
+      Math.min(1, (a.altitud - altitudInicial) / deltaAltitudTotal)
+    )
+    const factorRestante = 1 - progresoAscenso
+    const tasaAscensoFPM =
+      tasaAscensoMinFPM +
+      ((tasaAscensoMaxFPM - tasaAscensoMinFPM) * factorRestante)
+    const incrementoAltitud = (tasaAscensoFPM / 60) * deltaSegundos
+    a.altitud = Math.min(altitudObjetivo, a.altitud + incrementoAltitud)
+
+    if(a.altitud >= altitudObjetivo){
+      clearInterval(a.intervaloTouchAndGoClimb)
+      a.intervaloTouchAndGoClimb = null
+
+      if(!a.remoto){
+        sincronizarEstadoAeronaveLocal(a)
+      }
+    }
+  }, 50)
+}
+
+function iniciarInterceptacionMuelleTasaTouchAndGo(a, altitudObjetivo = 1500){
+  if(!a || !a.marker) return
+
+  const muelleTasa = obtenerPuntoReferenciaPorNombre(
+    NOMBRE_PUNTO_REFERENCIA_TOUCH_AND_GO
+  )
+  if(!muelleTasa){
+    reingresarCircuito(a, "downwind")
+    return
+  }
+
+  continuarAscensoTouchAndGoHasta(a, altitudObjetivo)
+
+  a.estado = "TNG_INTERCEPT"
+  a.velocidadObjetivo = 90
+  a.velocidad = 90 * 0.514444
+  actualizarPanelInfoAeronave(a)
+  actualizarPanelInfo(a)
+  sincronizarEstadoAeronaveLocal(a)
+
+  moverAeronaveHacia(a, [muelleTasa.lat, muelleTasa.lng], () => {
+    if(a.intervaloTouchAndGoClimb){
+      clearInterval(a.intervaloTouchAndGoClimb)
+      a.intervaloTouchAndGoClimb = null
+    }
+
+    if(!a.remoto){
+      sincronizarEstadoAeronaveLocal(a)
+    }
+
+    reingresarCircuito(a, "downwind")
+  }, {
+    virajeRealista: true,
+    bancoMaxGrados: PILOTAGE_REALISTIC_BANK_DEG,
+    tasaVirajeMinDegSeg: PILOTAGE_REALISTIC_TURN_RATE_MIN_DEG_PER_SEC,
+    tasaVirajeMaxDegSeg: PILOTAGE_REALISTIC_TURN_RATE_MAX_DEG_PER_SEC
+  })
 }
 
 function estaEnCorredorTouchAndGoRwy22(a){
@@ -8580,7 +8934,10 @@ function iniciarMonitoreoAterrizaje(a){
       return
     }
 
-    if(estaEnTramoFinalRwy22(a)){
+    if(
+      estaEnTramoFinalRwy22(a, 3) &&
+      estaAlineadoEjePistaRwy22(a)
+    ){
 
       clearInterval(a.monitorAterrizaje)
       a.monitorAterrizaje = null
@@ -8602,6 +8959,146 @@ function iniciarMonitoreoAterrizaje(a){
 
   }, 300)
 }
+
+function moverAeronaveAlineadaEjeRwy22(a, destino, callback, opciones = {}){
+  if(!a || !a.marker || !Array.isArray(destino) || destino.length < 2) return
+
+  const altitudInicial = Number.isFinite(Number(opciones.altitudInicial))
+    ? Math.max(0, Number(opciones.altitudInicial))
+    : Math.max(0, Number(a.altitud) || 0)
+  const altitudObjetivo = Number.isFinite(Number(opciones.altitudObjetivo))
+    ? Math.max(0, Number(opciones.altitudObjetivo))
+    : 0
+  const bancoMaxGrados = Number.isFinite(Number(opciones.bancoMaxGrados))
+    ? Math.max(1, Number(opciones.bancoMaxGrados))
+    : PILOTAGE_REALISTIC_BANK_DEG
+  const tasaVirajeMinDegSeg = Number.isFinite(Number(opciones.tasaVirajeMinDegSeg))
+    ? Math.max(0.2, Number(opciones.tasaVirajeMinDegSeg))
+    : PILOTAGE_REALISTIC_TURN_RATE_MIN_DEG_PER_SEC
+  const tasaVirajeMaxDegSeg = Number.isFinite(Number(opciones.tasaVirajeMaxDegSeg))
+    ? Math.max(tasaVirajeMinDegSeg, Number(opciones.tasaVirajeMaxDegSeg))
+    : PILOTAGE_REALISTIC_TURN_RATE_MAX_DEG_PER_SEC
+  const destinoLatLng = L.latLng(destino[0], destino[1])
+  let ultimoTiempo = performance.now()
+  let distanciaInicialDescenso = null
+
+  if(a.intervaloMovimiento){
+    clearInterval(a.intervaloMovimiento)
+    a.intervaloMovimiento = null
+  }
+
+  a.intervaloMovimiento = setInterval(() => {
+    if(!a.marker){
+      clearInterval(a.intervaloMovimiento)
+      a.intervaloMovimiento = null
+      return
+    }
+
+    const actual = a.marker.getLatLng()
+    const distanciaRestante = map.distance(actual, destinoLatLng)
+    const ahora = performance.now()
+    const deltaSegundos = Math.max(0.02, (ahora - ultimoTiempo) / 1000)
+    ultimoTiempo = ahora
+
+    if(distanciaInicialDescenso === null){
+      distanciaInicialDescenso = Math.max(1, distanciaRestante)
+    }
+
+    const velocidadKnots = Number.isFinite(Number(a.velocidadObjetivo)) && Number(a.velocidadObjetivo) > 0
+      ? Number(a.velocidadObjetivo)
+      : 130
+    const tasaVirajeDegSeg = calcularTasaVirajeRealistaDegSeg(
+      velocidadKnots,
+      bancoMaxGrados,
+      tasaVirajeMinDegSeg,
+      tasaVirajeMaxDegSeg
+    )
+    const maxCambioRumboDeg = Math.max(0, tasaVirajeDegSeg * deltaSegundos)
+    const proyeccionEje = proyectarPuntoSobreEjeRwy22(actual)
+    const distanciaFirmada = Number(proyeccionEje && proyeccionEje.distanciaFirmadaMetros)
+    const distanciaLateral = obtenerDistanciaLateralEjeRwy22(actual)
+    const guiaAdelantadaMetros = Number.isFinite(distanciaLateral)
+      ? Math.max(350, Math.min(1200, distanciaLateral * 1.8))
+      : 500
+    const distanciaGuia = Number.isFinite(distanciaFirmada)
+      ? Math.min(DISTANCIA_TOUCHDOWN_RWY22_M, distanciaFirmada + guiaAdelantadaMetros)
+      : DISTANCIA_TOUCHDOWN_RWY22_M
+    const puntoGuia = calcularPuntoSobreEjeRwy22(distanciaGuia)
+    const rumboGuia = Array.isArray(puntoGuia)
+      ? calcularBearing(
+          { lat: actual.lat, lng: actual.lng },
+          { lat: Number(puntoGuia[0]), lng: Number(puntoGuia[1]) }
+        )
+      : RUMBO_RWY22
+    const headingActual = normalizarAngulo360(
+      Number(a.angulo) || (Number.isFinite(rumboGuia) ? rumboGuia : RUMBO_RWY22)
+    )
+    const headingObjetivo = Number.isFinite(rumboGuia) ? rumboGuia : RUMBO_RWY22
+
+    a.angulo = aplicarVirajeLimitado(
+      headingActual,
+      headingObjetivo,
+      maxCambioRumboDeg
+    )
+    actualizarRotacion(a)
+
+    const metrosPorSegundo = velocidadKnots * 0.514444
+    const paso = Math.min(metrosPorSegundo * deltaSegundos, distanciaRestante)
+    const siguiente = calcularPuntoDesplazado(
+      actual.lat,
+      actual.lng,
+      paso,
+      a.angulo
+    )
+
+    a.marker.setLatLng(siguiente)
+    a.lat = siguiente[0]
+    a.lng = siguiente[1]
+
+    const ratioDistancia = Math.max(
+      0,
+      Math.min(1, distanciaRestante / Math.max(1, distanciaInicialDescenso))
+    )
+    a.altitud = Math.max(
+      0,
+      altitudObjetivo + ((altitudInicial - altitudObjetivo) * ratioDistancia)
+    )
+
+    if(!a.remoto){
+      sincronizarMovimiento(a, a.lat, a.lng)
+    }
+
+    const distanciaLateralActual = obtenerDistanciaLateralEjeRwy22({
+      lat: a.lat,
+      lng: a.lng
+    })
+    const umbralLlegadaM = Math.max(12, paso * 1.5)
+    if(
+      distanciaRestante <= umbralLlegadaM ||
+      (
+        distanciaRestante <= 80 &&
+        Number.isFinite(distanciaLateralActual) &&
+        distanciaLateralActual <= 12
+      )
+    ){
+      clearInterval(a.intervaloMovimiento)
+      a.intervaloMovimiento = null
+      a.marker.setLatLng(destinoLatLng)
+      a.lat = destinoLatLng.lat
+      a.lng = destinoLatLng.lng
+      a.altitud = altitudObjetivo
+      a.angulo = RUMBO_RWY22
+      actualizarRotacion(a)
+
+      if(!a.remoto){
+        sincronizarMovimiento(a, a.lat, a.lng)
+      }
+
+      if(callback) callback()
+    }
+  }, 50)
+}
+
 function autorizarTouchdown(a){
 
   if(!a || !a.marker) return
@@ -8620,15 +9117,15 @@ function autorizarTouchdown(a){
   a.velocidad = 130 * 0.514444
   sincronizarEstadoAeronaveLocal(a)
 
-  moverAeronaveHacia(a, puntoVisada, () => {
+  moverAeronaveAlineadaEjeRwy22(a, puntoVisada, () => {
     a.altitud = 0
     ejecutarRollout(a)
   }, {
-    descensoProgresivo: true,
     altitudObjetivo: 0,
     altitudInicial: Number(a.altitud),
-    rumboFijo: RUMBO_RWY22,
-    umbralCongelarRumboM: 25
+    bancoMaxGrados: PILOTAGE_REALISTIC_BANK_DEG,
+    tasaVirajeMinDegSeg: PILOTAGE_REALISTIC_TURN_RATE_MIN_DEG_PER_SEC,
+    tasaVirajeMaxDegSeg: PILOTAGE_REALISTIC_TURN_RATE_MAX_DEG_PER_SEC
   })
 }
 function ejecutarRollout(a){
@@ -9186,6 +9683,11 @@ function activarTouchAndGo(boton){
     return
   }
 
+  if(!puedeActivarTouchAndGoEnBaseOFinal(a)){
+    alert("Touch and go available only in base or final")
+    return
+  }
+
   // Quitar activo de botones principales
   document.querySelectorAll(".landing-main")
     .forEach(btn => btn.classList.remove("activo"));
@@ -9265,7 +9767,7 @@ function ejecutarRodajeTouchAndGo(a, puntoTouchdown = null){
   a.altitud = 0
 
   a.velocidadObjetivo = 60
-  a.velocidad = 60
+  a.velocidad = 60 * 0.514444
 
   moverAeronaveHacia(a, puntoRotacion, () => {
     iniciarAscensoTouchAndGo(a)
@@ -9281,18 +9783,32 @@ function iniciarAscensoTouchAndGo(a){
   }
 
   a.estado = "TNG_CLIMB"
-  a.angulo = Number.isFinite(a.angulo) ? a.angulo : RUMBO_RWY22
+  a.angulo = RUMBO_RWY22
   a.velocidadObjetivo = 90
   a.velocidad = 90 * 0.514444
+
+  actualizarPanelInfoAeronave(a)
+  actualizarPanelInfo(a)
+  sincronizarEstadoAeronaveLocal(a)
 
   const altitudObjetivo = 1500
   const altitudInicial = Math.max(0, Number(a.altitud) || 0)
   const deltaAltitudTotal = Math.max(1, altitudObjetivo - altitudInicial)
   const tasaAscensoMinFPM = 300
   const tasaAscensoMaxFPM = 1200
+  const puntoSalida = obtenerPuntoSalidaTouchAndGoPorMuelleTasa()
+  const latSalida = Number(Array.isArray(puntoSalida) ? puntoSalida[0] : NaN)
+  const lngSalida = Number(Array.isArray(puntoSalida) ? puntoSalida[1] : NaN)
+  const salidaValida = Number.isFinite(latSalida) && Number.isFinite(lngSalida)
   let ultimoTiempo = performance.now()
 
   a.intervaloTouchAndGoClimb = setInterval(() => {
+    if(!a.marker){
+      clearInterval(a.intervaloTouchAndGoClimb)
+      a.intervaloTouchAndGoClimb = null
+      return
+    }
+
     const ahora = performance.now()
     const deltaSegundos = Math.max(0.02, (ahora - ultimoTiempo) / 1000)
     ultimoTiempo = ahora
@@ -9318,7 +9834,7 @@ function iniciarAscensoTouchAndGo(a){
       actual.lat,
       actual.lng,
       distanciaTick,
-      a.angulo
+      RUMBO_RWY22
     )
 
     a.marker.setLatLng(siguiente)
@@ -9329,29 +9845,48 @@ function iniciarAscensoTouchAndGo(a){
       sincronizarMovimiento(a, a.lat, a.lng)
     }
 
-    if(a.altitud >= altitudObjetivo){
+    const distanciaRestanteSalida = salidaValida
+      ? calcularDistancia(a.lat, a.lng, latSalida, lngSalida)
+      : Number.POSITIVE_INFINITY
+    const llegoASalida = salidaValida
+      && Number.isFinite(distanciaRestanteSalida)
+      && distanciaRestanteSalida <= Math.max(60, distanciaTick * 1.8)
+
+    if(llegoASalida){
+      clearInterval(a.intervaloTouchAndGoClimb)
+      a.intervaloTouchAndGoClimb = null
+
+      iniciarInterceptacionMuelleTasaTouchAndGo(a, altitudObjetivo)
+      return
+    }
+
+    if(!salidaValida && a.altitud >= altitudObjetivo){
       clearInterval(a.intervaloTouchAndGoClimb)
       a.intervaloTouchAndGoClimb = null
       a.altitud = altitudObjetivo
 
-      if(!a.remoto){
-        sincronizarEstadoAeronaveLocal(a)
-      }
-
-      reingresarCircuito(a)
+      iniciarInterceptacionMuelleTasaTouchAndGo(a, altitudObjetivo)
     }
   }, 50)
 }
 
 
-function reingresarCircuito(a){
+function reingresarCircuito(a, modoIngreso = "nearest"){
+  if(!a) return
 
-  a.estado = "REJOINING";
+  a.estado = "REJOINING"
+  desactivarSeleccionLandingTouchAndGo(a)
+  actualizarPanelInfoAeronave(a)
+  actualizarPanelInfo(a)
+
+  if(!a.remoto){
+    sincronizarEstadoAeronaveLocal(a)
+  }
 
   socket.emit("iniciarCircuito", {
     id: a.id,
-    modoIngreso: "nearest"
-  });
+    modoIngreso
+  })
 }
 
 
@@ -9839,6 +10374,10 @@ function obtenerVelocidadEnNudos(a){
       a.estado === "INTERCEPTING ARC" ||
       a.estado === "INTERCEPTING LEG" ||
       a.estado === "INTERCEPTING" ||
+      a.estado === "TNG_FINAL" ||
+      a.estado === "TNG_ROLL" ||
+      a.estado === "TNG_CLIMB" ||
+      a.estado === "TNG_INTERCEPT" ||
       a.estado === "LANDING" ||
       a.estado === "ROLLOUT" ||
       a.estado === "GO AROUND" ||
@@ -9901,7 +10440,11 @@ function cerrarPanel(){
   ocultarPanelManual()
   limpiarPanelInfoAeronave()
   actualizarPanelManualSegunEstado(null)
+  const aeronavePrev = aeronaveSeleccionada
   aeronaveSeleccionada = null
+  if(aeronavePrev){
+    actualizarInteraccion(aeronavePrev)
+  }
   limpiarPanelControlesAeronave(true)
   actualizarBotonTaxi()
   actualizarEstadoBotonSesionPiloto()
@@ -10161,16 +10704,110 @@ function detenerRodaje(a){
 
 
 
+function esAeronaveSeleccionada(a){
+  return Boolean(aeronaveSeleccionada && a && aeronaveSeleccionada.id === a.id)
+}
+
+function puedeArrastrarAeronaveIdle(a){
+  return Boolean(
+    a &&
+    a.estado === "IDLE" &&
+    esAeronaveDelCreadorLocal(a)
+  )
+}
+
+function puedeInteractuarAeronaveIdle(a){
+  return Boolean(
+    a &&
+    a.estado === "IDLE" &&
+    esAeronaveDelCreadorLocal(a) &&
+    esAeronaveSeleccionada(a)
+  )
+}
+
 function actualizarInteraccion(a){
 
   if(!a || !a.marker) return
   if(!a.marker.dragging) return
 
-  if(a.estado === "IDLE"){
+  if(puedeArrastrarAeronaveIdle(a)){
     a.marker.dragging.enable()
   } else {
     a.marker.dragging.disable()
   }
+}
+
+function inicializarRotacionConRueda(a){
+  if(!a || !a.marker) return
+
+  const intentarEnlazar = () => {
+    const markerEl = a.marker.getElement()
+    if(!markerEl) return false
+    if(markerEl.dataset.wheelRotateInit === "1") return true
+
+    markerEl.dataset.wheelRotateInit = "1"
+    markerEl.addEventListener(
+      "wheel",
+      (e) => {
+        if(!puedeInteractuarAeronaveIdle(a)) return
+        if(!Number.isFinite(e.deltaY) || e.deltaY === 0) return
+
+        e.preventDefault()
+        e.stopPropagation()
+
+        const paso = e.deltaY > 0 ? 5 : -5
+        const anguloActual = Number.isFinite(Number(a.angulo))
+          ? Number(a.angulo)
+          : 0
+
+        a.angulo = normalizarAngulo360(anguloActual + paso)
+        actualizarRotacion(a)
+        actualizarPanelInfoAeronave(a)
+        actualizarPanelInfo(a)
+
+        if(!a.remoto){
+          sincronizarEstadoAeronaveLocal(a)
+        }
+      },
+      { passive: false }
+    )
+    return true
+  }
+
+  if(!intentarEnlazar()){
+    requestAnimationFrame(() => {
+      intentarEnlazar()
+    })
+  }
+}
+
+function inicializarArrastreAeronave(a){
+  if(!a || !a.marker) return
+  if(a.marker._arrastreInit) return
+
+  a.marker._arrastreInit = true
+
+  a.marker.on("dragstart", () => {
+    if(!puedeArrastrarAeronaveIdle(a)){
+      if(a.marker && a.marker.dragging){
+        a.marker.dragging.disable()
+      }
+      return
+    }
+
+    if(a.ruta){
+      eliminarRuta(a)
+    }
+
+    a.modoRuta = false
+  })
+
+  a.marker.on("drag", (e) => {
+    if(!puedeArrastrarAeronaveIdle(a)) return
+
+    const pos = e.target.getLatLng()
+    sincronizarMovimiento(a, pos.lat, pos.lng)
+  })
 }
 function actualizarCallsignLabelEstado(a){
   if(!a || !a.marker) return
@@ -12293,6 +12930,7 @@ function inicializarEdicionValoresManual(){
 
 window.addEventListener("DOMContentLoaded", inicializarEdicionValoresManual)
 window.addEventListener("DOMContentLoaded", inicializarAlineacionBotonLateralCentro)
+window.addEventListener("DOMContentLoaded", inicializarTogglePanelInfoView)
 
 // ================= CLOCK =================
 
@@ -12585,12 +13223,8 @@ function actualizarIconoPanelDerechoCentro(){
   const boton = document.getElementById("btnMetar");
   if(!panel || !boton) return;
 
-  const icono = boton.querySelector("span");
-  if(!icono) return;
-
   const expandido = !panel.classList.contains("contraido");
   boton.setAttribute("aria-expanded", String(expandido));
-  icono.textContent = expandido ? "\u203A" : "\u2039";
 }
 
 function toggleSelectorModoOperacion(){
@@ -12986,10 +13620,10 @@ window.addEventListener("DOMContentLoaded", inicializarCirculosSectorUno);
   <button id="btnMetar"
           class="panel-derecho-toggle boton-lateral"
           type="button"
-          aria-label="Mostrar u ocultar panel lateral derecho"
+          aria-label="Mostrar u ocultar panel Weather"
           aria-expanded="false"
           onclick="togglePanelDerechoCentro()">
-    <span>&#8250;</span>
+    <span class="panel-derecho-text">WEATHER</span>
   </button>
 </div>
 

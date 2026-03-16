@@ -118,6 +118,8 @@ const GO_AROUND_MANUAL_SWITCH_DISTANCE_M = 5 * 1852
 const GO_AROUND_FINAL_HEADING_ACTIVACION_TOL = 35
 const GO_AROUND_FINAL_MAX_DIST_M = 1800
 const INTERCEPT_LEG_LOOKAHEAD_MIN_M = 90
+const SHORT_CIRCUITO_FACTOR = 0.5
+const SHORT_CIRCUITO_PASO_M = 0.5 * 1852
 
 function normalizarSentidoOrbitTexto(valor) {
   if (typeof valor === "number" && Number.isFinite(valor)) {
@@ -1108,14 +1110,22 @@ function puntoPlano(origen, rumbo, distancia){
   }
 }
 
-function generarRutaServidor(sala){
+function generarRutaServidor(sala, opciones = {}){
 
-  const umbral04 = { lat: -13.755327, lng: -76.229306 }
-  const umbral22 = { lat: -13.736552242088443, lng: -76.21347536723357 }
+  const umbral04 = { lat: -13.7553277777778, lng: -76.2293055555556 }
+  const umbral22 = { lat: -13.734536864537288, lng: -76.21175399048074 }
 
   const rumboPista = calcularRumboServidor(umbral04, umbral22)
   const rumboInverso = calcularRumboServidor(umbral22, umbral04)
   const rumboIzq = (rumboInverso - 90 + 360) % 360   // tr�fico izquierdo RWY 22
+
+  const factorShortCircuitoRaw =
+    typeof opciones?.shortFactor === "number" ? opciones.shortFactor : 1
+  const factorShortCircuito =
+    Number.isFinite(factorShortCircuitoRaw) && factorShortCircuitoRaw > 0
+      ? factorShortCircuitoRaw
+      : 1
+  const usarBaseRecta = Boolean(opciones?.baseRecta)
 
   const separacionFinalDownwindM = 1.5 * 1852
   const lateralM = separacionFinalDownwindM / 2
@@ -1133,7 +1143,8 @@ function generarRutaServidor(sala){
       ? sala.extensionUpwindExtra
       : extensionGeneral
 
-  const extensionDownwindM = extensionDownwindBase + extensionDownwindExtra
+  const extensionDownwindMBase = extensionDownwindBase + extensionDownwindExtra
+  const extensionDownwindM = extensionDownwindMBase * factorShortCircuito
   const extensionUpwindM = extensionUpwindBase + extensionUpwindExtra
 
   const finalExt = puntoPlano(umbral22, rumboPista, extensionDownwindM)
@@ -1180,13 +1191,16 @@ function generarRutaServidor(sala){
     B,
     pasos,
     incluirInicio = false,
-    tipoTramo = "upwind"
+    tipoTramo = "upwind",
+    incluirFin = true
   ) {
     const distancia = distanciaEntre(A, B)
     const rumbo = calcularRumboServidor(A, B)
     const inicio = incluirInicio ? 0 : 1
+    const limite = incluirFin ? pasos : (pasos - 1)
+    if (limite < inicio) return
 
-    for (let i = inicio; i <= pasos; i++) {
+    for (let i = inicio; i <= limite; i++) {
       const t = i / pasos
       const punto = puntoPlano(A, rumbo, distancia * t)
       const tipoTramoSegmento =
@@ -1255,15 +1269,24 @@ function generarRutaServidor(sala){
 
   // 4) Lado semicircular de final: tramo base
 
-  agregarSemicirculo(
-    centroVirajeFinal,
-    radialFinalInicio,
-    radialFinalFin,
-    pasosSemicirculo,
-    "base",
-    false,
-    "cw"
-  )
+  if (usarBaseRecta) {
+    const distanciaBaseM = distanciaEntre(finalExtIzq, finalExt)
+    const pasosBaseRecta = Math.max(
+      8,
+      Math.round(distanciaBaseM / separacionObjetivoM)
+    )
+    agregarRecta(finalExtIzq, finalExt, pasosBaseRecta, false, "base", false)
+  } else {
+    agregarSemicirculo(
+      centroVirajeFinal,
+      radialFinalInicio,
+      radialFinalFin,
+      pasosSemicirculo,
+      "base",
+      false,
+      "cw"
+    )
+  }
 
   if (puntos.length > 1) {
     // Segmento de cierre (�ltimo -> primero) tambi�n pertenece al tramo base.
@@ -1295,6 +1318,7 @@ function obtenerExtensionesBaseSala(sala) {
 
 function tieneExtensionLocalAeronave(aeronave) {
   if (!aeronave) return false
+  if (aeronave.shortCircuitoActivo) return true
 
   const extraUpwind =
     typeof aeronave.extensionUpwindExtraLocal === "number"
@@ -1324,11 +1348,21 @@ function generarRutaServidorParaAeronave(sala, aeronave) {
       ? aeronave.extensionDownwindExtraLocal
       : 0
 
-  return generarRutaServidor({
-    ...sala,
-    extensionUpwindExtra: base.upwind + extraUpwindAeronave,
-    extensionDownwindExtra: base.downwind + extraDownwindAeronave
-  })
+  const shortActivo = Boolean(aeronave && aeronave.shortCircuitoActivo)
+  const extensionDownwindExtra = base.downwind + extraDownwindAeronave
+  const factorShortCircuito = shortActivo ? SHORT_CIRCUITO_FACTOR : 1
+
+  return generarRutaServidor(
+    {
+      ...sala,
+      extensionUpwindExtra: base.upwind + extraUpwindAeronave,
+      extensionDownwindExtra
+    },
+    {
+      shortFactor: factorShortCircuito,
+      baseRecta: shortActivo
+    }
+  )
 }
 
 function clasificarTramoPorRumbo(rumbo) {
@@ -1761,7 +1795,8 @@ function emitirActualizacionAeronave(nombreSala, aeronave) {
     velocidad: aeronave.velocidad,
     velocidadObjetivo: aeronave.velocidadObjetivo,
     estado: aeronave.estado,
-    orbitSentido: normalizarSentidoOrbitTexto(aeronave.orbitSentido)
+    orbitSentido: normalizarSentidoOrbitTexto(aeronave.orbitSentido),
+    shortCircuitoActivo: Boolean(aeronave.shortCircuitoActivo)
   })
 }
 
@@ -2074,6 +2109,37 @@ io.on("connection", (socket) => {
 
   socket.emit("listaSalas", obtenerListaSalas());
 
+  const normalizarEstadoRescate = (data = {}, base = {}) => {
+    const estado = { ...base };
+    if (typeof data.id === "string" && data.id.trim()) {
+      estado.id = data.id.trim();
+    }
+    const lat = Number(data.lat);
+    const lng = Number(data.lng);
+    if (Number.isFinite(lat)) {
+      estado.lat = lat;
+    }
+    if (Number.isFinite(lng)) {
+      estado.lng = lng;
+    }
+    const angulo = Number(data.angulo);
+    if (Number.isFinite(angulo)) {
+      estado.angulo = angulo;
+    }
+    const velocidad = Number(data.velocidad);
+    if (Number.isFinite(velocidad)) {
+      estado.velocidad = velocidad;
+    }
+    const velocidadObjetivo = Number(data.velocidadObjetivo);
+    if (Number.isFinite(velocidadObjetivo)) {
+      estado.velocidadObjetivo = velocidadObjetivo;
+    }
+    if (typeof data.estado === "string") {
+      estado.estado = data.estado;
+    }
+    return estado;
+  };
+
   // ===== CREAR SALA =====
   socket.on("crearSala", ({ nombre, horaInicial }) => {
 
@@ -2086,6 +2152,7 @@ io.on("connection", (socket) => {
     salas[nombre] = {
       jugadores: [],
       aeronaves: [],
+      rescate: null,
       extensionExtra: 0,
       extensionUpwindExtra: 0,
       extensionDownwindExtra: 0
@@ -2147,6 +2214,9 @@ if (timeoutsSalas[nombre]) {
   delete timeoutsSalas[nombre];
 }
     socket.emit("cargarAeronaves", salas[nombre].aeronaves);
+    if(salas[nombre].rescate){
+      socket.emit("actualizarRescate", salas[nombre].rescate);
+    }
 if (peligroSalas[nombre]) {
   socket.emit("peligroActivado");
 }
@@ -2169,6 +2239,30 @@ if (peligroSalas[nombre]) {
     });
 
     io.emit("listaSalas", obtenerListaSalas());
+  });
+
+  socket.on("registrarRescate", (data = {}) => {
+    const salaNombre = socket.sala;
+    if (!salaNombre || !salas[salaNombre]) return;
+    if (salas[salaNombre].rescate) return;
+
+    const estado = normalizarEstadoRescate(data, {});
+    if (!Number.isFinite(estado.lat) || !Number.isFinite(estado.lng)) return;
+
+    salas[salaNombre].rescate = estado;
+    io.to(salaNombre).emit("actualizarRescate", estado);
+  });
+
+  socket.on("actualizarRescate", (data = {}) => {
+    const salaNombre = socket.sala;
+    if (!salaNombre || !salas[salaNombre]) return;
+
+    const base = salas[salaNombre].rescate || {};
+    const estado = normalizarEstadoRescate(data, base);
+    if (!Number.isFinite(estado.lat) || !Number.isFinite(estado.lng)) return;
+
+    salas[salaNombre].rescate = estado;
+    socket.to(salaNombre).emit("actualizarRescate", estado);
   });
 
 socket.on("solicitarRutaCircuito", () => {
@@ -2226,6 +2320,7 @@ socket.on("crearAeronave", (data) => {
   orbitModoContinuo: false,
   orbitDetenerSolicitado: false,
   orbitSentido: "RIGHT",
+  shortCircuitoActivo: false,
   altitudCircuitoAutomaticaActiva: false,
   ingresoDownwindWaypoints: null,
   ingresoDownwindTipo: null,
@@ -2248,6 +2343,7 @@ socket.on("crearAeronave", (data) => {
   orbitModoContinuo: false,
   orbitDetenerSolicitado: false,
   orbitSentido: "RIGHT",
+  shortCircuitoActivo: false,
   owner: socket.id
 });
 
@@ -2378,6 +2474,159 @@ socket.on("extenderTramoCircuito", ({ id, metros }) => {
       downwind: aeronave.extensionDownwindExtraLocal || 0
     }
   })
+})
+
+socket.on("acortarTramoCircuito", ({ id, metros }) => {
+
+  const nombreSala = socket.sala
+  if (!nombreSala) return
+
+  const sala = salas[nombreSala]
+  if (!sala) return
+
+  const aeronave = sala.aeronaves.find(a => a.id === id)
+  if (!aeronave) return
+  if (!socketPuedeControlarAeronave(nombreSala, sala, aeronave, socket.id)) return
+
+  const metrosSeguros =
+    typeof metros === "number" && Number.isFinite(metros) && metros > 0
+      ? metros
+      : SHORT_CIRCUITO_PASO_M
+
+  const tramoActual = obtenerTramoActualAeronave(aeronave)
+  let tramoObjetivo = tramoActual.tipo
+
+  if (tramoObjetivo !== "upwind" && tramoObjetivo !== "downwind") {
+    const rumboRef =
+      typeof tramoActual.rumbo === "number"
+        ? tramoActual.rumbo
+        : (aeronave.angulo || 0)
+
+    const diffUpwind = Math.abs(
+      diferenciaAngular(rumboRef, RUMBOS_CIRCUITO.upwind)
+    )
+    const diffDownwind = Math.abs(
+      diferenciaAngular(rumboRef, RUMBOS_CIRCUITO.downwind)
+    )
+
+    tramoObjetivo = diffDownwind < diffUpwind ? "downwind" : "upwind"
+  }
+
+  const minimoExtra = -SHORT_CIRCUITO_PASO_M
+
+  if (tramoObjetivo === "downwind") {
+    const actual = aeronave.extensionDownwindExtraLocal || 0
+    aeronave.extensionDownwindExtraLocal = Math.max(
+      minimoExtra,
+      actual - metrosSeguros
+    )
+  } else {
+    const actual = aeronave.extensionUpwindExtraLocal || 0
+    aeronave.extensionUpwindExtraLocal = Math.max(
+      minimoExtra,
+      actual - metrosSeguros
+    )
+  }
+
+  const rumboObjetivo =
+    tramoObjetivo === "downwind"
+      ? RUMBOS_CIRCUITO.downwind
+      : RUMBOS_CIRCUITO.upwind
+
+  const rutaActualizada = generarRutaServidorParaAeronave(sala, aeronave)
+  const proyeccionTramo = obtenerProyeccionRutaMasCercana(
+    { lat: aeronave.lat, lng: aeronave.lng },
+    rutaActualizada,
+    tramoObjetivo
+  )
+
+  if (aeronave.estado === "CIRCUIT") {
+    aeronave.ruta = rutaActualizada
+
+    if (proyeccionTramo) {
+      aeronave.indice = proyeccionTramo.indiceA
+      aeronave.progreso = proyeccionTramo.progreso
+    } else {
+      reajustarAeronaveEnRuta(aeronave, rutaActualizada)
+    }
+
+    aeronave.angulo = rumboObjetivo
+  } else if (
+    (aeronave.estado === "INTERCEPTING ARC" || aeronave.estado === "INTERCEPTING LEG") &&
+    aeronave.ruta
+  ) {
+    aeronave.ingresoDownwindWaypoints = null
+    aeronave.ingresoDownwindTipo = null
+    aeronave.ruta = rutaActualizada
+
+    if (proyeccionTramo) {
+      aeronave.tramoObjetivo = proyeccionTramo.indiceA
+      aeronave.puntoIntercepto = proyeccionTramo.puntoIntercepto
+      aeronave.estado = "INTERCEPTING LEG"
+      aeronave.interceptHeadingRef = null
+    }
+
+    aeronave.angulo = rumboObjetivo
+  } else {
+    aeronave.ruta = rutaActualizada
+  }
+
+  socket.emit("rutaCircuitoActualizada", {
+    id: aeronave.id,
+    ruta: rutaActualizada,
+    tramoReducido: tramoObjetivo,
+    extensionAeronave: {
+      upwind: aeronave.extensionUpwindExtraLocal || 0,
+      downwind: aeronave.extensionDownwindExtraLocal || 0
+    }
+  })
+})
+
+socket.on("shortCircuito", ({ id, activo } = {}) => {
+
+  const nombreSala = socket.sala
+  if (!nombreSala) return
+
+  const sala = salas[nombreSala]
+  if (!sala) return
+
+  const aeronave = sala.aeronaves.find(a => a.id === id)
+  if (!aeronave) return
+  if (!socketPuedeControlarAeronave(nombreSala, sala, aeronave, socket.id)) return
+
+  aeronave.shortCircuitoActivo = Boolean(activo)
+
+  const rutaActualizada = generarRutaServidorParaAeronave(sala, aeronave)
+  if (aeronave.estado === "CIRCUIT") {
+    reajustarAeronaveEnRuta(aeronave, rutaActualizada)
+  } else if (
+    (aeronave.estado === "INTERCEPTING ARC" || aeronave.estado === "INTERCEPTING LEG") &&
+    aeronave.ruta
+  ) {
+    aeronave.ingresoDownwindWaypoints = null
+    aeronave.ingresoDownwindTipo = null
+    aeronave.ruta = rutaActualizada
+
+    const proyeccionTramo = obtenerProyeccionRutaMasCercana(
+      { lat: aeronave.lat, lng: aeronave.lng },
+      rutaActualizada
+    )
+    if (proyeccionTramo) {
+      aeronave.tramoObjetivo = proyeccionTramo.indiceA
+      aeronave.puntoIntercepto = proyeccionTramo.puntoIntercepto
+      aeronave.estado = "INTERCEPTING LEG"
+      aeronave.interceptHeadingRef = null
+    }
+  } else {
+    aeronave.ruta = rutaActualizada
+  }
+
+  socket.emit("rutaCircuitoActualizada", {
+    id: aeronave.id,
+    ruta: rutaActualizada,
+    shortCircuitoActivo: Boolean(aeronave.shortCircuitoActivo)
+  })
+  emitirActualizacionAeronave(nombreSala, aeronave)
 })
 
 socket.on("virarCircuito", ({ id }) => {
@@ -2634,7 +2883,8 @@ if(typeof data.estado === "string"){
   velocidad: aeronave.velocidad,
   velocidadObjetivo: aeronave.velocidadObjetivo,
   estado: aeronave.estado,
-    orbitSentido: normalizarSentidoOrbitTexto(aeronave.orbitSentido)
+    orbitSentido: normalizarSentidoOrbitTexto(aeronave.orbitSentido),
+    shortCircuitoActivo: Boolean(aeronave.shortCircuitoActivo)
 });
 
 
@@ -3091,5 +3341,4 @@ if (motoresSalas[nombre]) {
 server.listen(PORT, () => {
   console.log("Servidor corriendo en puerto", PORT);
 });
-
 

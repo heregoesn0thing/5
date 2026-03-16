@@ -1348,10 +1348,10 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
 }
 
 #panelControladorIzquierdo .panel-controlador-toggle{
-  width: 28px;
-  height: 90px;
+  width: 22px;
+  height: 72px;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   background: #1f2433;
   color: #aaa;
   cursor: pointer;
@@ -1359,17 +1359,20 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
   align-items: center;
   justify-content: center;
   transition: background 0.2s ease, color 0.2s ease;
+  scale: var(--escala-ui-secundaria-inversa);
 }
 
 #panelControladorIzquierdo .panel-controlador-toggle:hover{
-  background: #2a3145;
+  background: #2e3650;
   color: #00e0ff;
 }
 
-#panelControladorIzquierdo .panel-controlador-toggle span{
-  font-size: 18px;
-  line-height: 1;
-  transition: transform 0.3s ease;
+#panelControladorIzquierdo .panel-controlador-toggle .panel-derecho-text{
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  writing-mode: vertical-rl;
+  transform: rotate(0deg);
 }
 
 #panelControladorIzquierdo.contraido .panel-controlador-contenido{
@@ -1381,9 +1384,6 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
   pointer-events: none;
 }
 
-#panelControladorIzquierdo.contraido .panel-controlador-toggle span{
-  transform: rotate(180deg);
-}
 
 #panelControladorIzquierdo .panel-controlador-acciones{
   grid-column: 1 / -1;
@@ -2980,6 +2980,13 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
   text-align:center;
 }
 
+.taxi-row .rescate-btn{
+  flex:1;
+  padding:6px 5px;
+  font-size:9px;
+  text-align:center;
+}
+
 /* =========================================
    DEPARTURE CONTROLES
 ========================================= */
@@ -3049,6 +3056,140 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
   white-space: nowrap;
   text-align: center;
   line-height: 1.2;
+}
+
+.runway-number{
+  background: transparent;
+  border: none;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.runway-number-text{
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  line-height: 1;
+  text-shadow: 0 0 3px rgba(0,0,0,0.85), 0 0 8px rgba(0,0,0,0.6);
+  transform-origin: center;
+  white-space: nowrap;
+}
+
+.rescate-label{
+  background: rgba(0,0,0,0.75);
+  border: 1px solid rgba(255,255,255,0.35);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+  pointer-events: none;
+}
+
+.rescate-label.leaflet-tooltip:before{
+  border-right-color: rgba(0,0,0,0.75);
+}
+
+.rescate-icon{
+  background: transparent;
+  border: none;
+}
+
+.rescate-icon.leaflet-interactive{
+  cursor: default;
+}
+
+.rescate-icon.leaflet-interactive:active{
+  cursor: default;
+}
+
+.rescate-wrapper{
+  display: block;
+}
+
+.rescate-img{
+  display: block;
+  transform-origin: center;
+  transition: transform 0.08s linear;
+}
+
+.rescate-panel{
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  background: rgba(12,12,12,0.88);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 10px;
+  padding: 10px 12px 12px;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.45);
+  z-index: 1200;
+  display: none;
+  min-width: 220px;
+}
+
+.rescate-panel.activo{
+  display: block;
+}
+
+.rescate-title{
+  color: #e2e8f0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.rescate-speed-panel{
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: linear-gradient(160deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.96));
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  box-shadow: 0 12px 26px rgba(2, 6, 23, 0.55);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  display: none;
+}
+
+.rescate-speed-panel.activo{
+  display: block;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.rescate-speed-title{
+  font-size: 9px;
+  letter-spacing: 1px;
+  font-weight: 700;
+  color: #e2e8f0;
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.rescate-speed-panel input[type="range"]{
+  width: 100%;
+}
+
+.rescate-speed-readout{
+  margin-top: 4px;
+  text-align: center;
+  font-size: 10px;
+  color: #e2e8f0;
+  font-weight: 700;
 }
 
 /* =========================================

@@ -168,6 +168,144 @@ function obtenerVelocidadMpsFallback(a){
   return 0
 }
 
+function normalizarPuntoRuta(punto){
+  if(Array.isArray(punto)){
+    const lat = Number(punto[0])
+    const lng = Number(punto[1])
+    if(!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+    return { lat, lng }
+  }
+  if(punto && typeof punto === "object"){
+    const lat = Number(punto.lat)
+    const lng = Number(punto.lng)
+    if(!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+    return { lat, lng }
+  }
+  return null
+}
+
+function normalizarRutaLineal(ruta){
+  if(!Array.isArray(ruta)) return []
+  const salida = []
+  ruta.forEach(p => {
+    const normalizado = normalizarPuntoRuta(p)
+    if(!normalizado) return
+    const ultimo = salida.length ? salida[salida.length - 1] : null
+    if(
+      ultimo &&
+      Math.abs(ultimo.lat - normalizado.lat) < 1e-9 &&
+      Math.abs(ultimo.lng - normalizado.lng) < 1e-9
+    ){
+      return
+    }
+    salida.push(normalizado)
+  })
+  return salida
+}
+
+function obtenerProyeccionRutaLinealMasCercana(posicion, ruta){
+  if(!posicion || !Array.isArray(ruta) || ruta.length < 2) return null
+  let mejor = null
+
+  for(let i = 1; i < ruta.length; i++){
+    const A = ruta[i - 1]
+    const B = ruta[i]
+    const proyeccion = proyectarSobreSegmentoConFactor(posicion, A, B)
+    const distancia = distanciaEntre(posicion, proyeccion.punto)
+    const distanciaSegmento = distanciaEntre(A, B)
+
+    if(!mejor || distancia < mejor.distancia){
+      mejor = {
+        distancia,
+        indiceA: i - 1,
+        progreso: distanciaSegmento * proyeccion.t,
+        puntoIntercepto: proyeccion.punto
+      }
+    }
+  }
+
+  return mejor
+}
+
+function avanzarRutaAirborneLineal(aeronave, intervaloMS){
+  if(
+    !aeronave ||
+    !Array.isArray(aeronave.rutaAirborne) ||
+    aeronave.rutaAirborne.length < 2
+  ){
+    return false
+  }
+
+  const ruta = aeronave.rutaAirborne
+  let indice =
+    Number.isFinite(aeronave.rutaAirborneIndice)
+      ? Math.max(0, Math.min(ruta.length - 1, Math.floor(aeronave.rutaAirborneIndice)))
+      : 0
+  let progreso =
+    Number.isFinite(aeronave.rutaAirborneProgreso)
+      ? Math.max(0, aeronave.rutaAirborneProgreso)
+      : 0
+
+  const velocidadMPS = obtenerVelocidadMpsFallback(aeronave)
+  if(!Number.isFinite(velocidadMPS) || velocidadMPS <= 0){
+    return false
+  }
+
+  let distanciaRestante = velocidadMPS * (intervaloMS / 1000)
+
+  while(distanciaRestante > 0){
+    if(indice >= ruta.length - 1){
+      break
+    }
+
+    const A = ruta[indice]
+    const B = ruta[indice + 1]
+    const distanciaSegmento = Math.max(1, distanciaEntre(A, B))
+    const restanteSegmento = Math.max(0, distanciaSegmento - progreso)
+
+    if(distanciaRestante < restanteSegmento){
+      progreso += distanciaRestante
+      distanciaRestante = 0
+      break
+    }
+
+    distanciaRestante -= restanteSegmento
+    indice += 1
+    progreso = 0
+  }
+
+  if(indice >= ruta.length - 1){
+    const ultimo = ruta[ruta.length - 1]
+    const previo = ruta.length >= 2 ? ruta[ruta.length - 2] : ultimo
+    const rumboFinal = calcularRumboServidor(previo, ultimo)
+    const nuevoPunto =
+      distanciaRestante > 0
+        ? puntoPlano({ lat: ultimo.lat, lng: ultimo.lng }, rumboFinal, distanciaRestante)
+        : { lat: ultimo.lat, lng: ultimo.lng }
+
+    aeronave.lat = nuevoPunto.lat
+    aeronave.lng = nuevoPunto.lng
+    aeronave.angulo = rumboFinal
+    aeronave.rutaAirborneFinalizada = true
+    aeronave.rutaAirborneIndice = ruta.length - 1
+    aeronave.rutaAirborneProgreso = 0
+    return true
+  }
+
+  const A = ruta[indice]
+  const B = ruta[indice + 1]
+  const distanciaSegmento = Math.max(1, distanciaEntre(A, B))
+  const t = Math.max(0, Math.min(1, progreso / distanciaSegmento))
+
+  aeronave.lat = A.lat + (B.lat - A.lat) * t
+  aeronave.lng = A.lng + (B.lng - A.lng) * t
+  aeronave.angulo = calcularRumboServidor(A, B)
+  aeronave.rutaAirborneIndice = indice
+  aeronave.rutaAirborneProgreso = progreso
+
+  return true
+}
+
 function normalizarSentidoOrbitTexto(valor) {
   if (typeof valor === "number" && Number.isFinite(valor)) {
     return valor < 0 ? "LEFT" : "RIGHT"
@@ -598,6 +736,28 @@ function iniciarMotorSala(nombreSala){
 
   return
 }
+
+	      if (
+	        !a.owner &&
+	        a.estado === "AIRBORNE" &&
+	        Array.isArray(a.rutaAirborne) &&
+	        a.rutaAirborne.length >= 2
+	      ) {
+	        if (avanzarRutaAirborneLineal(a, intervaloMS)) {
+	          io.to(nombreSala).emit("actualizarAeronave", {
+	            id: a.id,
+	            lat: a.lat,
+	            lng: a.lng,
+	            altitud: a.altitud,
+	            angulo: a.angulo,
+	            velocidad: a.velocidad,
+	            velocidadObjetivo: a.velocidadObjetivo,
+	            estado: a.estado,
+	            orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido)
+	          })
+	          return
+	        }
+	      }
 
 	      if (!a.owner && !ESTADOS_RUTA_SERVIDOR.has(a.estado)) {
 	        const velocidadMPS = obtenerVelocidadMpsFallback(a)
@@ -2419,9 +2579,39 @@ socket.on("crearAeronave", (data) => {
   orbitSentido: "RIGHT",
   shortCircuitoActivo: false,
   owner: socket.id
+  });
+
+
 });
 
+  // ===== RUTA AIRBORNE =====
+socket.on("setRutaAirborne", ({ id, ruta } = {}) => {
+  const salaNombre = socket.sala
+  if (!salaNombre) return
 
+  const sala = salas[salaNombre]
+  if (!sala) return
+
+  const aeronave = sala.aeronaves.find(a => a && a.id === id)
+  if (!aeronave) return
+
+  if (!socketPuedeControlarAeronave(salaNombre, sala, aeronave, socket.id)) return
+
+  const rutaNormalizada = normalizarRutaLineal(ruta)
+  if (rutaNormalizada.length < 2) return
+
+  aeronave.rutaAirborne = rutaNormalizada
+  aeronave.rutaAirborneFinalizada = false
+
+  const posicionActual = { lat: aeronave.lat, lng: aeronave.lng }
+  const proyeccion = obtenerProyeccionRutaLinealMasCercana(posicionActual, rutaNormalizada)
+  if (proyeccion) {
+    aeronave.rutaAirborneIndice = proyeccion.indiceA
+    aeronave.rutaAirborneProgreso = proyeccion.progreso
+  } else {
+    aeronave.rutaAirborneIndice = 0
+    aeronave.rutaAirborneProgreso = 0
+  }
 });
 socket.on("extenderSalida", ({ metros }) => {
 

@@ -12460,6 +12460,7 @@ function iniciarSTAR(){
   a.altitudObjetivo = 8000   // FL080
 
   actualizarPanelInfo(a)
+  sincronizarRutaAirborne(a)
 }
 function ejecutarSTAR(a, segundosTick = 0.05){
 
@@ -13003,6 +13004,7 @@ function despegar(aeronaveOverride = null){
   }
 
   actualizarPanelInfo(a)
+  sincronizarRutaAirborne(a)
 
   const puntoSalida = a.marker.getLatLng()
 
@@ -13875,6 +13877,82 @@ function construirTramoSalidaSidConArco(){
   }
 
   return ruta
+}
+
+function construirRutaAirborne(a){
+  if(!a || !a.marker) return null
+
+  const ruta = []
+  const actual = a.marker.getLatLng()
+  if(actual){
+    ruta.push([actual.lat, actual.lng])
+  }
+
+  if(a.starActivo && String(a.star).toUpperCase() === "GEBED3"){
+    ruta.push(
+      [-12.760556, -76.606389],
+      [-13.193611, -76.432583],
+      [-13.567306, -76.281944],
+      [SCO_VOR.lat, SCO_VOR.lng]
+    )
+    return ruta.length >= 2 ? ruta : null
+  }
+
+  const modoSalida = obtenerModoSalidaAeronave(a)
+  if(modoSalida === "VFR"){
+    const modo = obtenerVfrSalidaAeronave(a)
+    const objetivo = obtenerObjetivoVfrAeronave(a)
+    if(!modo || !objetivo) return null
+
+    if(modo === "MTASA"){
+      ruta.push([VFR_PUNTO_GIRO_MTASA.lat, VFR_PUNTO_GIRO_MTASA.lng])
+      const muelleTasa = obtenerPuntoReferenciaPorNombre("Muelle TASA")
+      if(muelleTasa && Number.isFinite(muelleTasa.lat) && Number.isFinite(muelleTasa.lng)){
+        ruta.push([muelleTasa.lat, muelleTasa.lng])
+      }
+      ruta.push([objetivo.lat, objetivo.lng])
+      return ruta.length >= 2 ? ruta : null
+    }
+
+    if(modo === "LS"){
+      ruta.push([VFR_PUNTO_GIRO_LS.lat, VFR_PUNTO_GIRO_LS.lng])
+      ruta.push([objetivo.lat, objetivo.lng])
+      return ruta.length >= 2 ? ruta : null
+    }
+  }
+
+  const sid = normalizarSidSalida(a.sid || "")
+  if(sid === "KOPRA1"){
+    const salidaConArco = construirTramoSalidaSidConArco()
+    ruta.push(
+      ...salidaConArco,
+      [FIX_KOPRA.lat, FIX_KOPRA.lng],
+      [FIX_ESEDI.lat, FIX_ESEDI.lng]
+    )
+    return ruta.length >= 2 ? ruta : null
+  }
+
+  if(sid === "TELOT1"){
+    const salidaConArco = construirTramoSalidaSidConArco()
+    ruta.push(
+      ...salidaConArco,
+      [FIX_TELOT.lat, FIX_TELOT.lng],
+      [FIX_ESEDI.lat, FIX_ESEDI.lng]
+    )
+    return ruta.length >= 2 ? ruta : null
+  }
+
+  return ruta.length >= 2 ? ruta : null
+}
+
+function sincronizarRutaAirborne(a){
+  if(!socket || !socket.connected || !a) return
+  const ruta = construirRutaAirborne(a)
+  if(!Array.isArray(ruta) || ruta.length < 2) return
+  socket.emit("setRutaAirborne", {
+    id: a.id,
+    ruta
+  })
 }
 
 function dibujarRutaSidKopra1(){

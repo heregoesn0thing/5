@@ -2845,6 +2845,10 @@ socket.on("actualizarAeronave", (data) => {
     : altitudAnterior
   const estadoRecibido =
     typeof data.estado === "string" ? data.estado : aeronave.estado
+  const syncTsRecibido =
+    typeof data.syncTs === "number" && Number.isFinite(data.syncTs)
+      ? data.syncTs
+      : null
   const huboCambioManualAltitud =
     Math.abs(altitudRecibida - altitudAnterior) > EPSILON_ALTITUD_MANUAL_CIRCUITO_FT
 
@@ -2873,6 +2877,9 @@ if(typeof data.estado === "string"){
   ) {
     aeronave.velocidadObjetivo = Math.max(0, data.velocidadObjetivo);
   }
+  if(syncTsRecibido !== null){
+    aeronave.syncTs = syncTsRecibido
+  }
 
   socket.to(sala).emit("actualizarAeronave", {
   id: aeronave.id,
@@ -2884,7 +2891,8 @@ if(typeof data.estado === "string"){
   velocidadObjetivo: aeronave.velocidadObjetivo,
   estado: aeronave.estado,
     orbitSentido: normalizarSentidoOrbitTexto(aeronave.orbitSentido),
-    shortCircuitoActivo: Boolean(aeronave.shortCircuitoActivo)
+    shortCircuitoActivo: Boolean(aeronave.shortCircuitoActivo),
+    syncTs: aeronave.syncTs
 });
 
 

@@ -215,13 +215,21 @@
 <div class="grupo" id="grupoDeparture">
   <div class="titulo-grupo">DEPARTURE</div>
 
+  <button id="depBtnImmediate" class="btn-lateral departure-control-btn departure-immediate-btn" type="button">IMMEDIATE DEPARTURE</button>
   <div class="departure-row">
-    <button id="depBtnSID" class="btn-lateral departure-control-btn" type="button">SID</button>
-    <button id="depBtnTakeoff" class="btn-lateral departure-control-btn" type="button">TAKE OFF</button>
+    <button id="depBtnVFR" class="btn-lateral departure-control-btn departure-mode-btn" type="button">VFR</button>
+    <button id="depBtnSID" class="btn-lateral departure-control-btn departure-mode-btn" type="button">IFR</button>
+  </div>
+  <div id="departureVfrOpciones" class="departure-vfr-opciones">
+    <button class="sid-option-btn vfr-option-btn" type="button" data-vfr="MTASA">MTASA</button>
+    <button class="sid-option-btn vfr-option-btn" type="button" data-vfr="LS">LS</button>
   </div>
   <div id="departureSidOpciones" class="departure-sid-opciones">
     <button class="sid-option-btn" type="button" data-sid="KOPRA1">KOPRA1</button>
     <button class="sid-option-btn" type="button" data-sid="TELOT1">TELOT1</button>
+  </div>
+  <div class="departure-row">
+    <button id="depBtnTakeoff" class="btn-lateral departure-control-btn" type="button">TAKE OFF</button>
   </div>
 </div>
 
@@ -3436,28 +3444,37 @@ socket.on("cargarAeronaves", lista => {
     const nueva = {
       id: data.id,
       tipo: data.tipo,
-      estado: "IDLE",
+      estado: typeof data.estado === "string" ? data.estado : "IDLE",
       indiceRuta: 0,
       rutaRecorrida: null,
       marker: marker,
       owner: ownerId || null,
       remoto: !esPropia,
+      lat: Number.isFinite(Number(data.lat)) ? Number(data.lat) : 0,
+      lng: Number.isFinite(Number(data.lng)) ? Number(data.lng) : 0,
       altitud: data.altitud || 0,
       angulo: data.angulo || 0,
-      velocidadObjetivo: 0,
+      velocidad: Number.isFinite(data.velocidad) ? data.velocidad : 0,
+      velocidadObjetivo: Number.isFinite(data.velocidadObjetivo)
+        ? data.velocidadObjetivo
+        : 0,
       ruta: null,        
       puntosRuta: [],
       sid: data.sid || null,
       sidFase: null,
+      vfrSalida: null,
+      vfrFase: null,
+      vfrObjetivo: null,
       orbitSentido: normalizarSentidoOrbitCliente(data.orbitSentido),
       orbitSolicitada: Boolean(data.orbitModoContinuo || data.orbitPendiente),
       orbitEnProcesoVisual: Boolean(data.orbitEnCurso || data.estado === "ORBT"),
       extendSolicitada: false,
       intervaloExtendCircuito: null,
       shortSolicitada: Boolean(data.shortCircuitoActivo),
+      ultimoSyncTs: Number.isFinite(data.syncTs) ? data.syncTs : null,
       touchAndGoPendiente: false,
       clearedToLandPendiente: false,
-	      monitorTouchAndGo: null,
+      monitorTouchAndGo: null,
 	      monitorAterrizaje: null,
 	      pilotageMarker: null,
 	      pilotageObjetivo: null,
@@ -5061,6 +5078,7 @@ let ultimaAeronaveSeleccionada = null
 let seguimientoManualEyeActivo = false
 let intervaloSeguimientoManualEye = null
 let aeronavePilotagePendienteId = null
+let aeronaveVfrPendienteId = null
 const VELOCIDAD = 8
 const TIPOS = ["A320","A319","B737","C172","BE20","B190","AN32","EC45","B2","F22","RFAL"]
 const ALTITUD_INICIAL_MIN_FT = 0
@@ -5228,6 +5246,10 @@ const rutaTaxiE = [
 const UMBRAL_RWY04 = [-13.7553277777778, -76.2293055555556]
 const UMBRAL_RWY22 = [-13.734536864537288, -76.21175399048074]
 const RUMBO_RWY22 = 220
+const DISTANCIA_PISTA_RWY22_M = map.distance(
+  L.latLng(UMBRAL_RWY22[0], UMBRAL_RWY22[1]),
+  L.latLng(UMBRAL_RWY04[0], UMBRAL_RWY04[1])
+)
 const HOLD_SHORT_LINE_UP_CONFIG = [
   {
     key: "A",
@@ -5263,6 +5285,10 @@ const DISTANCIA_TOUCHDOWN_RWY22_M = 300
 const DISTANCIA_RODAJE_TOUCH_AND_GO_M = 300
 const NOMBRE_PUNTO_REFERENCIA_TOUCH_AND_GO = "Muelle TASA"
 const DISTANCIA_GIRO_TOUCH_AND_GO_SCO_VOR_M = 3.1 * 1852
+const VFR_PUNTO_GIRO_MTASA = L.latLng(-13.773769737847493, -76.24485433101655)
+const VFR_PUNTO_GIRO_LS = L.latLng(-13.762231281013394, -76.23511980876593)
+const VFR_UMBRAL_GIRO_M = 700
+const VFR_UMBRAL_OBJETIVO_M = 500
 const TOLERANCIA_EJE_PISTA_RWY22_M = 120
 const VELOCIDAD_ROLLOUT_KT = 90
 const VELOCIDAD_ROLLOUT_FINAL_KT = 20
@@ -5552,6 +5578,10 @@ map.on("click", function(e){
     if (aeronaveSeleccionada && aeronaveSeleccionada.estado !== "TAXI") {
       agregarPuntoRuta(e.latlng)
     }
+    return
+  }
+
+  if(procesarClickMapaVfrSalida(e.latlng)){
     return
   }
 
@@ -5918,6 +5948,45 @@ function manejarLlegadaObjetivoPilotage(aeronave){
   continuarMovimientoPilotageSiSinCambio(aeronave)
 }
 
+function procesarClickMapaVfrSalida(latlng){
+  if(!aeronaveVfrPendienteId){
+    return false
+  }
+
+  const aeronave = aeronaves.find(a => a.id === aeronaveVfrPendienteId)
+  if(!aeronave || !esAeronaveDelCreadorLocal(aeronave)){
+    aeronaveVfrPendienteId = null
+    return false
+  }
+
+  const aeronaveObjetivo = obtenerAeronaveObjetivoControles() || aeronaveSeleccionada
+  if(!aeronaveObjetivo || aeronaveObjetivo.id !== aeronave.id){
+    return false
+  }
+
+  const lat = Number(latlng && latlng.lat)
+  const lng = Number(latlng && latlng.lng)
+  if(!Number.isFinite(lat) || !Number.isFinite(lng)){
+    aeronaveVfrPendienteId = null
+    return true
+  }
+
+  marcarObjetivoPilotageEnMapa(aeronave, { lat, lng })
+  aeronave.vfrObjetivo = { lat, lng }
+  aeronaveVfrPendienteId = null
+
+  actualizarDepartureInfo(aeronave)
+  actualizarPanelInfoAeronave(aeronave)
+  actualizarPanelInfo(aeronave)
+  actualizarEstadoBotonTakeoff(aeronave)
+
+  if(!aeronave.remoto){
+    sincronizarEstadoAeronaveLocal(aeronave)
+  }
+
+  return true
+}
+
 function procesarClickMapaPilotage(latlng){
   const aeronaveSeleccionadaToggle = obtenerAeronaveObjetivoControles() || aeronaveSeleccionada
   const togglePilotageActivo = Boolean(
@@ -6141,6 +6210,9 @@ modoRuta: false,
     angulo: anguloInicial,
     sid: null,
     sidFase: null,
+    vfrSalida: null,
+    vfrFase: null,
+    vfrObjetivo: null,
     altitud: altitudInicialFt,
     velocidad: 0,
     velocidadObjetivo: 0,
@@ -6238,38 +6310,48 @@ socket.on("crearAeronave", data => {
   marker: marker,
   owner: ownerId || null,
   remoto: !esPropia,
+  lat: Number.isFinite(Number(data.lat)) ? Number(data.lat) : 0,
+  lng: Number.isFinite(Number(data.lng)) ? Number(data.lng) : 0,
   altitud: data.altitud || 0,
   angulo: data.angulo || 0,
+  velocidad: Number.isFinite(data.velocidad) ? data.velocidad : 0,
+  velocidadObjetivo: Number.isFinite(data.velocidadObjetivo)
+    ? data.velocidadObjetivo
+    : 0,
   ruta: null,
   rutaRecorrida: null,
   puntosRuta: [],
-  estado: "IDLE",
+  estado: typeof data.estado === "string" ? data.estado : "IDLE",
   indiceRuta: 0,
   animFrame: null,
   modoRuta: false,
   rutaTemporal: [],
   sid: data.sid || null,
   sidFase: null,
+  vfrSalida: null,
+  vfrFase: null,
+  vfrObjetivo: null,
   orbitSentido: normalizarSentidoOrbitCliente(data.orbitSentido),
   orbitSolicitada: Boolean(data.orbitModoContinuo || data.orbitPendiente),
   orbitEnProcesoVisual: Boolean(data.orbitEnCurso || data.estado === "ORBT"),
   extendSolicitada: false,
   intervaloExtendCircuito: null,
   shortSolicitada: Boolean(data.shortCircuitoActivo),
+  ultimoSyncTs: Number.isFinite(data.syncTs) ? data.syncTs : null,
   panelLateralEstado: crearEstadoPanelLateralAeronave(),
   intervaloActual: null,
-timeoutActual: null,
-enMovimiento: false,
-monitorAterrizaje: null,
-touchAndGoPendiente: false,
-clearedToLandPendiente: false,
-	monitorTouchAndGo: null,
-	pilotageMarker: null,
-	pilotageObjetivo: null,
-	pilotageToggleActivo: false,
-	orbitFueraCircuitoPendienteSentido: null,
-	landingSubOption: null,
-	}
+	timeoutActual: null,
+	enMovimiento: false,
+	monitorAterrizaje: null,
+	touchAndGoPendiente: false,
+	clearedToLandPendiente: false,
+		monitorTouchAndGo: null,
+		pilotageMarker: null,
+		pilotageObjetivo: null,
+		pilotageToggleActivo: false,
+		orbitFueraCircuitoPendienteSentido: null,
+		landingSubOption: null,
+		}
 
 
   aeronaves.push(nueva)
@@ -6302,6 +6384,14 @@ socket.on("actualizarAeronave", data => {
   const avion = aeronaves.find(a => a.id === data.id)
   if (!avion) return
   const estadoAnterior = avion.estado
+  const syncTs = Number(data && data.syncTs)
+  if(Number.isFinite(syncTs)){
+    const ultimo = Number.isFinite(avion.ultimoSyncTs)
+      ? avion.ultimoSyncTs
+      : -Infinity
+    if(syncTs < ultimo) return
+    avion.ultimoSyncTs = syncTs
+  }
 
   // ðŸ”„ Actualizar datos
   avion.estado = data.estado
@@ -6385,7 +6475,8 @@ if (ultimaAeronaveSeleccionada && avion.id === ultimaAeronaveSeleccionada.id){
     avion,
     data.lat,
     data.lng,
-    data.angulo
+    data.angulo,
+    data.syncTs
   )
 })
 
@@ -7883,6 +7974,7 @@ function crearEstadoPanelLateralAeronave(){
     speedPanelAbierto: false,
     levelPanelAbierto: false,
     sidOpcionesAbiertas: false,
+    immediateDepartureActivo: false,
     landingMainActivo: null,
     landingOpcionesAbiertas: false
   }
@@ -7908,6 +8000,9 @@ function obtenerEstadoPanelLateralAeronave(aeronave){
   if(typeof estado.sidOpcionesAbiertas !== "boolean"){
     estado.sidOpcionesAbiertas = false
   }
+  if(typeof estado.immediateDepartureActivo !== "boolean"){
+    estado.immediateDepartureActivo = false
+  }
   if(typeof estado.landingMainActivo !== "string"){
     estado.landingMainActivo = null
   }
@@ -7929,6 +8024,7 @@ function guardarEstadoVisualPanelLateral(aeronave = null){
   const speedPanel = document.getElementById("speedControlPanel")
   const levelPanel = document.getElementById("levelControlPanel")
   const sidOpciones = document.getElementById("departureSidOpciones")
+  const btnImmediate = document.getElementById("depBtnImmediate")
   const landingOpciones = document.getElementById("landingOpciones")
   const landingMainActivo = document.querySelector("#menuControles .landing-main.activo")
   const aeronaveObjetivo =
@@ -7952,6 +8048,9 @@ function guardarEstadoVisualPanelLateral(aeronave = null){
   )
   estado.sidOpcionesAbiertas = Boolean(
     sidOpciones && sidOpciones.classList.contains("activo")
+  )
+  estado.immediateDepartureActivo = Boolean(
+    btnImmediate && btnImmediate.classList.contains("activo")
   )
   estado.landingMainActivo = obtenerClaveLandingMainDesdeBoton(landingMainActivo)
   estado.landingOpcionesAbiertas = Boolean(
@@ -8519,7 +8618,7 @@ function aplicarLevelInicialManual(valor){
   actualizarBotonTaxi()
   actualizarEstadoBotonTakeoff(aeronave)
   actualizarEstadoGrupoLanding()
-  sincronizarEstadoAeronaveLocal(aeronave)
+  programarSyncEstado(aeronave)
 }
 
 function aplicarLevelDesdeControlActual(){
@@ -8678,37 +8777,13 @@ function aplicarSpeedDesdeSlider(valor){
   const a = obtenerAeronaveObjetivoControles() || aeronaveSeleccionada
   if(!a) return
 
-  const posicionActual =
-    a.marker && typeof a.marker.getLatLng === "function"
-      ? a.marker.getLatLng()
-      : null
-  const latActual = posicionActual ? Number(posicionActual.lat) : Number(a.lat)
-  const lngActual = posicionActual ? Number(posicionActual.lng) : Number(a.lng)
-  const altitudActual = Number(a.altitud)
-  const anguloActual = Number(a.angulo)
-
-  socket.emit("setSpeedKnots", {
-    id: a.id,
-    speedKnots: targetKnots
-  })
-
-  if(Number.isFinite(latActual) && Number.isFinite(lngActual)){
-    socket.emit("actualizarAeronave", {
-      id: a.id,
-      lat: latActual,
-      lng: lngActual,
-      altitud: Number.isFinite(altitudActual) ? altitudActual : 0,
-      angulo: Number.isFinite(anguloActual) ? anguloActual : 0,
-      estado: a.estado,
-      velocidad: targetKnots * 0.514444,
-      velocidadObjetivo: targetKnots
-    })
-  }
-
   a.velocidad = targetKnots * 0.514444
 
   a.velocidadObjetivo = targetKnots
   a.pilotageSpeedAutoActiva = false
+
+  programarSyncSpeed(a)
+  programarSyncEstado(a)
 
   const speedValueEl = document.getElementById("speedValue")
   if(speedValueEl){
@@ -9765,16 +9840,38 @@ function calcularPuntoSobreEjeRwy22(distanciaFirmadaMetros){
   const distanciaFirmada = Number(distanciaFirmadaMetros)
   if(!Number.isFinite(distanciaFirmada)) return null
 
-  const rumbo = distanciaFirmada >= 0
-    ? RUMBO_RWY22
-    : normalizarAngulo360(RUMBO_RWY22 + 180)
+  const origenLat = Number(UMBRAL_RWY22[0])
+  const origenLng = Number(UMBRAL_RWY22[1])
+  const destinoLat = Number(UMBRAL_RWY04[0])
+  const destinoLng = Number(UMBRAL_RWY04[1])
+  const latFactor = 111320
+  const lngFactor = 111320 * Math.cos(origenLat * Math.PI / 180)
+  if(
+    !Number.isFinite(origenLat) ||
+    !Number.isFinite(origenLng) ||
+    !Number.isFinite(destinoLat) ||
+    !Number.isFinite(destinoLng) ||
+    !Number.isFinite(lngFactor) ||
+    Math.abs(lngFactor) < 1e-6
+  ){
+    return null
+  }
 
-  return calcularPuntoDesplazado(
-    UMBRAL_RWY22[0],
-    UMBRAL_RWY22[1],
-    Math.abs(distanciaFirmada),
-    rumbo
-  )
+  const ejeNorth = (destinoLat - origenLat) * latFactor
+  const ejeEast = (destinoLng - origenLng) * lngFactor
+  const longitudEje = Math.hypot(ejeNorth, ejeEast)
+  if(longitudEje <= 1e-6){
+    return null
+  }
+
+  const factor = distanciaFirmada / longitudEje
+  const puntoNorth = ejeNorth * factor
+  const puntoEast = ejeEast * factor
+
+  return [
+    origenLat + (puntoNorth / latFactor),
+    origenLng + (puntoEast / lngFactor)
+  ]
 }
 
 function proyectarPuntoSobreEjeRwy22(posicion){
@@ -10393,11 +10490,96 @@ function cancelarAccionesAeronave(a){
   a.enMovimiento = false;
 }
 
+const SYNC_INPUT_THROTTLE_MS = 80
+
+function programarSyncEstado(a){
+  if(!a || a.remoto) return
+
+  if(!a._syncThrottleEstado){
+    a._syncThrottleEstado = {
+      ultimo: 0,
+      timer: null,
+      pendiente: false
+    }
+  }
+
+  const control = a._syncThrottleEstado
+  const ahora = performance.now()
+  const tiempoDesde = ahora - control.ultimo
+  control.pendiente = true
+
+  const emitir = () => {
+    control.ultimo = performance.now()
+    control.pendiente = false
+    sincronizarEstadoAeronaveLocal(a)
+  }
+
+  if(tiempoDesde >= SYNC_INPUT_THROTTLE_MS && !control.timer){
+    emitir()
+    return
+  }
+
+  if(!control.timer){
+    const espera = Math.max(0, SYNC_INPUT_THROTTLE_MS - tiempoDesde)
+    control.timer = setTimeout(() => {
+      control.timer = null
+      if(!control.pendiente) return
+      emitir()
+    }, espera)
+  }
+}
+
+function programarSyncSpeed(a){
+  if(!a || a.remoto) return
+
+  if(!a._syncThrottleSpeed){
+    a._syncThrottleSpeed = {
+      ultimo: 0,
+      timer: null,
+      pendiente: false
+    }
+  }
+
+  const control = a._syncThrottleSpeed
+  const ahora = performance.now()
+  const tiempoDesde = ahora - control.ultimo
+  control.pendiente = true
+
+  const emitir = () => {
+    control.ultimo = performance.now()
+    control.pendiente = false
+    const speedKnots = Number(a.velocidadObjetivo)
+    if(!Number.isFinite(speedKnots)) return
+    socket.emit("setSpeedKnots", {
+      id: a.id,
+      speedKnots
+    })
+  }
+
+  if(tiempoDesde >= SYNC_INPUT_THROTTLE_MS && !control.timer){
+    emitir()
+    return
+  }
+
+  if(!control.timer){
+    const espera = Math.max(0, SYNC_INPUT_THROTTLE_MS - tiempoDesde)
+    control.timer = setTimeout(() => {
+      control.timer = null
+      if(!control.pendiente) return
+      emitir()
+    }, espera)
+  }
+}
+
 function sincronizarEstadoAeronaveLocal(a){
   if(!a || a.remoto || !a.marker) return
 
   const posicion = a.marker.getLatLng()
   if(!posicion) return
+  const latActual = Number(posicion.lat)
+  const lngActual = Number(posicion.lng)
+  a.lat = latActual
+  a.lng = lngActual
 
   const altitudActual = Number(a.altitud)
   const anguloActual = Number(a.angulo)
@@ -10406,13 +10588,14 @@ function sincronizarEstadoAeronaveLocal(a){
 
   socket.emit("actualizarAeronave", {
     id: a.id,
-    lat: Number(posicion.lat),
-    lng: Number(posicion.lng),
+    lat: latActual,
+    lng: lngActual,
     altitud: Number.isFinite(altitudActual) ? altitudActual : 0,
     angulo: Number.isFinite(anguloActual) ? anguloActual : 0,
     estado: a.estado,
     velocidad: Number.isFinite(velocidadActual) ? velocidadActual : 0,
-    velocidadObjetivo: Number.isFinite(velocidadObjetivoActual) ? velocidadObjetivoActual : 0
+    velocidadObjetivo: Number.isFinite(velocidadObjetivoActual) ? velocidadObjetivoActual : 0,
+    syncTs: Date.now()
   })
 }
 function moverAeronaveHacia(a, destino, callback, opciones = {}){
@@ -11840,7 +12023,7 @@ function obtenerDistanciaHoldShortLinea(posicion){
   return info ? info.distancia : Infinity
 }
 
-function activarRodajeUmbral22DesdeHoldShort(a){
+function activarRodajeUmbral22DesdeHoldShort(a, forzarLineUp = false){
   if(!a || !a.marker) return
   if(a.holdShortTaxiATriggered) return
 
@@ -11853,7 +12036,7 @@ function activarRodajeUmbral22DesdeHoldShort(a){
   if(
     !infoHoldShort ||
     !Number.isFinite(infoHoldShort.distancia) ||
-    infoHoldShort.distancia > HOLD_SHORT_TRIGGER_RADIUS_M
+    (!forzarLineUp && infoHoldShort.distancia > HOLD_SHORT_TRIGGER_RADIUS_M)
   ){
     return
   }
@@ -11873,8 +12056,19 @@ function activarRodajeUmbral22DesdeHoldShort(a){
   const waypoints = Array.isArray(infoHoldShort.config.waypoints)
     ? infoHoldShort.config.waypoints
     : []
+  const holdPoint = Array.isArray(infoHoldShort.config.hold)
+    ? L.latLng(infoHoldShort.config.hold[0], infoHoldShort.config.hold[1])
+    : null
+  const usarHoldPointExtra =
+    Boolean(forzarLineUp) &&
+    Number.isFinite(infoHoldShort.distancia) &&
+    infoHoldShort.distancia > HOLD_SHORT_TRIGGER_RADIUS_M &&
+    holdPoint &&
+    Number.isFinite(holdPoint.lat) &&
+    Number.isFinite(holdPoint.lng)
   const puntosRuta = [
     posicionActual,
+    ...(usarHoldPointExtra ? [holdPoint] : []),
     ...waypoints
       .map(p => Array.isArray(p) ? L.latLng(p[0], p[1]) : p)
       .filter(p => p && Number.isFinite(p.lat) && Number.isFinite(p.lng))
@@ -11959,6 +12153,16 @@ function detenerRodaje(a){
 
   actualizarPanelInfo(a)
   actualizarBotonTaxi()
+
+  if(
+    a.immediateTakeoffPendiente &&
+    tieneImmediateDepartureActiva(a) &&
+    estaAlineadoConPista(a)
+  ){
+    a.immediateTakeoffPendiente = false
+    despegar(a)
+    actualizarEstadoBotonTakeoff(a)
+  }
 }
 
 
@@ -12243,7 +12447,7 @@ function iniciarSTAR(){
 
   actualizarPanelInfo(a)
 }
-function ejecutarSTAR(a){
+function ejecutarSTAR(a, segundosTick = 0.05){
 
   const ASOXI = L.latLng(-12.760556, -76.606389)
   const GEBED = L.latLng(-13.193611, -76.432583)
@@ -12255,9 +12459,10 @@ function ejecutarSTAR(a){
   // ===== DESCENSO CONTROLADO =====
   const descensoFPM = DESCENT_RATE[a.tipo] || 1500
   const descensoFPS = descensoFPM / 60
+  const deltaSegundos = Number.isFinite(segundosTick) && segundosTick > 0 ? segundosTick : 0.05
 
   if(a.altitud > a.altitudObjetivo){
-    a.altitud = Math.max(a.altitudObjetivo, a.altitud - (descensoFPS * 0.05))
+    a.altitud = Math.max(a.altitudObjetivo, a.altitud - (descensoFPS * deltaSegundos))
   }
 
   switch(a.faseStar){
@@ -12334,6 +12539,85 @@ function ejecutarSIDSalida(a){
   if(sid === "TELOT1"){
     ejecutarSIDTELOT1(a)
     return
+  }
+}
+
+function ejecutarSalidaVFR(a){
+  if(!a || !a.marker) return
+
+  const modo = obtenerVfrSalidaAeronave(a)
+  if(!modo) return
+
+  const objetivo = obtenerObjetivoVfrAeronave(a)
+  if(!objetivo) return
+
+  const actual = a.marker.getLatLng()
+  if(!actual) return
+
+  if(modo === "MTASA"){
+    if(!a.vfrFase || !String(a.vfrFase).startsWith("MTASA_")){
+      a.vfrFase = "MTASA_RUNWAY"
+    }
+
+    switch(a.vfrFase){
+      case "MTASA_RUNWAY":
+        a.headingObjetivo = RUMBO_PISTA_22
+        if(map.distance(actual, VFR_PUNTO_GIRO_MTASA) <= VFR_UMBRAL_GIRO_M){
+          a.vfrFase = "MTASA_MUELLE"
+        }
+      break
+
+      case "MTASA_MUELLE":
+      {
+        const muelleTasa = obtenerPuntoReferenciaPorNombre("Muelle TASA")
+        const muelleLatLng = muelleTasa
+          ? L.latLng(muelleTasa.lat, muelleTasa.lng)
+          : null
+        if(muelleLatLng){
+          a.headingObjetivo = calcularBearing(actual, muelleLatLng)
+          if(map.distance(actual, muelleLatLng) <= VFR_UMBRAL_OBJETIVO_M){
+            a.vfrFase = "MTASA_OBJETIVO"
+          }
+        } else {
+          a.headingObjetivo = RUMBO_PISTA_22
+        }
+      }
+      break
+
+      case "MTASA_OBJETIVO":
+        a.headingObjetivo = calcularBearing(actual, objetivo)
+      break
+
+      default:
+        a.vfrFase = "MTASA_RUNWAY"
+        a.headingObjetivo = RUMBO_PISTA_22
+      break
+    }
+    return
+  }
+
+  if(modo === "LS"){
+    if(!a.vfrFase || !String(a.vfrFase).startsWith("LS_")){
+      a.vfrFase = "LS_RUNWAY"
+    }
+
+    switch(a.vfrFase){
+      case "LS_RUNWAY":
+        a.headingObjetivo = RUMBO_PISTA_22
+        if(map.distance(actual, VFR_PUNTO_GIRO_LS) <= VFR_UMBRAL_GIRO_M){
+          a.vfrFase = "LS_OBJETIVO"
+        }
+      break
+
+      case "LS_OBJETIVO":
+        a.headingObjetivo = calcularBearing(actual, objetivo)
+      break
+
+      default:
+        a.vfrFase = "LS_RUNWAY"
+        a.headingObjetivo = RUMBO_PISTA_22
+      break
+    }
   }
 }
 
@@ -12566,10 +12850,10 @@ function ejecutarSIDTELOT1(a){
   }
 }
 
-function despegar(){
+function despegar(aeronaveOverride = null){
 
-  if(!aeronaveSeleccionada) return
-  const a = aeronaveSeleccionada
+  const a = aeronaveOverride || aeronaveSeleccionada
+  if(!a) return
 
   if(a.estado === "AIRBORNE")
  return
@@ -12580,7 +12864,9 @@ function despegar(){
     return
   }
 
-  // ================= VALIDACIÃ“N ZONA =================
+  const usarSelectores = !aeronaveOverride
+
+  // ================= VALIDACION ZONA =================
 
   const desdeRWY22 = estaAlineadoConPista(a)
   const desdeLIB   = puedeDespegarDesdeLIB(a)
@@ -12590,40 +12876,78 @@ function despegar(){
     return
   }
 
-  // ================= VALIDACIÃ“N SID / STAR =================
+  // ================= VALIDACION SID / STAR =================
 
   const sidSelectEl = document.getElementById("sidSelect")
   const starSelectEl = document.getElementById("starSelect")
-  const sidElegida = sidSelectEl ? sidSelectEl.value : (a.sid || "")
-  const starElegida = starSelectEl ? starSelectEl.value : (a.star || "")
-  const sidNormalizada = normalizarSidSalida(sidElegida)
+  const sidElegida = usarSelectores && sidSelectEl ? sidSelectEl.value : (a.sid || "")
+  const starElegida = usarSelectores && starSelectEl ? starSelectEl.value : (a.star || "")
+  if(!esModoSalidaValido(a.modoSalida) && esSidSalidaValida(a.sid)){
+    a.modoSalida = "IFR"
+  }
+  const modoSalida = obtenerModoSalidaAeronave(a)
+  const vfrActivo = modoSalida === "VFR"
+  const ifrActivo = modoSalida === "IFR"
+  if(!vfrActivo && !ifrActivo){
+    alert("Selecciona VFR o IFR antes de TAKE OFF")
+    actualizarEstadoBotonTakeoff(a)
+    return
+  }
+
+  if(vfrActivo){
+    const vfrSalida = obtenerVfrSalidaAeronave(a)
+    if(!vfrSalida){
+      alert("Selecciona MTASA o LS antes de TAKE OFF")
+      actualizarEstadoBotonTakeoff(a)
+      return
+    }
+    const objetivoVfr = obtenerObjetivoVfrAeronave(a)
+    if(!objetivoVfr){
+      alert("Selecciona punto en el mapa antes de TAKE OFF")
+      actualizarEstadoBotonTakeoff(a)
+      return
+    }
+  }
+
+  const sidNormalizada = ifrActivo ? normalizarSidSalida(sidElegida) : ""
   const starNormalizada = (starElegida || "").trim()
 
-  if(!esSidSalidaValida(sidNormalizada)){
+  if(ifrActivo && !esSidSalidaValida(sidNormalizada)){
     alert("Selecciona KOPRA1 o TELOT1 antes de TAKE OFF")
     actualizarEstadoBotonTakeoff(a)
     return
   }
 
-  if((sidNormalizada === "KOPRA1" || sidNormalizada === "TELOT1") && !desdeRWY22){
+  if(ifrActivo && (sidNormalizada === "KOPRA1" || sidNormalizada === "TELOT1") && !desdeRWY22){
     alert("Selected SID requires departure aligned with RWY 22")
     return
   }
 
-  if(desdeLIB && !sidNormalizada && !starNormalizada){
+  if(desdeLIB && !vfrActivo && !sidNormalizada && !starNormalizada){
     alert("LIB MANDI departures require SID, STAR or Free Navigation")
     return
   }
 
-  // ================= INICIALIZACIÃ“N =================
+  // ================= INICIALIZACION =================
 
-  a.sid = sidNormalizada || null
+  a.sid = ifrActivo && esSidSalidaValida(sidNormalizada) ? sidNormalizada : null
   a.sidFase = null
+  a.vfrFase = null
+  if(vfrActivo){
+    const vfrSalida = obtenerVfrSalidaAeronave(a)
+    if(vfrSalida === "MTASA"){
+      a.vfrFase = "MTASA_RUNWAY"
+    } else if(vfrSalida === "LS"){
+      a.vfrFase = "LS_RUNWAY"
+    }
+  }
   a.sidSrvoInicioRecta = null
   a.sidArcoSrvo = null
   a.kopraDistMin = null
   a.star = starNormalizada || null
   a.starActivo = false
+  a.despegueDesdeRWY22 = Boolean(desdeRWY22)
+  a.immediateTakeoffPendiente = false
   a.altitud = 0
   a.velocidad = 0
   const perfilA32XActivo = (a.tipo === "A319" || a.tipo === "A320")
@@ -12646,13 +12970,22 @@ function despegar(){
     a.sidFase = "TELOT1_RUNWAY"
   }
 
-  // Heading inicial segÃºn punto de salida
+  // Heading inicial segun punto de salida
   if(desdeRWY22){
     a.headingObjetivo = RUMBO_PISTA_22
   }
 
   if(desdeLIB){
     a.headingObjetivo = RUMBO_LIB_MANDI
+  }
+
+  if(desdeRWY22 && a.marker){
+    const posicionSalida = L.latLng(UMBRAL_RWY22[0], UMBRAL_RWY22[1])
+    a.marker.setLatLng(posicionSalida)
+    a.lat = posicionSalida.lat
+    a.lng = posicionSalida.lng
+    a.angulo = RUMBO_RWY22
+    actualizarRotacion(a)
   }
 
   actualizarPanelInfo(a)
@@ -12663,11 +12996,21 @@ function despegar(){
     clearInterval(a.intervaloVuelo)
   }
 
+  let ultimoTickVuelo = performance.now()
   a.intervaloVuelo = setInterval(()=>{
 
-    // ================= ACELERACIÃ“N PROGRESIVA =================
+    // ================= ACELERACION PROGRESIVA =================
 
-    const segundosTick = 0.05
+    const ahora = performance.now()
+    let segundosTick = (ahora - ultimoTickVuelo) / 1000
+    if(!Number.isFinite(segundosTick) || segundosTick <= 0){
+      return
+    }
+    const maxSegundosTick = 5
+    if(segundosTick > maxSegundosTick){
+      segundosTick = maxSegundosTick
+    }
+    ultimoTickVuelo = ahora
     const actual = a.marker.getLatLng()
     const distanciaDesdeSalidaM = map.distance(puntoSalida, actual)
 
@@ -12747,7 +13090,9 @@ function despegar(){
     // ================= EJECUTAR STAR =================
 
     if(a.starActivo){
-      ejecutarSTAR(a)
+      ejecutarSTAR(a, segundosTick)
+    } else if(vfrActivo){
+      ejecutarSalidaVFR(a)
     } else {
       ejecutarSIDSalida(a)
     }
@@ -12757,7 +13102,8 @@ function despegar(){
     a.angulo = girarSuavemente(
       a,
       a.angulo || a.headingObjetivo,
-      a.headingObjetivo
+      a.headingObjetivo,
+      segundosTick
     )
 
     actualizarRotacion(a)
@@ -12772,15 +13118,29 @@ function despegar(){
     const deltaLng = (Math.sin(headingRad) * metrosPorTick) /
                      (111320 * Math.cos(actual.lat*Math.PI/180))
 
-    const nuevaLat = actual.lat + deltaLat
-const nuevaLng = actual.lng + deltaLng
+    let nuevaLat = actual.lat + deltaLat
+    let nuevaLng = actual.lng + deltaLng
 
-a.lat = nuevaLat
-a.lng = nuevaLng
+    const limiteEjeM = Number.isFinite(DISTANCIA_PISTA_RWY22_M)
+      ? Math.min(DISTANCIA_PISTA_RWY22_M, TAKEOFF_PROFILE_A32X.RUNWAY_DISTANCE_M)
+      : TAKEOFF_PROFILE_A32X.RUNWAY_DISTANCE_M
+    const enEjePista =
+      Boolean(a.despegueDesdeRWY22) &&
+      Number.isFinite(limiteEjeM) &&
+      distanciaDesdeSalidaM <= limiteEjeM
+    if(enEjePista){
+      const siguienteDist = distanciaDesdeSalidaM + metrosPorTick
+      const puntoEje = calcularPuntoSobreEjeRwy22(siguienteDist)
+      if(Array.isArray(puntoEje)){
+        nuevaLat = Number(puntoEje[0])
+        nuevaLng = Number(puntoEje[1])
+      }
+    }
 
-a.marker.setLatLng([a.lat, a.lng])
+    a.lat = nuevaLat
+    a.lng = nuevaLng
 
-
+    a.marker.setLatLng([a.lat, a.lng])
 
     // ================= FADE 80 NM =================
 
@@ -12802,7 +13162,7 @@ a.marker.setLatLng([a.lat, a.lng])
     if(distanciaSalida >= DISTANCIA_REMOVE){
 
       clearInterval(a.intervaloVuelo)
-socket.emit("eliminarAeronave", a.id)
+      socket.emit("eliminarAeronave", a.id)
 
     }
 
@@ -12811,9 +13171,8 @@ socket.emit("eliminarAeronave", a.id)
     if(aeronaveSeleccionada === a){
       actualizarPanelInfo(a)
     }
-const pos = a.marker.getLatLng()
-sincronizarMovimiento(a, pos.lat, pos.lng)
-
+    const pos = a.marker.getLatLng()
+    sincronizarMovimiento(a, pos.lat, pos.lng)
 
   },50)
 }
@@ -12867,12 +13226,69 @@ function esSidSalidaValida(sidValor){
   return sid === "KOPRA1" || sid === "TELOT1"
 }
 
+function normalizarModoSalida(modoValor){
+  return String(modoValor || "").trim().toUpperCase()
+}
+
+function esModoSalidaValido(modoValor){
+  const modo = normalizarModoSalida(modoValor)
+  return modo === "VFR" || modo === "IFR"
+}
+
+function normalizarVfrSalida(vfrValor){
+  return String(vfrValor || "").trim().toUpperCase()
+}
+
+function esVfrSalidaValida(vfrValor){
+  const modo = normalizarVfrSalida(vfrValor)
+  return modo === "MTASA" || modo === "LS"
+}
+
+function obtenerVfrSalidaAeronave(aeronave){
+  if(!aeronave) return ""
+  const modo = normalizarVfrSalida(aeronave.vfrSalida)
+  return esVfrSalidaValida(modo) ? modo : ""
+}
+
+function obtenerObjetivoVfrAeronave(aeronave){
+  if(!aeronave) return null
+  const objetivo = aeronave.vfrObjetivo
+  const lat = Number(objetivo && objetivo.lat)
+  const lng = Number(objetivo && objetivo.lng)
+  if(Number.isFinite(lat) && Number.isFinite(lng)){
+    return { lat, lng }
+  }
+  return null
+}
+
+function obtenerModoSalidaAeronave(aeronave){
+  if(!aeronave) return ""
+  const modo = normalizarModoSalida(aeronave.modoSalida)
+  return esModoSalidaValido(modo) ? modo : ""
+}
+
+function configurarModoSalida(aeronave, modoNuevo){
+  if(!aeronave) return
+  const modo = normalizarModoSalida(modoNuevo)
+  aeronave.modoSalida = esModoSalidaValido(modo) ? modo : null
+}
+
+function tieneImmediateDepartureActiva(aeronave){
+  if(!aeronave) return false
+  const estado = obtenerEstadoPanelLateralAeronave(aeronave)
+  return Boolean(estado && estado.immediateDepartureActivo)
+}
+
 function actualizarEstadoBotonTakeoff(aeronave = null){
+  const btnImmediate = document.getElementById("depBtnImmediate")
+  const btnVFR = document.getElementById("depBtnVFR")
   const btnSID = document.getElementById("depBtnSID")
   const btnTakeoff = document.getElementById("depBtnTakeoff")
+  const vfrOpciones = document.getElementById("departureVfrOpciones")
+  const vfrBotones = Array.from(document.querySelectorAll("#departureVfrOpciones .vfr-option-btn"))
   const sidOpciones = document.getElementById("departureSidOpciones")
   const sidBotones = Array.from(document.querySelectorAll("#departureSidOpciones .sid-option-btn"))
-  if(!btnSID && !btnTakeoff) return
+  if(!btnImmediate && !btnVFR && !btnSID && !btnTakeoff) return
 
   const a = aeronave || obtenerAeronaveVinculadaPanel() || aeronaveSeleccionada
   const altitudActual = Number(a && a.altitud)
@@ -12881,28 +13297,78 @@ function actualizarEstadoBotonTakeoff(aeronave = null){
     Number.isFinite(altitudActual) &&
     Math.round(altitudActual) === 0
 
+  const immediateActivo = Boolean(a && tieneImmediateDepartureActiva(a))
+  const alineado =
+    Boolean(a) &&
+    (estaAlineadoConPista(a) || puedeDespegarDesdeLIB(a))
+  const habilitarGrupo = enSuelo && (alineado || immediateActivo)
+
+  if(a && !esModoSalidaValido(a.modoSalida) && esSidSalidaValida(a.sid)){
+    a.modoSalida = "IFR"
+  }
+  const modoSalida = obtenerModoSalidaAeronave(a)
+  const vfrActivo = modoSalida === "VFR"
+  const ifrActivo = modoSalida === "IFR"
+
+  const vfrSalida = obtenerVfrSalidaAeronave(a)
+  const vfrSalidaValida = Boolean(vfrSalida)
+  const vfrObjetivoValido = Boolean(obtenerObjetivoVfrAeronave(a))
   const sidValida = Boolean(a && esSidSalidaValida(a.sid))
+  const vfrListo = !vfrActivo || (vfrSalidaValida && vfrObjetivoValido)
   const takeoffHabilitado =
-    enSuelo &&
-    sidValida &&
+    habilitarGrupo &&
+    (vfrActivo || ifrActivo) &&
+    (!ifrActivo || sidValida) &&
+    vfrListo &&
     a &&
     a.estado !== "AIRBORNE" &&
     a.estado !== "TAXI"
 
-  if(btnSID){
-    btnSID.disabled = !enSuelo
-    btnSID.style.opacity = enSuelo ? "1" : "0.45"
-    btnSID.style.cursor = enSuelo ? "pointer" : "not-allowed"
-    btnSID.title = enSuelo ? "" : "SID available only at 0 ft"
+  if(btnImmediate){
+    const immediateDisponible = enSuelo && a && a.estado !== "AIRBORNE"
+    btnImmediate.disabled = !immediateDisponible
+    btnImmediate.style.opacity = immediateDisponible ? "1" : "0.45"
+    btnImmediate.style.cursor = immediateDisponible ? "pointer" : "not-allowed"
+    btnImmediate.title = immediateDisponible ? "" : "IMMEDIATE DEPARTURE available only at 0 ft"
+    btnImmediate.classList.toggle("activo", immediateActivo)
   }
 
-  sidBotones.forEach(btn => {
-    btn.disabled = !enSuelo
-    btn.style.opacity = enSuelo ? "1" : "0.45"
-    btn.style.cursor = enSuelo ? "pointer" : "not-allowed"
+  if(btnVFR){
+    btnVFR.disabled = !habilitarGrupo
+    btnVFR.style.opacity = habilitarGrupo ? "1" : "0.45"
+    btnVFR.style.cursor = habilitarGrupo ? "pointer" : "not-allowed"
+    btnVFR.title = habilitarGrupo ? "" : "Alinea a la pista o activa IMMEDIATE DEPARTURE"
+    btnVFR.classList.toggle("activo", vfrActivo)
+  }
+
+  if(btnSID){
+    btnSID.disabled = !habilitarGrupo
+    btnSID.style.opacity = habilitarGrupo ? "1" : "0.45"
+    btnSID.style.cursor = habilitarGrupo ? "pointer" : "not-allowed"
+    btnSID.title = habilitarGrupo ? "" : "Alinea a la pista o activa IMMEDIATE DEPARTURE"
+    btnSID.classList.toggle("activo", ifrActivo)
+  }
+
+  if(vfrOpciones){
+    vfrOpciones.classList.toggle("activo", habilitarGrupo && vfrActivo)
+  }
+  vfrBotones.forEach(btn => {
+    const habilitarVfr = habilitarGrupo && vfrActivo
+    btn.disabled = !habilitarVfr
+    btn.style.opacity = habilitarVfr ? "1" : "0.45"
+    btn.style.cursor = habilitarVfr ? "pointer" : "not-allowed"
+    const valor = normalizarVfrSalida(btn.dataset.vfr)
+    btn.classList.toggle("activo", vfrSalidaValida && valor === vfrSalida)
   })
 
-  if(!enSuelo && sidOpciones && sidOpciones.classList.contains("activo")){
+  sidBotones.forEach(btn => {
+    const habilitarSid = habilitarGrupo && ifrActivo
+    btn.disabled = !habilitarSid
+    btn.style.opacity = habilitarSid ? "1" : "0.45"
+    btn.style.cursor = habilitarSid ? "pointer" : "not-allowed"
+  })
+
+  if((!habilitarGrupo || !ifrActivo) && sidOpciones && sidOpciones.classList.contains("activo")){
     ocultarOpcionesSID()
   }
 
@@ -12913,7 +13379,15 @@ function actualizarEstadoBotonTakeoff(aeronave = null){
 
     if(!enSuelo){
       btnTakeoff.title = "TAKE OFF available only at 0 ft"
-    } else if(!sidValida){
+    } else if(!habilitarGrupo){
+      btnTakeoff.title = "Alinea a la pista o activa IMMEDIATE DEPARTURE"
+    } else if(!vfrActivo && !ifrActivo){
+      btnTakeoff.title = "Selecciona VFR o IFR"
+    } else if(vfrActivo && !vfrSalidaValida){
+      btnTakeoff.title = "Selecciona MTASA o LS"
+    } else if(vfrActivo && !vfrObjetivoValido){
+      btnTakeoff.title = "Selecciona punto en el mapa"
+    } else if(ifrActivo && !sidValida){
       btnTakeoff.title = "Selecciona KOPRA1 o TELOT1"
     } else if(a && a.estado === "TAXI"){
       btnTakeoff.title = "No disponible durante TAXI"
@@ -12939,6 +13413,7 @@ function configurarSIDDesdeDeparture(sidNombre){
   }
 
   cancelarEstadoAutoEnSuelo(a)
+  configurarModoSalida(a, "IFR")
 
   const sidNormalizada = normalizarSidSalida(sidNombre)
   a.sid = esSidSalidaValida(sidNormalizada) ? sidNormalizada : null
@@ -12949,10 +13424,130 @@ function configurarSIDDesdeDeparture(sidNombre){
   actualizarEstadoBotonTakeoff(a)
 }
 (function inicializarBotonesDeparture(){
+  const btnImmediate = document.getElementById("depBtnImmediate")
+  const btnVFR = document.getElementById("depBtnVFR")
   const btnSID = document.getElementById("depBtnSID")
   const btnTakeoff = document.getElementById("depBtnTakeoff")
+  const vfrOpciones = document.getElementById("departureVfrOpciones")
+  const vfrBotones = Array.from(document.querySelectorAll("#departureVfrOpciones .vfr-option-btn"))
   const sidOpciones = document.getElementById("departureSidOpciones")
   const sidBotones = Array.from(document.querySelectorAll("#departureSidOpciones .sid-option-btn"))
+
+  if(btnImmediate){
+    btnImmediate.addEventListener("click", (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+
+      const a = obtenerAeronaveObjetivoControles()
+      if(!a){
+        alert("Select an aircraft first")
+        return
+      }
+
+      const altitudActual = Number(a.altitud)
+      if(!Number.isFinite(altitudActual) || Math.round(altitudActual) !== 0){
+        alert("IMMEDIATE DEPARTURE available only at 0 ft")
+        actualizarEstadoBotonTakeoff(a)
+        return
+      }
+
+      const estado = obtenerEstadoPanelLateralAeronave(a)
+      if(estado){
+        estado.panelAbierto = true
+        estado.immediateDepartureActivo = !estado.immediateDepartureActivo
+      }
+
+      actualizarEstadoBotonTakeoff(a)
+    })
+  }
+
+  if(btnVFR){
+    btnVFR.addEventListener("click", (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+
+      const a = obtenerAeronaveObjetivoControles()
+      if(!a){
+        alert("Select an aircraft first")
+        return
+      }
+
+      const altitudActual = Number(a.altitud)
+      const enSuelo =
+        Number.isFinite(altitudActual) && Math.round(altitudActual) === 0
+      if(!enSuelo){
+        alert("VFR available only at 0 ft")
+        actualizarEstadoBotonTakeoff(a)
+        return
+      }
+
+      cancelarEstadoAutoEnSuelo(a)
+      configurarModoSalida(a, "VFR")
+      a.sid = null
+      if(aeronaveVfrPendienteId && aeronaveVfrPendienteId !== a.id){
+        aeronaveVfrPendienteId = null
+      }
+
+      const estado = obtenerEstadoPanelLateralAeronave(a)
+      if(estado){
+        estado.panelAbierto = true
+        estado.sidOpcionesAbiertas = false
+      }
+
+      ocultarOpcionesSID()
+      actualizarDepartureInfo(a)
+      actualizarPanelInfo(a)
+      actualizarPanelInfoAeronave(a)
+      actualizarEstadoBotonTakeoff(a)
+    })
+  }
+
+  vfrBotones.forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+
+      const a = obtenerAeronaveObjetivoControles()
+      if(!a){
+        alert("Select an aircraft first")
+        return
+      }
+
+      const altitudActual = Number(a.altitud)
+      const enSuelo =
+        Number.isFinite(altitudActual) && Math.round(altitudActual) === 0
+      if(!enSuelo){
+        alert("VFR available only at 0 ft")
+        actualizarEstadoBotonTakeoff(a)
+        return
+      }
+
+      cancelarEstadoAutoEnSuelo(a)
+      configurarModoSalida(a, "VFR")
+      a.sid = null
+
+      const vfrModo = normalizarVfrSalida(btn.dataset.vfr)
+      a.vfrSalida = esVfrSalidaValida(vfrModo) ? vfrModo : null
+      a.vfrFase = null
+      a.vfrObjetivo = null
+      limpiarMarcaPilotageAeronave(a)
+      aeronaveVfrPendienteId = a.id
+
+      const estado = obtenerEstadoPanelLateralAeronave(a)
+      if(estado){
+        estado.panelAbierto = true
+        estado.sidOpcionesAbiertas = false
+      }
+
+      ocultarOpcionesSID()
+      actualizarDepartureInfo(a)
+      actualizarPanelInfo(a)
+      actualizarPanelInfoAeronave(a)
+      actualizarEstadoBotonTakeoff(a)
+
+      alert("Selecciona un punto en el mapa para VFR")
+    })
+  })
 
   if(btnSID && sidOpciones){
     btnSID.addEventListener("click", (e) => {
@@ -12969,13 +13564,18 @@ function configurarSIDDesdeDeparture(sidNombre){
       const enSuelo =
         Number.isFinite(altitudActual) && Math.round(altitudActual) === 0
       if(!enSuelo){
-        alert("SID available only at 0 ft")
+        alert("IFR available only at 0 ft")
         ocultarOpcionesSID()
         actualizarEstadoBotonTakeoff(a)
         return
       }
 
       cancelarEstadoAutoEnSuelo(a)
+      configurarModoSalida(a, "IFR")
+      a.vfrFase = null
+      if(aeronaveVfrPendienteId === a.id){
+        aeronaveVfrPendienteId = null
+      }
 
       const sidActual = (a.sid || "").toUpperCase()
       sidBotones.forEach(b => {
@@ -12989,6 +13589,7 @@ function configurarSIDDesdeDeparture(sidNombre){
         estado.panelAbierto = true
         estado.sidOpcionesAbiertas = sidOpciones.classList.contains("activo")
       }
+      actualizarEstadoBotonTakeoff(a)
     })
   }
 
@@ -13011,6 +13612,7 @@ function configurarSIDDesdeDeparture(sidNombre){
           ? sidOpciones.classList.contains("activo")
           : false
       }
+      actualizarEstadoBotonTakeoff(aeronave)
     })
   })
 
@@ -13042,13 +13644,43 @@ function configurarSIDDesdeDeparture(sidNombre){
         return
       }
 
-      if(!esSidSalidaValida(a.sid)){
+      const modoSalida = obtenerModoSalidaAeronave(a)
+      if(!modoSalida){
+        alert("Selecciona VFR o IFR antes de TAKE OFF")
+        actualizarEstadoBotonTakeoff(a)
+        return
+      }
+
+      if(modoSalida === "VFR"){
+        const vfrSalida = obtenerVfrSalidaAeronave(a)
+        if(!vfrSalida){
+          alert("Selecciona MTASA o LS antes de TAKE OFF")
+          actualizarEstadoBotonTakeoff(a)
+          return
+        }
+        const objetivoVfr = obtenerObjetivoVfrAeronave(a)
+        if(!objetivoVfr){
+          alert("Selecciona punto en el mapa antes de TAKE OFF")
+          actualizarEstadoBotonTakeoff(a)
+          return
+        }
+      }
+
+      if(modoSalida === "IFR" && !esSidSalidaValida(a.sid)){
         alert("Selecciona KOPRA1 o TELOT1 antes de TAKE OFF")
         actualizarEstadoBotonTakeoff(a)
         return
       }
 
-      despegar()
+      const immediateActivo = tieneImmediateDepartureActiva(a)
+      if(immediateActivo && !estaAlineadoConPista(a)){
+        a.immediateTakeoffPendiente = true
+        activarRodajeUmbral22DesdeHoldShort(a, true)
+        actualizarEstadoBotonTakeoff(a)
+        return
+      }
+
+      despegar(a)
       actualizarEstadoBotonTakeoff(a)
     })
   }
@@ -13648,11 +14280,11 @@ if(chkSidTelot1){
 
 
 
-function girarSuavemente(a, headingActual, headingObjetivo){
+function girarSuavemente(a, headingActual, headingObjetivo, deltaTiempo = 0.05){
 
   const turnRate = 6        // grados por segundo
-  const deltaTiempo = 0.05  // 50 ms
-  const maxCambio = turnRate * deltaTiempo
+  const dt = Number.isFinite(deltaTiempo) && deltaTiempo > 0 ? deltaTiempo : 0.05
+  const maxCambio = turnRate * dt
 
   let diferencia = headingObjetivo - headingActual
 
@@ -13777,61 +14409,157 @@ map.on("zoom", () => {
   aplicarPatronDiagonalAzulLobera(zonaPlantaLaLobera)
 });
 
-function interpolarRemoto(avion, lat, lng, anguloServidor){
+const REMOTO_INTERP_DELAY_MS = 120
+const REMOTO_INTERP_MAX_EXTRAP_MS = 240
+const REMOTO_INTERP_SNAP_M = 1200
+const REMOTO_INTERP_GAP_MS = 1500
+const REMOTO_INTERP_MAX_BUFFER = 20
+let animacionInterpolacionRemota = null
 
-  if(avion && avion.temporizadorEliminarBoom){
+function iniciarInterpolacionRemota(){
+  if(animacionInterpolacionRemota) return
+
+  const tick = () => {
+    const ahora = Date.now()
+    let hayTrabajo = false
+
+    aeronaves.forEach(a => {
+      if(!a || !a.remoto || !a.snapshotsRemoto || a.snapshotsRemoto.length === 0){
+        return
+      }
+      hayTrabajo = true
+      aplicarInterpolacionRemota(a, ahora)
+    })
+
+    if(!hayTrabajo){
+      animacionInterpolacionRemota = null
+      return
+    }
+
+    animacionInterpolacionRemota = requestAnimationFrame(tick)
+  }
+
+  animacionInterpolacionRemota = requestAnimationFrame(tick)
+}
+
+function registrarSnapshotRemoto(avion, lat, lng, anguloServidor, syncTs){
+  if(!avion || !avion.marker) return
+
+  const latNum = Number(lat)
+  const lngNum = Number(lng)
+  if(!Number.isFinite(latNum) || !Number.isFinite(lngNum)) return
+
+  const t = Number.isFinite(Number(syncTs)) ? Number(syncTs) : Date.now()
+  const anguloNum = Number.isFinite(Number(anguloServidor))
+    ? Number(anguloServidor)
+    : (Number.isFinite(Number(avion.angulo)) ? Number(avion.angulo) : 0)
+  const velocidadNum = Number.isFinite(Number(avion.velocidad))
+    ? Number(avion.velocidad)
+    : 0
+  const estado = avion.estado
+
+  if(!avion.snapshotsRemoto){
+    avion.snapshotsRemoto = []
+  }
+  const lista = avion.snapshotsRemoto
+  const ultimo = lista.length ? lista[lista.length - 1] : null
+
+  if(ultimo && t < ultimo.t){
+    return
+  }
+
+  if(ultimo){
+    const saltoTiempo = (t - ultimo.t) > REMOTO_INTERP_GAP_MS
+    const dist = calcularDistancia(ultimo.lat, ultimo.lng, latNum, lngNum)
+    const saltoDistancia = Number.isFinite(dist) && dist > REMOTO_INTERP_SNAP_M
+    if(saltoTiempo || saltoDistancia){
+      lista.length = 0
+      avion.marker.setLatLng([latNum, lngNum])
+      avion.lat = latNum
+      avion.lng = lngNum
+      avion.angulo = anguloNum
+      actualizarRotacion(avion)
+    }
+  }
+
+  lista.push({
+    t,
+    lat: latNum,
+    lng: lngNum,
+    angulo: anguloNum,
+    velocidad: velocidadNum,
+    estado
+  })
+
+  if(lista.length > REMOTO_INTERP_MAX_BUFFER){
+    lista.splice(0, lista.length - REMOTO_INTERP_MAX_BUFFER)
+  }
+
+  iniciarInterpolacionRemota()
+}
+
+function aplicarInterpolacionRemota(avion, ahoraMs){
+  if(!avion || !avion.marker || !avion.snapshotsRemoto) return
+
+  const lista = avion.snapshotsRemoto
+  if(lista.length === 0) return
+
+  const tiempoRender = ahoraMs - REMOTO_INTERP_DELAY_MS
+
+  while(lista.length >= 2 && lista[1].t <= tiempoRender){
+    lista.shift()
+  }
+
+  const a = lista[0]
+  const b = lista.length >= 2 ? lista[1] : null
+  let latObjetivo = a.lat
+  let lngObjetivo = a.lng
+  let anguloObjetivo = a.angulo
+
+  if(b && tiempoRender >= a.t){
+    const duracion = Math.max(1, b.t - a.t)
+    const alpha = Math.max(0, Math.min(1, (tiempoRender - a.t) / duracion))
+    latObjetivo = a.lat + (b.lat - a.lat) * alpha
+    lngObjetivo = a.lng + (b.lng - a.lng) * alpha
+
+    const delta = ((b.angulo - a.angulo + 540) % 360) - 180
+    const estadoConCapturaRapida =
+      b.estado === "CIRCUIT" ||
+      b.estado === "INTERCEPTING" ||
+      b.estado === "INTERCEPTING ARC" ||
+      b.estado === "INTERCEPTING LEG"
+    if(estadoConCapturaRapida && Math.abs(delta) > 120){
+      anguloObjetivo = b.angulo
+    } else {
+      anguloObjetivo = (a.angulo + delta * alpha + 360) % 360
+    }
+  } else if(!b && tiempoRender > a.t){
+    const deltaMs = Math.min(REMOTO_INTERP_MAX_EXTRAP_MS, tiempoRender - a.t)
+    const distancia = Math.max(0, a.velocidad) * (deltaMs / 1000)
+    const punto = calcularPuntoDesplazado(a.lat, a.lng, distancia, a.angulo)
+    if(Array.isArray(punto) && punto.length === 2){
+      latObjetivo = punto[0]
+      lngObjetivo = punto[1]
+    }
+    anguloObjetivo = a.angulo
+  }
+
+  avion.marker.setLatLng([latObjetivo, lngObjetivo])
+  avion.lat = latObjetivo
+  avion.lng = lngObjetivo
+  avion.angulo = anguloObjetivo
+  actualizarRotacion(avion)
+}
+
+function interpolarRemoto(avion, lat, lng, anguloServidor, syncTs){
+  if(!avion || !avion.remoto) return
+
+  if(avion.temporizadorEliminarBoom){
     fijarPosicionBoomAeronave(avion)
     return
   }
 
-  // ðŸ”¥ Si estÃ¡ en manual â†’ obedecer exacto
-  if(avion.estado === "MANUAL" || avion.estado === "AUTO"){
-    avion.marker.setLatLng([lat, lng])
-    avion.angulo = anguloServidor
-    actualizarRotacion(avion)
-    return
-  }
-
-  // ðŸ”¥ Si no tiene marker aÃºn, colocarlo directo
-  if(!avion.marker){
-    return
-  }
-
-  const actual = avion.marker.getLatLng()
-  const factor = 0.25
-
-  const nuevaLat =
-    actual.lat + (lat - actual.lat) * factor
-
-  const nuevaLng =
-    actual.lng + (lng - actual.lng) * factor
-
-  avion.marker.setLatLng([nuevaLat, nuevaLng])
-
-  // Inicializar Ã¡ngulo
-  if(avion.angulo === undefined || avion.angulo === null){
-    avion.angulo = anguloServidor
-  }
-
-  const diff =
-    (anguloServidor - avion.angulo + 540) % 360 - 180
-
-  // Solo snap fuerte en patrÃ³n/interceptaciÃ³n
-  const estadoConCapturaRapida =
-    avion.estado === "CIRCUIT" ||
-    avion.estado === "INTERCEPTING" ||
-    avion.estado === "INTERCEPTING ARC" ||
-    avion.estado === "INTERCEPTING LEG"
-
-  if(estadoConCapturaRapida && Math.abs(diff) > 120){
-    avion.angulo = anguloServidor
-  }
-
-  const factorGiro = 0.3
-  avion.angulo += diff * factorGiro
-  avion.angulo = (avion.angulo + 360) % 360
-
-  actualizarRotacion(avion)
+  registrarSnapshotRemoto(avion, lat, lng, anguloServidor, syncTs)
 }
 function moverPorPuntos(a){
 
@@ -13986,6 +14714,16 @@ function finalizarTaxi(a){
     a.angulo = RUMBO_RWY22
     actualizarRotacion(a)
   }
+
+  if(
+    a.immediateTakeoffPendiente &&
+    tieneImmediateDepartureActiva(a) &&
+    estaAlineadoConPista(a)
+  ){
+    a.immediateTakeoffPendiente = false
+    despegar(a)
+    actualizarEstadoBotonTakeoff(a)
+  }
   a.autoAlineacionRWY22 = false
   a.holdShortTaxiATriggered = false
 
@@ -14042,7 +14780,8 @@ function sincronizarMovimiento(a, lat, lng){
   angulo: a.angulo,
   estado: a.estado,
   velocidad: Number.isFinite(a.velocidad) ? a.velocidad : 0,
-  velocidadObjetivo: Number.isFinite(a.velocidadObjetivo) ? a.velocidadObjetivo : 0
+  velocidadObjetivo: Number.isFinite(a.velocidadObjetivo) ? a.velocidadObjetivo : 0,
+  syncTs: Date.now()
 })
 
 }

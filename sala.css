@@ -179,12 +179,6 @@ html, body{
   transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
-#panelInfoAeronave .panel-info-toggle:hover{
-  background: #1f2937;
-  border-color: rgba(56, 189, 248, 0.6);
-  color: #e2e8f0;
-}
-
 #panelInfoAeronave .panel-info-toggle[aria-pressed="true"]{
   background: linear-gradient(145deg, #0ea5e9, #38bdf8);
   border-color: rgba(56, 189, 248, 0.8);
@@ -2996,11 +2990,39 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
   gap:6px;
 }
 
+.departure-row + .departure-row{
+  margin-top:6px;
+}
+
 .departure-row .departure-control-btn{
   flex:1;
   padding:6px 5px;
   font-size:9px;
   text-align:center;
+}
+
+.departure-mode-btn.activo{
+  background:linear-gradient(145deg,#0f766e,#14b8a6);
+  border-color:#2dd4bf;
+  color:#ecfeff;
+  box-shadow:0 0 10px rgba(45,212,191,0.45);
+}
+
+.departure-immediate-btn{
+  width:100%;
+  margin-top:6px;
+  font-size:8px;
+  letter-spacing:0.6px;
+  line-height:1.2;
+  text-align:center;
+  white-space:normal;
+}
+
+.departure-immediate-btn.activo{
+  background:linear-gradient(145deg,#92400e,#f59e0b);
+  border-color:#f59e0b;
+  color:#fff7ed;
+  box-shadow:0 0 10px rgba(245,158,11,0.45);
 }
 
 .departure-sid-opciones{
@@ -3013,7 +3035,22 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
   transition:all 0.25s ease;
 }
 
+.departure-vfr-opciones{
+  display:flex;
+  gap:6px;
+  margin-top:6px;
+  max-height:0;
+  overflow:hidden;
+  opacity:0;
+  transition:all 0.25s ease;
+}
+
 .departure-sid-opciones.activo{
+  max-height:64px;
+  opacity:1;
+}
+
+.departure-vfr-opciones.activo{
   max-height:64px;
   opacity:1;
 }

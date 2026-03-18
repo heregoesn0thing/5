@@ -6471,10 +6471,10 @@ if (ultimaAeronaveSeleccionada && avion.id === ultimaAeronaveSeleccionada.id){
 }
   actualizarEstadoBotonOrbit()
   actualizarEstadoBotonExtend()
-  const ownerLibre =
-    typeof avion.owner !== "string" || avion.owner.trim() === ""
   const forzarRemoto =
-    ownerLibre && !avion.remoto && !estaSimuladoLocalmente(avion)
+    !avion.remoto &&
+    !estaSimuladoLocalmente(avion) &&
+    esEstadoMovimientoServidor(avion.estado)
 
   interpolarRemoto(
     avion,
@@ -14430,6 +14430,19 @@ const REMOTO_INTERP_GAP_MS = 1500
 const REMOTO_INTERP_MAX_BUFFER = 20
 const REMOTO_INTERP_SYNC_SMOOTH = 0.12
 const REMOTO_INTERP_SYNC_JUMP_MS = 5000
+const ESTADOS_MOVIMIENTO_SERVIDOR = new Set([
+  "MANUAL",
+  "AUTO",
+  "CIRCUIT",
+  "ORBT",
+  "INTERCEPTING ARC",
+  "INTERCEPTING LEG",
+  "INTERCEPTING",
+  "CLEARED TO LAND",
+  "GO AROUND",
+  "LANDING",
+  "ROLLOUT"
+])
 let animacionInterpolacionRemota = null
 
 function iniciarInterpolacionRemota(){
@@ -14483,6 +14496,12 @@ function normalizarTiempoSnapshotRemoto(avion, syncTs){
   }
 
   return tsNum + avion.remotoSyncOffsetMs
+}
+
+function esEstadoMovimientoServidor(estado){
+  return ESTADOS_MOVIMIENTO_SERVIDOR.has(
+    typeof estado === "string" ? estado.trim() : ""
+  )
 }
 
 function registrarSnapshotRemoto(avion, lat, lng, anguloServidor, syncTs){

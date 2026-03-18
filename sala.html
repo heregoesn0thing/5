@@ -6492,9 +6492,16 @@ function actualizarPropietarioAeronaveLocal(avion, ownerRecibido){
       ? socket.id
       : ""
   const controlableLocal = ownerId === "" || (socketId !== "" && ownerId === socketId)
+  const eraRemoto = Boolean(avion.remoto)
 
   avion.owner = ownerId || null
   avion.remoto = !controlableLocal
+  if(avion.remoto !== eraRemoto){
+    if(Array.isArray(avion.snapshotsRemoto)){
+      avion.snapshotsRemoto.length = 0
+    }
+    avion.remotoSyncOffsetMs = null
+  }
   actualizarInteraccion(avion)
 }
 
@@ -14414,6 +14421,8 @@ const REMOTO_INTERP_MAX_EXTRAP_MS = 240
 const REMOTO_INTERP_SNAP_M = 1200
 const REMOTO_INTERP_GAP_MS = 1500
 const REMOTO_INTERP_MAX_BUFFER = 20
+const REMOTO_INTERP_SYNC_SMOOTH = 0.12
+const REMOTO_INTERP_SYNC_JUMP_MS = 5000
 let animacionInterpolacionRemota = null
 
 function iniciarInterpolacionRemota(){
@@ -14442,6 +14451,28 @@ function iniciarInterpolacionRemota(){
   animacionInterpolacionRemota = requestAnimationFrame(tick)
 }
 
+function normalizarTiempoSnapshotRemoto(avion, syncTs){
+  const ahora = Date.now()
+  const tsNum = Number(syncTs)
+  if(!Number.isFinite(tsNum)) return ahora
+
+  if(!Number.isFinite(avion.remotoSyncOffsetMs)){
+    avion.remotoSyncOffsetMs = ahora - tsNum
+    return tsNum + avion.remotoSyncOffsetMs
+  }
+
+  const offsetActual = ahora - tsNum
+  if(Math.abs(offsetActual - avion.remotoSyncOffsetMs) > REMOTO_INTERP_SYNC_JUMP_MS){
+    avion.remotoSyncOffsetMs = offsetActual
+  } else {
+    avion.remotoSyncOffsetMs =
+      (avion.remotoSyncOffsetMs * (1 - REMOTO_INTERP_SYNC_SMOOTH)) +
+      (offsetActual * REMOTO_INTERP_SYNC_SMOOTH)
+  }
+
+  return tsNum + avion.remotoSyncOffsetMs
+}
+
 function registrarSnapshotRemoto(avion, lat, lng, anguloServidor, syncTs){
   if(!avion || !avion.marker) return
 
@@ -14449,7 +14480,7 @@ function registrarSnapshotRemoto(avion, lat, lng, anguloServidor, syncTs){
   const lngNum = Number(lng)
   if(!Number.isFinite(latNum) || !Number.isFinite(lngNum)) return
 
-  const t = Number.isFinite(Number(syncTs)) ? Number(syncTs) : Date.now()
+  const t = normalizarTiempoSnapshotRemoto(avion, syncTs)
   const anguloNum = Number.isFinite(Number(anguloServidor))
     ? Number(anguloServidor)
     : (Number.isFinite(Number(avion.angulo)) ? Number(avion.angulo) : 0)
@@ -14465,7 +14496,8 @@ function registrarSnapshotRemoto(avion, lat, lng, anguloServidor, syncTs){
   const ultimo = lista.length ? lista[lista.length - 1] : null
 
   if(ultimo && t < ultimo.t){
-    return
+    lista.length = 0
+    avion.remotoSyncOffsetMs = null
   }
 
   if(ultimo){

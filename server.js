@@ -120,6 +120,53 @@ const GO_AROUND_FINAL_MAX_DIST_M = 1800
 const INTERCEPT_LEG_LOOKAHEAD_MIN_M = 90
 const SHORT_CIRCUITO_FACTOR = 0.5
 const SHORT_CIRCUITO_PASO_M = 0.5 * 1852
+const ESTADOS_VELOCIDAD_MPS = new Set([
+  "MANUAL",
+  "AUTO",
+  "PILOTAGE",
+  "CIRCUIT",
+  "ORBT",
+  "INTERCEPTING ARC",
+  "INTERCEPTING LEG",
+  "INTERCEPTING",
+  "TNG_FINAL",
+  "TNG_ROLL",
+  "TNG_CLIMB",
+  "TNG_INTERCEPT",
+  "LANDING",
+  "ROLLOUT",
+  "GO AROUND",
+  "TAXI"
+])
+const ESTADOS_RUTA_SERVIDOR = new Set([
+  "INTERCEPTING ARC",
+  "INTERCEPTING LEG",
+  "CIRCUIT",
+  "ORBT",
+  "CLEARED TO LAND"
+])
+
+function estadoVelocidadEnMps(estado){
+  return ESTADOS_VELOCIDAD_MPS.has(estado)
+}
+
+function obtenerVelocidadMpsFallback(a){
+  if(!a) return 0
+
+  const velocidad = Number(a.velocidad)
+  if(Number.isFinite(velocidad) && velocidad > 0){
+    return estadoVelocidadEnMps(a.estado)
+      ? velocidad
+      : (velocidad * 0.514444)
+  }
+
+  const velocidadObjetivo = Number(a.velocidadObjetivo)
+  if(Number.isFinite(velocidadObjetivo) && velocidadObjetivo > 0){
+    return velocidadObjetivo * 0.514444
+  }
+
+  return 0
+}
 
 function normalizarSentidoOrbitTexto(valor) {
   if (typeof valor === "number" && Number.isFinite(valor)) {
@@ -502,10 +549,10 @@ function iniciarMotorSala(nombreSala){
 	if (a.estado !== "CLEARED TO LAND") {
 	  limpiarDescensoClearedToLandBase(a)
 	}
-// 🔥 PRIORIDAD ABSOLUTA LANDING
-	if (a.estado === "LANDING") {
-	  return
-}
+	// 🔥 PRIORIDAD ABSOLUTA LANDING
+		if (a.estado === "LANDING" && a.owner) {
+		  return
+	}
       if (procesarGoAroundEnMotor(a, intervaloMS, nombreSala)) {
         return
       }
@@ -552,7 +599,34 @@ function iniciarMotorSala(nombreSala){
   return
 }
 
-      if (!a.ruta || a.ruta.length < 2) return
+	      if (!a.owner && !ESTADOS_RUTA_SERVIDOR.has(a.estado)) {
+	        const velocidadMPS = obtenerVelocidadMpsFallback(a)
+	        if (velocidadMPS > 0) {
+	          const distanciaTick = velocidadMPS * (intervaloMS / 1000)
+	          const nuevoPunto = puntoPlano(
+	            { lat: a.lat, lng: a.lng },
+	            a.angulo || 0,
+	            distanciaTick
+	          )
+	          a.lat = nuevoPunto.lat
+	          a.lng = nuevoPunto.lng
+	        }
+
+	        io.to(nombreSala).emit("actualizarAeronave", {
+	          id: a.id,
+	          lat: a.lat,
+	          lng: a.lng,
+	          altitud: a.altitud,
+	          angulo: a.angulo,
+	          velocidad: a.velocidad,
+	          velocidadObjetivo: a.velocidadObjetivo,
+	          estado: a.estado,
+	          orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido)
+	        })
+	        return
+	      }
+
+	      if (!a.ruta || a.ruta.length < 2) return
 
       const velocidadMPS = obtenerVelocidadMPSParaRuta(a)
       const distanciaTick = velocidadMPS * (intervaloMS/1000)

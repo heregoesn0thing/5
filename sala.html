@@ -6471,12 +6471,18 @@ if (ultimaAeronaveSeleccionada && avion.id === ultimaAeronaveSeleccionada.id){
 }
   actualizarEstadoBotonOrbit()
   actualizarEstadoBotonExtend()
+  const ownerLibre =
+    typeof avion.owner !== "string" || avion.owner.trim() === ""
+  const forzarRemoto =
+    ownerLibre && !avion.remoto && !estaSimuladoLocalmente(avion)
+
   interpolarRemoto(
     avion,
     data.lat,
     data.lng,
     data.angulo,
-    data.syncTs
+    data.syncTs,
+    forzarRemoto
   )
 })
 
@@ -6496,6 +6502,7 @@ function actualizarPropietarioAeronaveLocal(avion, ownerRecibido){
 
   avion.owner = ownerId || null
   avion.remoto = !controlableLocal
+  avion.interpRemotaForzada = false
   if(avion.remoto !== eraRemoto){
     if(Array.isArray(avion.snapshotsRemoto)){
       avion.snapshotsRemoto.length = 0
@@ -14433,7 +14440,12 @@ function iniciarInterpolacionRemota(){
     let hayTrabajo = false
 
     aeronaves.forEach(a => {
-      if(!a || !a.remoto || !a.snapshotsRemoto || a.snapshotsRemoto.length === 0){
+      if(
+        !a ||
+        (!a.remoto && !a.interpRemotaForzada) ||
+        !a.snapshotsRemoto ||
+        a.snapshotsRemoto.length === 0
+      ){
         return
       }
       hayTrabajo = true
@@ -14583,8 +14595,27 @@ function aplicarInterpolacionRemota(avion, ahoraMs){
   actualizarRotacion(avion)
 }
 
-function interpolarRemoto(avion, lat, lng, anguloServidor, syncTs){
-  if(!avion || !avion.remoto) return
+function estaSimuladoLocalmente(avion){
+  return Boolean(
+    avion &&
+    (
+      avion.motorTaxi ||
+      avion.intervaloVuelo ||
+      avion.intervaloMovimiento ||
+      avion.intervaloTouchAndGoClimb ||
+      avion.intervaloManual ||
+      avion.intervaloCircuito
+    )
+  )
+}
+
+function interpolarRemoto(avion, lat, lng, anguloServidor, syncTs, forzar = false){
+  if(!avion) return
+  if(!avion.remoto && !forzar){
+    avion.interpRemotaForzada = false
+    return
+  }
+  avion.interpRemotaForzada = Boolean(forzar)
 
   if(avion.temporizadorEliminarBoom){
     fijarPosicionBoomAeronave(avion)

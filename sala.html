@@ -6486,6 +6486,21 @@ if (ultimaAeronaveSeleccionada && avion.id === ultimaAeronaveSeleccionada.id){
   )
 })
 
+socket.on("movimientoCompletado", ({ id, token } = {}) => {
+  if(!token) return
+  const entry = movimientosServidorPendientes.get(token)
+  if(!entry) return
+
+  movimientosServidorPendientes.delete(token)
+  if(movimientosServidorPorAeronave.get(id) === token){
+    movimientosServidorPorAeronave.delete(id)
+  }
+
+  if(typeof entry.callback === "function"){
+    entry.callback()
+  }
+})
+
 function actualizarPropietarioAeronaveLocal(avion, ownerRecibido){
   if(!avion) return
 
@@ -10225,6 +10240,15 @@ function iniciarMonitoreoAterrizaje(a){
 }
 
 function moverAeronaveAlineadaEjeRwy22(a, destino, callback, opciones = {}){
+  if(
+    MOVIMIENTO_AUTORITATIVO_SERVIDOR &&
+    socket &&
+    socket.connected
+  ){
+    moverAeronaveHacia(a, destino, callback, opciones)
+    return
+  }
+
   if(!a || !a.marker || !Array.isArray(destino) || destino.length < 2) return
 
   const altitudInicial = Number.isFinite(Number(opciones.altitudInicial))
@@ -10599,6 +10623,7 @@ function sincronizarEstadoAeronaveLocal(a){
   const anguloActual = Number(a.angulo)
   const velocidadActual = Number(a.velocidad)
   const velocidadObjetivoActual = Number(a.velocidadObjetivo)
+  const altitudObjetivoActual = Number(a.altitudObjetivo)
 
   socket.emit("actualizarAeronave", {
     id: a.id,
@@ -10609,10 +10634,44 @@ function sincronizarEstadoAeronaveLocal(a){
     estado: a.estado,
     velocidad: Number.isFinite(velocidadActual) ? velocidadActual : 0,
     velocidadObjetivo: Number.isFinite(velocidadObjetivoActual) ? velocidadObjetivoActual : 0,
+    altitudObjetivo: Number.isFinite(altitudObjetivoActual) ? altitudObjetivoActual : null,
     syncTs: Date.now()
   })
 }
 function moverAeronaveHacia(a, destino, callback, opciones = {}){
+
+  if(
+    MOVIMIENTO_AUTORITATIVO_SERVIDOR &&
+    socket &&
+    socket.connected &&
+    a
+  ){
+    if(a.intervaloMovimiento){
+      clearInterval(a.intervaloMovimiento)
+      a.intervaloMovimiento = null
+    }
+
+    const destinoNormalizado = Array.isArray(destino)
+      ? { lat: Number(destino[0]), lng: Number(destino[1]) }
+      : destino
+    if(
+      !destinoNormalizado ||
+      !Number.isFinite(destinoNormalizado.lat) ||
+      !Number.isFinite(destinoNormalizado.lng)
+    ){
+      return
+    }
+
+    const token = `${a.id || "mov"}-${Date.now()}-${secuenciaMovimientoServidor++}`
+    registrarMovimientoServidor(a, token, callback)
+    socket.emit("iniciarMovimiento", {
+      id: a.id,
+      destino: destinoNormalizado,
+      opciones,
+      token
+    })
+    return
+  }
 
   const velocidadPorDefecto = 12
   let ultimoTiempo = performance.now()
@@ -10913,6 +10972,28 @@ function seguirRutaRollout(a, ruta){
         .filter(p => p && Number.isFinite(p.lat) && Number.isFinite(p.lng))
     : []
 
+  if(MOVIMIENTO_AUTORITATIVO_SERVIDOR && socket && socket.connected){
+    if(puntosNormalizados.length === 0){
+      finalizarTaxi(a)
+      return
+    }
+    let indice = 0
+    const avanzar = () => {
+      if(indice >= puntosNormalizados.length){
+        finalizarTaxi(a)
+        return
+      }
+      const destino = puntosNormalizados[indice]
+      indice += 1
+      moverAeronaveHacia(a, [destino.lat, destino.lng], avanzar, {
+        velocidadObjetivoFinalKt: VELOCIDAD_ROLLOUT_FINAL_KT,
+        aplicarAceleracionProgresiva: false
+      })
+    }
+    avanzar()
+    return
+  }
+
   if(a.motorTaxi){
     clearInterval(a.motorTaxi)
     a.motorTaxi = null
@@ -11150,6 +11231,39 @@ function iniciarAscensoTouchAndGo(a){
   const latSalida = Number(Array.isArray(puntoSalida) ? puntoSalida[0] : NaN)
   const lngSalida = Number(Array.isArray(puntoSalida) ? puntoSalida[1] : NaN)
   const salidaValida = Number.isFinite(latSalida) && Number.isFinite(lngSalida)
+  const posicionActual = a.marker.getLatLng()
+  const destinoFallback = Array.isArray(puntoSalida)
+    ? puntoSalida
+    : (
+        posicionActual
+          ? calcularPuntoDesplazado(
+              posicionActual.lat,
+              posicionActual.lng,
+              DISTANCIA_GIRO_TOUCH_AND_GO_SCO_VOR_M,
+              RUMBO_RWY22
+            )
+          : null
+      )
+  if(MOVIMIENTO_AUTORITATIVO_SERVIDOR && socket && socket.connected){
+    const destino =
+      salidaValida
+        ? [latSalida, lngSalida]
+        : (Array.isArray(destinoFallback) ? destinoFallback : null)
+    if(destino){
+      moverAeronaveHacia(a, destino, () => {
+        iniciarInterceptacionMuelleTasaTouchAndGo(a, altitudObjetivo)
+      }, {
+        virajeRealista: true,
+        bancoMaxGrados: PILOTAGE_REALISTIC_BANK_DEG,
+        tasaVirajeMinDegSeg: PILOTAGE_REALISTIC_TURN_RATE_MIN_DEG_PER_SEC,
+        tasaVirajeMaxDegSeg: PILOTAGE_REALISTIC_TURN_RATE_MAX_DEG_PER_SEC,
+        rumboFijo: RUMBO_RWY22,
+        altitudObjetivo: altitudObjetivo,
+        altitudInicial: altitudInicial
+      })
+      return
+    }
+  }
   let ultimoTiempo = performance.now()
 
   a.intervaloTouchAndGoClimb = setInterval(() => {
@@ -12978,6 +13092,12 @@ function despegar(aeronaveOverride = null){
     }
     return TAKEOFF_PROFILE_A32X.FL240_FT
   })()
+  const altitudObjetivoActual = Number(a.altitudObjetivo)
+  if(!Number.isFinite(altitudObjetivoActual) || altitudObjetivoActual <= 0){
+    a.altitudObjetivo = perfilA32XActivo
+      ? nivelCruceroA32XFt
+      : (ALTITUD_CIRCUITO_FT * 4)
+  }
 
   if(a.sid === "KOPRA1"){
     a.sidFase = "KOPRA1_RUNWAY"
@@ -13010,6 +13130,11 @@ function despegar(aeronaveOverride = null){
 
   if(a.intervaloVuelo){
     clearInterval(a.intervaloVuelo)
+  }
+
+  if(MOVIMIENTO_AUTORITATIVO_SERVIDOR && socket && socket.connected){
+    sincronizarEstadoAeronaveLocal(a)
+    return
   }
 
   let ultimoTickVuelo = performance.now()
@@ -13953,6 +14078,9 @@ function sincronizarRutaAirborne(a){
     id: a.id,
     ruta
   })
+  if(MOVIMIENTO_AUTORITATIVO_SERVIDOR){
+    sincronizarEstadoAeronaveLocal(a)
+  }
 }
 
 function dibujarRutaSidKopra1(){
@@ -14512,6 +14640,7 @@ const ESTADOS_MOVIMIENTO_SERVIDOR = new Set([
   "AIRBORNE",
   "MANUAL",
   "AUTO",
+  "PILOTAGE",
   "CIRCUIT",
   "ORBT",
   "INTERCEPTING ARC",
@@ -14520,8 +14649,18 @@ const ESTADOS_MOVIMIENTO_SERVIDOR = new Set([
   "CLEARED TO LAND",
   "GO AROUND",
   "LANDING",
-  "ROLLOUT"
+  "ROLLOUT",
+  "TAXI",
+  "TNG_FINAL",
+  "TNG_ROLL",
+  "TNG_CLIMB",
+  "TNG_INTERCEPT",
+  "REJOINING"
 ])
+const MOVIMIENTO_AUTORITATIVO_SERVIDOR = true
+const movimientosServidorPendientes = new Map()
+const movimientosServidorPorAeronave = new Map()
+let secuenciaMovimientoServidor = 1
 let animacionInterpolacionRemota = null
 
 function iniciarInterpolacionRemota(){
@@ -14581,6 +14720,20 @@ function esEstadoMovimientoServidor(estado){
   return ESTADOS_MOVIMIENTO_SERVIDOR.has(
     typeof estado === "string" ? estado.trim() : ""
   )
+}
+
+function registrarMovimientoServidor(a, token, callback){
+  if(!a || !token) return
+
+  const previo = movimientosServidorPorAeronave.get(a.id)
+  if(previo){
+    movimientosServidorPendientes.delete(previo)
+  }
+
+  movimientosServidorPorAeronave.set(a.id, token)
+  if(typeof callback === "function"){
+    movimientosServidorPendientes.set(token, { id: a.id, callback })
+  }
 }
 
 function registrarSnapshotRemoto(avion, lat, lng, anguloServidor, syncTs){
@@ -14694,6 +14847,12 @@ function aplicarInterpolacionRemota(avion, ahoraMs){
 }
 
 function estaSimuladoLocalmente(avion){
+  if(
+    MOVIMIENTO_AUTORITATIVO_SERVIDOR &&
+    esEstadoMovimientoServidor(avion ? avion.estado : "")
+  ){
+    return false
+  }
   return Boolean(
     avion &&
     (
@@ -14723,6 +14882,11 @@ function interpolarRemoto(avion, lat, lng, anguloServidor, syncTs, forzar = fals
   registrarSnapshotRemoto(avion, lat, lng, anguloServidor, syncTs)
 }
 function moverPorPuntos(a){
+
+  if(MOVIMIENTO_AUTORITATIVO_SERVIDOR && socket && socket.connected){
+    seguirRutaTaxi(a, a.puntosRuta)
+    return
+  }
 
   if(a.motorTaxi){
     clearInterval(a.motorTaxi)
@@ -14924,6 +15088,7 @@ function finalizarTaxi(a){
 function sincronizarMovimiento(a, lat, lng){
 
   if(a.remoto) return
+  if(MOVIMIENTO_AUTORITATIVO_SERVIDOR && esEstadoMovimientoServidor(a.estado)) return
 
   const ahora = performance.now()
 

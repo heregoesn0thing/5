@@ -3371,6 +3371,7 @@ socket.on("disconnect", () => {
       io.to(nombre).emit("aeronavesLiberadas", {
         ids: aeronavesLiberadas
       })
+      iniciarMotorSala(nombre)
     }
 
     salas[nombre].jugadores =

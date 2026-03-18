@@ -5084,6 +5084,7 @@ const TIPOS = ["A320","A319","B737","C172","BE20","B190","AN32","EC45","B2","F22
 const ALTITUD_INICIAL_MIN_FT = 0
 const ALTITUD_INICIAL_MAX_FT = 45000
 const ALTITUD_INICIAL_STEP_FT = 100
+const ALTITUD_CIRCUITO_FT = 1500
 let altitudInicialCreacionFt = 0
 const SPEED_CONTROL_MODE_KT = "KT"
 const SPEED_CONTROL_MODE_MACH = "MACH"
@@ -5290,6 +5291,8 @@ const VFR_PUNTO_GIRO_LS = L.latLng(-13.762231281013394, -76.23511980876593)
 const VFR_UMBRAL_GIRO_M = 700
 const VFR_UMBRAL_OBJETIVO_M = 500
 const TOLERANCIA_EJE_PISTA_RWY22_M = 120
+const TOLERANCIA_EJE_DESPEGUE_RWY22_M = 25
+const MARGEN_LONGITUD_PISTA_RWY22_M = 60
 const VELOCIDAD_ROLLOUT_KT = 90
 const VELOCIDAD_ROLLOUT_FINAL_KT = 20
 const VELOCIDAD_TAXI_DEFAULT_KT = 10
@@ -6464,6 +6467,29 @@ socket.on("actualizarAeronave", data => {
 
   if (avion.estado === "MANUAL") {
     actualizarInteraccion(avion)
+  }
+
+  if(
+    !avion.remoto &&
+    avion.estado === "TAXI" &&
+    avion.immediateTakeoffPendiente
+  ){
+    const ultimaRuta = Array.isArray(avion.puntosRuta) && avion.puntosRuta.length
+      ? avion.puntosRuta[avion.puntosRuta.length - 1]
+      : null
+    const destinoFinal =
+      Array.isArray(ultimaRuta) && ultimaRuta.length >= 2
+        ? L.latLng(ultimaRuta[0], ultimaRuta[1])
+        : (ultimaRuta && Number.isFinite(ultimaRuta.lat) && Number.isFinite(ultimaRuta.lng)
+            ? L.latLng(ultimaRuta.lat, ultimaRuta.lng)
+            : null)
+    const posActual = avion.marker ? avion.marker.getLatLng() : null
+    if(destinoFinal && posActual){
+      const distancia = map.distance(posActual, destinoFinal)
+      if(Number.isFinite(distancia) && distancia <= 60){
+        finalizarTaxi(avion)
+      }
+    }
   }
 if (ultimaAeronaveSeleccionada && avion.id === ultimaAeronaveSeleccionada.id){
   ultimaAeronaveSeleccionada = avion
@@ -10901,14 +10927,7 @@ function seguirRutaTaxi(a, ruta){
 
   if(!a) return
   if(!ruta || ruta.length === 0){
-    a.estado = "IDLE"
-    a.altitud = 0
-    a.velocidad = 0
-    a.velocidadObjetivo = 0
-    actualizarInteraccion(a)
-    actualizarPanelInfoAeronave(a)
-    actualizarPanelInfo(a)
-    sincronizarEstadoAeronaveLocal(a)
+    finalizarTaxi(a)
     return
   }
 
@@ -10917,16 +10936,7 @@ function seguirRutaTaxi(a, ruta){
   function moverAlSiguiente(){
 
     if(indice >= ruta.length){
-
-      a.estado = "IDLE"
-      a.altitud = 0
-      a.velocidad = 0
-      a.velocidadObjetivo = 0
-      actualizarInteraccion(a)
-      actualizarPanelInfoAeronave(a)
-      actualizarPanelInfo(a)
-      sincronizarEstadoAeronaveLocal(a)
-      actualizarBotonTaxi()
+      finalizarTaxi(a)
       return
     }
 
@@ -12284,8 +12294,7 @@ function detenerRodaje(a){
 
   if(
     a.immediateTakeoffPendiente &&
-    tieneImmediateDepartureActiva(a) &&
-    estaAlineadoConPista(a)
+    estaListoDespegueRwy22(a)
   ){
     a.immediateTakeoffPendiente = false
     despegar(a)
@@ -12997,7 +13006,7 @@ function despegar(aeronaveOverride = null){
 
   // ================= VALIDACION ZONA =================
 
-  const desdeRWY22 = estaAlineadoConPista(a)
+  const desdeRWY22 = estaListoDespegueRwy22(a)
   const desdeLIB   = puedeDespegarDesdeLIB(a)
 
   if(!desdeRWY22 && !desdeLIB){
@@ -13439,10 +13448,9 @@ function actualizarEstadoBotonTakeoff(aeronave = null){
     Math.round(altitudActual) === 0
 
   const immediateActivo = Boolean(a && tieneImmediateDepartureActiva(a))
-  const alineado =
-    Boolean(a) &&
-    (estaAlineadoConPista(a) || puedeDespegarDesdeLIB(a))
-  const habilitarGrupo = enSuelo && (alineado || immediateActivo)
+  const listoRWY22 = Boolean(a && estaListoDespegueRwy22(a))
+  const listoDespegue = listoRWY22 || puedeDespegarDesdeLIB(a)
+  const habilitarGrupo = enSuelo && (listoDespegue || immediateActivo)
 
   if(a && !esModoSalidaValido(a.modoSalida) && esSidSalidaValida(a.sid)){
     a.modoSalida = "IFR"
@@ -13456,14 +13464,21 @@ function actualizarEstadoBotonTakeoff(aeronave = null){
   const vfrObjetivoValido = Boolean(obtenerObjetivoVfrAeronave(a))
   const sidValida = Boolean(a && esSidSalidaValida(a.sid))
   const vfrListo = !vfrActivo || (vfrSalidaValida && vfrObjetivoValido)
-  const takeoffHabilitado =
-    habilitarGrupo &&
-    (vfrActivo || ifrActivo) &&
-    (!ifrActivo || sidValida) &&
-    vfrListo &&
+  const puedeSolicitarTakeoff =
+    enSuelo &&
     a &&
     a.estado !== "AIRBORNE" &&
     a.estado !== "TAXI"
+  const puedeAutoImmediate = Boolean(
+    puedeSolicitarTakeoff &&
+    !listoDespegue &&
+    !immediateActivo
+  )
+  const takeoffHabilitado =
+    puedeSolicitarTakeoff &&
+    ((vfrActivo || ifrActivo) || puedeAutoImmediate) &&
+    (!ifrActivo || sidValida) &&
+    vfrListo
 
   if(btnImmediate){
     const immediateDisponible = enSuelo && a && a.estado !== "AIRBORNE"
@@ -13520,8 +13535,10 @@ function actualizarEstadoBotonTakeoff(aeronave = null){
 
     if(!enSuelo){
       btnTakeoff.title = "TAKE OFF available only at 0 ft"
-    } else if(!habilitarGrupo){
-      btnTakeoff.title = "Alinea a la pista o activa IMMEDIATE DEPARTURE"
+    } else if(a && a.estado === "TAXI"){
+      btnTakeoff.title = "No disponible durante TAXI"
+    } else if(!listoDespegue && !immediateActivo){
+      btnTakeoff.title = "Pulsa TAKE OFF para IMMEDIATE DEPARTURE"
     } else if(!vfrActivo && !ifrActivo){
       btnTakeoff.title = "Selecciona VFR o IFR"
     } else if(vfrActivo && !vfrSalidaValida){
@@ -13530,8 +13547,6 @@ function actualizarEstadoBotonTakeoff(aeronave = null){
       btnTakeoff.title = "Selecciona punto en el mapa"
     } else if(ifrActivo && !sidValida){
       btnTakeoff.title = "Selecciona KOPRA1 o TELOT1"
-    } else if(a && a.estado === "TAXI"){
-      btnTakeoff.title = "No disponible durante TAXI"
     } else {
       btnTakeoff.title = ""
     }
@@ -13785,6 +13800,20 @@ function configurarSIDDesdeDeparture(sidNombre){
         return
       }
 
+      cancelarEstadoAutoEnSuelo(a)
+
+      const listoRWY22 = estaListoDespegueRwy22(a)
+      const listoDespegue = listoRWY22 || puedeDespegarDesdeLIB(a)
+      const immediateActivoInicial = tieneImmediateDepartureActiva(a)
+      if(!listoDespegue && !immediateActivoInicial){
+        const estado = obtenerEstadoPanelLateralAeronave(a)
+        if(estado){
+          estado.panelAbierto = true
+          estado.immediateDepartureActivo = true
+        }
+        actualizarEstadoBotonTakeoff(a)
+      }
+
       const modoSalida = obtenerModoSalidaAeronave(a)
       if(!modoSalida){
         alert("Selecciona VFR o IFR antes de TAKE OFF")
@@ -13814,7 +13843,7 @@ function configurarSIDDesdeDeparture(sidNombre){
       }
 
       const immediateActivo = tieneImmediateDepartureActiva(a)
-      if(immediateActivo && !estaAlineadoConPista(a)){
+      if(immediateActivo && !listoRWY22 && !puedeDespegarDesdeLIB(a)){
         a.immediateTakeoffPendiente = true
         activarRodajeUmbral22DesdeHoldShort(a, true)
         actualizarEstadoBotonTakeoff(a)
@@ -14545,6 +14574,30 @@ function estaAlineadoConPista(a){
 
   return diferencia <= 10 // tolerancia ±10°
 }
+function estaListoDespegueRwy22(a){
+  if(!a || !a.marker) return false
+  const posicion = a.marker.getLatLng()
+  if(!posicion) return false
+
+  if(!estaAlineadoConPista(a)) return false
+  if(!estaAlineadoEjePistaRwy22(a, TOLERANCIA_EJE_DESPEGUE_RWY22_M)){
+    return false
+  }
+
+  const proyeccion = proyectarPuntoSobreEjeRwy22(posicion)
+  const distanciaFirmada = Number(
+    proyeccion && proyeccion.distanciaFirmadaMetros
+  )
+  if(!Number.isFinite(distanciaFirmada)) return false
+
+  const limitePista = Number.isFinite(DISTANCIA_PISTA_RWY22_M)
+    ? DISTANCIA_PISTA_RWY22_M
+    : 0
+  return (
+    distanciaFirmada >= -MARGEN_LONGITUD_PISTA_RWY22_M &&
+    distanciaFirmada <= (limitePista + MARGEN_LONGITUD_PISTA_RWY22_M)
+  )
+}
 
 // AUTO HEADING
 function calcularBearing(inicio, fin){
@@ -15042,8 +15095,7 @@ function finalizarTaxi(a){
 
   if(
     a.immediateTakeoffPendiente &&
-    tieneImmediateDepartureActiva(a) &&
-    estaAlineadoConPista(a)
+    estaListoDespegueRwy22(a)
   ){
     a.immediateTakeoffPendiente = false
     despegar(a)

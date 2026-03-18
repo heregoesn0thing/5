@@ -3519,9 +3519,17 @@ socket.on("actualizarAeronave", (data) => {
     aeronave.altitudCircuitoAutomaticaActiva = false
   }
 
-if(typeof data.estado === "string"){
-  aeronave.estado = data.estado
-}
+  const estadoPrevio = aeronave.estado
+  if(typeof data.estado === "string"){
+    aeronave.estado = data.estado
+  }
+  if(
+    estadoPrevio === "TAXI" &&
+    aeronave.estado !== "TAXI" &&
+    aeronave.movimiento
+  ){
+    aeronave.movimiento = null
+  }
 
   if (!movimientoAutoritativo) {
     aeronave.lat = data.lat;

@@ -71,6 +71,7 @@ let intervalosSalas = {};
 let peligroSalas = {};
 let timeoutsSalas = {};
 let motoresSalas = {}
+const modosOperacionPorSocket = new Map()
 const RUMBOS_CIRCUITO = {
   upwind: 220,
   final: 220,
@@ -736,21 +737,8 @@ function obtenerListaSalas() {
 }
 
 function socketPuedeControlarAeronave(salaNombre, sala, aeronave, socketId) {
-  if (!sala || !aeronave) return false
-
-  const ownerId = typeof aeronave.owner === "string" ? aeronave.owner.trim() : ""
-  if (ownerId === "") {
-    aeronave.owner = socketId
-    if (typeof salaNombre === "string" && salaNombre !== "") {
-      io.to(salaNombre).emit("ownerAeronaveActualizado", {
-        id: aeronave.id,
-        owner: socketId
-      })
-    }
-    return true
-  }
-
-  return ownerId === socketId
+  if(!sala || !aeronave) return false
+  return modosOperacionPorSocket.get(socketId) === "piloto"
 }
 
 function limpiarOrbitacionAeronave(aeronave) {
@@ -2705,6 +2693,8 @@ io.on("connection", (socket) => {
 
   console.log("Nuevo usuario:", socket.id);
 
+  modosOperacionPorSocket.set(socket.id, "controlador")
+
   socket.emit("listaSalas", obtenerListaSalas());
 
   const normalizarEstadoRescate = (data = {}, base = {}) => {
@@ -2811,6 +2801,11 @@ if (timeoutsSalas[nombre]) {
   clearTimeout(timeoutsSalas[nombre]);
   delete timeoutsSalas[nombre];
 }
+    salas[nombre].aeronaves.forEach(a => {
+      if(a){
+        a.owner = null
+      }
+    })
     socket.emit("cargarAeronaves", salas[nombre].aeronaves);
     if(salas[nombre].rescate){
       socket.emit("actualizarRescate", salas[nombre].rescate);
@@ -2898,14 +2893,14 @@ socket.on("solicitarSincronizacionTiempo", () => {
 })
 
   // ===== CREAR AERONAVE =====
-socket.on("crearAeronave", (data) => {
+  socket.on("crearAeronave", (data) => {
 
   const sala = socket.sala;
   if (!sala) return;
 
   salas[sala].aeronaves.push({
   id: data.id,
-  owner: socket.id,
+  owner: null,
   tipo: data.tipo,
   lat: data.lat,
   lng: data.lng,
@@ -2942,11 +2937,16 @@ socket.on("crearAeronave", (data) => {
   orbitDetenerSolicitado: false,
   orbitSentido: "RIGHT",
   shortCircuitoActivo: false,
-  owner: socket.id
+  owner: null
   });
-
-
 });
+
+  socket.on("setModoOperacion", ({ modo } = {}) => {
+    const modoNormalizado = typeof modo === "string" ? modo.trim() : ""
+    if(modoNormalizado === "piloto" || modoNormalizado === "controlador"){
+      modosOperacionPorSocket.set(socket.id, modoNormalizado)
+    }
+  })
 
   // ===== RUTA AIRBORNE =====
 socket.on("setRutaAirborne", ({ id, ruta } = {}) => {
@@ -3967,6 +3967,8 @@ socket.on("activarPeligroSala", ({ clave }) => {
 
   // ===== DESCONECTAR =====
 socket.on("disconnect", () => {
+
+  modosOperacionPorSocket.delete(socket.id)
 
   for (let nombre in salas) {
 

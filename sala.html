@@ -355,6 +355,9 @@
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const socket = io()
+socket.on("connect", () => {
+  emitirModoOperacionServidor()
+})
 // Obtener nombre desde la URL
 const params = new URLSearchParams(window.location.search);
 const nombreSala = params.get("nombre");
@@ -533,6 +536,9 @@ function establecerModoOperacion(modo){
   actualizarSelectorModoOperacion()
   aplicarVisibilidadPanelIzquierdoPorModo()
   actualizarEstadoBotonSesionPiloto()
+  actualizarEstadoBotonTakeoff()
+  actualizarEstadoGrupoTaxi()
+  emitirModoOperacionServidor()
   if(modoOperacion !== "controlador"){
     rescateSeleccionado = null
   }
@@ -6201,7 +6207,7 @@ function confirmarCreacion(){
   const nueva = {
     tipo,
     id: callsign,
-    owner: socket && typeof socket.id === "string" ? socket.id : null,
+    owner: null,
     marker,
     remoto: false, 
     ruta: null,
@@ -6469,38 +6475,27 @@ socket.on("actualizarAeronave", data => {
     actualizarInteraccion(avion)
   }
 
-  if(
-    !avion.remoto &&
-    avion.estado === "TAXI" &&
-    avion.immediateTakeoffPendiente
-  ){
-    const ultimaRuta = Array.isArray(avion.puntosRuta) && avion.puntosRuta.length
-      ? avion.puntosRuta[avion.puntosRuta.length - 1]
-      : null
-    const destinoFinal =
-      Array.isArray(ultimaRuta) && ultimaRuta.length >= 2
-        ? L.latLng(ultimaRuta[0], ultimaRuta[1])
-        : (ultimaRuta && Number.isFinite(ultimaRuta.lat) && Number.isFinite(ultimaRuta.lng)
-            ? L.latLng(ultimaRuta.lat, ultimaRuta.lng)
-            : null)
-    const posActual = avion.marker ? avion.marker.getLatLng() : null
-    if(destinoFinal && posActual){
-      const distancia = map.distance(posActual, destinoFinal)
-      if(Number.isFinite(distancia) && distancia <= 60){
-        finalizarTaxi(avion)
-      }
-    }
+  if(avion.estado === "TAXI" && avion.ruta){
+    actualizarRutaRecorrida(avion)
   }
+
 if (ultimaAeronaveSeleccionada && avion.id === ultimaAeronaveSeleccionada.id){
   ultimaAeronaveSeleccionada = avion
   actualizarPanelInfoAeronave(avion)
 }
   actualizarEstadoBotonOrbit()
   actualizarEstadoBotonExtend()
+  const simuladoLocal = estaSimuladoLocalmente(avion)
+  const estadoMovimientoServidor = esEstadoMovimientoServidor(avion.estado)
   const forzarRemoto =
     !avion.remoto &&
-    !estaSimuladoLocalmente(avion) &&
-    esEstadoMovimientoServidor(avion.estado)
+    !simuladoLocal &&
+    estadoMovimientoServidor
+
+  if(!avion.remoto && !simuladoLocal && !estadoMovimientoServidor){
+    aplicarPosicionServidorInstantanea(avion, data.lat, data.lng, data.angulo)
+    return
+  }
 
   interpolarRemoto(
     avion,
@@ -6551,6 +6546,47 @@ function actualizarPropietarioAeronaveLocal(avion, ownerRecibido){
     avion.remotoSyncOffsetMs = null
   }
   actualizarInteraccion(avion)
+}
+
+function limpiarInterpolacionRemotaAeronave(avion){
+  if(!avion) return
+
+  avion.interpRemotaForzada = false
+  if(Array.isArray(avion.snapshotsRemoto)){
+    avion.snapshotsRemoto.length = 0
+  }
+  avion.remotoSyncOffsetMs = null
+}
+
+function aplicarPosicionServidorInstantanea(avion, lat, lng, anguloServidor){
+  if(!avion || !avion.marker) return
+
+  const latNum = Number(lat)
+  const lngNum = Number(lng)
+  if(!Number.isFinite(latNum) || !Number.isFinite(lngNum)) return
+
+  limpiarInterpolacionRemotaAeronave(avion)
+  avion.marker.setLatLng([latNum, lngNum])
+  avion.lat = latNum
+  avion.lng = lngNum
+
+  const anguloNum = Number(anguloServidor)
+  if(Number.isFinite(anguloNum)){
+    avion.angulo = anguloNum
+  }
+  actualizarRotacion(avion)
+}
+
+function validarModoPiloto(){
+  if(modoOperacion === "piloto"){
+    return true
+  }
+  alert("Disponible solo en modo PILOTO")
+  return false
+}
+function emitirModoOperacionServidor(){
+  if(!socket || typeof socket.emit !== "function") return
+  socket.emit("setModoOperacion", { modo: modoOperacion })
 }
 
 function refrescarUITrasCambioOwner(aeronaveActualizada = null){
@@ -8384,21 +8420,7 @@ function ocultarPanelManual(){
 function esAeronaveDelCreadorLocal(avion){
   if(!avion) return false
 
-  const ownerId = typeof avion.owner === "string" ? avion.owner : ""
-  const socketId =
-    socket && typeof socket.id === "string"
-      ? socket.id
-      : ""
-
-  if(ownerId === ""){
-    return true
-  }
-
-  if(socketId !== ""){
-    return ownerId === socketId
-  }
-
-  return avion.remoto !== true
+  return modoOperacion === "piloto"
 }
 
 function actualizarPanelManualSegunEstado(avion){
@@ -9473,6 +9495,7 @@ function activarPrincipal(boton){
 
   if(taxiCreate){
     taxiCreate.addEventListener("click", () => {
+      if(!validarModoPiloto()) return
       const a = obtenerAeronaveObjetivoControles()
       if(!a){
         alert("Select an aircraft first")
@@ -9488,6 +9511,7 @@ function activarPrincipal(boton){
 
   if(taxiStart){
     taxiStart.addEventListener("click", () => {
+      if(!validarModoPiloto()) return
       const a = obtenerAeronaveObjetivoControles()
       if(!a){
         alert("Select an aircraft first")
@@ -9500,6 +9524,7 @@ function activarPrincipal(boton){
 
   if(taxiHold){
     taxiHold.addEventListener("click", () => {
+      if(!validarModoPiloto()) return
       const a = obtenerAeronaveObjetivoControles()
       if(!a){
         alert("Select an aircraft first")
@@ -9512,11 +9537,13 @@ function activarPrincipal(boton){
 
   if(taxiLineUp){
     taxiLineUp.addEventListener("click", () => {
+      if(!validarModoPiloto()) return
       const a = obtenerAeronaveObjetivoControles()
       if(!a){
         alert("Select an aircraft first")
         return
       }
+      a.immediateTakeoffPendiente = Boolean(tieneImmediateDepartureActiva(a))
       marcarTaxiActivo(taxiLineUp)
       activarRodajeUmbral22DesdeHoldShort(a)
       actualizarEstadoGrupoTaxi()
@@ -10435,6 +10462,7 @@ function autorizarTouchdown(a){
     a.altitud = 0
     ejecutarRollout(a)
   }, {
+    descensoProgresivo: true,
     altitudObjetivo: 0,
     altitudInicial: Number(a.altitud),
     bancoMaxGrados: PILOTAGE_REALISTIC_BANK_DEG,
@@ -10462,6 +10490,56 @@ function ejecutarRollout(a){
   }, 0)
 }
 
+function obtenerClaveSalidaRolloutAutomatica(a, rutasTaxi, preferida = ""){
+  const clavePreferida = String(preferida || "").trim().toUpperCase()
+  const fallback = rutasTaxi && rutasTaxi.E ? "E" : (Object.keys(rutasTaxi || {})[0] || "")
+  if(!a || !a.marker || !rutasTaxi){
+    return (clavePreferida && rutasTaxi && rutasTaxi[clavePreferida]) ? clavePreferida : fallback
+  }
+
+  const posicionActual = a.marker.getLatLng()
+  const proyeccionActual = proyectarPuntoSobreEjeRwy22(posicionActual)
+  const distanciaActual = Number(proyeccionActual && proyeccionActual.distanciaFirmadaMetros)
+  if(!Number.isFinite(distanciaActual)){
+    return (clavePreferida && rutasTaxi[clavePreferida]) ? clavePreferida : fallback
+  }
+
+  const candidatos = Object.entries(rutasTaxi)
+    .map(([clave, ruta]) => {
+      const primerPunto = Array.isArray(ruta) && ruta.length
+        ? normalizarPuntoRutaTaxiLatLng(ruta[0])
+        : null
+      const proyeccion = proyectarPuntoSobreEjeRwy22(primerPunto)
+      const distancia = Number(proyeccion && proyeccion.distanciaFirmadaMetros)
+      return Number.isFinite(distancia)
+        ? { clave, distancia }
+        : null
+    })
+    .filter(Boolean)
+
+  const margenAtrasM = 35
+  const salidasViables = candidatos
+    .filter(candidato => candidato.distancia >= (distanciaActual - margenAtrasM))
+    .sort((a, b) => a.distancia - b.distancia)
+
+  if(clavePreferida){
+    const salidaPreferida = candidatos.find(candidato => candidato.clave === clavePreferida)
+    if(
+      salidaPreferida &&
+      salidaPreferida.distancia >= (distanciaActual - margenAtrasM)
+    ){
+      return clavePreferida
+    }
+  }
+
+  if(salidasViables.length > 0){
+    return salidasViables[0].clave
+  }
+
+  const salidaMasLejana = candidatos.sort((a, b) => b.distancia - a.distancia)[0]
+  return salidaMasLejana ? salidaMasLejana.clave : fallback
+}
+
 function ejecutarTaxiAutomatico(a){
 
   if(!a) return
@@ -10474,11 +10552,10 @@ function ejecutarTaxiAutomatico(a){
     "E": rutaTaxiE
   }
 
-  let opcion = a.landingSubOption
-
-  if(!opcion){
-    opcion = "E"
-    a.landingSubOption = "E"
+  const opcionPreferida = String(a.landingSubOption || "").trim().toUpperCase()
+  const opcion = obtenerClaveSalidaRolloutAutomatica(a, rutasTaxi, opcionPreferida)
+  if(opcion){
+    a.landingSubOption = opcion
   }
 
   const ruta = rutasTaxi[opcion]
@@ -10926,24 +11003,37 @@ function moverAeronaveHacia(a, destino, callback, opciones = {}){
 function seguirRutaTaxi(a, ruta){
 
   if(!a) return
-  if(!ruta || ruta.length === 0){
+  const puntosRuta = Array.isArray(ruta)
+    ? ruta.map(normalizarPuntoRutaTaxiLatLng).filter(Boolean)
+    : []
+  if(puntosRuta.length < 2){
     finalizarTaxi(a)
     return
   }
 
-  let indice = 0
+  a.puntosRuta = puntosRuta
+  a.indiceRuta = 0
+  asegurarCapasRutaTaxi(a, puntosRuta)
+  actualizarRutaRecorrida(a)
+
+  let indice = 1
 
   function moverAlSiguiente(){
 
-    if(indice >= ruta.length){
+    if(indice >= puntosRuta.length){
       finalizarTaxi(a)
       return
     }
 
-    const destino = ruta[indice]
+    const destino = puntosRuta[indice]
+    a.indiceRuta = Math.max(0, indice - 1)
     indice++
 
-    moverAeronaveHacia(a, destino, moverAlSiguiente)
+    moverAeronaveHacia(a, destino, () => {
+      a.indiceRuta = Math.max(0, indice - 1)
+      actualizarRutaRecorrida(a)
+      moverAlSiguiente()
+    })
   }
 
   a.estado = "TAXI"
@@ -11612,6 +11702,7 @@ function actualizarEstadoGrupoTaxi(){
     Boolean(a) &&
     Number.isFinite(altitudActual) &&
     Math.round(altitudActual) === 0
+  const modoPiloto = modoOperacion === "piloto"
 
   const rutaCreada =
     Boolean(a) &&
@@ -11641,12 +11732,17 @@ function actualizarEstadoGrupoTaxi(){
       return
     }
 
-    btn.disabled = !habilitado
-    btn.style.opacity = habilitado ? "1" : "0.45"
-    btn.style.cursor = habilitado ? "pointer" : "not-allowed"
-    btn.title = habilitado ? "" : tituloDeshabilitado
+    const habilitarFinal = modoPiloto && habilitado
+    btn.disabled = !habilitarFinal
+    btn.style.opacity = habilitarFinal ? "1" : "0.45"
+    btn.style.cursor = habilitarFinal ? "pointer" : "not-allowed"
+    if(!modoPiloto){
+      btn.title = "Disponible solo en modo PILOTO"
+    } else {
+      btn.title = habilitarFinal ? "" : tituloDeshabilitado
+    }
 
-    if(!habilitado){
+    if(!habilitarFinal){
       btn.classList.remove("activo")
     }
   }
@@ -12114,29 +12210,121 @@ a.indiceRuta = 0
 
 // ================= TAXI =================
 
+function normalizarPuntoRutaTaxiLatLng(punto){
+  if(Array.isArray(punto) && punto.length >= 2){
+    const lat = Number(punto[0])
+    const lng = Number(punto[1])
+    if(Number.isFinite(lat) && Number.isFinite(lng)){
+      return L.latLng(lat, lng)
+    }
+    return null
+  }
+  if(punto && Number.isFinite(Number(punto.lat)) && Number.isFinite(Number(punto.lng))){
+    return L.latLng(Number(punto.lat), Number(punto.lng))
+  }
+  return null
+}
+
+function obtenerIndiceTramoRutaTaxiMasCercano(ruta, posicion){
+  if(!Array.isArray(ruta) || ruta.length < 2 || !posicion){
+    return 0
+  }
+
+  let mejorIndice = 0
+  let mejorMetric = Infinity
+
+  for(let i = 0; i < ruta.length - 1; i++){
+    const origen = normalizarPuntoRutaTaxiLatLng(ruta[i])
+    const destino = normalizarPuntoRutaTaxiLatLng(ruta[i + 1])
+    if(!origen || !destino) continue
+
+    const distanciaTramo = map.distance(origen, destino)
+    const distanciaOrigen = map.distance(origen, posicion)
+    const distanciaDestino = map.distance(posicion, destino)
+    if(
+      !Number.isFinite(distanciaTramo) ||
+      !Number.isFinite(distanciaOrigen) ||
+      !Number.isFinite(distanciaDestino)
+    ){
+      continue
+    }
+
+    const exceso = Math.abs((distanciaOrigen + distanciaDestino) - distanciaTramo)
+    const metric = exceso + (distanciaDestino * 0.001)
+    if(metric < mejorMetric){
+      mejorMetric = metric
+      mejorIndice = i
+    }
+  }
+
+  return mejorIndice
+}
+
 function reanclarRutaTaxiAlPuntoActual(a){
 
   if(!a || !a.marker) return
   if(!Array.isArray(a.puntosRuta) || a.puntosRuta.length === 0) return
 
   const posicionActual = a.marker.getLatLng()
-  const maxIndiceSegmento = Math.max(0, a.puntosRuta.length - 2)
-  const indiceActualBruto =
-    Number.isFinite(a.indiceRuta) && a.indiceRuta >= 0
-      ? Math.floor(a.indiceRuta)
-      : 0
-  const indiceActual = Math.min(indiceActualBruto, maxIndiceSegmento)
-  const siguientes = a.puntosRuta.slice(indiceActual + 1)
+  const indiceActual = obtenerIndiceTramoRutaTaxiMasCercano(
+    a.puntosRuta,
+    posicionActual
+  )
+  const siguientes = a.puntosRuta
+    .slice(indiceActual + 1)
+    .map(normalizarPuntoRutaTaxiLatLng)
+    .filter(Boolean)
 
-  a.indiceRuta = indiceActual
+  a.puntosRuta = [posicionActual, ...siguientes]
+  a.indiceRuta = 0
 
   if(a.ruta){
-    a.ruta.setLatLngs([posicionActual, ...siguientes])
+    a.ruta.setLatLngs(a.puntosRuta)
   }
 
   if(a.rutaRecorrida){
     a.rutaRecorrida.setLatLngs([])
   }
+}
+
+function asegurarCapasRutaTaxi(a, puntosRuta = null){
+  if(!a || !a.marker) return
+
+  const rutaBase = Array.isArray(puntosRuta) ? puntosRuta : a.puntosRuta
+  const rutaNormalizada = Array.isArray(rutaBase)
+    ? rutaBase.map(normalizarPuntoRutaTaxiLatLng).filter(Boolean)
+    : []
+
+  if(rutaNormalizada.length === 0){
+    return
+  }
+
+  if(!a.ruta){
+    a.ruta = L.polyline(rutaNormalizada, {
+      color: "#21bd21",
+      weight: 3,
+      dashArray: "6 12",
+      dashOffset: "0"
+    }).addTo(map)
+  } else {
+    a.ruta.setLatLngs(rutaNormalizada)
+  }
+
+  if(!a.rutaRecorrida){
+    a.rutaRecorrida = L.polyline([], {
+      color: "#21bd21",
+      weight: 3,
+      opacity: 0.15
+    }).addTo(map)
+  } else {
+    a.rutaRecorrida.setLatLngs([])
+  }
+
+  if(a.animRutaFrame){
+    cancelAnimationFrame(a.animRutaFrame)
+    a.animRutaFrame = null
+  }
+  animarRuta(a)
 }
 
 function obtenerHoldShortLineUpInfo(posicion){
@@ -12217,12 +12405,7 @@ function activarRodajeUmbral22DesdeHoldShort(a, forzarLineUp = false){
   a.puntosRuta = puntosRuta
   a.indiceRuta = 0
 
-  if(a.ruta){
-    a.ruta.setLatLngs(puntosRuta)
-  }
-  if(a.rutaRecorrida){
-    a.rutaRecorrida.setLatLngs([])
-  }
+  asegurarCapasRutaTaxi(a, puntosRuta)
 
   a.estado = "TAXI"
   a.velocidadObjetivo = VELOCIDAD_TAXI_DEFAULT_KT
@@ -12270,6 +12453,9 @@ function detenerRodaje(a){
 
   if(!a) return
   if(a.estado !== "TAXI") return
+
+  reanclarRutaTaxiAlPuntoActual(a)
+  limpiarInterpolacionRemotaAeronave(a)
 
   if(a.motorTaxi){
     clearInterval(a.motorTaxi)
@@ -13163,6 +13349,13 @@ function despegar(aeronaveOverride = null){
     ultimoTickVuelo = ahora
     const actual = a.marker.getLatLng()
     const distanciaDesdeSalidaM = map.distance(puntoSalida, actual)
+    const limiteEjeM = Number.isFinite(DISTANCIA_PISTA_RWY22_M)
+      ? DISTANCIA_PISTA_RWY22_M
+      : TAKEOFF_PROFILE_A32X.RUNWAY_DISTANCE_M
+    const enEjePista =
+      Boolean(a.despegueDesdeRWY22) &&
+      Number.isFinite(limiteEjeM) &&
+      distanciaDesdeSalidaM <= limiteEjeM
 
     let velocidadObjetivoTick = Number(a.velocidadObjetivo)
     let aceleracionTick = 0.8
@@ -13248,13 +13441,17 @@ function despegar(aeronaveOverride = null){
     }
 
     // ================= GIRO SUAVE =================
-
-    a.angulo = girarSuavemente(
-      a,
-      a.angulo || a.headingObjetivo,
-      a.headingObjetivo,
-      segundosTick
-    )
+    if(enEjePista){
+      a.headingObjetivo = RUMBO_PISTA_22
+      a.angulo = RUMBO_RWY22
+    } else {
+      a.angulo = girarSuavemente(
+        a,
+        a.angulo || a.headingObjetivo,
+        a.headingObjetivo,
+        segundosTick
+      )
+    }
 
     actualizarRotacion(a)
 
@@ -13271,13 +13468,6 @@ function despegar(aeronaveOverride = null){
     let nuevaLat = actual.lat + deltaLat
     let nuevaLng = actual.lng + deltaLng
 
-    const limiteEjeM = Number.isFinite(DISTANCIA_PISTA_RWY22_M)
-      ? Math.min(DISTANCIA_PISTA_RWY22_M, TAKEOFF_PROFILE_A32X.RUNWAY_DISTANCE_M)
-      : TAKEOFF_PROFILE_A32X.RUNWAY_DISTANCE_M
-    const enEjePista =
-      Boolean(a.despegueDesdeRWY22) &&
-      Number.isFinite(limiteEjeM) &&
-      distanciaDesdeSalidaM <= limiteEjeM
     if(enEjePista){
       const siguienteDist = distanciaDesdeSalidaM + metrosPorTick
       const puntoEje = calcularPuntoSobreEjeRwy22(siguienteDist)
@@ -13464,6 +13654,7 @@ function actualizarEstadoBotonTakeoff(aeronave = null){
   const vfrObjetivoValido = Boolean(obtenerObjetivoVfrAeronave(a))
   const sidValida = Boolean(a && esSidSalidaValida(a.sid))
   const vfrListo = !vfrActivo || (vfrSalidaValida && vfrObjetivoValido)
+  const modoPiloto = modoOperacion === "piloto"
   const puedeSolicitarTakeoff =
     enSuelo &&
     a &&
@@ -13481,27 +13672,36 @@ function actualizarEstadoBotonTakeoff(aeronave = null){
     vfrListo
 
   if(btnImmediate){
-    const immediateDisponible = enSuelo && a && a.estado !== "AIRBORNE"
+    const immediateDisponible =
+      modoPiloto && enSuelo && a && a.estado !== "AIRBORNE"
     btnImmediate.disabled = !immediateDisponible
     btnImmediate.style.opacity = immediateDisponible ? "1" : "0.45"
     btnImmediate.style.cursor = immediateDisponible ? "pointer" : "not-allowed"
-    btnImmediate.title = immediateDisponible ? "" : "IMMEDIATE DEPARTURE available only at 0 ft"
+    btnImmediate.title = !modoPiloto
+      ? "Disponible solo en modo PILOTO"
+      : (immediateDisponible ? "" : "IMMEDIATE DEPARTURE available only at 0 ft")
     btnImmediate.classList.toggle("activo", immediateActivo)
   }
 
   if(btnVFR){
-    btnVFR.disabled = !habilitarGrupo
-    btnVFR.style.opacity = habilitarGrupo ? "1" : "0.45"
-    btnVFR.style.cursor = habilitarGrupo ? "pointer" : "not-allowed"
-    btnVFR.title = habilitarGrupo ? "" : "Alinea a la pista o activa IMMEDIATE DEPARTURE"
+    const habilitarVfrBoton = modoPiloto && habilitarGrupo
+    btnVFR.disabled = !habilitarVfrBoton
+    btnVFR.style.opacity = habilitarVfrBoton ? "1" : "0.45"
+    btnVFR.style.cursor = habilitarVfrBoton ? "pointer" : "not-allowed"
+    btnVFR.title = !modoPiloto
+      ? "Disponible solo en modo PILOTO"
+      : (habilitarGrupo ? "" : "Alinea a la pista o activa IMMEDIATE DEPARTURE")
     btnVFR.classList.toggle("activo", vfrActivo)
   }
 
   if(btnSID){
-    btnSID.disabled = !habilitarGrupo
-    btnSID.style.opacity = habilitarGrupo ? "1" : "0.45"
-    btnSID.style.cursor = habilitarGrupo ? "pointer" : "not-allowed"
-    btnSID.title = habilitarGrupo ? "" : "Alinea a la pista o activa IMMEDIATE DEPARTURE"
+    const habilitarSidBoton = modoPiloto && habilitarGrupo
+    btnSID.disabled = !habilitarSidBoton
+    btnSID.style.opacity = habilitarSidBoton ? "1" : "0.45"
+    btnSID.style.cursor = habilitarSidBoton ? "pointer" : "not-allowed"
+    btnSID.title = !modoPiloto
+      ? "Disponible solo en modo PILOTO"
+      : (habilitarGrupo ? "" : "Alinea a la pista o activa IMMEDIATE DEPARTURE")
     btnSID.classList.toggle("activo", ifrActivo)
   }
 
@@ -13529,11 +13729,14 @@ function actualizarEstadoBotonTakeoff(aeronave = null){
   }
 
   if(btnTakeoff){
-    btnTakeoff.disabled = !takeoffHabilitado
-    btnTakeoff.style.opacity = takeoffHabilitado ? "1" : "0.45"
-    btnTakeoff.style.cursor = takeoffHabilitado ? "pointer" : "not-allowed"
+    const habilitarTakeoffFinal = modoPiloto && takeoffHabilitado
+    btnTakeoff.disabled = !habilitarTakeoffFinal
+    btnTakeoff.style.opacity = habilitarTakeoffFinal ? "1" : "0.45"
+    btnTakeoff.style.cursor = habilitarTakeoffFinal ? "pointer" : "not-allowed"
 
-    if(!enSuelo){
+    if(!modoPiloto){
+      btnTakeoff.title = "Disponible solo en modo PILOTO"
+    } else if(!enSuelo){
       btnTakeoff.title = "TAKE OFF available only at 0 ft"
     } else if(a && a.estado === "TAXI"){
       btnTakeoff.title = "No disponible durante TAXI"
@@ -13611,6 +13814,11 @@ function configurarSIDDesdeDeparture(sidNombre){
       if(estado){
         estado.panelAbierto = true
         estado.immediateDepartureActivo = !estado.immediateDepartureActivo
+        if(!estado.immediateDepartureActivo){
+          a.immediateTakeoffPendiente = false
+        } else if(a.estado === "TAXI" && (a.autoAlineacionRWY22 || a.holdShortTaxiATriggered)){
+          a.immediateTakeoffPendiente = true
+        }
       }
 
       actualizarEstadoBotonTakeoff(a)
@@ -13871,6 +14079,7 @@ function generarSquawk(){
 
 // ================= LÃ“GICA DE DESPEGUE LIB MANDI=================
 function puedeDespegarDesdeLIB(a){
+  if(!a || !a.marker) return false
 
   const distancia = map.distance(
     LIB_MANDI,
@@ -13906,7 +14115,7 @@ let circuloTma = null
 let radialesTmaLayer = null
 let ejePista = null
 let runwayMarkingsLayer = null
-let patronLayer = null
+var patronLayer = null
 let sidKopraLayer = null
 let sidTelotLayer = null
 
@@ -13951,7 +14160,12 @@ function construirTramoSalidaSidConArco(){
   let puntoEntradaArco = null
   let solucionArco = null
 
-  for(let distancia = SID_SRVO_RECTA_MIN_M; distancia <= 20000; distancia += 100){
+  const distanciaRectaMinima = Math.max(
+    SID_SRVO_RECTA_MIN_M,
+    Number.isFinite(DISTANCIA_PISTA_RWY22_M) ? DISTANCIA_PISTA_RWY22_M : 0
+  )
+
+  for(let distancia = distanciaRectaMinima; distancia <= 20000; distancia += 100){
     const punto = calcularPuntoDesplazado(
       salida.lat,
       salida.lng,
@@ -14033,6 +14247,14 @@ function construirTramoSalidaSidConArco(){
   return ruta
 }
 
+function agregarSalidaRectaRwy22(ruta){
+  if(!Array.isArray(ruta)) return
+  const puntoSalidaPista = calcularPuntoSobreEjeRwy22(DISTANCIA_PISTA_RWY22_M)
+  if(Array.isArray(puntoSalidaPista) && puntoSalidaPista.length >= 2){
+    ruta.push([puntoSalidaPista[0], puntoSalidaPista[1]])
+  }
+}
+
 function construirRutaAirborne(a){
   if(!a || !a.marker) return null
 
@@ -14043,6 +14265,9 @@ function construirRutaAirborne(a){
   }
 
   if(a.starActivo && String(a.star).toUpperCase() === "GEBED3"){
+    if(Boolean(a.despegueDesdeRWY22)){
+      agregarSalidaRectaRwy22(ruta)
+    }
     ruta.push(
       [-12.760556, -76.606389],
       [-13.193611, -76.432583],
@@ -14057,6 +14282,10 @@ function construirRutaAirborne(a){
     const modo = obtenerVfrSalidaAeronave(a)
     const objetivo = obtenerObjetivoVfrAeronave(a)
     if(!modo || !objetivo) return null
+
+    if(Boolean(a.despegueDesdeRWY22)){
+      agregarSalidaRectaRwy22(ruta)
+    }
 
     if(modo === "MTASA"){
       ruta.push([VFR_PUNTO_GIRO_MTASA.lat, VFR_PUNTO_GIRO_MTASA.lng])
@@ -14922,7 +15151,7 @@ function estaSimuladoLocalmente(avion){
 function interpolarRemoto(avion, lat, lng, anguloServidor, syncTs, forzar = false){
   if(!avion) return
   if(!avion.remoto && !forzar){
-    avion.interpRemotaForzada = false
+    limpiarInterpolacionRemotaAeronave(avion)
     return
   }
   avion.interpRemotaForzada = Boolean(forzar)
@@ -15062,11 +15291,13 @@ function actualizarRutaRecorrida(a){
   if(!a || !a.ruta || !Array.isArray(a.puntosRuta)) return
 
   const posActual = a.marker.getLatLng()
+  if(!posActual) return
 
-  const indiceActual = Number.isFinite(a.indiceRuta) && a.indiceRuta >= 0
-    ? Math.floor(a.indiceRuta)
-    : 0
-  const puntosRestantes = a.puntosRuta.slice(indiceActual + 1)
+  const indiceActual = obtenerIndiceTramoRutaTaxiMasCercano(a.puntosRuta, posActual)
+  const puntosRestantes = a.puntosRuta
+    .slice(indiceActual + 1)
+    .map(normalizarPuntoRutaTaxiLatLng)
+    .filter(Boolean)
 
   // Actualizar lÃ­nea restante
   a.ruta.setLatLngs([
@@ -15085,10 +15316,21 @@ function finalizarTaxi(a){
   a.velocidadObjetivo = 0
   actualizarInteraccion(a)
   mostrarTaxiing(a, false)
+  limpiarInterpolacionRemotaAeronave(a)
 
   const debeAlinearRumbo =
     Boolean(a.autoAlineacionRWY22) || Boolean(a.holdShortTaxiATriggered)
   if(debeAlinearRumbo){
+    const posicionActual = a.marker ? a.marker.getLatLng() : null
+    const proyeccion = proyectarPuntoSobreEjeRwy22(posicionActual)
+    const puntoAlineado = Array.isArray(proyeccion && proyeccion.punto)
+      ? L.latLng(proyeccion.punto[0], proyeccion.punto[1])
+      : null
+    if(puntoAlineado && a.marker){
+      a.marker.setLatLng(puntoAlineado)
+      a.lat = puntoAlineado.lat
+      a.lng = puntoAlineado.lng
+    }
     a.angulo = RUMBO_RWY22
     actualizarRotacion(a)
   }
@@ -15610,6 +15852,7 @@ function toggleWeatherPanel(forzarActivo = null){
   actualizarSelectorModoOperacion()
   aplicarVisibilidadPanelIzquierdoPorModo()
   actualizarEstadoBotonSesionPiloto()
+  emitirModoOperacionServidor()
   inicializarPanelControladorDragDrop()
 
   actualizarOpcionAeronaveWeather(Boolean(btnWeather && btnWeather.classList.contains("activo")))

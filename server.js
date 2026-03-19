@@ -3571,6 +3571,7 @@ socket.on("actualizarAeronave", (data) => {
   lat: aeronave.lat,
   lng: aeronave.lng,
   altitud: aeronave.altitud,
+  altitudObjetivo: aeronave.altitudObjetivo,
   angulo: aeronave.angulo,
   velocidad: aeronave.velocidad,
   velocidadObjetivo: aeronave.velocidadObjetivo,

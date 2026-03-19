@@ -6421,6 +6421,9 @@ socket.on("actualizarAeronave", data => {
   if(typeof data.velocidadObjetivo === "number" && Number.isFinite(data.velocidadObjetivo)){
     avion.velocidadObjetivo = data.velocidadObjetivo
   }
+  if(typeof data.altitudObjetivo === "number" && Number.isFinite(data.altitudObjetivo)){
+    avion.altitudObjetivo = Math.max(0, data.altitudObjetivo)
+  }
   if(Object.prototype.hasOwnProperty.call(data, "shortCircuitoActivo")){
     avion.shortSolicitada = Boolean(data.shortCircuitoActivo)
   }
@@ -8655,13 +8658,28 @@ function ocultarLevelControlPanel(){
   panel.classList.remove("activo")
 }
 
+function obtenerAltitudReferenciaLevel(aeronave){
+  if(!aeronave){
+    return 0
+  }
+
+  const usaAltitudObjetivo = aeronave.estado === "AIRBORNE"
+  const altitudObjetivo = Number(aeronave.altitudObjetivo)
+  if(usaAltitudObjetivo && Number.isFinite(altitudObjetivo)){
+    return altitudObjetivo
+  }
+
+  const altitudActual = Number(aeronave.altitud)
+  return Number.isFinite(altitudActual) ? altitudActual : 0
+}
+
 function sincronizarLevelControlPanel(aeronave = null){
   const levelInput = document.getElementById("levelControlSlider")
   const valor = document.getElementById("levelControlValue")
   if(!levelInput || !valor) return
 
   const a = aeronave || obtenerAeronaveVinculadaPanel() || aeronaveSeleccionada
-  const altitudAeronave = Number(a && a.altitud)
+  const altitudAeronave = obtenerAltitudReferenciaLevel(a)
   const altitudFt = normalizarAltitudInicialCreacion(
     Number.isFinite(altitudAeronave) ? altitudAeronave : 0
   )
@@ -8686,6 +8704,47 @@ function aplicarLevelInicialManual(valor){
   const valorEl = document.getElementById("levelControlValue")
   if(valorEl){
     valorEl.textContent = formatearNivelAltitud(altitudNuevaFt)
+  }
+
+  const estadoActual = aeronave.estado
+  if(estadoActual === "AIRBORNE"){
+    const nivelActualFt = normalizarAltitudInicialCreacion(
+      obtenerAltitudReferenciaLevel(aeronave)
+    )
+
+    if(Math.abs(altitudNuevaFt - nivelActualFt) < 1){
+      actualizarPanelInfoAeronave(aeronave)
+      actualizarPanelInfo(aeronave)
+      actualizarDisplaysManual(aeronave)
+      return
+    }
+
+    aeronave.altitudObjetivo = altitudNuevaFt
+    actualizarPanelInfoAeronave(aeronave)
+    actualizarPanelInfo(aeronave)
+    actualizarDisplaysManual(aeronave)
+    programarSyncEstado(aeronave)
+    return
+  }
+
+  const ajustePorDelta =
+    estadoActual === "MANUAL" ||
+    estadoActual === "AUTO" ||
+    estadoActual === "CIRCUIT"
+
+  if(ajustePorDelta){
+    const altitudActualFt = Math.max(0, Math.round(Number(aeronave.altitud) || 0))
+    const deltaAltitudFt = altitudNuevaFt - altitudActualFt
+
+    if(Math.abs(deltaAltitudFt) < 1){
+      actualizarPanelInfoAeronave(aeronave)
+      actualizarPanelInfo(aeronave)
+      actualizarDisplaysManual(aeronave)
+      return
+    }
+
+    enviarAjuste("altitude", deltaAltitudFt, aeronave)
+    return
   }
 
   aeronave.altitud = altitudNuevaFt
@@ -12694,38 +12753,67 @@ function actualizarBotonManual() {
 
   }
 }
-function enviarAjuste(tipo, valor) {
+function enviarAjuste(tipo, valor, aeronaveObjetivo = null) {
 
-  if (!aeronaveSeleccionada) return
-  const estadoActual = aeronaveSeleccionada.estado
+  const aeronave = aeronaveObjetivo || aeronaveSeleccionada
+  if (!aeronave) return
+  const estadoActual = aeronave.estado
+  const esManual = estadoActual === "MANUAL"
+  const esAuto = estadoActual === "AUTO"
+  const esCircuito = estadoActual === "CIRCUIT"
+  const esAirborne = estadoActual === "AIRBORNE"
   const ajustePermitido =
-    estadoActual === "MANUAL" ||
-    (estadoActual === "AUTO" && tipo === "altitude")
+    tipo === "speed" ||
+    (tipo === "heading" && esManual) ||
+    (tipo === "altitude" && (esManual || esAuto || esCircuito || esAirborne))
   if(!ajustePermitido) return
 
+  if(tipo === "altitude" && esAirborne){
+    const nivelBaseFt = normalizarAltitudInicialCreacion(
+      obtenerAltitudReferenciaLevel(aeronave)
+    )
+    const nivelNuevoFt = normalizarAltitudInicialCreacion(nivelBaseFt + valor)
+
+    if(Math.abs(nivelNuevoFt - nivelBaseFt) < 1){
+      actualizarDisplaysManual(aeronaveSeleccionada || aeronave)
+      return
+    }
+
+    aeronave.altitudObjetivo = nivelNuevoFt
+    sincronizarLevelControlPanel(aeronave)
+    actualizarPanelInfoAeronave(aeronave)
+    actualizarPanelInfo(aeronave)
+    actualizarDisplaysManual(aeronaveSeleccionada || aeronave)
+    programarSyncEstado(aeronave)
+    return
+  }
+
   socket.emit("ajusteManual", {
-    id: aeronaveSeleccionada.id,
+    id: aeronave.id,
     tipo: tipo,
     valor: valor
   })
 
   // ActualizaciÃ³n visual inmediata (suave)
   if(tipo === "heading"){
-    aeronaveSeleccionada.angulo =
-      (aeronaveSeleccionada.angulo + valor + 360) % 360
+    aeronave.angulo =
+      (aeronave.angulo + valor + 360) % 360
   }
 
   if(tipo === "speed"){
-    aeronaveSeleccionada.velocidadObjetivo =
-      Math.max(0, aeronaveSeleccionada.velocidadObjetivo + valor)
+    aeronave.velocidadObjetivo =
+      Math.max(0, aeronave.velocidadObjetivo + valor)
   }
 
   if(tipo === "altitude"){
-    aeronaveSeleccionada.altitud =
-      Math.max(0, aeronaveSeleccionada.altitud + valor)
+    aeronave.altitud =
+      Math.max(0, aeronave.altitud + valor)
+    sincronizarLevelControlPanel(aeronave)
   }
 
-  actualizarDisplaysManual(aeronaveSeleccionada)
+  actualizarPanelInfoAeronave(aeronave)
+  actualizarPanelInfo(aeronave)
+  actualizarDisplaysManual(aeronaveSeleccionada || aeronave)
 }
 document.getElementById("hdgPlus")
   .onclick = () => enviarAjuste("heading", 5)

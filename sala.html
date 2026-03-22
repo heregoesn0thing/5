@@ -308,6 +308,7 @@
   <div class="manual-row">
     <button id="btnAuto" class="btn-lateral manual-btn">AUTO</button>
     <button id="btnManual" class="btn-lateral manual-btn">MANUAL</button>
+    <button id="btnStopAccion" class="btn-lateral manual-btn" type="button">STOP</button>
   </div>
   <div class="manual-row manual-row-secondary">
     <button class="btn-lateral manual-btn boton-lateral-level" type="button" onclick="toggleLevelControlPanel(event)">LEVEL</button>
@@ -6507,6 +6508,7 @@ socket.on("actualizarAeronave", data => {
     aeronaveVisualActual && aeronaveVisualActual.id === avion.id
   )
   const mostrabaRutaCircuito = afectaPatronVisual && esEstadoConRutaCircuitoVisual(avion)
+  const detenida = Boolean(data && data.detenida)
   const syncTs = Number(data && data.syncTs)
   if(Number.isFinite(syncTs)){
     const ultimo = Number.isFinite(avion.ultimoSyncTs)
@@ -6514,6 +6516,9 @@ socket.on("actualizarAeronave", data => {
       : -Infinity
     if(syncTs < ultimo) return
     avion.ultimoSyncTs = syncTs
+  }
+  if(detenida){
+    detenerEstadoLocalAeronave(avion)
   }
 
   // ðŸ”„ Actualizar datos
@@ -6541,8 +6546,11 @@ socket.on("actualizarAeronave", data => {
   if(typeof data.velocidadObjetivo === "number" && Number.isFinite(data.velocidadObjetivo)){
     avion.velocidadObjetivo = data.velocidadObjetivo
   }
-  if(typeof data.altitudObjetivo === "number" && Number.isFinite(data.altitudObjetivo)){
-    avion.altitudObjetivo = Math.max(0, data.altitudObjetivo)
+  if(Object.prototype.hasOwnProperty.call(data, "altitudObjetivo")){
+    const altitudObjetivoNum = Number(data.altitudObjetivo)
+    avion.altitudObjetivo = Number.isFinite(altitudObjetivoNum)
+      ? Math.max(0, altitudObjetivoNum)
+      : null
   }
   if(Object.prototype.hasOwnProperty.call(data, "shortCircuitoActivo")){
     avion.shortSolicitada = Boolean(data.shortCircuitoActivo)
@@ -6594,7 +6602,7 @@ socket.on("actualizarAeronave", data => {
     actualizarPanelManualSegunEstado(avion)
   }
 
-  if (avion.estado === "MANUAL") {
+  if (avion.estado === "MANUAL" || detenida) {
     actualizarInteraccion(avion)
   }
 
@@ -6614,6 +6622,10 @@ socket.on("actualizarAeronave", data => {
   }
   actualizarEstadoBotonOrbit()
   actualizarEstadoBotonExtend()
+  if(detenida){
+    aplicarPosicionServidorInstantanea(avion, data.lat, data.lng, data.angulo)
+    return
+  }
   const simuladoLocal = estaSimuladoLocalmente(avion)
   const estadoMovimientoServidor = esEstadoMovimientoServidor(avion.estado)
   const forzarRemoto =
@@ -7301,6 +7313,7 @@ actualizarBotonManual()
 }
 const btnManualPanel = document.getElementById("btnManual")
 const btnAutoPanel = document.getElementById("btnAuto")
+const btnStopAccionPanel = document.getElementById("btnStopAccion")
 
 function activarModoAutoDesdeControles(){
   const aeronaveObjetivo = obtenerAeronaveObjetivoControles()
@@ -7349,6 +7362,19 @@ if(btnManualPanel){
 if(btnAutoPanel){
   btnAutoPanel.addEventListener("click", () => {
     activarModoAutoDesdeControles()
+  })
+}
+if(btnStopAccionPanel){
+  btnStopAccionPanel.addEventListener("click", () => {
+    const aeronaveObjetivo = obtenerAeronaveObjetivoControles()
+    if(!aeronaveObjetivo){
+      alert("Select an aircraft first")
+      return
+    }
+
+    socket.emit("detenerAccionAeronave", {
+      id: aeronaveObjetivo.id
+    })
   })
 }
 actualizarBotonManual()
@@ -10883,6 +10909,57 @@ function cancelarAccionesAeronave(a){
   a.enMovimiento = false;
 }
 
+function detenerEstadoLocalAeronave(a){
+  if(!a) return
+
+  cancelarAccionesAeronave(a)
+  limpiarMarcaPilotageAeronave(a)
+  limpiarInterpolacionRemotaAeronave(a)
+  mostrarTaxiing(a, false)
+
+  if(a.timeoutActual){
+    clearTimeout(a.timeoutActual)
+    a.timeoutActual = null
+  }
+  if(a.intervaloActual){
+    clearInterval(a.intervaloActual)
+    a.intervaloActual = null
+  }
+
+  if(a.ruta){
+    map.removeLayer(a.ruta)
+    a.ruta = null
+  }
+
+  if(a.rutaRecorrida){
+    a.rutaRecorrida.setLatLngs([])
+    map.removeLayer(a.rutaRecorrida)
+    a.rutaRecorrida = null
+  }
+
+  a.modoRuta = false
+  a.rutaTemporal = []
+  a.puntosRuta = []
+  a.indiceRuta = 0
+  a.rutaCircuito = null
+  a.sid = null
+  a.sidFase = null
+  a.vfrSalida = null
+  a.vfrFase = null
+  a.vfrObjetivo = null
+  a.orbitSolicitada = false
+  a.orbitEnProcesoVisual = false
+  a.extendSolicitada = false
+  a.shortSolicitada = false
+  a.altitudObjetivo = null
+  a.touchAndGoPendiente = false
+  a.clearedToLandPendiente = false
+  a.pilotageToggleActivo = false
+  a.orbitFueraCircuitoPendienteSentido = null
+  a.landingSubOption = null
+  a.enMovimiento = false
+}
+
 const SYNC_INPUT_THROTTLE_MS = 80
 
 function programarSyncEstado(a){
@@ -12867,7 +12944,8 @@ function actualizarBotonManual() {
 
   const btnManual = document.getElementById("btnManual")
   const btnAuto = document.getElementById("btnAuto")
-  if (!btnManual && !btnAuto) return
+  const btnStopAccion = document.getElementById("btnStopAccion")
+  if (!btnManual && !btnAuto && !btnStopAccion) return
   const estiloAutoActivo = () => {
     if (!btnAuto) return
     btnAuto.style.background = "linear-gradient(145deg,#065f46,#047857)"
@@ -12896,6 +12974,20 @@ function actualizarBotonManual() {
     btnManual.style.color = "#cbd5e1"
     btnManual.style.boxShadow = "none"
   }
+  const estiloStopActivo = () => {
+    if (!btnStopAccion) return
+    btnStopAccion.style.background = "#333"
+    btnStopAccion.style.borderColor = "#2c344a"
+    btnStopAccion.style.color = "#cbd5e1"
+    btnStopAccion.style.boxShadow = "none"
+  }
+  const estiloStopInactivo = () => {
+    if (!btnStopAccion) return
+    btnStopAccion.style.background = "#333"
+    btnStopAccion.style.borderColor = "#2c344a"
+    btnStopAccion.style.color = "#cbd5e1"
+    btnStopAccion.style.boxShadow = "none"
+  }
 
   // No hay aeronave seleccionada
   if (!aeronaveSeleccionada) {
@@ -12911,6 +13003,13 @@ function actualizarBotonManual() {
       estiloAutoActivo()
       btnAuto.style.cursor = "not-allowed"
     }
+    if (btnStopAccion) {
+      btnStopAccion.disabled = true
+      btnStopAccion.textContent = "STOP"
+      estiloStopInactivo()
+      btnStopAccion.style.cursor = "not-allowed"
+      btnStopAccion.style.opacity = "0.45"
+    }
     return
   }
 
@@ -12925,6 +13024,14 @@ function actualizarBotonManual() {
     btnAuto.style.cursor = "pointer"
     btnAuto.style.opacity = ""
     btnAuto.title = ""
+  }
+  if (btnStopAccion) {
+    btnStopAccion.disabled = false
+    btnStopAccion.textContent = "STOP"
+    btnStopAccion.style.cursor = "pointer"
+    btnStopAccion.style.opacity = ""
+    btnStopAccion.title = ""
+    estiloStopActivo()
   }
 
   if (aeronaveSeleccionada.estado === "MANUAL") {

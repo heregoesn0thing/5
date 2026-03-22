@@ -3273,6 +3273,19 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
   display:flex;
 }
 
+.circuit-join-opciones .circuit-side-opciones{
+  display:flex;
+  gap:6px;
+  flex:1 1 100%;
+}
+
+.circuit-join-opciones .circuit-side-btn{
+  flex:1 1 calc(50% - 3px);
+  padding:6px 5px;
+  font-size:8px;
+  text-align:center;
+}
+
 .circuit-join-opciones .circuit-join-btn{
   flex:1 1 calc(33.333% - 4px);
   padding:6px 5px;

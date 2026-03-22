@@ -260,6 +260,24 @@
     </button>
   </div>
   <div id="circuitJoinOpciones" class="circuit-join-opciones" aria-hidden="true">
+    <div class="circuit-side-opciones" role="group" aria-label="Circuit side">
+      <button
+        class="btn-lateral circuit-btn circuit-side-btn"
+        id="circuitSideLeft"
+        data-side="LEFT"
+        type="button"
+      >
+        LEFT
+      </button>
+      <button
+        class="btn-lateral circuit-btn circuit-side-btn"
+        id="circuitSideRight"
+        data-side="RIGHT"
+        type="button"
+      >
+        RIGHT
+      </button>
+    </div>
     <button class="btn-lateral circuit-btn circuit-join-btn" data-join="dct" type="button">DCT</button>
     <button class="btn-lateral circuit-btn circuit-join-btn" data-join="upw" type="button">UPW</button>
     <button class="btn-lateral circuit-btn circuit-join-btn" data-join="cw" type="button">CW</button>
@@ -362,6 +380,53 @@ socket.on("connect", () => {
 const params = new URLSearchParams(window.location.search);
 const nombreSala = params.get("nombre");
 let rutaCircuitoServidor = null
+
+function clonarRutaCircuitoLocal(ruta){
+  if(!Array.isArray(ruta)){
+    return null
+  }
+
+  return ruta.map(punto => ({
+    lat: Number(punto && punto.lat),
+    lng: Number(punto && punto.lng),
+    tramo: typeof punto?.tramo === "string" ? punto.tramo : null
+  })).filter(punto =>
+    Number.isFinite(punto.lat) &&
+    Number.isFinite(punto.lng)
+  )
+}
+
+function esEstadoConRutaCircuitoVisual(aeronave){
+  if(!aeronave) return false
+
+  return (
+    aeronave.estado === "CIRCUIT" ||
+    aeronave.estado === "ORBT" ||
+    aeronave.estado === "INTERCEPTING ARC" ||
+    aeronave.estado === "INTERCEPTING LEG" ||
+    aeronave.estado === "CLEARED TO LAND"
+  )
+}
+
+function obtenerRutaCircuitoVisualActual(){
+  const aeronaveVisual = obtenerAeronaveVinculadaPanel() || aeronaveSeleccionada
+  if(
+    aeronaveVisual &&
+    esEstadoConRutaCircuitoVisual(aeronaveVisual) &&
+    Array.isArray(aeronaveVisual.rutaCircuito) &&
+    aeronaveVisual.rutaCircuito.length > 1
+  ){
+    return aeronaveVisual.rutaCircuito
+  }
+
+  return Array.isArray(rutaCircuitoServidor) ? rutaCircuitoServidor : null
+}
+
+function refrescarPatronVisual(){
+  const chkPatronEl = document.getElementById("chkPatron")
+  if(!chkPatronEl || !chkPatronEl.checked) return
+  dibujarRutaServidor()
+}
 function obtenerSalaActiva(){
   const salaDesdeUrl =
     typeof nombreSala === "string" ? nombreSala.trim() : ""
@@ -3389,7 +3454,27 @@ socket.on("connect", () => {
 })
 socket.on("rutaCircuito", data => {
 
-  rutaCircuitoServidor = data.ruta
+  if(data && typeof data.id === "string"){
+    const avionRuta = aeronaves.find(a => a && a.id === data.id)
+    if(avionRuta){
+      avionRuta.rutaCircuito = clonarRutaCircuitoLocal(data.ruta)
+    }
+  } else {
+    rutaCircuitoServidor = clonarRutaCircuitoLocal(data && data.ruta)
+  }
+  if(
+    data &&
+    typeof data.id === "string" &&
+    (
+      typeof data.sentidoCircuito === "string" ||
+      (typeof data.sentidoCircuito === "number" && Number.isFinite(data.sentidoCircuito))
+    )
+  ){
+    const avionRuta = aeronaves.find(a => a && a.id === data.id)
+    if(avionRuta){
+      avionRuta.circuitoSentido = normalizarSentidoCircuitoCliente(data.sentidoCircuito)
+    }
+  }
 
   const chkPatronEl = document.getElementById("chkPatron")
   if(
@@ -3465,6 +3550,7 @@ socket.on("cargarAeronaves", lista => {
         ? data.velocidadObjetivo
         : 0,
       ruta: null,        
+      rutaCircuito: clonarRutaCircuitoLocal(data.ruta),
       puntosRuta: [],
       sid: data.sid || null,
       sidFase: null,
@@ -3472,6 +3558,7 @@ socket.on("cargarAeronaves", lista => {
       vfrFase: null,
       vfrObjetivo: null,
       orbitSentido: normalizarSentidoOrbitCliente(data.orbitSentido),
+      circuitoSentido: normalizarSentidoCircuitoCliente(data.circuitoSentido),
       orbitSolicitada: Boolean(data.orbitModoContinuo || data.orbitPendiente),
       orbitEnProcesoVisual: Boolean(data.orbitEnCurso || data.estado === "ORBT"),
       extendSolicitada: false,
@@ -3601,15 +3688,33 @@ socket.on("estadoTiempo", (data) => {
 });
 socket.on("rutaCircuitoActualizada", data => {
 
-  if(data && Array.isArray(data.ruta)){
-    rutaCircuitoServidor = data.ruta
+  if(data && typeof data.id === "string"){
+    const avionRuta = aeronaves.find(a => a && a.id === data.id)
+    if(avionRuta){
+      avionRuta.rutaCircuito = clonarRutaCircuitoLocal(data.ruta)
+    }
+  } else if(data && Array.isArray(data.ruta)){
+    rutaCircuitoServidor = clonarRutaCircuitoLocal(data.ruta)
+  }
+  if(
+    data &&
+    typeof data.id === "string" &&
+    (
+      typeof data.sentidoCircuito === "string" ||
+      (typeof data.sentidoCircuito === "number" && Number.isFinite(data.sentidoCircuito))
+    )
+  ){
+    const avionRuta = aeronaves.find(a => a && a.id === data.id)
+    if(avionRuta){
+      avionRuta.circuitoSentido = normalizarSentidoCircuitoCliente(data.sentidoCircuito)
+    }
   }
 
   const chkPatronEl = document.getElementById("chkPatron")
   if(
     chkPatronEl &&
     chkPatronEl.checked &&
-    rutaCircuitoServidor &&
+    obtenerRutaCircuitoVisualActual() &&
     typeof dibujarRutaServidor === "function"
   ){
     dibujarRutaServidor()
@@ -6212,6 +6317,7 @@ function confirmarCreacion(){
     remoto: false, 
     ruta: null,
     rutaRecorrida: null,
+    rutaCircuito: null,
     puntosRuta: [],
     indiceRuta: 0,
 modoRuta: false,
@@ -6242,6 +6348,7 @@ clearedToLandPendiente: false,
 	    orbitFueraCircuitoPendienteSentido: null,
 	    landingSubOption: null,
     orbitSentido: "RIGHT",
+    circuitoSentido: "LEFT",
     orbitSolicitada: false,
     orbitEnProcesoVisual: false,
     extendSolicitada: false,
@@ -6329,6 +6436,7 @@ socket.on("crearAeronave", data => {
     : 0,
   ruta: null,
   rutaRecorrida: null,
+  rutaCircuito: clonarRutaCircuitoLocal(data.ruta),
   puntosRuta: [],
   estado: typeof data.estado === "string" ? data.estado : "IDLE",
   indiceRuta: 0,
@@ -6341,6 +6449,7 @@ socket.on("crearAeronave", data => {
   vfrFase: null,
   vfrObjetivo: null,
   orbitSentido: normalizarSentidoOrbitCliente(data.orbitSentido),
+  circuitoSentido: normalizarSentidoCircuitoCliente(data.circuitoSentido),
   orbitSolicitada: Boolean(data.orbitModoContinuo || data.orbitPendiente),
   orbitEnProcesoVisual: Boolean(data.orbitEnCurso || data.estado === "ORBT"),
   extendSolicitada: false,
@@ -6393,6 +6502,11 @@ socket.on("actualizarAeronave", data => {
   const avion = aeronaves.find(a => a.id === data.id)
   if (!avion) return
   const estadoAnterior = avion.estado
+  const aeronaveVisualActual = obtenerAeronaveVinculadaPanel() || aeronaveSeleccionada
+  const afectaPatronVisual = Boolean(
+    aeronaveVisualActual && aeronaveVisualActual.id === avion.id
+  )
+  const mostrabaRutaCircuito = afectaPatronVisual && esEstadoConRutaCircuitoVisual(avion)
   const syncTs = Number(data && data.syncTs)
   if(Number.isFinite(syncTs)){
     const ultimo = Number.isFinite(avion.ultimoSyncTs)
@@ -6414,6 +6528,12 @@ socket.on("actualizarAeronave", data => {
   ){
     avion.orbitSentido = normalizarSentidoOrbitCliente(data.orbitSentido)
     actualizarAnimacionMarcaPilotageSentido(avion, avion.orbitSentido)
+  }
+  if(
+    typeof data.circuitoSentido === "string" ||
+    (typeof data.circuitoSentido === "number" && Number.isFinite(data.circuitoSentido))
+  ){
+    avion.circuitoSentido = normalizarSentidoCircuitoCliente(data.circuitoSentido)
   }
   if(typeof data.velocidad === "number" && Number.isFinite(data.velocidad)){
     avion.velocidad = data.velocidad
@@ -6482,10 +6602,16 @@ socket.on("actualizarAeronave", data => {
     actualizarRutaRecorrida(avion)
   }
 
-if (ultimaAeronaveSeleccionada && avion.id === ultimaAeronaveSeleccionada.id){
+  if (ultimaAeronaveSeleccionada && avion.id === ultimaAeronaveSeleccionada.id){
   ultimaAeronaveSeleccionada = avion
   actualizarPanelInfoAeronave(avion)
 }
+  if(
+    afectaPatronVisual &&
+    mostrabaRutaCircuito !== esEstadoConRutaCircuitoVisual(avion)
+  ){
+    refrescarPatronVisual()
+  }
   actualizarEstadoBotonOrbit()
   actualizarEstadoBotonExtend()
   const simuladoLocal = estaSimuladoLocalmente(avion)
@@ -7171,6 +7297,7 @@ actualizarBotonManual()
   actualizarEstadoBotonOrbit()
   actualizarEstadoBotonExtend()
   actualizarEstadoBotonSesionPiloto()
+  refrescarPatronVisual()
 }
 const btnManualPanel = document.getElementById("btnManual")
 const btnAutoPanel = document.getElementById("btnAuto")
@@ -8292,6 +8419,8 @@ function aplicarEstadoPanelLateralAeronave(aeronave){
     return
   }
 
+  panel.dataset.aircraftId = aeronave.id
+
   if(modoOperacion === "controlador"){
     estado.panelAbierto = false
     estado.speedPanelAbierto = false
@@ -8730,7 +8859,9 @@ function aplicarLevelInicialManual(valor){
   const ajustePorDelta =
     estadoActual === "MANUAL" ||
     estadoActual === "AUTO" ||
-    estadoActual === "CIRCUIT"
+    estadoActual === "CIRCUIT" ||
+    estadoActual === "INTERCEPTING ARC" ||
+    estadoActual === "INTERCEPTING LEG"
 
   if(ajustePorDelta){
     const altitudActualFt = Math.max(0, Math.round(Number(aeronave.altitud) || 0))
@@ -9050,6 +9181,42 @@ function normalizarSentidoOrbitCliente(sentido){
   return "RIGHT"
 }
 
+function normalizarSentidoCircuitoCliente(sentido){
+  if(typeof sentido === "number" && Number.isFinite(sentido)){
+    return sentido < 0 ? "LEFT" : "RIGHT"
+  }
+
+  const valor = typeof sentido === "string" ? sentido.trim().toUpperCase() : ""
+  if(valor === "RIGHT" || valor === "R" || valor === "DERECHA"){
+    return "RIGHT"
+  }
+  return "LEFT"
+}
+
+function marcarSentidoCircuitoAeronave(aeronave, sentido){
+  if(!aeronave) return
+  aeronave.circuitoSentido = normalizarSentidoCircuitoCliente(sentido)
+  actualizarEstadoBotonSentidoCircuito()
+}
+
+function actualizarEstadoBotonSentidoCircuito(){
+  const aeronave = obtenerAeronaveVinculadaPanel()
+  const sentidoActual = normalizarSentidoCircuitoCliente(
+    aeronave && aeronave.circuitoSentido
+  )
+  const habilitado = Boolean(aeronave)
+
+  document.querySelectorAll("#circuitJoinOpciones .circuit-side-btn")
+    .forEach(btn => {
+      const sentidoBoton = normalizarSentidoCircuitoCliente(btn.dataset.side)
+      btn.disabled = !habilitado
+      btn.style.opacity = habilitado ? "1" : "0.45"
+      btn.style.cursor = habilitado ? "pointer" : "not-allowed"
+      btn.title = habilitado ? "" : "Select an aircraft first"
+      btn.classList.toggle("activo", habilitado && sentidoBoton === sentidoActual)
+    })
+}
+
 function obtenerModoIngresoJoin(valor){
   const clave = String(valor || "").trim().toLowerCase()
   if(clave === "dct") return "nearest"
@@ -9066,6 +9233,7 @@ function mostrarOpcionesJoin(){
   const btnJoin = document.getElementById("circuitStart")
   if(!contenedor) return
 
+  actualizarEstadoBotonSentidoCircuito()
   ocultarOpcionesOrbit()
   contenedor.classList.add("activo")
   contenedor.setAttribute("aria-hidden", "false")
@@ -9209,6 +9377,7 @@ function actualizarEstadoBotonExtend(){
 
   btnExtend.classList.toggle("activo", habilitado && activo)
   actualizarEstadoBotonShort()
+  actualizarEstadoBotonSentidoCircuito()
 }
 
 function marcarExtendSolicitado(aeronave, activo){
@@ -9483,6 +9652,9 @@ function activarPrincipal(boton){
   const circuitJoinButtons = Array.from(
     document.querySelectorAll("#circuitJoinOpciones .circuit-join-btn")
   )
+  const circuitSideButtons = Array.from(
+    document.querySelectorAll("#circuitJoinOpciones .circuit-side-btn")
+  )
   const circuitOrbitLeft = document.getElementById("circuitOrbitLeft")
   const circuitOrbitP = document.getElementById("circuitOrbitP")
   const circuitOrbitRight = document.getElementById("circuitOrbitRight")
@@ -9545,10 +9717,13 @@ function activarPrincipal(boton){
     cancelarAccionesAeronave(a)
     marcarOrbitSolicitado(a, false)
     detenerExtendCircuito(a, false)
+    const sentidoCircuito = normalizarSentidoCircuitoCliente(a.circuitoSentido)
+    marcarSentidoCircuitoAeronave(a, sentidoCircuito)
 
     socket.emit("iniciarCircuito", {
       id: a.id,
-      modoIngreso
+      modoIngreso,
+      sentidoCircuito
     })
   }
 
@@ -9619,6 +9794,23 @@ function activarPrincipal(boton){
       toggleOpcionesJoin()
     })
   }
+
+  circuitSideButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const a = obtenerAeronaveObjetivoControles()
+      if(!a){
+        alert("Select an aircraft first")
+        return
+      }
+
+      const sentidoCircuito = normalizarSentidoCircuitoCliente(btn.dataset.side)
+      marcarSentidoCircuitoAeronave(a, sentidoCircuito)
+      socket.emit("configurarSentidoCircuito", {
+        id: a.id,
+        sentido: sentidoCircuito
+      })
+    })
+  })
 
   circuitJoinButtons.forEach(btn => {
     btn.addEventListener("click", () => {
@@ -9951,11 +10143,12 @@ function obtenerPuntoReferenciaPorNombre(nombre){
 }
 
 function obtenerDistanciaMinimaRutaCircuitoTramo(posicion, tramo){
-  if(!posicion || !Array.isArray(rutaCircuitoServidor)) return Number.POSITIVE_INFINITY
+  const rutaVisual = obtenerRutaCircuitoVisualActual()
+  if(!posicion || !Array.isArray(rutaVisual)) return Number.POSITIVE_INFINITY
 
   let distanciaMinima = Number.POSITIVE_INFINITY
 
-  rutaCircuitoServidor.forEach(punto => {
+  rutaVisual.forEach(punto => {
     if(!punto || punto.tramo !== tramo) return
 
     const lat = Number(punto.lat)
@@ -11506,9 +11699,13 @@ function reingresarCircuito(a, modoIngreso = "nearest"){
     sincronizarEstadoAeronaveLocal(a)
   }
 
+  const sentidoCircuito = normalizarSentidoCircuitoCliente(a.circuitoSentido)
+  marcarSentidoCircuitoAeronave(a, sentidoCircuito)
+
   socket.emit("iniciarCircuito", {
     id: a.id,
-    modoIngreso
+    modoIngreso,
+    sentidoCircuito
   })
 }
 
@@ -12097,6 +12294,7 @@ function cerrarPanel(){
   limpiarPanelControlesAeronave(true)
   actualizarBotonTaxi()
   actualizarEstadoBotonSesionPiloto()
+  refrescarPatronVisual()
 }
 function cambiarVelocidad(valor){
 
@@ -12760,7 +12958,10 @@ function enviarAjuste(tipo, valor, aeronaveObjetivo = null) {
   const estadoActual = aeronave.estado
   const esManual = estadoActual === "MANUAL"
   const esAuto = estadoActual === "AUTO"
-  const esCircuito = estadoActual === "CIRCUIT"
+  const esCircuito =
+    estadoActual === "CIRCUIT" ||
+    estadoActual === "INTERCEPTING ARC" ||
+    estadoActual === "INTERCEPTING LEG"
   const esAirborne = estadoActual === "AIRBORNE"
   const ajustePermitido =
     tipo === "speed" ||
@@ -14798,7 +14999,7 @@ chkPatron.addEventListener("change", () => {
 
   if (chkPatron.checked) {
 
-    if (!rutaCircuitoServidor) {
+    if (!obtenerRutaCircuitoVisualActual()) {
       socket.emit("solicitarRutaCircuito")
       return
     }
@@ -14866,14 +15067,21 @@ function girarSuavemente(a, headingActual, headingObjetivo, deltaTiempo = 0.05){
 
 function dibujarRutaServidor(){
 
-  if(!rutaCircuitoServidor) return
+  const rutaVisual = obtenerRutaCircuitoVisualActual()
+  if(!Array.isArray(rutaVisual) || rutaVisual.length < 2){
+    if(patronLayer){
+      map.removeLayer(patronLayer)
+      patronLayer = null
+    }
+    return
+  }
 
   if(patronLayer){
     map.removeLayer(patronLayer)
   }
 
   patronLayer = L.polyline(
-    rutaCircuitoServidor.map(p => [p.lat, p.lng]),
+    rutaVisual.map(p => [p.lat, p.lng]),
     {
       color: "#ffff00",
       weight: 2,
@@ -15619,16 +15827,19 @@ function proyectarPunto(lat, lng, rumbo, distanciaKm){
   }
 }
 
-// ================= LEFT TRAFFIC PATTERN RWY 22 =================
+// ================= TRAFFIC PATTERN RWY 22 =================
 function iniciarCircuito(){
 
   if(!aeronaveSeleccionada) return
   const a = aeronaveSeleccionada
 
   cancelarAccionesAeronave(a)
+  const sentidoCircuito = normalizarSentidoCircuitoCliente(a.circuitoSentido)
+  marcarSentidoCircuitoAeronave(a, sentidoCircuito)
   socket.emit("iniciarCircuito", {
     id: a.id,
-    modoIngreso: "nearest-if-close"
+    modoIngreso: "nearest-if-close",
+    sentidoCircuito
   })
 
 }

@@ -79,6 +79,13 @@ const RUMBOS_CIRCUITO = {
   crosswind: 130,
   base: 310
 }
+const RUMBOS_CIRCUITO_DERECHA = {
+  upwind: 220,
+  final: 220,
+  downwind: 40,
+  crosswind: 310,
+  base: 130
+}
 const ALTITUD_CIRCUITO_FT = 1500
 const ASCENSO_DESCENSO_CIRCUITO_FPM = 1200
 const EPSILON_ALTITUD_MANUAL_CIRCUITO_FT = 50
@@ -286,6 +293,78 @@ function calcularTasaVirajeRealistaDegSeg(
     return tasaMinDegSeg
   }
   return Math.max(tasaMinDegSeg, Math.min(tasaMaxDegSeg, tasaDegSeg))
+}
+
+function reiniciarGuiadoInterceptacionCircuito(aeronave){
+  if(!aeronave) return
+  aeronave.interceptTicks = 0
+  aeronave.interceptHeadingRef = null
+  aeronave.interceptTrackRefT = null
+  aeronave.interceptSideRef = 0
+}
+
+function obtenerLadoRelativoSegmento(posicion, A, B){
+  if(!posicion || !A || !B){
+    return 0
+  }
+
+  const latitudMediaRad =
+    (((Number(posicion.lat) || 0) + (Number(A.lat) || 0) + (Number(B.lat) || 0)) / 3) *
+    (Math.PI / 180)
+  const escalaLng = Math.max(0.2, Math.cos(latitudMediaRad))
+  const ABx = ((Number(B.lng) || 0) - (Number(A.lng) || 0)) * escalaLng
+  const ABy = (Number(B.lat) || 0) - (Number(A.lat) || 0)
+  const APx = ((Number(posicion.lng) || 0) - (Number(A.lng) || 0)) * escalaLng
+  const APy = (Number(posicion.lat) || 0) - (Number(A.lat) || 0)
+  const productoCruz = (ABx * APy) - (ABy * APx)
+
+  if(!Number.isFinite(productoCruz) || Math.abs(productoCruz) < 1e-12){
+    return 0
+  }
+
+  return productoCruz > 0 ? 1 : -1
+}
+
+function obtenerLadoInterceptacionEstable(aeronave, posicion, A, B, distanciaAlTramo){
+  const ladoActual = obtenerLadoRelativoSegmento(posicion, A, B)
+  const distancia =
+    Number.isFinite(Number(distanciaAlTramo))
+      ? Math.max(0, Number(distanciaAlTramo))
+      : Infinity
+  const ladoPrevio = Number.isFinite(Number(aeronave?.interceptSideRef))
+    ? Math.sign(Number(aeronave.interceptSideRef))
+    : 0
+
+  if(distancia <= INTERCEPT_LEG_SIDE_NEUTRAL_DISTANCE_M){
+    if(aeronave){
+      aeronave.interceptSideRef = 0
+    }
+    return 0
+  }
+
+  if(ladoActual === 0){
+    if(aeronave && ladoPrevio !== 0){
+      aeronave.interceptSideRef = ladoPrevio
+    }
+    return ladoPrevio
+  }
+
+  if(
+    ladoPrevio !== 0 &&
+    ladoActual !== ladoPrevio &&
+    distancia <= INTERCEPT_LEG_SIDE_HYSTERESIS_DISTANCE_M
+  ){
+    if(aeronave){
+      aeronave.interceptSideRef = ladoPrevio
+    }
+    return ladoPrevio
+  }
+
+  if(aeronave){
+    aeronave.interceptSideRef = ladoActual
+  }
+
+  return ladoActual
 }
 
 function obtenerProyeccionRutaLinealMasCercana(posicion, ruta){
@@ -654,6 +733,33 @@ function normalizarSentidoOrbitTexto(valor) {
   return "RIGHT"
 }
 
+function normalizarSentidoCircuitoTexto(valor) {
+  if (typeof valor === "number" && Number.isFinite(valor)) {
+    return valor < 0 ? "LEFT" : "RIGHT"
+  }
+
+  const texto = typeof valor === "string" ? valor.trim().toUpperCase() : ""
+  if (texto === "RIGHT" || texto === "R" || texto === "DERECHA") {
+    return "RIGHT"
+  }
+  return "LEFT"
+}
+
+function obtenerRumbosCircuito(valor = null) {
+  const sentidoNormalizado =
+    valor && typeof valor === "object"
+      ? normalizarSentidoCircuitoTexto(valor.circuitoSentido)
+      : normalizarSentidoCircuitoTexto(valor)
+
+  return sentidoNormalizado === "RIGHT"
+    ? RUMBOS_CIRCUITO_DERECHA
+    : RUMBOS_CIRCUITO
+}
+
+function esCircuitoDerecha(aeronave) {
+  return normalizarSentidoCircuitoTexto(aeronave?.circuitoSentido) === "RIGHT"
+}
+
 function obtenerSignoSentidoOrbit(valor) {
   return normalizarSentidoOrbitTexto(valor) === "LEFT"
     ? ORBIT_SENTIDO_IZQUIERDA
@@ -678,6 +784,18 @@ const INTERCEPT_LEG_FORCE_CAPTURE_DISTANCE_M = 140
 const INTERCEPT_LEG_RESCUE_CAPTURE_TICKS = 120
 const INTERCEPT_LEG_RESCUE_CAPTURE_DISTANCE_M = 240
 const INTERCEPT_LEG_HARD_TIMEOUT_TICKS = 520
+const INTERCEPT_ARC_DIRECT_TO_LEG_DISTANCE_M = 170
+const INTERCEPT_ARC_CAPTURE_DISTANCE_M = 105
+const INTERCEPT_ARC_MAX_TURN_FAR_DEG = 0.7
+const INTERCEPT_ARC_MAX_TURN_NEAR_DEG = 1.05
+const INTERCEPT_LEG_MIN_INTERCEPT_ANGLE_DEG = 4
+const INTERCEPT_LEG_MAX_INTERCEPT_ANGLE_DEG = 32
+const INTERCEPT_LEG_SOFT_CAPTURE_DISTANCE_M = 90
+const INTERCEPT_LEG_SOFT_CAPTURE_HEADING_DEG = 16
+const INTERCEPT_LEG_SOFT_CAPTURE_MIN_TICKS = 6
+const INTERCEPT_LEG_FINAL_ALIGN_DISTANCE_M = 55
+const INTERCEPT_LEG_SIDE_NEUTRAL_DISTANCE_M = 18
+const INTERCEPT_LEG_SIDE_HYSTERESIS_DISTANCE_M = 34
 // ================== UTILIDADES ==================
 
 function convertirHoraASegundos(horaStr) {
@@ -1030,7 +1148,8 @@ function iniciarMotorSala(nombreSala){
           velocidadObjetivo: a.velocidadObjetivo,
           estado: a.estado,
           orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido),
-          shortCircuitoActivo: Boolean(a.shortCircuitoActivo)
+          shortCircuitoActivo: Boolean(a.shortCircuitoActivo),
+          circuitoSentido: normalizarSentidoCircuitoTexto(a.circuitoSentido)
         })
         if (resultado && resultado.completado) {
           const token = a.movimiento && a.movimiento.token
@@ -1080,7 +1199,8 @@ function iniciarMotorSala(nombreSala){
     velocidad: a.velocidad,
     velocidadObjetivo: a.velocidadObjetivo,
     estado: a.estado,
-    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido)
+    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido),
+    circuitoSentido: normalizarSentidoCircuitoTexto(a.circuitoSentido)
   })
 
   return
@@ -1093,16 +1213,17 @@ function iniciarMotorSala(nombreSala){
 		        a.rutaAirborne.length >= 2
 		      ) {
 		        if (avanzarRutaAirborneLineal(a, intervaloMS)) {
-		          io.to(nombreSala).emit("actualizarAeronave", {
-		            id: a.id,
-		            lat: a.lat,
-		            lng: a.lng,
+	          io.to(nombreSala).emit("actualizarAeronave", {
+	            id: a.id,
+	            lat: a.lat,
+	            lng: a.lng,
 	            altitud: a.altitud,
 	            angulo: a.angulo,
 	            velocidad: a.velocidad,
 	            velocidadObjetivo: a.velocidadObjetivo,
 	            estado: a.estado,
-	            orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido)
+	            orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido),
+	            circuitoSentido: normalizarSentidoCircuitoTexto(a.circuitoSentido)
 	          })
 	          return
 		        }
@@ -1130,7 +1251,8 @@ function iniciarMotorSala(nombreSala){
 	          velocidad: a.velocidad,
 	          velocidadObjetivo: a.velocidadObjetivo,
 	          estado: a.estado,
-	          orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido)
+	          orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido),
+	          circuitoSentido: normalizarSentidoCircuitoTexto(a.circuitoSentido)
 	        })
 	        return
 	      }
@@ -1151,38 +1273,91 @@ if (a.estado === "INTERCEPTING ARC") {
       : a.puntoIntercepto;
   if (!destino) {
     a.estado = "INTERCEPTING LEG";
-    a.interceptTicks = 0;
-    a.interceptHeadingRef = null;
+    reiniciarGuiadoInterceptacionCircuito(a)
     return;
   }
 
+  const posicionActual = { lat: a.lat, lng: a.lng }
   const distancia = distanciaEntre(
-    { lat: a.lat, lng: a.lng },
+    posicionActual,
     destino
   );
 
   const velocidadMPS = obtenerVelocidadMPSParaRuta(a);
   const distanciaTick = velocidadMPS * (intervaloMS / 1000);
 
-  // 🔥 RUMBO HACIA EL PUNTO DE INTERCEPTO
-  const rumboObjetivo = calcularRumboServidor(
-    { lat: a.lat, lng: a.lng },
-    destino
-  );
+  let rumboTramoObjetivo = null
+  let puntoTramoObjetivo = null
+  let distanciaTramoObjetivo = Infinity
+  const ultimoWaypointIngreso =
+    !Array.isArray(a.ingresoDownwindWaypoints) ||
+    a.ingresoDownwindWaypoints.length <= 1
 
-  const diff = diferenciaAngular(a.angulo || 0, rumboObjetivo);
-  const maxGiro = 2;
-
-  if (Math.abs(diff) < maxGiro) {
-    a.angulo = rumboObjetivo;
-  } else {
-    a.angulo += Math.sign(diff) * maxGiro;
+  if (Number.isFinite(a.tramoObjetivo)) {
+    const indiceA =
+      ((a.tramoObjetivo % a.ruta.length) + a.ruta.length) % a.ruta.length
+    const ATramo = a.ruta[indiceA]
+    const BTramo = a.ruta[(indiceA - 1 + a.ruta.length) % a.ruta.length]
+    if (ATramo && BTramo) {
+      const proyeccionTramo = proyectarSobreSegmentoConFactor(
+        posicionActual,
+        ATramo,
+        BTramo
+      )
+      puntoTramoObjetivo = proyeccionTramo.punto
+      distanciaTramoObjetivo = distanciaEntre(posicionActual, proyeccionTramo.punto)
+      rumboTramoObjetivo = calcularRumboServidor(ATramo, BTramo)
+    }
   }
 
+  if (
+    ultimoWaypointIngreso &&
+    puntoTramoObjetivo &&
+    distanciaTramoObjetivo <= INTERCEPT_ARC_DIRECT_TO_LEG_DISTANCE_M
+  ) {
+    a.ingresoDownwindWaypoints = null
+    a.ingresoDownwindTipo = null
+    a.puntoIntercepto = puntoTramoObjetivo
+    a.estado = "INTERCEPTING LEG"
+    reiniciarGuiadoInterceptacionCircuito(a)
+    return
+  }
+
+  // Empieza a alinearse con el tramo antes de llegar al ultimo waypoint.
+  let rumboObjetivo = calcularRumboServidor(posicionActual, destino)
+  if (
+    ultimoWaypointIngreso &&
+    Number.isFinite(rumboTramoObjetivo) &&
+    Number.isFinite(distanciaTramoObjetivo)
+  ) {
+    const factorAlineacionTramo = Math.max(
+      0,
+      Math.min(
+        1,
+        1 - (distanciaTramoObjetivo / INTERCEPT_ARC_DIRECT_TO_LEG_DISTANCE_M)
+      )
+    )
+    rumboObjetivo = interpolarRumbo(
+      rumboObjetivo,
+      rumboTramoObjetivo,
+      factorAlineacionTramo * 0.7
+    )
+  }
+
+  const factorCercaniaDestino = Math.max(
+    0,
+    Math.min(1, 1 - (distancia / 320))
+  )
+  const maxGiro =
+    INTERCEPT_ARC_MAX_TURN_FAR_DEG +
+    (INTERCEPT_ARC_MAX_TURN_NEAR_DEG - INTERCEPT_ARC_MAX_TURN_FAR_DEG) *
+      factorCercaniaDestino
+  const headingActual = Number.isFinite(a.angulo) ? a.angulo : rumboObjetivo
+  a.angulo = aplicarVirajeLimitado(headingActual, rumboObjetivo, maxGiro)
   a.angulo = (a.angulo + 360) % 360;
 
   const nuevoPunto = puntoPlano(
-    { lat: a.lat, lng: a.lng },
+    posicionActual,
     a.angulo,
     distanciaTick
   );
@@ -1191,7 +1366,7 @@ if (a.estado === "INTERCEPTING ARC") {
   a.lng = nuevoPunto.lng;
 
   // 🎯 Cuando esté cerca → pasar a interceptación fina
-  if (distancia < 120) {
+  if (distancia < INTERCEPT_ARC_CAPTURE_DISTANCE_M) {
     if (Array.isArray(a.ingresoDownwindWaypoints) && a.ingresoDownwindWaypoints.length > 0) {
       a.ingresoDownwindWaypoints.shift()
 
@@ -1202,13 +1377,11 @@ if (a.estado === "INTERCEPTING ARC") {
         a.ingresoDownwindTipo = null
         a.puntoIntercepto = null
         a.estado = "INTERCEPTING LEG";
-        a.interceptTicks = 0;
-        a.interceptHeadingRef = null;
+        reiniciarGuiadoInterceptacionCircuito(a)
       }
     } else {
       a.estado = "INTERCEPTING LEG";
-      a.interceptTicks = 0;
-      a.interceptHeadingRef = null;
+      reiniciarGuiadoInterceptacionCircuito(a)
     }
   }
 
@@ -1221,7 +1394,8 @@ if (a.estado === "INTERCEPTING ARC") {
     velocidad: a.velocidad,
     velocidadObjetivo: a.velocidadObjetivo,
     estado: a.estado,
-    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido)
+    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido),
+    circuitoSentido: normalizarSentidoCircuitoTexto(a.circuitoSentido)
   });
 
   return;
@@ -1243,52 +1417,96 @@ if (a.estado === "INTERCEPTING LEG") {
     a.ingresoDownwindWaypoints = null
     a.ingresoDownwindTipo = null
     a.estado = "CIRCUIT";
-    a.interceptTicks = 0;
-    a.interceptHeadingRef = null;
+    reiniciarGuiadoInterceptacionCircuito(a)
     return;
   }
 
+  const posicionActual = { lat: a.lat, lng: a.lng }
   const distanciaSegmento = Math.max(1, distanciaEntre(A, B));
 
-  // Proyeccion sobre tramo + punto adelantado para evitar oscilacion.
+  // Proyeccion sobre tramo + punto adelantado monotono para evitar S-turns.
   const proyeccion = proyectarSobreSegmentoConFactor(
-    { lat: a.lat, lng: a.lng },
+    posicionActual,
     A,
     B
   );
   const puntoProyectado = proyeccion.punto;
 
   const distanciaAlTramo = distanciaEntre(
-    { lat: a.lat, lng: a.lng },
+    posicionActual,
     puntoProyectado
   );
+
+  const tProyeccion = Math.max(0, Math.min(1, proyeccion.t))
+  if (
+    !Number.isFinite(a.interceptTrackRefT) ||
+    a.interceptTrackRefT > (tProyeccion + 0.22)
+  ) {
+    a.interceptTrackRefT = tProyeccion
+  } else {
+    a.interceptTrackRefT = Math.max(a.interceptTrackRefT, tProyeccion)
+  }
 
   const anticipacionM = Math.max(
     INTERCEPT_LEG_LOOKAHEAD_MIN_M,
     Math.min(INTERCEPT_LEG_LOOKAHEAD_MAX_M, distanciaTick * 14)
   );
-  const tGuiado = Math.min(1, proyeccion.t + (anticipacionM / distanciaSegmento));
+  const tGuiadoBase = Number.isFinite(a.interceptTrackRefT)
+    ? a.interceptTrackRefT
+    : tProyeccion
+  const tGuiado = Math.min(1, tGuiadoBase + (anticipacionM / distanciaSegmento));
   const puntoGuiado = {
     lat: A.lat + (B.lat - A.lat) * tGuiado,
     lng: A.lng + (B.lng - A.lng) * tGuiado
   };
 
-  // Rumbo de guiado al tramo (sin cortar hacia atras del segmento).
-  const rumboIntercepto = calcularRumboServidor(
-    { lat: a.lat, lng: a.lng },
-    puntoGuiado
-  );
-
+  const rumboGuiado = calcularRumboServidor(posicionActual, puntoGuiado);
   const rumboTramo = calcularRumboServidor(A, B);
 
-  // Mezcla progresiva: de intercepto al rumbo de tramo.
   const factorCurva = Math.max(
     0,
     Math.min(1, 1 - (distanciaAlTramo / INTERCEPT_LEG_BLEND_DISTANCE_M))
   );
 
+  const signoLateral = obtenerLadoInterceptacionEstable(
+    a,
+    posicionActual,
+    A,
+    B,
+    distanciaAlTramo
+  )
+  const usarAlineacionDirecta = distanciaAlTramo <= INTERCEPT_LEG_FINAL_ALIGN_DISTANCE_M
+  const anguloInterceptoMaximo =
+    INTERCEPT_LEG_MIN_INTERCEPT_ANGLE_DEG +
+    (INTERCEPT_LEG_MAX_INTERCEPT_ANGLE_DEG - INTERCEPT_LEG_MIN_INTERCEPT_ANGLE_DEG) *
+      (1 - factorCurva)
+  const anguloInterceptoDeseado = Math.abs(
+    diferenciaAngular(rumboTramo, rumboGuiado)
+  )
+  const anguloInterceptoMinimo =
+    signoLateral !== 0 && distanciaAlTramo > 35
+      ? INTERCEPT_LEG_MIN_INTERCEPT_ANGLE_DEG * (1 - factorCurva)
+      : 0
+
+  let rumboInterceptoControlado = rumboTramo
+  if (Number.isFinite(rumboGuiado)) {
+    if (usarAlineacionDirecta) {
+      rumboInterceptoControlado = rumboTramo
+    } else if (signoLateral !== 0) {
+      const anguloIntercepto = Math.min(
+        anguloInterceptoMaximo,
+        Math.max(anguloInterceptoMinimo, anguloInterceptoDeseado)
+      )
+      rumboInterceptoControlado = normalizarAngulo360(
+        rumboTramo + (signoLateral * anguloIntercepto)
+      )
+    } else {
+      rumboInterceptoControlado = rumboGuiado
+    }
+  }
+
   const rumboObjetivoBase = interpolarRumbo(
-    rumboIntercepto,
+    rumboInterceptoControlado,
     rumboTramo,
     factorCurva
   );
@@ -1296,10 +1514,13 @@ if (a.estado === "INTERCEPTING LEG") {
   if (!Number.isFinite(a.interceptHeadingRef)) {
     a.interceptHeadingRef = rumboObjetivoBase;
   } else {
+    const factorSuavizadoRumbo = usarAlineacionDirecta
+      ? Math.max(INTERCEPT_LEG_HEADING_SMOOTH_FACTOR, 0.38)
+      : INTERCEPT_LEG_HEADING_SMOOTH_FACTOR
     a.interceptHeadingRef = interpolarRumbo(
       a.interceptHeadingRef,
       rumboObjetivoBase,
-      INTERCEPT_LEG_HEADING_SMOOTH_FACTOR
+      factorSuavizadoRumbo
     );
   }
   const rumboObjetivo = a.interceptHeadingRef;
@@ -1310,17 +1531,12 @@ if (a.estado === "INTERCEPTING LEG") {
       factorCurva;
 
   const headingActual = Number.isFinite(a.angulo) ? a.angulo : rumboObjetivo;
-  const diff = diferenciaAngular(headingActual, rumboObjetivo);
-  if (Math.abs(diff) < maxGiro) {
-    a.angulo = rumboObjetivo;
-  } else {
-    a.angulo = headingActual + Math.sign(diff) * maxGiro;
-  }
+  a.angulo = aplicarVirajeLimitado(headingActual, rumboObjetivo, maxGiro)
 
   a.angulo = (a.angulo + 360) % 360;
 
   const nuevoPunto = puntoPlano(
-    { lat: a.lat, lng: a.lng },
+    posicionActual,
     a.angulo,
     distanciaTick
   );
@@ -1340,12 +1556,12 @@ if (a.estado === "INTERCEPTING LEG") {
   const errorRumbo = Math.abs(diferenciaAngular(a.angulo, rumboTramo));
   a.interceptTicks = (a.interceptTicks || 0) + 1;
 
-  // Captura estable para evitar giros anormales y entrada brusca.
-  const capturaPrecisa = distanciaFinalAlTramo < 22 && errorRumbo < 10;
+  // Captura un poco antes cuando ya viene bien alineado, evitando contragiros finales.
+  const capturaPrecisa = distanciaFinalAlTramo < 18 && errorRumbo < 8;
   const capturaCercana =
-    distanciaFinalAlTramo < 65 &&
-    errorRumbo < 22 &&
-    a.interceptTicks > 12;
+    distanciaFinalAlTramo < INTERCEPT_LEG_SOFT_CAPTURE_DISTANCE_M &&
+    errorRumbo < INTERCEPT_LEG_SOFT_CAPTURE_HEADING_DEG &&
+    a.interceptTicks > INTERCEPT_LEG_SOFT_CAPTURE_MIN_TICKS;
   const capturaForzada =
     a.interceptTicks > INTERCEPT_LEG_FORCE_CAPTURE_TICKS &&
     distanciaFinalAlTramo < INTERCEPT_LEG_FORCE_CAPTURE_DISTANCE_M;
@@ -1412,8 +1628,7 @@ if (a.estado === "INTERCEPTING LEG") {
     a.ingresoDownwindWaypoints = null
     a.ingresoDownwindTipo = null
     a.estado = "CIRCUIT";
-    a.interceptTicks = 0;
-    a.interceptHeadingRef = null;
+    reiniciarGuiadoInterceptacionCircuito(a)
     a.tramoObjetivo = indiceCaptura;
     a.indice = indiceCaptura;
     a.progreso = progresoCaptura;
@@ -1428,7 +1643,8 @@ if (a.estado === "INTERCEPTING LEG") {
     velocidad: a.velocidad,
     velocidadObjetivo: a.velocidadObjetivo,
     estado: a.estado,
-    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido)
+    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido),
+    circuitoSentido: normalizarSentidoCircuitoTexto(a.circuitoSentido)
   });
 
   return;
@@ -1514,7 +1730,8 @@ if (a.estado === "INTERCEPTING LEG") {
           velocidad: a.velocidad,
           velocidadObjetivo: a.velocidadObjetivo,
           estado: a.estado,
-    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido)
+    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido),
+          circuitoSentido: normalizarSentidoCircuitoTexto(a.circuitoSentido)
         })
 
         return
@@ -1566,7 +1783,8 @@ if (a.estado === "INTERCEPTING LEG") {
           velocidad: a.velocidad,
           velocidadObjetivo: a.velocidadObjetivo,
           estado: a.estado,
-    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido)
+    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido),
+          circuitoSentido: normalizarSentidoCircuitoTexto(a.circuitoSentido)
         })
 
         return
@@ -1635,8 +1853,8 @@ if (a.estado === "INTERCEPTING LEG") {
 
 	      actualizarDescensoClearedToLandBase(a, tipoSegmentoMovimiento, intervaloMS)
 	
-	      io.to(nombreSala).emit("actualizarAeronave", {
-	        id: a.id,
+      io.to(nombreSala).emit("actualizarAeronave", {
+        id: a.id,
         lat: a.lat,
         lng: a.lng,
         altitud: a.altitud,
@@ -1644,7 +1862,8 @@ if (a.estado === "INTERCEPTING LEG") {
         velocidad: a.velocidad,
         velocidadObjetivo: a.velocidadObjetivo,
         estado: a.estado,
-    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido)
+    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido),
+        circuitoSentido: normalizarSentidoCircuitoTexto(a.circuitoSentido)
       })
 
     })
@@ -1700,7 +1919,12 @@ function generarRutaServidor(sala, opciones = {}){
 
   const rumboPista = calcularRumboServidor(umbral04, umbral22)
   const rumboInverso = calcularRumboServidor(umbral22, umbral04)
-  const rumboIzq = (rumboInverso - 90 + 360) % 360   // tr�fico izquierdo RWY 22
+  const sentidoCircuito = normalizarSentidoCircuitoTexto(opciones?.sentidoCircuito)
+  const circuitoDerecha = sentidoCircuito === "RIGHT"
+  const rumboLateral = circuitoDerecha
+    ? (rumboInverso + 90) % 360
+    : (rumboInverso - 90 + 360) % 360
+  const sentidoSemicirculo = circuitoDerecha ? "ccw" : "cw"
 
   const factorShortCircuitoRaw =
     typeof opciones?.shortFactor === "number" ? opciones.shortFactor : 1
@@ -1735,13 +1959,13 @@ function generarRutaServidor(sala, opciones = {}){
 
   // Patr�n "rectangular con lados semicirculares" (tipo racetrack)
   const separacionPiernasM = separacionFinalDownwindM
-  const salidaExtIzq = puntoPlano(salidaExt, rumboIzq, separacionPiernasM)
-  const finalExtIzq = puntoPlano(finalExt, rumboIzq, separacionPiernasM)
+  const salidaExtLateral = puntoPlano(salidaExt, rumboLateral, separacionPiernasM)
+  const finalExtLateral = puntoPlano(finalExt, rumboLateral, separacionPiernasM)
 
-  const centroVirajeSalida = puntoPlano(salidaExt, rumboIzq, lateralM)
-  const centroVirajeFinal = puntoPlano(finalExt, rumboIzq, lateralM)
-  const radialSalidaInicio = (rumboInverso + 90) % 360
-  const radialSalidaFin = (rumboPista + 90) % 360
+  const centroVirajeSalida = puntoPlano(salidaExt, rumboLateral, lateralM)
+  const centroVirajeFinal = puntoPlano(finalExt, rumboLateral, lateralM)
+  const radialSalidaInicio = (rumboLateral + 180) % 360
+  const radialSalidaFin = rumboLateral
   const radialFinalInicio = radialSalidaFin
   const radialFinalFin = radialSalidaInicio
 
@@ -1844,21 +2068,21 @@ function generarRutaServidor(sala, opciones = {}){
     pasosSemicirculo,
     "crosswind",
     true,
-    "cw"
+    sentidoSemicirculo
   )
 
-  // 3) Downwind (opuesto a final): salidaExtIzq -> finalExtIzq
-  agregarRecta(salidaExtIzq, finalExtIzq, pasosRecta, false, "downwind")
+  // 3) Downwind (opuesto a final): salidaExtLateral -> finalExtLateral
+  agregarRecta(salidaExtLateral, finalExtLateral, pasosRecta, false, "downwind")
 
   // 4) Lado semicircular de final: tramo base
 
   if (usarBaseRecta) {
-    const distanciaBaseM = distanciaEntre(finalExtIzq, finalExt)
+    const distanciaBaseM = distanciaEntre(finalExtLateral, finalExt)
     const pasosBaseRecta = Math.max(
       8,
       Math.round(distanciaBaseM / separacionObjetivoM)
     )
-    agregarRecta(finalExtIzq, finalExt, pasosBaseRecta, false, "base", false)
+    agregarRecta(finalExtLateral, finalExt, pasosBaseRecta, false, "base", false)
   } else {
     agregarSemicirculo(
       centroVirajeFinal,
@@ -1867,7 +2091,7 @@ function generarRutaServidor(sala, opciones = {}){
       pasosSemicirculo,
       "base",
       false,
-      "cw"
+      sentidoSemicirculo
     )
   }
 
@@ -1916,6 +2140,10 @@ function tieneExtensionLocalAeronave(aeronave) {
   return extraUpwind !== 0 || extraDownwind !== 0
 }
 
+function requiereRutaPropiaAeronave(aeronave) {
+  return tieneExtensionLocalAeronave(aeronave) || esCircuitoDerecha(aeronave)
+}
+
 function generarRutaServidorParaAeronave(sala, aeronave) {
   if (!sala) return []
 
@@ -1943,17 +2171,19 @@ function generarRutaServidorParaAeronave(sala, aeronave) {
     },
     {
       shortFactor: factorShortCircuito,
-      baseRecta: shortActivo
+      baseRecta: shortActivo,
+      sentidoCircuito: normalizarSentidoCircuitoTexto(aeronave?.circuitoSentido)
     }
   )
 }
 
-function clasificarTramoPorRumbo(rumbo) {
+function clasificarTramoPorRumbo(rumbo, sentidoCircuito = null) {
+  const rumbosCircuito = obtenerRumbosCircuito(sentidoCircuito)
   const candidatos = [
-    { tipo: "upwind", rumbo: RUMBOS_CIRCUITO.upwind },
-    { tipo: "downwind", rumbo: RUMBOS_CIRCUITO.downwind },
-    { tipo: "crosswind", rumbo: RUMBOS_CIRCUITO.crosswind },
-    { tipo: "base", rumbo: RUMBOS_CIRCUITO.base }
+    { tipo: "upwind", rumbo: rumbosCircuito.upwind },
+    { tipo: "downwind", rumbo: rumbosCircuito.downwind },
+    { tipo: "crosswind", rumbo: rumbosCircuito.crosswind },
+    { tipo: "base", rumbo: rumbosCircuito.base }
   ]
 
   let mejor = { tipo: "otro", diff: Infinity }
@@ -1968,7 +2198,7 @@ function clasificarTramoPorRumbo(rumbo) {
   return mejor.diff <= 55 ? mejor.tipo : "otro"
 }
 
-function obtenerTipoSegmentoRuta(A, B, rumboSegmento = null) {
+function obtenerTipoSegmentoRuta(A, B, rumboSegmento = null, sentidoCircuito = null) {
   if (A && typeof A.tramo === "string" && A.tramo.length > 0) {
     return A.tramo
   }
@@ -1978,13 +2208,13 @@ function obtenerTipoSegmentoRuta(A, B, rumboSegmento = null) {
       ? rumboSegmento
       : calcularRumboServidor(A, B)
 
-  return clasificarTramoPorRumbo(rumbo)
+  return clasificarTramoPorRumbo(rumbo, sentidoCircuito)
 }
 
 function obtenerTramoActualAeronave(aeronave) {
   if (!aeronave || !aeronave.ruta || aeronave.ruta.length < 2) {
     return {
-      tipo: clasificarTramoPorRumbo(aeronave?.angulo || 0),
+      tipo: clasificarTramoPorRumbo(aeronave?.angulo || 0, aeronave),
       rumbo: aeronave?.angulo || 0,
       indiceA: null,
       puntoIntercepto: null
@@ -2002,7 +2232,7 @@ function obtenerTramoActualAeronave(aeronave) {
   const A = aeronave.ruta[indiceA]
   const B = aeronave.ruta[indiceB]
   const rumbo = calcularRumboServidor(A, B)
-  const tipo = obtenerTipoSegmentoRuta(A, B, rumbo)
+  const tipo = obtenerTipoSegmentoRuta(A, B, rumbo, aeronave)
 
   return {
     tipo,
@@ -2147,6 +2377,8 @@ function construirIngresoDownwind45(aeronave) {
         joinPoint,
         rumboDownwind
       )
+  const sentidoCircuito = normalizarSentidoCircuitoTexto(aeronave.circuitoSentido)
+  const ladoInterior = sentidoCircuito === "RIGHT" ? "EAST" : "WEST"
 
   const waypoints = []
 
@@ -2154,18 +2386,24 @@ function construirIngresoDownwind45(aeronave) {
     waypoints.push(joinPoint)
   } else {
     const rumboIngreso45 =
-      (rumboDownwind - INGRESO_DOWNWIND_ANGULO_GRADOS + 360) % 360
+      sentidoCircuito === "RIGHT"
+        ? (rumboDownwind + INGRESO_DOWNWIND_ANGULO_GRADOS) % 360
+        : (rumboDownwind - INGRESO_DOWNWIND_ANGULO_GRADOS + 360) % 360
     const preEntryPoint = puntoPlano(
       joinPoint,
       (rumboIngreso45 + 180) % 360,
       INGRESO_DOWNWIND_PREENTRY_M
     )
 
-    if (ladoIngreso === "WEST") {
-      // Entrada en gota: cruza downwind hacia el lado este y luego abre la gota.
+    if (ladoIngreso === ladoInterior) {
+      const rumboCruceExterior =
+        sentidoCircuito === "RIGHT"
+          ? (rumboDownwind + 270) % 360
+          : (rumboDownwind + 90) % 360
+      // Entrada en gota: cruza downwind hacia el exterior y luego abre la gota.
       const puntoCruce = puntoPlano(
         joinPoint,
-        (rumboDownwind + 90) % 360,
+        rumboCruceExterior,
         INGRESO_DOWNWIND_CRUCE_M
       )
       const puntoGota = puntoPlano(
@@ -2201,7 +2439,7 @@ function construirIngresoDownwind45(aeronave) {
       ladoIngreso === "SOUTH"
         ? "DOWNWIND_SOUTH_START"
         : (
-          ladoIngreso === "WEST"
+          ladoIngreso === ladoInterior
             ? "DOWNWIND_TEARDROP_45"
             : "DOWNWIND_DIRECT_45"
         )
@@ -2228,7 +2466,7 @@ function regenerarRutaSala(nombreSala) {
   const rutaBase = generarRutaServidor(sala)
 
   sala.aeronaves.forEach(a => {
-    const rutaAeronave = tieneExtensionLocalAeronave(a)
+    const rutaAeronave = requiereRutaPropiaAeronave(a)
       ? generarRutaServidorParaAeronave(sala, a)
       : rutaBase
 
@@ -2379,7 +2617,8 @@ function emitirActualizacionAeronave(nombreSala, aeronave) {
     velocidadObjetivo: aeronave.velocidadObjetivo,
     estado: aeronave.estado,
     orbitSentido: normalizarSentidoOrbitTexto(aeronave.orbitSentido),
-    shortCircuitoActivo: Boolean(aeronave.shortCircuitoActivo)
+    shortCircuitoActivo: Boolean(aeronave.shortCircuitoActivo),
+    circuitoSentido: normalizarSentidoCircuitoTexto(aeronave.circuitoSentido)
   })
 }
 
@@ -2388,11 +2627,18 @@ function prepararAeronaveParaCircuito(salaNombre, sala, aeronave, opciones = {})
 
   limpiarOrbitacionAeronave(aeronave)
   aeronave.altitudCircuitoAutomaticaActiva = true
+  aeronave.circuitoSentido = normalizarSentidoCircuitoTexto(
+    opciones && opciones.sentidoCircuito !== undefined
+      ? opciones.sentidoCircuito
+      : aeronave.circuitoSentido
+  )
 
   aeronave.ruta = generarRutaServidorParaAeronave(sala, aeronave)
 
   io.to(salaNombre).emit("rutaCircuito", {
-    ruta: aeronave.ruta
+    id: aeronave.id,
+    ruta: aeronave.ruta,
+    sentidoCircuito: normalizarSentidoCircuitoTexto(aeronave.circuitoSentido)
   })
 
   const modoIngresoRaw =
@@ -2427,8 +2673,7 @@ function prepararAeronaveParaCircuito(salaNombre, sala, aeronave, opciones = {})
       aeronave.ingresoDownwindWaypoints = null
       aeronave.ingresoDownwindTipo = null
       aeronave.estado = "INTERCEPTING ARC"
-      aeronave.interceptTicks = 0
-      aeronave.interceptHeadingRef = null
+      reiniciarGuiadoInterceptacionCircuito(aeronave)
       aeronave.velocidad = GO_AROUND_SPEED_DEFAULT_KT * 0.514444
       aeronave.velocidadObjetivo = GO_AROUND_SPEED_DEFAULT_KT
 
@@ -2464,8 +2709,7 @@ function prepararAeronaveParaCircuito(salaNombre, sala, aeronave, opciones = {})
     aeronave.ingresoDownwindTipo = ingresoDownwind.tipo
     aeronave.puntoIntercepto = aeronave.ingresoDownwindWaypoints[0]
     aeronave.estado = "INTERCEPTING ARC"
-    aeronave.interceptTicks = 0
-    aeronave.interceptHeadingRef = null
+    reiniciarGuiadoInterceptacionCircuito(aeronave)
     aeronave.velocidad = GO_AROUND_SPEED_DEFAULT_KT * 0.514444
     aeronave.velocidadObjetivo = GO_AROUND_SPEED_DEFAULT_KT
 
@@ -2509,8 +2753,7 @@ function prepararAeronaveParaCircuito(salaNombre, sala, aeronave, opciones = {})
   aeronave.tramoObjetivo = mejor.indiceA
   aeronave.puntoIntercepto = mejor.puntoIntercepto
   aeronave.estado = "INTERCEPTING ARC"
-  aeronave.interceptTicks = 0
-  aeronave.interceptHeadingRef = null
+  reiniciarGuiadoInterceptacionCircuito(aeronave)
   aeronave.velocidad = GO_AROUND_SPEED_DEFAULT_KT * 0.514444
   aeronave.velocidadObjetivo = GO_AROUND_SPEED_DEFAULT_KT
 
@@ -2913,10 +3156,13 @@ socket.on("solicitarSincronizacionTiempo", () => {
   orbitModoContinuo: false,
   orbitDetenerSolicitado: false,
   orbitSentido: "RIGHT",
+  circuitoSentido: "LEFT",
   shortCircuitoActivo: false,
   altitudCircuitoAutomaticaActiva: false,
   ingresoDownwindWaypoints: null,
   ingresoDownwindTipo: null,
+  interceptTrackRefT: null,
+  interceptSideRef: 0,
   estado: "IDLE"
 });
 
@@ -2936,6 +3182,7 @@ socket.on("solicitarSincronizacionTiempo", () => {
   orbitModoContinuo: false,
   orbitDetenerSolicitado: false,
   orbitSentido: "RIGHT",
+  circuitoSentido: "LEFT",
   shortCircuitoActivo: false,
   owner: null
   });
@@ -3108,7 +3355,7 @@ socket.on("extenderTramoCircuito", ({ id, metros }) => {
       aeronave.tramoObjetivo = proyeccionTramo.indiceA
       aeronave.puntoIntercepto = proyeccionTramo.puntoIntercepto
       aeronave.estado = "INTERCEPTING LEG"
-      aeronave.interceptHeadingRef = null
+      reiniciarGuiadoInterceptacionCircuito(aeronave)
     }
 
     aeronave.angulo = rumboObjetivo
@@ -3120,6 +3367,7 @@ socket.on("extenderTramoCircuito", ({ id, metros }) => {
     id: aeronave.id,
     ruta: rutaActualizada,
     tramoExtendido: tramoObjetivo,
+    sentidoCircuito: normalizarSentidoCircuitoTexto(aeronave.circuitoSentido),
     extensionAeronave: {
       upwind: aeronave.extensionUpwindExtraLocal || 0,
       downwind: aeronave.extensionDownwindExtraLocal || 0
@@ -3214,7 +3462,7 @@ socket.on("acortarTramoCircuito", ({ id, metros }) => {
       aeronave.tramoObjetivo = proyeccionTramo.indiceA
       aeronave.puntoIntercepto = proyeccionTramo.puntoIntercepto
       aeronave.estado = "INTERCEPTING LEG"
-      aeronave.interceptHeadingRef = null
+      reiniciarGuiadoInterceptacionCircuito(aeronave)
     }
 
     aeronave.angulo = rumboObjetivo
@@ -3226,6 +3474,7 @@ socket.on("acortarTramoCircuito", ({ id, metros }) => {
     id: aeronave.id,
     ruta: rutaActualizada,
     tramoReducido: tramoObjetivo,
+    sentidoCircuito: normalizarSentidoCircuitoTexto(aeronave.circuitoSentido),
     extensionAeronave: {
       upwind: aeronave.extensionUpwindExtraLocal || 0,
       downwind: aeronave.extensionDownwindExtraLocal || 0
@@ -3266,7 +3515,7 @@ socket.on("shortCircuito", ({ id, activo } = {}) => {
       aeronave.tramoObjetivo = proyeccionTramo.indiceA
       aeronave.puntoIntercepto = proyeccionTramo.puntoIntercepto
       aeronave.estado = "INTERCEPTING LEG"
-      aeronave.interceptHeadingRef = null
+      reiniciarGuiadoInterceptacionCircuito(aeronave)
     }
   } else {
     aeronave.ruta = rutaActualizada
@@ -3275,6 +3524,106 @@ socket.on("shortCircuito", ({ id, activo } = {}) => {
   socket.emit("rutaCircuitoActualizada", {
     id: aeronave.id,
     ruta: rutaActualizada,
+    shortCircuitoActivo: Boolean(aeronave.shortCircuitoActivo),
+    sentidoCircuito: normalizarSentidoCircuitoTexto(aeronave.circuitoSentido)
+  })
+  emitirActualizacionAeronave(nombreSala, aeronave)
+})
+
+socket.on("configurarSentidoCircuito", ({ id, sentido } = {}) => {
+
+  const nombreSala = socket.sala
+  if (!nombreSala) return
+
+  const sala = salas[nombreSala]
+  if (!sala) return
+
+  const aeronave = sala.aeronaves.find(a => a.id === id)
+  if (!aeronave) return
+  if (!socketPuedeControlarAeronave(nombreSala, sala, aeronave, socket.id)) return
+
+  const tramoActualAntesCambio =
+    aeronave.estado === "CIRCUIT"
+      ? obtenerTramoActualAeronave(aeronave)
+      : null
+  const sentidoNormalizado = normalizarSentidoCircuitoTexto(sentido)
+  const sentidoAnterior = normalizarSentidoCircuitoTexto(aeronave.circuitoSentido)
+  if (sentidoNormalizado === sentidoAnterior) {
+    emitirActualizacionAeronave(nombreSala, aeronave)
+    return
+  }
+
+  aeronave.circuitoSentido = sentidoNormalizado
+
+  const rutaActualizada = generarRutaServidorParaAeronave(sala, aeronave)
+
+  if (aeronave.estado === "CIRCUIT") {
+    const rumboReferencia =
+      typeof aeronave.angulo === "number"
+        ? aeronave.angulo
+        : (
+          Number.isFinite(tramoActualAntesCambio?.rumbo)
+            ? tramoActualAntesCambio.rumbo
+            : 0
+        )
+    const tipoObjetivo =
+      ["upwind", "crosswind", "downwind", "base"].includes(tramoActualAntesCambio?.tipo)
+        ? tramoActualAntesCambio.tipo
+        : clasificarTramoPorRumbo(
+            rumboReferencia,
+            { circuitoSentido: sentidoNormalizado }
+          )
+
+    const proyeccionTramo = obtenerProyeccionRutaMasCercana(
+      { lat: aeronave.lat, lng: aeronave.lng },
+      rutaActualizada,
+      ["upwind", "crosswind", "downwind", "base"].includes(tipoObjetivo)
+        ? tipoObjetivo
+        : null
+    ) || obtenerProyeccionRutaMasCercana(
+      { lat: aeronave.lat, lng: aeronave.lng },
+      rutaActualizada
+    )
+
+    aeronave.ruta = rutaActualizada
+
+    if (proyeccionTramo) {
+      aeronave.tramoObjetivo = proyeccionTramo.indiceA
+      aeronave.puntoIntercepto = proyeccionTramo.puntoIntercepto
+      aeronave.ingresoDownwindWaypoints = null
+      aeronave.ingresoDownwindTipo = null
+      aeronave.estado = "INTERCEPTING ARC"
+      reiniciarGuiadoInterceptacionCircuito(aeronave)
+      aeronave.velocidad = aeronave.velocidad || (90 * 0.514444)
+    } else {
+      aeronave.estado = "CIRCUIT"
+    }
+  } else if (
+    (aeronave.estado === "INTERCEPTING ARC" || aeronave.estado === "INTERCEPTING LEG") &&
+    aeronave.ruta
+  ) {
+    aeronave.ingresoDownwindWaypoints = null
+    aeronave.ingresoDownwindTipo = null
+    aeronave.ruta = rutaActualizada
+
+    const proyeccionTramo = obtenerProyeccionRutaMasCercana(
+      { lat: aeronave.lat, lng: aeronave.lng },
+      rutaActualizada
+    )
+    if (proyeccionTramo) {
+      aeronave.tramoObjetivo = proyeccionTramo.indiceA
+      aeronave.puntoIntercepto = proyeccionTramo.puntoIntercepto
+      aeronave.estado = "INTERCEPTING LEG"
+      reiniciarGuiadoInterceptacionCircuito(aeronave)
+    }
+  } else {
+    aeronave.ruta = rutaActualizada
+  }
+
+  io.to(nombreSala).emit("rutaCircuitoActualizada", {
+    id: aeronave.id,
+    ruta: rutaActualizada,
+    sentidoCircuito: normalizarSentidoCircuitoTexto(aeronave.circuitoSentido),
     shortCircuitoActivo: Boolean(aeronave.shortCircuitoActivo)
   })
   emitirActualizacionAeronave(nombreSala, aeronave)
@@ -3332,8 +3681,7 @@ socket.on("virarCircuito", ({ id }) => {
   aeronave.ingresoDownwindWaypoints = null
   aeronave.ingresoDownwindTipo = null
   aeronave.estado = "INTERCEPTING ARC"
-  aeronave.interceptTicks = 0
-  aeronave.interceptHeadingRef = null
+  reiniciarGuiadoInterceptacionCircuito(aeronave)
   aeronave.velocidad = aeronave.velocidad || (90 * 0.514444)
 
   iniciarMotorSala(salaNombre)
@@ -3578,6 +3926,7 @@ socket.on("actualizarAeronave", (data) => {
   estado: aeronave.estado,
     orbitSentido: normalizarSentidoOrbitTexto(aeronave.orbitSentido),
     shortCircuitoActivo: Boolean(aeronave.shortCircuitoActivo),
+    circuitoSentido: normalizarSentidoCircuitoTexto(aeronave.circuitoSentido),
     syncTs: aeronave.syncTs
 });
 
@@ -3627,11 +3976,12 @@ socket.on("activarManual", ({ id }) => {
     velocidad: aeronave.velocidad,
     velocidadObjetivo: aeronave.velocidadObjetivo,
     estado: aeronave.estado,
-    orbitSentido: normalizarSentidoOrbitTexto(aeronave.orbitSentido)
+    orbitSentido: normalizarSentidoOrbitTexto(aeronave.orbitSentido),
+    circuitoSentido: normalizarSentidoCircuitoTexto(aeronave.circuitoSentido)
   })
 })
 // ===== INICIAR CIRCUITO =====
-socket.on("iniciarCircuito", ({ id, modoIngreso } = {}) => {
+socket.on("iniciarCircuito", ({ id, modoIngreso, sentidoCircuito } = {}) => {
 
   const salaNombre = socket.sala
   if (!salaNombre) return
@@ -3649,7 +3999,10 @@ socket.on("iniciarCircuito", ({ id, modoIngreso } = {}) => {
 ) return
 
   limpiarGoAroundAeronave(aeronave)
-  prepararAeronaveParaCircuito(salaNombre, sala, aeronave, { modoIngreso })
+  prepararAeronaveParaCircuito(salaNombre, sala, aeronave, {
+    modoIngreso,
+    sentidoCircuito
+  })
 })
 socket.on("iniciarGoAround", ({ id }) => {
 
@@ -3758,7 +4111,8 @@ socket.on("forzarAterrizaje", ({ id }) => {
     velocidad: aeronave.velocidad,
     velocidadObjetivo: aeronave.velocidadObjetivo,
     estado: aeronave.estado,
-    orbitSentido: normalizarSentidoOrbitTexto(aeronave.orbitSentido)
+    orbitSentido: normalizarSentidoOrbitTexto(aeronave.orbitSentido),
+    circuitoSentido: normalizarSentidoCircuitoTexto(aeronave.circuitoSentido)
   })
 
 })
@@ -3789,7 +4143,10 @@ socket.on("ajusteManual", ({ id, tipo, valor }) => {
   const estadoActual = a.estado
   const esManual = estadoActual === "MANUAL"
   const esAuto = estadoActual === "AUTO"
-  const esCircuito = estadoActual === "CIRCUIT"
+  const esCircuito =
+    estadoActual === "CIRCUIT" ||
+    estadoActual === "INTERCEPTING ARC" ||
+    estadoActual === "INTERCEPTING LEG"
   const ajustePermitido =
     tipo === "speed" ||
     (tipo === "heading" && esManual) ||
@@ -3837,7 +4194,8 @@ socket.on("ajusteManual", ({ id, tipo, valor }) => {
     velocidad: a.velocidad,
     velocidadObjetivo: a.velocidadObjetivo,
     estado: a.estado,
-    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido)
+    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido),
+    circuitoSentido: normalizarSentidoCircuitoTexto(a.circuitoSentido)
   })
 
 })
@@ -3869,7 +4227,8 @@ socket.on("setSpeedKnots", ({ id, speedKnots }) => {
     velocidad: a.velocidad,
     velocidadObjetivo: a.velocidadObjetivo,
     estado: a.estado,
-    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido)
+    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido),
+    circuitoSentido: normalizarSentidoCircuitoTexto(a.circuitoSentido)
   })
 
 })
@@ -4041,4 +4400,3 @@ if (motoresSalas[nombre]) {
 server.listen(PORT, () => {
   console.log("Servidor corriendo en puerto", PORT);
 });
-

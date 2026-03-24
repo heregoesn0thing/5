@@ -364,10 +364,12 @@
   <label><input type="checkbox" id="chkVor"> ATZ</label>
   <label><input type="checkbox" id="chkCtr"> CTR</label>
   <label><input type="checkbox" id="chkTma"> TMA</label>
+  <label><input type="checkbox" id="chkTrainingZones" checked> Zonas Inferiores</label>
+  <label><input type="checkbox" id="chkTrainingZonesA1A7" checked> Zonas Superiores</label>
+  <label><input type="checkbox" id="chkProhibitedZones"> Zonas Prohibidas</label>
   <label><input type="checkbox" id="chkEje"> RWY 04/22</label>
   <label><input type="checkbox" id="chkPatron" checked> Aerodrome Traffic Circuit</label>
-  <label><input type="checkbox" id="chkSidKopra1"> KOPRA1</label>
-  <label><input type="checkbox" id="chkSidTelot1"> TELOT1</label>
+  <label><input type="checkbox" id="chkSidRoutes"> SID</label>
 </div>
 
 
@@ -14500,15 +14502,20 @@ const panelCapas = document.getElementById("panelCapas")
 const chkVor = document.getElementById("chkVor")
 const chkCtr = document.getElementById("chkCtr")
 const chkTma = document.getElementById("chkTma")
+const chkTrainingZones = document.getElementById("chkTrainingZones")
+const chkTrainingZonesA1A7 = document.getElementById("chkTrainingZonesA1A7")
+const chkProhibitedZones = document.getElementById("chkProhibitedZones")
 const chkEje = document.getElementById("chkEje")
 const chkPatron = document.getElementById("chkPatron")
-const chkSidKopra1 = document.getElementById("chkSidKopra1")
-const chkSidTelot1 = document.getElementById("chkSidTelot1")
+const chkSidRoutes = document.getElementById("chkSidRoutes")
 
 let circuloVor = null
 let circuloCtr = null
 let circuloTma = null
 let radialesTmaLayer = null
+let zonasEntrenamientoLayer = null
+let zonasEntrenamientoA1A7Layer = null
+let zonasProhibidasLayer = null
 let ejePista = null
 let runwayMarkingsLayer = null
 var patronLayer = null
@@ -14522,6 +14529,271 @@ const vorSco = [-13.738556, -76.212750]
 const radio10NM = 10 * 1852
 const radio35NM = 35 * 1852
 const separacionRadialesTma = 10
+const COLOR_ZONAS_ENTRENAMIENTO_A1_A7 = "#38bdf8"
+const COLOR_ZONAS_ENTRENAMIENTO_N_INFERIORES = "#eab308"
+const ZONAS_ENTRENAMIENTO_RADIALES_SCO = [
+  {
+    nombre: "A1",
+    radialInicio: 347,
+    radialFin: 12,
+    distanciaInteriorNm: 8,
+    distanciaExteriorNm: 14,
+    color: COLOR_ZONAS_ENTRENAMIENTO_A1_A7
+  },
+  {
+    nombre: "A2",
+    radialInicio: 347,
+    radialFin: 12,
+    distanciaInteriorNm: 15,
+    distanciaExteriorNm: 23,
+    color: COLOR_ZONAS_ENTRENAMIENTO_A1_A7
+  },
+  {
+    nombre: "A3",
+    radialInicio: 22,
+    radialFin: 72,
+    distanciaInteriorNm: 10,
+    distanciaExteriorNm: 17,
+    color: COLOR_ZONAS_ENTRENAMIENTO_A1_A7
+  },
+  {
+    nombre: "A4",
+    radialInicio: 22,
+    radialFin: 47,
+    distanciaInteriorNm: 18,
+    distanciaExteriorNm: 24,
+    color: COLOR_ZONAS_ENTRENAMIENTO_A1_A7
+  },
+  {
+    nombre: "A5",
+    radialInicio: 92,
+    radialFin: 122,
+    distanciaInteriorNm: 8,
+    distanciaExteriorNm: 14,
+    color: COLOR_ZONAS_ENTRENAMIENTO_A1_A7
+  },
+  {
+    nombre: "A6",
+    radialInicio: 92,
+    radialFin: 132,
+    distanciaInteriorNm: 15,
+    distanciaExteriorNm: 20,
+    color: COLOR_ZONAS_ENTRENAMIENTO_A1_A7
+  },
+  {
+    nombre: "A7",
+    radialInicio: 172,
+    radialFin: 252,
+    distanciaInteriorNm: 8,
+    distanciaExteriorNm: 18,
+    color: COLOR_ZONAS_ENTRENAMIENTO_A1_A7
+  },
+  {
+    nombre: "N1",
+    radialInicio: 347,
+    radialFin: 9,
+    distanciaInteriorNm: 15,
+    distanciaExteriorNm: 19,
+    color: COLOR_ZONAS_ENTRENAMIENTO_N_INFERIORES
+  },
+  {
+    nombre: "N2",
+    radialInicio: 21,
+    radialFin: 34,
+    distanciaInteriorNm: 15,
+    distanciaExteriorNm: 19,
+    color: COLOR_ZONAS_ENTRENAMIENTO_N_INFERIORES
+  },
+  {
+    nombre: "SW",
+    radialInicio: 192,
+    radialFin: 212,
+    distanciaInteriorNm: 15,
+    distanciaExteriorNm: 25,
+    color: "#ec4899"
+  }
+]
+
+const NOMBRES_ZONAS_ENTRENAMIENTO_A1_A7 = new Set([
+  "A1",
+  "A2",
+  "A3",
+  "A4",
+  "A5",
+  "A6",
+  "A7"
+])
+const ZONAS_ENTRENAMIENTO_RADIALES_SCO_A1_A7 =
+  ZONAS_ENTRENAMIENTO_RADIALES_SCO.filter(
+    zona => NOMBRES_ZONAS_ENTRENAMIENTO_A1_A7.has(zona.nombre)
+  )
+const ZONAS_ENTRENAMIENTO_RADIALES_SCO_GENERALES =
+  ZONAS_ENTRENAMIENTO_RADIALES_SCO.filter(
+    zona => !NOMBRES_ZONAS_ENTRENAMIENTO_A1_A7.has(zona.nombre)
+  )
+const COLOR_ZONAS_ENTRENAMIENTO_NE_E1_E2 = "#8b5cf6"
+
+const ZONAS_ENTRENAMIENTO_POLIGONALES = [
+  {
+    nombre: "H",
+    color: COLOR_ZONAS_ENTRENAMIENTO_N_INFERIORES,
+    etiquetaPosicion: [-13.586551797739036, -76.1685490529263],
+    vertices: [
+      [-13.5535, -76.188205556],
+      // Costado oriental siguiendo la Panamericana, de norte a sur.
+      [-13.54964719060329, -76.13309061663476],
+      [-13.552809259726319, -76.13327844045007],
+      [-13.555510539074849, -76.13342739488476],
+      [-13.561448368888197, -76.13379230972593],
+      [-13.566494131454373, -76.13404962784234],
+      [-13.570892389350018, -76.13434669496789],
+      [-13.571697697634557, -76.13441367211388],
+      [-13.572091617516275, -76.13442977129804],
+      [-13.573136494541346, -76.13458245262414],
+      [-13.57433397166937, -76.13499491585108],
+      [-13.578695784731057, -76.13674712576093],
+      [-13.57998549734476, -76.1372619171642],
+      [-13.58156372654303, -76.13789246854414],
+      [-13.582763040837257, -76.13836993139921],
+      [-13.583902392517244, -76.13882856937381],
+      [-13.585051762916997, -76.13928439961938],
+      [-13.586100333396383, -76.13973244514979],
+      [-13.586934707437454, -76.14022865678255],
+      [-13.587698474304137, -76.14077045509683],
+      [-13.588646358674481, -76.14144584003806],
+      [-13.589788903755625, -76.14224543285181],
+      [-13.590798408182687, -76.1429564801526],
+      [-13.592210731064965, -76.1439538645908],
+      [-13.593538462737643, -76.1448956668647],
+      [-13.594668602300983, -76.1456970741191],
+      [-13.596152828696583, -76.14674888748482],
+      [-13.59749341050463, -76.14769596028383],
+      [-13.598392857064384, -76.1483262981809],
+      [-13.599353745136286, -76.14888398516148],
+      [-13.600261480106887, -76.14935086150238],
+      [-13.600584925060257, -76.1494608725942],
+      [-13.601546616704999, -76.14976350559675],
+      [-13.602214369918897, -76.149884249478],
+      [-13.603192520641313, -76.14997279499094],
+      [-13.6050966424578, -76.15013647003],
+      [-13.60709986641271, -76.15030819466114],
+      [-13.609003956800064, -76.15047991929228],
+      [-13.610902815245359, -76.15064091113398],
+      [-13.612832957939236, -76.1508126357651],
+      [-13.614729177387819, -76.15097631080417],
+      [-13.616721886811458, -76.15115608502738],
+      [-13.618127634154746, -76.1512711501964],
+      [-13.620039460424023, -76.1514375084328],
+      [-13.621927797527704, -76.1516038666692],
+      [-13.623826552226484, -76.151772908103],
+      [-13.625712250933903, -76.1519338999447],
+      [-13.627172809442113, -76.15205732702331],
+      [-13.627302778, -76.199669444]
+    ]
+  },
+]
+
+const ZONAS_ENTRENAMIENTO_CON_ARCOS = [
+  {
+    nombre: "NE",
+    color: COLOR_ZONAS_ENTRENAMIENTO_NE_E1_E2,
+    radioInteriorNm: 9,
+    radioExteriorNm: 14,
+    puntoInicioInterior: [-13.637452778, -76.098291667],
+    puntoInicioExterior: [-13.581597222, -76.034713889],
+    puntoFinExterior: [-13.677702778, -75.981269444],
+    puntoFinInterior: [-13.699561111, -76.064313889],
+    sentidoArcoExterior: "cw",
+    sentidoArcoInterior: "ccw"
+  },
+  {
+    nombre: "E1",
+    color: COLOR_ZONAS_ENTRENAMIENTO_NE_E1_E2,
+    radioInteriorNm: 9,
+    radioExteriorNm: 12,
+    puntoInicioInterior: [-13.706533333, -76.061272222],
+    puntoInicioExterior: [-13.717991667, -76.007344444],
+    puntoFinExterior: [-13.7734, -76.009469444],
+    puntoFinInterior: [-13.764591667, -76.060433333],
+    sentidoArcoExterior: "cw",
+    sentidoArcoInterior: "ccw"
+  },
+  {
+    nombre: "E2",
+    color: COLOR_ZONAS_ENTRENAMIENTO_NE_E1_E2,
+    radioInteriorNm: 14,
+    radioExteriorNm: 18,
+    puntoInicioInterior: [-13.730047222, -75.973113889],
+    puntoInicioExterior: [-13.727908333, -75.904691667],
+    puntoFinExterior: [-13.816583333, -75.914877778],
+    puntoFinInterior: [-13.799011111, -75.981055556],
+    sentidoArcoExterior: "cw",
+    sentidoArcoInterior: "ccw"
+  },
+  {
+    nombre: "SPD17",
+    color: "#a855f7",
+    radioInteriorNm: 12,
+    radioExteriorNm: 25,
+    puntoInicioInterior: [-13.902919444, -76.094475],
+    puntoInicioExterior: [-14.081325, -75.966419444],
+    puntoFinExterior: [-14.150283333, -76.138869444],
+    puntoFinInterior: [-13.936380556, -76.177055556],
+    sentidoArcoExterior: "cw",
+    sentidoArcoInterior: "ccw"
+  },
+  {
+    nombre: "SPD15",
+    color: "#7c3aed",
+    radioInteriorNm: 12,
+    radioExteriorNm: 20,
+    puntoInicioInterior: [-13.902919444, -76.094475],
+    puntoInicioExterior: [-14.012338852335, -76.017298189642],
+    puntoFinExterior: [-14.039312655089, -76.065234728828],
+    puntoFinInterior: [-13.929444444, -76.149169444],
+    sentidoArcoExterior: "cw",
+    sentidoArcoInterior: "ccw"
+  }
+]
+
+const ZONAS_PROHIBIDAS = [
+  {
+    nombre: "SPP69",
+    color: "#dc2626",
+    etiquetaPosicion: [-14.187472505911023, -76.27256152645464],
+    vertices: [
+      [-13.784578043993704, -76.5021235161279],
+      [-14.448449353853798, -76.50213120003171],
+      [-14.448455324618074, -76.0021162414696],
+      [-14.33690850132413, -76.00212441658171],
+      [-14.336801897198594, -76.00211636698961],
+      [-14.336765495778229, -76.00212441658171],
+      [-14.108184421359638, -76.02572514405334],
+      [-13.904870029301529, -76.1811107877529],
+      [-13.831331966154947, -76.18081747750243],
+      [-13.82331822794923, -76.24327897690605],
+      [-13.82339119460242, -76.24356071262902],
+      [-13.823529309990539, -76.24376463562848],
+      [-13.823748209683147, -76.24394709304909],
+      [-13.824008804286965, -76.24408125291716],
+      [-13.835668892537827, -76.24580852139677],
+      [-13.836450635433174, -76.24592121568594],
+      [-13.841059868338697, -76.24626443861685],
+      [-13.848223169131465, -76.24673030387913],
+      [-13.854552113842523, -76.24706683504245],
+      [-13.855698576059421, -76.24724929246304],
+      [-13.856667853337775, -76.24758200893586],
+      [-13.857303613657074, -76.24791472540869],
+      [-13.858137395044729, -76.24846209767044],
+      [-13.860555344141268, -76.25114529503198],
+      [-13.859023284489352, -76.2533562496579],
+      [-13.82075537171326, -76.30831230591274],
+      [-13.792353777557759, -76.29656923311066],
+      [-13.784612019821294, -76.29659120950099],
+      [-13.7845776084459, -76.50212855142648]
+    ]
+  }
+]
 
 const rwy04 = [-13.7553277777778, -76.2293055555556]
 const rwy22 = [-13.734536864537288, -76.21175399048074]
@@ -14769,6 +15041,23 @@ function dibujarRutaSidTelot1(){
   sidTelotLayer = L.polyline(rutaTelot, estiloRutaSidCapas()).addTo(map)
 }
 
+function limpiarRutasSidCapas(){
+  if(sidKopraLayer){
+    map.removeLayer(sidKopraLayer)
+    sidKopraLayer = null
+  }
+
+  if(sidTelotLayer){
+    map.removeLayer(sidTelotLayer)
+    sidTelotLayer = null
+  }
+}
+
+function dibujarRutasSidCapas(){
+  dibujarRutaSidKopra1()
+  dibujarRutaSidTelot1()
+}
+
 // Mostrar / ocultar panel
 
 
@@ -14889,6 +15178,329 @@ function dibujarRadialesScoEnTma(){
   radialesTmaLayer = L.layerGroup(radiales).addTo(map)
 }
 
+function generarArcoZonaEntrenamiento(
+  centro,
+  radioMetros,
+  radialInicio,
+  radialFin,
+  sentido = "cw"
+){
+  const inicio = normalizarAngulo360(radialInicio)
+  const fin = normalizarAngulo360(radialFin)
+  const barrido = sentido === "ccw"
+    ? normalizarAngulo360(inicio - fin)
+    : normalizarAngulo360(fin - inicio)
+  const segmentos = Math.max(12, Math.ceil(barrido / 2))
+  const puntos = []
+
+  for(let i = 0; i <= segmentos; i++){
+    const t = segmentos === 0 ? 0 : i / segmentos
+    const radial = sentido === "ccw"
+      ? normalizarAngulo360(inicio - (barrido * t))
+      : normalizarAngulo360(inicio + (barrido * t))
+
+    puntos.push(
+      calcularPuntoDesplazado(
+        centro[0],
+        centro[1],
+        radioMetros,
+        radial
+      )
+    )
+  }
+
+  return puntos
+}
+
+function construirPoligonoZonaEntrenamiento(centro, zona){
+  const radioInteriorM = zona.distanciaInteriorNm * 1852
+  const radioExteriorM = zona.distanciaExteriorNm * 1852
+  const arcoExterior = generarArcoZonaEntrenamiento(
+    centro,
+    radioExteriorM,
+    zona.radialInicio,
+    zona.radialFin,
+    "cw"
+  )
+  const arcoInterior = generarArcoZonaEntrenamiento(
+    centro,
+    radioInteriorM,
+    zona.radialFin,
+    zona.radialInicio,
+    "ccw"
+  )
+
+  return [...arcoExterior, ...arcoInterior]
+}
+
+function calcularEtiquetaZonaEntrenamiento(centro, zona){
+  const barrido = normalizarAngulo360(zona.radialFin - zona.radialInicio)
+  const radialMedio = normalizarAngulo360(zona.radialInicio + (barrido / 2))
+  const radioMedioM =
+    ((zona.distanciaInteriorNm + zona.distanciaExteriorNm) / 2) * 1852
+
+  return calcularPuntoDesplazado(
+    centro[0],
+    centro[1],
+    radioMedioM,
+    radialMedio
+  )
+}
+
+function calcularCentroPromedioZonaEntrenamiento(vertices){
+  if(!Array.isArray(vertices) || vertices.length === 0){
+    return null
+  }
+
+  const acumulado = vertices.reduce((total, vertice) => {
+    const lat = Number(Array.isArray(vertice) ? vertice[0] : null)
+    const lng = Number(Array.isArray(vertice) ? vertice[1] : null)
+    if(!Number.isFinite(lat) || !Number.isFinite(lng)){
+      return total
+    }
+
+    total.lat += lat
+    total.lng += lng
+    total.cantidad += 1
+    return total
+  }, { lat: 0, lng: 0, cantidad: 0 })
+
+  if(acumulado.cantidad <= 0){
+    return null
+  }
+
+  return [
+    acumulado.lat / acumulado.cantidad,
+    acumulado.lng / acumulado.cantidad
+  ]
+}
+
+function calcularBearingZonaEntrenamientoDesdeCentro(centro, punto){
+  if(!Array.isArray(centro) || centro.length < 2) return 0
+  if(!Array.isArray(punto) || punto.length < 2) return 0
+
+  return calcularBearing(
+    { lat: centro[0], lng: centro[1] },
+    { lat: punto[0], lng: punto[1] }
+  )
+}
+
+function construirPoligonoZonaEntrenamientoConArcos(centro, zona){
+  const puntoInicioInterior = zona.puntoInicioInterior
+  const puntoInicioExterior = zona.puntoInicioExterior
+  const puntoFinExterior = zona.puntoFinExterior
+  const puntoFinInterior = zona.puntoFinInterior
+  const radioInteriorM = (Number(zona.radioInteriorNm) || 0) * 1852
+  const radioExteriorM = (Number(zona.radioExteriorNm) || 0) * 1852
+  const bearingInicioExterior =
+    calcularBearingZonaEntrenamientoDesdeCentro(centro, puntoInicioExterior)
+  const bearingFinExterior =
+    calcularBearingZonaEntrenamientoDesdeCentro(centro, puntoFinExterior)
+  const bearingInicioInterior =
+    calcularBearingZonaEntrenamientoDesdeCentro(centro, puntoFinInterior)
+  const bearingFinInterior =
+    calcularBearingZonaEntrenamientoDesdeCentro(centro, puntoInicioInterior)
+  const arcoExterior = generarArcoZonaEntrenamiento(
+    centro,
+    radioExteriorM,
+    bearingInicioExterior,
+    bearingFinExterior,
+    zona.sentidoArcoExterior || "cw"
+  )
+  const arcoInterior = generarArcoZonaEntrenamiento(
+    centro,
+    radioInteriorM,
+    bearingInicioInterior,
+    bearingFinInterior,
+    zona.sentidoArcoInterior || "ccw"
+  )
+  const bordeLateral = Array.isArray(zona.bordeLateral) ? zona.bordeLateral : []
+
+  return [
+    puntoInicioInterior,
+    puntoInicioExterior,
+    ...arcoExterior.slice(1, -1),
+    puntoFinExterior,
+    ...bordeLateral,
+    puntoFinInterior,
+    ...arcoInterior.slice(1, -1)
+  ]
+}
+
+function crearMarcadorZonaEntrenamiento(nombre, posicion, color){
+  if(!Array.isArray(posicion) || posicion.length < 2){
+    return null
+  }
+
+  const texto = String(nombre || "")
+  const anchoEtiquetaPx = Math.max(34, Math.round((texto.length * 8.5) + 18))
+  const altoEtiquetaPx = 22
+
+  return L.marker(posicion, {
+    icon: L.divIcon({
+      className: "training-zone-label-marker",
+      html: `<div class="training-zone-label" style="--zone-color:${color};">${texto}</div>`,
+      iconSize: [anchoEtiquetaPx, altoEtiquetaPx],
+      iconAnchor: [Math.round(anchoEtiquetaPx / 2), Math.round(altoEtiquetaPx / 2)]
+    }),
+    interactive: false
+  })
+}
+
+function construirCapasSectorialesZonasEntrenamiento(zonas){
+  return zonas.reduce((listaCapas, zona) => {
+    const poligono = L.polygon(
+      construirPoligonoZonaEntrenamiento(vorSco, zona),
+      {
+        color: zona.color,
+        weight: 2,
+        opacity: 0.95,
+        dashArray: "10 6",
+        fillColor: zona.color,
+        fillOpacity: 0.14,
+        interactive: false
+      }
+    )
+
+    const etiqueta = crearMarcadorZonaEntrenamiento(
+      zona.nombre,
+      calcularEtiquetaZonaEntrenamiento(vorSco, zona),
+      zona.color
+    )
+
+    listaCapas.push(poligono)
+    if(etiqueta){
+      listaCapas.push(etiqueta)
+    }
+    return listaCapas
+  }, [])
+}
+
+function dibujarZonasEntrenamientoA1A7(){
+  if(zonasEntrenamientoA1A7Layer){
+    map.removeLayer(zonasEntrenamientoA1A7Layer)
+    zonasEntrenamientoA1A7Layer = null
+  }
+
+  const capas = construirCapasSectorialesZonasEntrenamiento(
+    ZONAS_ENTRENAMIENTO_RADIALES_SCO_A1_A7
+  )
+  zonasEntrenamientoA1A7Layer = L.layerGroup(capas).addTo(map)
+}
+
+function dibujarZonasEntrenamientoSco(){
+  if(zonasEntrenamientoLayer){
+    map.removeLayer(zonasEntrenamientoLayer)
+    zonasEntrenamientoLayer = null
+  }
+
+  const capasSectoriales = construirCapasSectorialesZonasEntrenamiento(
+    ZONAS_ENTRENAMIENTO_RADIALES_SCO_GENERALES
+  )
+
+  const capasPoligonales = ZONAS_ENTRENAMIENTO_POLIGONALES.reduce((listaCapas, zona) => {
+    const vertices = Array.isArray(zona.vertices) ? zona.vertices : []
+    if(vertices.length < 3){
+      return listaCapas
+    }
+
+    const poligono = L.polygon(vertices, {
+      color: zona.color,
+      weight: 2,
+      opacity: 0.95,
+      dashArray: "10 6",
+      fillColor: zona.color,
+      fillOpacity: 0.14,
+      interactive: false
+    })
+    const etiqueta = crearMarcadorZonaEntrenamiento(
+      zona.nombre,
+      Array.isArray(zona.etiquetaPosicion)
+        ? zona.etiquetaPosicion
+        : calcularCentroPromedioZonaEntrenamiento(vertices),
+      zona.color
+    )
+
+    listaCapas.push(poligono)
+    if(etiqueta){
+      listaCapas.push(etiqueta)
+    }
+    return listaCapas
+  }, [])
+
+  const capasConArcos = ZONAS_ENTRENAMIENTO_CON_ARCOS.reduce((listaCapas, zona) => {
+    const vertices = construirPoligonoZonaEntrenamientoConArcos(vorSco, zona)
+    if(!Array.isArray(vertices) || vertices.length < 3){
+      return listaCapas
+    }
+
+    const poligono = L.polygon(vertices, {
+      color: zona.color,
+      weight: 2,
+      opacity: 0.95,
+      dashArray: "10 6",
+      fillColor: zona.color,
+      fillOpacity: 0.14,
+      interactive: false
+    })
+    const etiqueta = crearMarcadorZonaEntrenamiento(
+      zona.nombre,
+      Array.isArray(zona.etiquetaPosicion)
+        ? zona.etiquetaPosicion
+        : calcularCentroPromedioZonaEntrenamiento(vertices),
+      zona.color
+    )
+
+    listaCapas.push(poligono)
+    if(etiqueta){
+      listaCapas.push(etiqueta)
+    }
+    return listaCapas
+  }, [])
+
+  const capas = [...capasSectoriales, ...capasPoligonales, ...capasConArcos]
+  zonasEntrenamientoLayer = L.layerGroup(capas).addTo(map)
+}
+
+function dibujarZonasProhibidas(){
+  if(zonasProhibidasLayer){
+    map.removeLayer(zonasProhibidasLayer)
+    zonasProhibidasLayer = null
+  }
+
+  const capas = ZONAS_PROHIBIDAS.reduce((listaCapas, zona) => {
+    const vertices = Array.isArray(zona.vertices) ? zona.vertices : []
+    if(vertices.length < 3){
+      return listaCapas
+    }
+
+    const poligono = L.polygon(vertices, {
+      color: zona.color,
+      weight: 2,
+      opacity: 0.95,
+      dashArray: "8 6",
+      fillColor: zona.color,
+      fillOpacity: 0.08,
+      interactive: false
+    })
+    const etiqueta = crearMarcadorZonaEntrenamiento(
+      zona.nombre,
+      Array.isArray(zona.etiquetaPosicion)
+        ? zona.etiquetaPosicion
+        : calcularCentroPromedioZonaEntrenamiento(vertices),
+      zona.color
+    )
+
+    listaCapas.push(poligono)
+    if(etiqueta){
+      listaCapas.push(etiqueta)
+    }
+    return listaCapas
+  }, [])
+
+  zonasProhibidasLayer = L.layerGroup(capas).addTo(map)
+}
+
 chkTma.addEventListener("change", () => {
 
   if(chkTma.checked){
@@ -14915,6 +15527,51 @@ chkTma.addEventListener("change", () => {
   }
 
 })
+
+chkTrainingZones.addEventListener("change", () => {
+
+  if(chkTrainingZones.checked){
+    dibujarZonasEntrenamientoSco()
+  } else if(zonasEntrenamientoLayer){
+    map.removeLayer(zonasEntrenamientoLayer)
+    zonasEntrenamientoLayer = null
+  }
+
+})
+
+if(chkTrainingZones.checked){
+  dibujarZonasEntrenamientoSco()
+}
+
+chkTrainingZonesA1A7.addEventListener("change", () => {
+
+  if(chkTrainingZonesA1A7.checked){
+    dibujarZonasEntrenamientoA1A7()
+  } else if(zonasEntrenamientoA1A7Layer){
+    map.removeLayer(zonasEntrenamientoA1A7Layer)
+    zonasEntrenamientoA1A7Layer = null
+  }
+
+})
+
+if(chkTrainingZonesA1A7.checked){
+  dibujarZonasEntrenamientoA1A7()
+}
+
+chkProhibitedZones.addEventListener("change", () => {
+
+  if(chkProhibitedZones.checked){
+    dibujarZonasProhibidas()
+  } else if(zonasProhibidasLayer){
+    map.removeLayer(zonasProhibidasLayer)
+    zonasProhibidasLayer = null
+  }
+
+})
+
+if(chkProhibitedZones.checked){
+  dibujarZonasProhibidas()
+}
 
 /* =======================
    MARCAS PISTA
@@ -15124,32 +15781,19 @@ chkPatron.addEventListener("change", () => {
 
 })
 
-if(chkSidKopra1){
-  chkSidKopra1.addEventListener("change", () => {
-    if(chkSidKopra1.checked){
-      dibujarRutaSidKopra1()
+if(chkSidRoutes){
+  chkSidRoutes.addEventListener("change", () => {
+    if(chkSidRoutes.checked){
+      dibujarRutasSidCapas()
       return
     }
 
-    if(sidKopraLayer){
-      map.removeLayer(sidKopraLayer)
-      sidKopraLayer = null
-    }
+    limpiarRutasSidCapas()
   })
-}
 
-if(chkSidTelot1){
-  chkSidTelot1.addEventListener("change", () => {
-    if(chkSidTelot1.checked){
-      dibujarRutaSidTelot1()
-      return
-    }
-
-    if(sidTelotLayer){
-      map.removeLayer(sidTelotLayer)
-      sidTelotLayer = null
-    }
-  })
+  if(chkSidRoutes.checked){
+    dibujarRutasSidCapas()
+  }
 }
 
 

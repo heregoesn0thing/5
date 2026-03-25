@@ -118,6 +118,7 @@ const GO_AROUND_TRIGGER_POINT = {
 const GO_AROUND_TRIGGER_HEADING = 222
 const GO_AROUND_TRIGGER_HEADING_TOL = 8
 const GO_AROUND_TRIGGER_DISTANCE_M = 140
+const PYROTECHNIC_LIGHT_DURATION_MS = 30000
 const GO_AROUND_RADIAL_OBJETIVO = 250
 const GO_AROUND_INTERCEPT_TOL = 3
 const GO_AROUND_CLIMB_TARGET_FT = 2000
@@ -3261,6 +3262,60 @@ io.on("connection", (socket) => {
     return estado;
   };
 
+  const crearEstadoServiciosControlador = (base = {}) => ({
+    lights: {
+      rwy: Boolean(base?.lights?.rwy),
+      twy: Boolean(base?.lights?.twy),
+      apron: Boolean(base?.lights?.apron),
+      papi: Boolean(base?.lights?.papi)
+    },
+    emergency: {
+      flash: Boolean(base?.emergency?.flash),
+      green: Boolean(base?.emergency?.green),
+      red: Boolean(base?.emergency?.red),
+      white: Boolean(base?.emergency?.white)
+    },
+    pyrotechnic: {
+      startTs: Number.isFinite(Number(base?.pyrotechnic?.startTs))
+        ? Number(base.pyrotechnic.startTs)
+        : null
+    }
+  });
+
+  const normalizarEstadoServiciosControlador = (data = {}, base = {}) => {
+    const estado = crearEstadoServiciosControlador(base);
+    const lights = data && typeof data.lights === "object" ? data.lights : {};
+    const emergency = data && typeof data.emergency === "object" ? data.emergency : {};
+    const pyrotechnic = data && typeof data.pyrotechnic === "object" ? data.pyrotechnic : {};
+
+    ["rwy", "twy", "apron", "papi"].forEach((clave) => {
+      if (Object.prototype.hasOwnProperty.call(lights, clave)) {
+        estado.lights[clave] = Boolean(lights[clave]);
+      }
+    });
+
+    ["flash", "green", "red", "white"].forEach((clave) => {
+      if (Object.prototype.hasOwnProperty.call(emergency, clave)) {
+        estado.emergency[clave] = Boolean(emergency[clave]);
+      }
+    });
+
+    if (Object.prototype.hasOwnProperty.call(pyrotechnic, "startTs")) {
+      const startTs = Number(pyrotechnic.startTs);
+      estado.pyrotechnic.startTs =
+        Number.isFinite(startTs) && (Date.now() - startTs) < PYROTECHNIC_LIGHT_DURATION_MS
+          ? startTs
+          : null;
+    }
+
+    const startActual = Number(estado.pyrotechnic.startTs);
+    if (!Number.isFinite(startActual) || (Date.now() - startActual) >= PYROTECHNIC_LIGHT_DURATION_MS) {
+      estado.pyrotechnic.startTs = null;
+    }
+
+    return estado;
+  };
+
   // ===== CREAR SALA =====
   socket.on("crearSala", ({ nombre, horaInicial }) => {
 
@@ -3274,6 +3329,7 @@ io.on("connection", (socket) => {
       jugadores: [],
       aeronaves: [],
       rescate: null,
+      serviciosControlador: crearEstadoServiciosControlador(),
       extensionExtra: 0,
       extensionUpwindExtra: 0,
       extensionDownwindExtra: 0
@@ -3343,6 +3399,11 @@ if (timeoutsSalas[nombre]) {
     if(salas[nombre].rescate){
       socket.emit("actualizarRescate", salas[nombre].rescate);
     }
+    salas[nombre].serviciosControlador = normalizarEstadoServiciosControlador(
+      salas[nombre].serviciosControlador,
+      salas[nombre].serviciosControlador
+    );
+    socket.emit("actualizarServiciosControlador", salas[nombre].serviciosControlador);
 if (peligroSalas[nombre]) {
   socket.emit("peligroActivado");
 }
@@ -3389,6 +3450,16 @@ if (peligroSalas[nombre]) {
 
     salas[salaNombre].rescate = estado;
     socket.to(salaNombre).emit("actualizarRescate", estado);
+  });
+
+  socket.on("actualizarServiciosControlador", (data = {}) => {
+    const salaNombre = socket.sala;
+    if (!salaNombre || !salas[salaNombre]) return;
+
+    const base = salas[salaNombre].serviciosControlador || crearEstadoServiciosControlador();
+    const estado = normalizarEstadoServiciosControlador(data, base);
+    salas[salaNombre].serviciosControlador = estado;
+    io.to(salaNombre).emit("actualizarServiciosControlador", estado);
   });
 
 socket.on("solicitarRutaCircuito", () => {

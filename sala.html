@@ -146,23 +146,6 @@
   </div>
 </div>
 
-  <div id="rescatePanel" class="rescate-panel" aria-hidden="true">
-    <div class="rescate-title">RESCATE</div>
-    <div class="taxi-row">
-      <button class="btn-lateral rescate-btn" id="rescateRoute">ROUTE</button>
-      <button class="btn-lateral rescate-btn" id="rescateStart">START</button>
-      <button class="btn-lateral rescate-btn" id="rescateHold">HOLD</button>
-      <button class="btn-lateral rescate-btn" id="rescateSpeed">SPEED</button>
-    </div>
-    <div id="rescateSpeedPanel" class="rescate-speed-panel" aria-hidden="true">
-      <div class="rescate-speed-title">SPEED</div>
-      <input id="rescateSpeedSlider" type="range" min="0" max="200" step="1" value="0">
-      <div class="rescate-speed-readout">
-        <span id="rescateSpeedValue">0</span> km/h
-      </div>
-    </div>
-  </div>
-
     <!-- GRUPO LANDING CONTROL -->
     <div class="grupo" id="grupoLanding">
 
@@ -364,12 +347,141 @@
   <label><input type="checkbox" id="chkVor"> ATZ</label>
   <label><input type="checkbox" id="chkCtr"> CTR</label>
   <label><input type="checkbox" id="chkTma"> TMA</label>
-  <label><input type="checkbox" id="chkTrainingZones" checked> Zonas Inferiores</label>
-  <label><input type="checkbox" id="chkTrainingZonesA1A7" checked> Zonas Superiores</label>
+  <label><input type="checkbox" id="chkTrainingZones"> Zonas Inferiores</label>
+  <label><input type="checkbox" id="chkTrainingZonesA1A7"> Zonas Superiores</label>
   <label><input type="checkbox" id="chkProhibitedZones"> SPP/SPR</label>
   <label><input type="checkbox" id="chkEje"> RWY 04/22</label>
   <label><input type="checkbox" id="chkPatron" checked> Circuito</label>
   <label><input type="checkbox" id="chkSidRoutes"> SID</label>
+  <label><input type="checkbox" id="chkRutas"> RUTAS</label>
+</div>
+
+<div id="panelControladorServicios" class="contraido">
+  <div class="panel-controlador-servicios-contenido">
+    <div class="grupo grupo-controlador-servicios">
+      <div class="titulo-grupo">LIGHTS</div>
+      <div class="panel-controlador-servicios-grid" role="group" aria-label="Lights">
+        <button
+          id="btnControladorLightRwy"
+          class="btn-lateral panel-controlador-servicio-btn"
+          type="button"
+          data-controlador-light="rwy"
+          aria-pressed="false"
+        >
+          RWY
+        </button>
+        <button
+          id="btnControladorLightTwy"
+          class="btn-lateral panel-controlador-servicio-btn"
+          type="button"
+          data-controlador-light="twy"
+          aria-pressed="false"
+        >
+          TWY
+        </button>
+        <button
+          id="btnControladorLightApron"
+          class="btn-lateral panel-controlador-servicio-btn"
+          type="button"
+          data-controlador-light="apron"
+          aria-pressed="false"
+        >
+          APRON
+        </button>
+        <button
+          id="btnControladorLightPapi"
+          class="btn-lateral panel-controlador-servicio-btn"
+          type="button"
+          data-controlador-light="papi"
+          aria-pressed="false"
+        >
+          PAPI
+        </button>
+      </div>
+    </div>
+
+    <div class="grupo grupo-controlador-servicios">
+      <div class="titulo-grupo">EMERGENCY</div>
+      <div class="panel-controlador-emergency-layout" role="group" aria-label="Emergency">
+        <button
+          id="btnControladorEmergencyFlash"
+          class="btn-lateral panel-controlador-servicio-btn panel-controlador-emergency-btn panel-controlador-emergency-btn-flash"
+          type="button"
+          data-controlador-emergency="flash"
+          aria-pressed="false"
+        >
+          FLASH
+        </button>
+        <button
+          id="btnControladorEmergencyGreen"
+          class="btn-lateral panel-controlador-servicio-btn panel-controlador-emergency-btn panel-controlador-emergency-btn-green"
+          type="button"
+          data-controlador-emergency="green"
+          aria-pressed="false"
+        >
+          GREEN
+        </button>
+        <button
+          id="btnControladorEmergencyRed"
+          class="btn-lateral panel-controlador-servicio-btn panel-controlador-emergency-btn panel-controlador-emergency-btn-red"
+          type="button"
+          data-controlador-emergency="red"
+          aria-pressed="false"
+        >
+          RED
+        </button>
+        <button
+          id="btnControladorEmergencyWhite"
+          class="btn-lateral panel-controlador-servicio-btn panel-controlador-emergency-btn panel-controlador-emergency-btn-white"
+          type="button"
+          data-controlador-emergency="white"
+          aria-pressed="false"
+        >
+          WHITE
+        </button>
+      </div>
+      <button
+        id="btnControladorEmergencyPyrotechnic"
+        class="btn-lateral panel-controlador-servicio-btn panel-controlador-emergency-pyrotechnic-btn"
+        type="button"
+      >
+        PYROTECHNIC
+      </button>
+    </div>
+
+    <div class="grupo grupo-controlador-servicios">
+      <div class="titulo-grupo">FIRETRUCK</div>
+      <div id="rescatePanelEmpty" class="panel-controlador-servicios-empty" aria-hidden="false">
+        Select the firetruck on the map to enable its controls.
+      </div>
+      <div id="rescatePanel" class="rescate-panel rescate-panel-lateral" aria-hidden="true">
+        <div class="rescate-title">FIRETRUCK</div>
+        <div class="taxi-row">
+          <button class="btn-lateral rescate-btn" id="rescateRoute">ROUTE</button>
+          <button class="btn-lateral rescate-btn" id="rescateStart">START</button>
+          <button class="btn-lateral rescate-btn" id="rescateHold">HOLD</button>
+          <button class="btn-lateral rescate-btn" id="rescateSpeed">SPEED</button>
+        </div>
+        <div id="rescateSpeedPanel" class="rescate-speed-panel" aria-hidden="true">
+          <div class="rescate-speed-title">SPEED</div>
+          <input id="rescateSpeedSlider" type="range" min="0" max="200" step="1" value="0">
+          <div class="rescate-speed-readout">
+            <span id="rescateSpeedValue">0</span> km/h
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <button
+    id="btnGroundPanel"
+    class="panel-controlador-toggle"
+    type="button"
+    aria-label="Mostrar u ocultar panel de TOWER"
+    aria-expanded="false"
+    onclick="togglePanelControladorServicios()"
+  >
+    <span class="panel-derecho-text" aria-hidden="true">TOWER</span>
+  </button>
 </div>
 
 
@@ -467,6 +579,20 @@ let contadorRectControladorExtra = 0
 let bloqueoClickRectControladorHasta = 0
 const datosCasillerosControlador = Object.create(null)
 const STORAGE_KEY_DATOS_CASILLEROS_CONTROLADOR = "panelControladorDatosCasillerosV1"
+const STORAGE_KEY_PANEL_CONTROLADOR_LUCES = "panelControladorLucesV1"
+const STORAGE_KEY_PANEL_CONTROLADOR_EMERGENCY = "panelControladorEmergencyV1"
+const estadoLucesControlador = {
+  rwy: false,
+  twy: false,
+  apron: false,
+  papi: false
+}
+const estadoEmergencyControlador = {
+  flash: false,
+  green: false,
+  red: false,
+  white: false
+}
 let temporizadorConfirmacionCheck = null
 const METAR_API_URL = "/api/metar-decoded?ids=SPSO&hours=0"
 const RWY_22_HEADING = 220
@@ -620,6 +746,7 @@ function establecerModoOperacion(modo){
 function aplicarVisibilidadPanelIzquierdoPorModo(){
   const panel = document.getElementById("menuControles")
   const panelControlador = document.getElementById("panelControladorIzquierdo")
+  const panelControladorServicios = document.getElementById("panelControladorServicios")
   const vistaFlotante = document.getElementById("controladorVistaRect")
   if(!panel) return
 
@@ -627,6 +754,9 @@ function aplicarVisibilidadPanelIzquierdoPorModo(){
   panel.classList.toggle("forzado-oculto-modo", esControlador)
   if(panelControlador){
     panelControlador.classList.toggle("visible-modo-controlador", esControlador)
+  }
+  if(panelControladorServicios){
+    panelControladorServicios.classList.toggle("visible-modo-controlador", esControlador)
   }
   if(vistaFlotante){
     vistaFlotante.classList.toggle("visible-modo-controlador", esControlador)
@@ -649,6 +779,216 @@ function aplicarVisibilidadPanelIzquierdoPorModo(){
   ocultarOpcionesSID()
   ocultarOpcionesJoin()
   actualizarIconoPanelControles(false)
+}
+
+function guardarEstadoLucesControlador(){
+  try{
+    localStorage.setItem(
+      STORAGE_KEY_PANEL_CONTROLADOR_LUCES,
+      JSON.stringify(estadoLucesControlador)
+    )
+  }catch(error){
+    console.warn("No se pudo guardar el estado de luces del panel controlador.", error)
+  }
+}
+
+function guardarEstadoEmergencyControlador(){
+  try{
+    localStorage.setItem(
+      STORAGE_KEY_PANEL_CONTROLADOR_EMERGENCY,
+      JSON.stringify(estadoEmergencyControlador)
+    )
+  }catch(error){
+    console.warn("No se pudo guardar el estado de emergency del panel controlador.", error)
+  }
+}
+
+function obtenerPayloadServiciosControlador(){
+  return {
+    lights: {
+      rwy: Boolean(estadoLucesControlador.rwy),
+      twy: Boolean(estadoLucesControlador.twy),
+      apron: Boolean(estadoLucesControlador.apron),
+      papi: Boolean(estadoLucesControlador.papi)
+    },
+    emergency: {
+      flash: Boolean(estadoEmergencyControlador.flash),
+      green: Boolean(estadoEmergencyControlador.green),
+      red: Boolean(estadoEmergencyControlador.red),
+      white: Boolean(estadoEmergencyControlador.white)
+    },
+    pyrotechnic: {
+      startTs:
+        Number.isFinite(Number(pyrotechnicLightStartTs)) && Number(pyrotechnicLightStartTs) > 0
+          ? Number(pyrotechnicLightStartTs)
+          : null
+    }
+  }
+}
+
+function emitirServiciosControladorServidor(){
+  if(!socket || !socket.connected) return
+  const sala = obtenerSalaActiva()
+  if(!sala) return
+  socket.emit("actualizarServiciosControlador", obtenerPayloadServiciosControlador())
+}
+
+function normalizarEstadoEmergencyControlador(){
+  const colorActivo =
+    estadoEmergencyControlador.white ? "white" :
+    estadoEmergencyControlador.red ? "red" :
+    estadoEmergencyControlador.green ? "green" :
+    null
+
+  ;["green", "red", "white"].forEach((clave) => {
+    estadoEmergencyControlador[clave] = clave === colorActivo
+  })
+  estadoEmergencyControlador.flash = Boolean(estadoEmergencyControlador.flash)
+}
+
+function cargarEstadoLucesControlador(){
+  try{
+    const guardado = localStorage.getItem(STORAGE_KEY_PANEL_CONTROLADOR_LUCES)
+    if(!guardado) return
+    const data = JSON.parse(guardado)
+    ;["rwy", "twy", "apron", "papi"].forEach((clave) => {
+      estadoLucesControlador[clave] = Boolean(data && data[clave])
+    })
+  }catch(error){
+    console.warn("No se pudo cargar el estado de luces del panel controlador.", error)
+  }
+}
+
+function cargarEstadoEmergencyControlador(){
+  try{
+    const guardado = localStorage.getItem(STORAGE_KEY_PANEL_CONTROLADOR_EMERGENCY)
+    if(!guardado) return
+    const data = JSON.parse(guardado)
+    ;["flash", "green", "red", "white"].forEach((clave) => {
+      estadoEmergencyControlador[clave] = Boolean(data && data[clave])
+    })
+    normalizarEstadoEmergencyControlador()
+  }catch(error){
+    console.warn("No se pudo cargar el estado de emergency del panel controlador.", error)
+  }
+}
+
+function actualizarBotonesLucesControlador(){
+  document.querySelectorAll("[data-controlador-light]").forEach((boton) => {
+    const clave = boton.dataset.controladorLight
+    const activo = Boolean(estadoLucesControlador[clave])
+    boton.classList.toggle("activo", activo)
+    boton.setAttribute("aria-pressed", String(activo))
+    boton.title = activo
+      ? `Disable ${boton.textContent.trim()}`
+      : `Enable ${boton.textContent.trim()}`
+  })
+}
+
+function actualizarBotonesEmergencyControlador(){
+  document.querySelectorAll("[data-controlador-emergency]").forEach((boton) => {
+    const clave = boton.dataset.controladorEmergency
+    const activo = Boolean(estadoEmergencyControlador[clave])
+    boton.classList.toggle("activo", activo)
+    boton.setAttribute("aria-pressed", String(activo))
+    boton.title = activo
+      ? `Disable ${boton.textContent.trim()}`
+      : `Enable ${boton.textContent.trim()}`
+  })
+}
+
+function alternarLuzControlador(clave){
+  if(!(clave in estadoLucesControlador)) return
+  estadoLucesControlador[clave] = !estadoLucesControlador[clave]
+  actualizarBotonesLucesControlador()
+  guardarEstadoLucesControlador()
+  emitirServiciosControladorServidor()
+}
+
+function alternarEmergencyControlador(clave){
+  if(!(clave in estadoEmergencyControlador)) return
+  if(clave === "flash"){
+    estadoEmergencyControlador.flash = !estadoEmergencyControlador.flash
+  } else {
+    const siguienteActivo = !estadoEmergencyControlador[clave]
+    ;["green", "red", "white"].forEach((color) => {
+      estadoEmergencyControlador[color] = false
+    })
+    estadoEmergencyControlador[clave] = siguienteActivo
+  }
+  normalizarEstadoEmergencyControlador()
+  actualizarBotonesEmergencyControlador()
+  guardarEstadoEmergencyControlador()
+  actualizarLuzEmergencyControlador()
+  emitirServiciosControladorServidor()
+}
+
+function inicializarPanelControladorServicios(){
+  cargarEstadoLucesControlador()
+  cargarEstadoEmergencyControlador()
+  actualizarBotonesLucesControlador()
+  actualizarBotonesEmergencyControlador()
+  actualizarLuzEmergencyControlador()
+  actualizarBotonPyrotechnicControlador()
+
+  document.querySelectorAll("[data-controlador-light]").forEach((boton) => {
+    boton.addEventListener("click", () => {
+      if(modoOperacion !== "controlador") return
+      alternarLuzControlador(boton.dataset.controladorLight)
+    })
+  })
+
+  document.querySelectorAll("[data-controlador-emergency]").forEach((boton) => {
+    boton.addEventListener("click", () => {
+      if(modoOperacion !== "controlador") return
+      alternarEmergencyControlador(boton.dataset.controladorEmergency)
+    })
+  })
+
+  const btnPyrotechnic = document.getElementById("btnControladorEmergencyPyrotechnic")
+  if(btnPyrotechnic){
+    btnPyrotechnic.addEventListener("click", () => {
+      if(modoOperacion !== "controlador") return
+      iniciarPyrotechnicControlador()
+    })
+  }
+}
+
+function aplicarEstadoServiciosControladorRemoto(data){
+  if(!data || typeof data !== "object") return
+
+  const lights = data && typeof data.lights === "object" ? data.lights : {}
+  const emergency = data && typeof data.emergency === "object" ? data.emergency : {}
+  const pyrotechnic = data && typeof data.pyrotechnic === "object" ? data.pyrotechnic : {}
+
+  ;["rwy", "twy", "apron", "papi"].forEach((clave) => {
+    estadoLucesControlador[clave] = Boolean(lights[clave])
+  })
+
+  ;["flash", "green", "red", "white"].forEach((clave) => {
+    estadoEmergencyControlador[clave] = Boolean(emergency[clave])
+  })
+  normalizarEstadoEmergencyControlador()
+
+  actualizarBotonesLucesControlador()
+  actualizarBotonesEmergencyControlador()
+  actualizarLuzEmergencyControlador()
+  guardarEstadoLucesControlador()
+  guardarEstadoEmergencyControlador()
+
+  const startTs = Number(pyrotechnic.startTs)
+  if(Number.isFinite(startTs) && startTs > 0){
+    const inicioActual = Number(pyrotechnicLightStartTs)
+    const yaSincronizado =
+      Number.isFinite(inicioActual) &&
+      inicioActual === startTs &&
+      Boolean(pyrotechnicLightMarker)
+    if(!yaSincronizado){
+      iniciarPyrotechnicControladorDesdeTimestamp(startTs, false)
+    }
+  } else {
+    limpiarPyrotechnicControlador()
+  }
 }
 
 function obtenerRectControladorDespuesDeCursor(contenedor, clientY){
@@ -3616,6 +3956,9 @@ socket.on("cargarAeronaves", lista => {
 socket.on("actualizarRescate", data => {
   aplicarEstadoRescateRemoto(data)
 })
+socket.on("actualizarServiciosControlador", data => {
+  aplicarEstadoServiciosControladorRemoto(data)
+})
 socket.on("letraPanelSala", data => {
   const letraRecibida =
     data && typeof data.letra === "string"
@@ -3885,7 +4228,92 @@ function crearTriangulo(nombre, lat, lng){
     `
   })
 
-  L.marker([lat,lng],{icon:icono}).addTo(map)
+  return L.marker([lat,lng],{
+    icon:icono,
+    interactive:false,
+    keyboard:false
+  }).addTo(map)
+}
+
+function crearMarcadorPuntoRnavMapa(nombre, lat, lng){
+  const icono = L.divIcon({
+    className:"map-fix-icon",
+    iconSize:[44, 50],
+    iconAnchor:[22, 17],
+    html:`
+      <div class="map-fix-wrapper">
+        <div class="rnav-fix-marker" aria-hidden="true">
+          <span class="rnav-fix-triangle rnav-fix-triangle-top"></span>
+          <span class="rnav-fix-triangle rnav-fix-triangle-right"></span>
+          <span class="rnav-fix-triangle rnav-fix-triangle-bottom"></span>
+          <span class="rnav-fix-triangle rnav-fix-triangle-left"></span>
+          <span class="rnav-fix-core"></span>
+        </div>
+        <div class="map-fix-label">${nombre}</div>
+      </div>
+    `
+  })
+
+  return L.marker([lat,lng],{
+    icon:icono,
+    interactive:false,
+    keyboard:false
+  })
+}
+
+function crearPuntoRnavMapa(nombre, lat, lng){
+  return crearMarcadorPuntoRnavMapa(nombre, lat, lng).addTo(map)
+}
+
+function obtenerTamanoAerodromoMapaPx(){
+  const zoom = map.getZoom()
+  const factor = Math.max(0.62, Math.min(1.06, 1 + ((zoom - 16) * 0.08)))
+  const planeSize = Math.round(26 * factor)
+  const labelSize = Math.max(8, Math.round(10 * factor))
+  const iconWidth = Math.max(42, planeSize + 16)
+  const iconHeight = planeSize + labelSize + 12
+  return {
+    planeSize,
+    labelSize,
+    iconWidth,
+    iconHeight,
+    iconAnchorX: Math.round(iconWidth / 2),
+    iconAnchorY: Math.max(14, Math.round(planeSize * 0.6)),
+    shiftY: `${Math.max(-5, Math.round(-4 * factor))}px`
+  }
+}
+
+function crearIconoAerodromoMapa(nombre){
+  const size = obtenerTamanoAerodromoMapaPx()
+  return L.divIcon({
+    className:"map-aerodromo-icon",
+    iconSize:[size.iconWidth, size.iconHeight],
+    iconAnchor:[size.iconAnchorX, size.iconAnchorY],
+    html:`
+      <div
+        class="map-aerodromo-wrapper"
+        style="
+          --aerodromo-plane-size:${size.planeSize}px;
+          --aerodromo-label-size:${size.labelSize}px;
+          --aerodromo-shift-y:${size.shiftY};
+        "
+      >
+        <img src="img/AD.svg" class="map-aerodromo-plane" alt="" aria-hidden="true">
+        <div class="map-aerodromo-label">${nombre}</div>
+      </div>
+    `
+  })
+
+}
+
+function crearAerodromoMapa(nombre, lat, lng){
+  const marker = L.marker([lat,lng],{
+    icon:crearIconoAerodromoMapa(nombre),
+    interactive:false,
+    keyboard:false
+  })
+  marker._aerodromoNombre = nombre
+  return marker
 }
 crearTriangulo("KOPRA", -13.406306, -76.700917)
 crearTriangulo("TELOT", -13.241667, -76.530000)
@@ -3893,9 +4321,117 @@ crearTriangulo("GEBED", -13.193611, -76.432583)
 crearTriangulo("KOLMI", -13.673139, -76.159944)
 crearTriangulo("MUMOP", -13.567306, -76.281944)
 crearTriangulo("SILAM", -13.695056, -76.178417)
-crearTriangulo("ESEDI", -12.577222, -76.951667)
+crearPuntoRnavMapa("ESEDI", -12.577222, -76.951667)
 crearTriangulo("ASOXI", -12.760556, -76.606389)
-crearTriangulo("LIB MANDI", -12.389000, -76.758094)
+const PUNTOS_RUTAS_MAPA = [
+  { nombre: "ESIRA", lat: -14.90060000, lng: -74.97720000 },
+  { nombre: "ILMAR", lat: -14.27472222, lng: -76.51333333 },
+  { nombre: "ISOKI", lat: -16.24347222, lng: -73.57872222 },
+  { nombre: "ROKOP", lat: -13.73611389, lng: -75.61343333 },
+  { nombre: "KOSKO", lat: -13.54189167, lng: -75.53248056 }
+]
+
+const grupoRutas = L.layerGroup(
+  PUNTOS_RUTAS_MAPA.map((punto) =>
+    crearMarcadorPuntoRnavMapa(punto.nombre, punto.lat, punto.lng)
+  )
+)
+
+const AERODROMOS_MAPA = [
+  { nombre: "SPLX", lat: -12.389000, lng: -76.758094 },
+  { nombre: "SPJC", lat: -12.02138889, lng: -77.12053333 },
+  { nombre: "SPLH", lat: -14.03518056, lng: -75.76028333 },
+  { nombre: "SPYL", lat: -4.57661111, lng: -81.25405833 },
+  { nombre: "SPZA", lat: -14.854550980958042, lng: -74.96151924133302 },
+  { nombre: "SPJN", lat: -15.357628076048535, lng: -75.135302095891 },
+  { nombre: "SPQU", lat: -16.34057778, lng: -71.57080278 },
+  { nombre: "SPRR", lat: -13.222024313374167, lng: -76.26850605010988 }
+]
+
+const grupoAerodromos = L.layerGroup(
+  AERODROMOS_MAPA.map((aerodromo) =>
+    crearAerodromoMapa(aerodromo.nombre, aerodromo.lat, aerodromo.lng)
+  )
+).addTo(map)
+
+function actualizarIconosAerodromos(){
+  grupoAerodromos.eachLayer((layer) => {
+    if(!layer || typeof layer.setIcon !== "function") return
+    const nombre = String(layer._aerodromoNombre || "").trim()
+    if(!nombre) return
+    layer.setIcon(crearIconoAerodromoMapa(nombre))
+  })
+}
+
+function obtenerTamanoBaseAereaMapaPx(nombre){
+  const zoom = map.getZoom()
+  const factor = Math.max(0.68, Math.min(1.04, 1 + ((zoom - 16) * 0.07)))
+  const diamondSize = Math.max(8, Math.round(10 * factor))
+  const labelSize = Math.max(8, Math.round(9 * factor))
+  const iconWidth = Math.max(84, Math.round(String(nombre || "").length * labelSize * 0.72))
+  const iconHeight = diamondSize + labelSize + 12
+  return {
+    diamondSize,
+    labelSize,
+    iconWidth,
+    iconHeight,
+    iconAnchorX: Math.round(iconWidth / 2),
+    iconAnchorY: Math.max(9, Math.round(diamondSize * 0.8)),
+    shiftY: `${Math.max(-3, Math.round(-2 * factor))}px`
+  }
+}
+
+function crearIconoBaseAereaMapa(nombre){
+  const size = obtenerTamanoBaseAereaMapaPx(nombre)
+  return L.divIcon({
+    className:"map-base-aerea-icon",
+    iconSize:[size.iconWidth, size.iconHeight],
+    iconAnchor:[size.iconAnchorX, size.iconAnchorY],
+    html:`
+      <div
+        class="map-base-aerea-wrapper"
+        style="
+          --base-aerea-diamond-size:${size.diamondSize}px;
+          --base-aerea-label-size:${size.labelSize}px;
+          --base-aerea-shift-y:${size.shiftY};
+        "
+      >
+        <div class="map-base-aerea-diamond" aria-hidden="true"></div>
+        <div class="map-base-aerea-label">${nombre}</div>
+      </div>
+    `
+  })
+}
+
+function crearBaseAereaMapa(nombre, lat, lng){
+  const marker = L.marker([lat,lng],{
+    icon:crearIconoBaseAereaMapa(nombre),
+    interactive:false,
+    keyboard:false
+  })
+  marker._baseAereaNombre = nombre
+  return marker
+}
+
+const BASES_AEREAS_MAPA = [
+  { nombre: "Base Aerea El Pato", lat: -4.54916338396952, lng: -81.2241554260254 },
+  { nombre: "La Joya", lat: -16.428772524620356, lng: -71.83733998987064 }
+]
+
+const grupoBasesAereas = L.layerGroup(
+  BASES_AEREAS_MAPA.map((baseAerea) =>
+    crearBaseAereaMapa(baseAerea.nombre, baseAerea.lat, baseAerea.lng)
+  )
+).addTo(map)
+
+function actualizarIconosBasesAereas(){
+  grupoBasesAereas.eachLayer((layer) => {
+    if(!layer || typeof layer.setIcon !== "function") return
+    const nombre = String(layer._baseAereaNombre || "").trim()
+    if(!nombre) return
+    layer.setIcon(crearIconoBaseAereaMapa(nombre))
+  })
+}
 
 const RESCATE_POSICION = [-13.733217678742019, -76.21356636285783]
 const RESCATE_ICON_WIDTH_PX = 24
@@ -3927,6 +4463,192 @@ const RUNWAY_SIGN_HEADING_22 = RUNWAY_HEADING_22
 const RUNWAY_SIGN_HEADING_04 = RUNWAY_HEADING_22
 const RUNWAY_SIGN_22_POS = [-13.734195837072168, -76.21184464345333]
 const RUNWAY_SIGN_04_POS = [-13.755019458733102, -76.22957933829883]
+const EMERGENCY_LIGHT_POS = [-13.73583915366698, -76.21775865554811]
+const PYROTECHNIC_LIGHT_TARGET_POS = [-13.734573596676004, -76.21520519256593]
+const PYROTECHNIC_LIGHT_DURATION_MS = 30000
+let emergencyLightMarker = null
+let pyrotechnicLightMarker = null
+let pyrotechnicLightAnimationFrame = null
+let pyrotechnicLightStartTs = 0
+
+function obtenerColorEmergencyActivo(){
+  if(estadoEmergencyControlador.white) return "white"
+  if(estadoEmergencyControlador.red) return "red"
+  if(estadoEmergencyControlador.green) return "green"
+  return null
+}
+
+function obtenerDebeParpadearEmergency(){
+  const color = obtenerColorEmergencyActivo()
+  if(color === "white") return true
+  if(color === "green" || color === "red"){
+    return Boolean(estadoEmergencyControlador.flash)
+  }
+  return false
+}
+
+function crearIconoLuzEmergency(color, parpadea){
+  const clases = [
+    "emergency-light-marker",
+    `emergency-light-${color}`
+  ]
+  if(parpadea){
+    clases.push("emergency-light-blink")
+  }
+
+  return L.divIcon({
+    className: "emergency-light-icon",
+    html: `
+      <div class="${clases.join(" ")}" aria-hidden="true">
+        <span class="emergency-light-glow"></span>
+        <span class="emergency-light-core"></span>
+      </div>
+    `,
+    iconSize: [22, 22],
+    iconAnchor: [11, 11]
+  })
+}
+
+function crearIconoLuzPyrotechnic(){
+  return L.divIcon({
+    className: "emergency-light-icon",
+    html: `
+      <div class="emergency-light-marker emergency-light-red pyrotechnic-light-marker" aria-hidden="true">
+        <span class="emergency-light-glow"></span>
+        <span class="emergency-light-core"></span>
+      </div>
+    `,
+    iconSize: [26, 26],
+    iconAnchor: [13, 13]
+  })
+}
+
+function actualizarLuzEmergencyControlador(){
+  if(typeof map === "undefined" || !map) return
+
+  const color = obtenerColorEmergencyActivo()
+  if(!color){
+    if(emergencyLightMarker){
+      map.removeLayer(emergencyLightMarker)
+      emergencyLightMarker = null
+    }
+    return
+  }
+
+  const icono = crearIconoLuzEmergency(color, obtenerDebeParpadearEmergency())
+  if(!emergencyLightMarker){
+    emergencyLightMarker = L.marker(EMERGENCY_LIGHT_POS, {
+      icon: icono,
+      interactive: false,
+      keyboard: false,
+      zIndexOffset: 720
+    }).addTo(map)
+    return
+  }
+
+  emergencyLightMarker.setIcon(icono)
+  emergencyLightMarker.setLatLng(EMERGENCY_LIGHT_POS)
+}
+
+function actualizarBotonPyrotechnicControlador(){
+  const boton = document.getElementById("btnControladorEmergencyPyrotechnic")
+  if(!boton) return
+  const activo = Number.isFinite(Number(pyrotechnicLightStartTs)) && Number(pyrotechnicLightStartTs) > 0
+  boton.classList.toggle("activo", activo)
+  boton.disabled = false
+  boton.title = activo ? "Restart pyrotechnic trajectory" : "Launch pyrotechnic light"
+}
+
+function limpiarPyrotechnicControlador(){
+  if(pyrotechnicLightAnimationFrame){
+    cancelAnimationFrame(pyrotechnicLightAnimationFrame)
+    pyrotechnicLightAnimationFrame = null
+  }
+  pyrotechnicLightStartTs = 0
+
+  if(pyrotechnicLightMarker && typeof map !== "undefined" && map){
+    map.removeLayer(pyrotechnicLightMarker)
+  }
+  pyrotechnicLightMarker = null
+  actualizarBotonPyrotechnicControlador()
+}
+
+function actualizarAnimacionPyrotechnicControlador(){
+  if(!pyrotechnicLightMarker || typeof map === "undefined" || !map){
+    limpiarPyrotechnicControlador()
+    return
+  }
+
+  const inicio = Number(pyrotechnicLightStartTs)
+  if(!Number.isFinite(inicio) || inicio <= 0){
+    limpiarPyrotechnicControlador()
+    return
+  }
+
+  const progreso = Math.max(
+    0,
+    Math.min(1, (Date.now() - inicio) / PYROTECHNIC_LIGHT_DURATION_MS)
+  )
+  const lat =
+    EMERGENCY_LIGHT_POS[0] +
+    ((PYROTECHNIC_LIGHT_TARGET_POS[0] - EMERGENCY_LIGHT_POS[0]) * progreso)
+  const lng =
+    EMERGENCY_LIGHT_POS[1] +
+    ((PYROTECHNIC_LIGHT_TARGET_POS[1] - EMERGENCY_LIGHT_POS[1]) * progreso)
+
+  pyrotechnicLightMarker.setLatLng([lat, lng])
+
+  if(progreso >= 1){
+    limpiarPyrotechnicControlador()
+    emitirServiciosControladorServidor()
+    return
+  }
+
+  pyrotechnicLightAnimationFrame = requestAnimationFrame(actualizarAnimacionPyrotechnicControlador)
+}
+
+function iniciarPyrotechnicControladorDesdeTimestamp(startTs, emitir = false){
+  if(typeof map === "undefined" || !map) return
+
+  const inicio = Number(startTs)
+  limpiarPyrotechnicControlador()
+  if(!Number.isFinite(inicio) || inicio <= 0){
+    if(emitir){
+      emitirServiciosControladorServidor()
+    }
+    return
+  }
+
+  pyrotechnicLightStartTs = inicio
+  const progresoInicial = Math.max(
+    0,
+    Math.min(1, (Date.now() - pyrotechnicLightStartTs) / PYROTECHNIC_LIGHT_DURATION_MS)
+  )
+  if(progresoInicial >= 1){
+    limpiarPyrotechnicControlador()
+    if(emitir){
+      emitirServiciosControladorServidor()
+    }
+    return
+  }
+
+  pyrotechnicLightMarker = L.marker(EMERGENCY_LIGHT_POS, {
+    icon: crearIconoLuzPyrotechnic(),
+    interactive: false,
+    keyboard: false,
+    zIndexOffset: 730
+  }).addTo(map)
+  actualizarBotonPyrotechnicControlador()
+  actualizarAnimacionPyrotechnicControlador()
+  pyrotechnicLightAnimationFrame = requestAnimationFrame(actualizarAnimacionPyrotechnicControlador)
+  if(emitir){
+    emitirServiciosControladorServidor()
+  }
+}
+
+function iniciarPyrotechnicControlador(){
+  iniciarPyrotechnicControladorDesdeTimestamp(Date.now(), true)
+}
 
 function crearIconoRescate(anchoPx, altoPx){
   return L.divIcon({
@@ -3965,14 +4687,6 @@ function crearVehiculoRescate(){
     title: nombre,
     draggable: true
   }).addTo(map)
-  marcador.bindTooltip(nombre, {
-    permanent: true,
-    direction: "right",
-    offset: [10, 0],
-    className: "rescate-label",
-    opacity: 0.9
-  })
-
   marcador.on("click", (e) => {
     if(e && e.originalEvent){
       e.originalEvent.stopPropagation()
@@ -4018,11 +4732,6 @@ function crearVehiculoRescate(){
 
 crearVehiculoRescate()
 actualizarEstadoPanelRescate()
-
-const rescatePanelElement = document.getElementById("rescatePanel")
-if(rescatePanelElement && rescatePanelElement.parentElement !== document.body){
-  document.body.appendChild(rescatePanelElement)
-}
 
 function actualizarEtiquetaRescate(){
   if(!vehiculoRescate || !vehiculoRescate.marker) return
@@ -4133,13 +4842,23 @@ function inicializarArrastreRescate(a){
   })
 }
 
+function obtenerVehiculoRescateActivo(){
+  return rescateSeleccionado || vehiculoRescate || null
+}
+
 function actualizarEstadoPanelRescate(){
   const panel = document.getElementById("rescatePanel")
+  const estadoVacio = document.getElementById("rescatePanelEmpty")
   if(!panel) return
 
-  const visible = Boolean(rescateSeleccionado) && modoOperacion === "controlador"
+  const a = obtenerVehiculoRescateActivo()
+  const visible = Boolean(a) && modoOperacion === "controlador"
   panel.classList.toggle("activo", visible)
   panel.setAttribute("aria-hidden", String(!visible))
+  if(estadoVacio){
+    estadoVacio.classList.toggle("oculto", visible)
+    estadoVacio.setAttribute("aria-hidden", String(visible))
+  }
   actualizarInteraccionRescate(vehiculoRescate)
 
   const btnRoute = document.getElementById("rescateRoute")
@@ -4166,7 +4885,6 @@ function actualizarEstadoPanelRescate(){
     return
   }
 
-  const a = rescateSeleccionado
   const puedeRoute = a.estado !== "TAXI"
   const puedeStart =
     a.estado === "IDLE" &&
@@ -4321,7 +5039,7 @@ function sincronizarSpeedRescatePanel(){
   const valor = document.getElementById("rescateSpeedValue")
   if(!slider || !valor) return
 
-  const a = rescateSeleccionado
+  const a = obtenerVehiculoRescateActivo()
   if(!a){
     slider.value = "0"
     valor.textContent = "0"
@@ -4347,7 +5065,8 @@ function aplicarVelocidadRescateDesdeSlider(valor){
     valorEl.textContent = String(kmh)
   }
 
-  if(!rescateSeleccionado) return
+  const a = obtenerVehiculoRescateActivo()
+  if(!a) return
   const maxKnots = Number.isFinite(Number(RESCATE_SPEED_MAX_KT))
     ? Number(RESCATE_SPEED_MAX_KT)
     : convertirRescateKmhAKnots(RESCATE_SPEED_MAX_KMH)
@@ -4355,8 +5074,8 @@ function aplicarVelocidadRescateDesdeSlider(valor){
     0,
     Math.min(maxKnots, convertirRescateKmhAKnots(kmh))
   )
-  rescateSeleccionado.velocidadObjetivo = targetKnots
-  emitirEstadoRescate(rescateSeleccionado, true)
+  a.velocidadObjetivo = targetKnots
+  emitirEstadoRescate(a, true)
 }
 
 function seleccionarVehiculoRescate(){
@@ -4366,7 +5085,7 @@ function seleccionarVehiculoRescate(){
 }
 
 function activarModoRutaRescate(){
-  const a = rescateSeleccionado
+  const a = obtenerVehiculoRescateActivo()
   if(!a || modoOperacion !== "controlador") return
   if(a.estado === "TAXI") return
 
@@ -4403,7 +5122,7 @@ function activarModoRutaRescate(){
 }
 
 function agregarPuntoRutaRescate(latlng){
-  const a = rescateSeleccionado
+  const a = obtenerVehiculoRescateActivo()
   if(!a || !a.modoRuta) return
   if(a.estado === "TAXI") return
   a.rutaTemporal.push(latlng)
@@ -4414,7 +5133,7 @@ function agregarPuntoRutaRescate(latlng){
 }
 
 function eliminarUltimoTramoRutaRescate(){
-  const a = rescateSeleccionado
+  const a = obtenerVehiculoRescateActivo()
   if(!a || !a.modoRuta) return false
   if(a.estado === "TAXI") return false
   if(!Array.isArray(a.rutaTemporal)) return false
@@ -4481,7 +5200,7 @@ function reanclarRutaTaxiAlPuntoActualRescate(a){
 }
 
 function iniciarRodajeRescate(){
-  const a = rescateSeleccionado
+  const a = obtenerVehiculoRescateActivo()
   if(!a || modoOperacion !== "controlador") return
   if(a.estado !== "IDLE") return
   reanclarRutaTaxiAlPuntoActualRescate(a)
@@ -4506,7 +5225,7 @@ function iniciarRodajeRescate(){
 }
 
 function detenerRodajeRescate(){
-  const a = rescateSeleccionado
+  const a = obtenerVehiculoRescateActivo()
   if(!a || modoOperacion !== "controlador") return
   if(a.estado !== "TAXI") return
 
@@ -4667,9 +5386,10 @@ const rescateSpeedSlider = document.getElementById("rescateSpeedSlider")
 if(btnRescateRoute){
   btnRescateRoute.addEventListener("click", () => {
     if(modoOperacion !== "controlador") return
-    if(!rescateSeleccionado) return
-    if(rescateSeleccionado.modoRuta){
-      eliminarRutaRescate(rescateSeleccionado)
+    const a = obtenerVehiculoRescateActivo()
+    if(!a) return
+    if(a.modoRuta){
+      eliminarRutaRescate(a)
       return
     }
     activarModoRutaRescate()
@@ -4693,7 +5413,8 @@ if(btnRescateHold){
 if(btnRescateSpeed && rescateSpeedPanel){
   btnRescateSpeed.addEventListener("click", () => {
     if(modoOperacion !== "controlador") return
-    if(!rescateSeleccionado) return
+    const a = obtenerVehiculoRescateActivo()
+    if(!a) return
     const activo = rescateSpeedPanel.classList.contains("activo")
     rescateSpeedPanel.classList.toggle("activo", !activo)
     rescateSpeedPanel.setAttribute("aria-hidden", String(activo))
@@ -4705,7 +5426,7 @@ if(btnRescateSpeed && rescateSpeedPanel){
 if(rescateSpeedSlider){
   rescateSpeedSlider.addEventListener("input", (event) => {
     if(modoOperacion !== "controlador") return
-    if(!rescateSeleccionado) return
+    if(!obtenerVehiculoRescateActivo()) return
     aplicarVelocidadRescateDesdeSlider(event.target.value)
   })
 }
@@ -5167,17 +5888,47 @@ function construirTooltipPuntoReferencia(nombre){
   `
 }
 
-function crearPuntoReferencia(nombre, lat, lng){
-  const circulo = L.circleMarker([lat, lng], {
-    radius: 7,
-    color: "#000000",
-    weight: 2,
-    fillColor: "#000000",
-    fillOpacity: 0.22,
-    interactive: true
+function crearIconoPuntoReferenciaRnav(){
+  return L.divIcon({
+    className: "rnav-fix-icon",
+    html: `
+      <div class="rnav-fix-marker" aria-hidden="true">
+        <span class="rnav-fix-triangle rnav-fix-triangle-top"></span>
+        <span class="rnav-fix-triangle rnav-fix-triangle-right"></span>
+        <span class="rnav-fix-triangle rnav-fix-triangle-bottom"></span>
+        <span class="rnav-fix-triangle rnav-fix-triangle-left"></span>
+        <span class="rnav-fix-core"></span>
+      </div>
+    `,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17]
   })
+}
 
-  circulo.bindTooltip(construirTooltipPuntoReferencia(nombre), {
+function crearPuntoReferencia(punto){
+  const nombre = String(punto && punto.nombre ? punto.nombre : "").trim()
+  const lat = Number(punto && punto.lat)
+  const lng = Number(punto && punto.lng)
+  const tipo = String(punto && punto.tipo ? punto.tipo : "").trim().toLowerCase()
+  if(!nombre || !Number.isFinite(lat) || !Number.isFinite(lng)) return null
+
+  const marcador = tipo === "rnav"
+    ? L.marker([lat, lng], {
+        icon: crearIconoPuntoReferenciaRnav(),
+        interactive: true,
+        keyboard: false,
+        title: nombre
+      })
+    : L.circleMarker([lat, lng], {
+        radius: 7,
+        color: "#000000",
+        weight: 2,
+        fillColor: "#000000",
+        fillOpacity: 0.22,
+        interactive: true
+      })
+
+  marcador.bindTooltip(construirTooltipPuntoReferencia(nombre), {
     permanent: false,
     direction: "top",
     offset: [0, -8],
@@ -5185,7 +5936,7 @@ function crearPuntoReferencia(nombre, lat, lng){
     sticky: true
   })
 
-  return circulo
+  return marcador
 }
 
 const PUNTOS_REFERENCIA = [
@@ -5205,7 +5956,7 @@ const PUNTOS_REFERENCIA = [
 ]
 
 const grupoPuntosReferencia = L.layerGroup(
-  PUNTOS_REFERENCIA.map(p => crearPuntoReferencia(p.nombre, p.lat, p.lng))
+  PUNTOS_REFERENCIA.map(crearPuntoReferencia).filter(Boolean)
 ).addTo(map)
 
 const PUNTOS_REFERENCIA_MIN_ZOOM = 10
@@ -5729,8 +6480,9 @@ function crearIcono(callsign, tipo){
 map.on("click", function(e){
 
   // Si estamos creando ruta
-  if(rescateSeleccionado && rescateSeleccionado.modoRuta){
-    if(rescateSeleccionado.estado !== "TAXI"){
+  const rescateActivo = obtenerVehiculoRescateActivo()
+  if(rescateActivo && rescateActivo.modoRuta){
+    if(rescateActivo.estado !== "TAXI"){
       agregarPuntoRutaRescate(e.latlng)
     }
     return
@@ -5761,7 +6513,8 @@ map.on("contextmenu", function(e){
     e.originalEvent.preventDefault()
   }
 
-  if(rescateSeleccionado && rescateSeleccionado.modoRuta){
+  const rescateActivo = obtenerVehiculoRescateActivo()
+  if(rescateActivo && rescateActivo.modoRuta){
     eliminarUltimoTramoRutaRescate()
     return
   }
@@ -13734,7 +14487,7 @@ function despegar(aeronaveOverride = null){
   }
 
   if(desdeLIB && !vfrActivo && !sidNormalizada && !starNormalizada){
-    alert("LIB MANDI departures require SID, STAR or Free Navigation")
+    alert("SPLX departures require SID, STAR or Free Navigation")
     return
   }
 
@@ -14563,7 +15316,7 @@ function generarSquawk(){
 }
 
 
-// ================= LÃ“GICA DE DESPEGUE LIB MANDI=================
+// ================= LÃ“GICA DE DESPEGUE SPLX =================
 function puedeDespegarDesdeLIB(a){
   if(!a || !a.marker) return false
 
@@ -14596,6 +15349,7 @@ const chkProhibitedZones = document.getElementById("chkProhibitedZones")
 const chkEje = document.getElementById("chkEje")
 const chkPatron = document.getElementById("chkPatron")
 const chkSidRoutes = document.getElementById("chkSidRoutes")
+const chkRutas = document.getElementById("chkRutas")
 
 let circuloVor = null
 let circuloCtr = null
@@ -16023,6 +16777,8 @@ chkEje.addEventListener("change", () => {
     if(runwayMarkingsLayer){
       dibujarMarcasPista()
     }
+    actualizarIconosAerodromos()
+    actualizarIconosBasesAereas()
     actualizarVisibilidadEtiquetasZonas()
     actualizarVisibilidadRescate()
     actualizarIconoRescateFijo()
@@ -16070,6 +16826,21 @@ if(chkSidRoutes){
 
   if(chkSidRoutes.checked){
     dibujarRutasSidCapas()
+  }
+}
+
+if(chkRutas){
+  chkRutas.addEventListener("change", () => {
+    if(chkRutas.checked){
+      grupoRutas.addTo(map)
+      return
+    }
+
+    map.removeLayer(grupoRutas)
+  })
+
+  if(chkRutas.checked){
+    grupoRutas.addTo(map)
   }
 }
 
@@ -17183,6 +17954,7 @@ function toggleWeatherPanel(forzarActivo = null){
   actualizarEstadoBotonSesionPiloto()
   emitirModoOperacionServidor()
   inicializarPanelControladorDragDrop()
+  inicializarPanelControladorServicios()
 
   actualizarOpcionAeronaveWeather(Boolean(btnWeather && btnWeather.classList.contains("activo")))
 
@@ -17389,6 +18161,16 @@ function togglePanelControladorIzquierdo(){
   }
 }
 
+function togglePanelControladorServicios(){
+  const panel = document.getElementById("panelControladorServicios");
+  const boton = document.getElementById("btnGroundPanel");
+  if(!panel || !boton) return;
+
+  panel.classList.toggle("contraido");
+  const expandido = !panel.classList.contains("contraido");
+  boton.setAttribute("aria-expanded", String(expandido));
+}
+
 function inicializarCirculosSectorUno(){
   const exterior = document.getElementById("circuloExterior");
   const interior = document.getElementById("circuloInterior");
@@ -17463,7 +18245,13 @@ function actualizarIndicadorDireccionRosa(dirTexto){
   }
 }
 
-window.addEventListener("DOMContentLoaded", inicializarCirculosSectorUno);
+window.addEventListener("DOMContentLoaded", () => {
+  aplicarVisibilidadPanelIzquierdoPorModo()
+  inicializarPanelControladorDragDrop()
+  actualizarEstadoPanelRescate()
+  actualizarLuzEmergencyControlador()
+  inicializarCirculosSectorUno()
+})
 </script>
 <div id="panelManual">
 

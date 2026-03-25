@@ -366,9 +366,9 @@
   <label><input type="checkbox" id="chkTma"> TMA</label>
   <label><input type="checkbox" id="chkTrainingZones" checked> Zonas Inferiores</label>
   <label><input type="checkbox" id="chkTrainingZonesA1A7" checked> Zonas Superiores</label>
-  <label><input type="checkbox" id="chkProhibitedZones"> Zonas Prohibidas</label>
+  <label><input type="checkbox" id="chkProhibitedZones"> SPP/SPR</label>
   <label><input type="checkbox" id="chkEje"> RWY 04/22</label>
-  <label><input type="checkbox" id="chkPatron" checked> Aerodrome Traffic Circuit</label>
+  <label><input type="checkbox" id="chkPatron" checked> Circuito</label>
   <label><input type="checkbox" id="chkSidRoutes"> SID</label>
 </div>
 
@@ -607,6 +607,7 @@ function establecerModoOperacion(modo){
   actualizarEstadoBotonTakeoff()
   actualizarEstadoGrupoTaxi()
   emitirModoOperacionServidor()
+  aeronaves.forEach(actualizarInteraccion)
   if(modoOperacion !== "controlador"){
     rescateSeleccionado = null
   }
@@ -3566,6 +3567,8 @@ socket.on("cargarAeronaves", lista => {
       orbitEnProcesoVisual: Boolean(data.orbitEnCurso || data.estado === "ORBT"),
       extendSolicitada: false,
       intervaloExtendCircuito: null,
+      extensionUpwindExtraLocal: normalizarExtensionCircuitoLocal(data.extensionAeronave && data.extensionAeronave.upwind),
+      extensionDownwindExtraLocal: normalizarExtensionCircuitoLocal(data.extensionAeronave && data.extensionAeronave.downwind),
       shortSolicitada: Boolean(data.shortCircuitoActivo),
       ultimoSyncTs: Number.isFinite(data.syncTs) ? data.syncTs : null,
       touchAndGoPendiente: false,
@@ -3695,6 +3698,12 @@ socket.on("rutaCircuitoActualizada", data => {
     const avionRuta = aeronaves.find(a => a && a.id === data.id)
     if(avionRuta){
       avionRuta.rutaCircuito = clonarRutaCircuitoLocal(data.ruta)
+      if(Object.prototype.hasOwnProperty.call(data, "extensionAeronave")){
+        sincronizarExtensionCircuitoAeronave(avionRuta, data.extensionAeronave)
+      }
+      if(Object.prototype.hasOwnProperty.call(data, "shortCircuitoActivo")){
+        avionRuta.shortSolicitada = Boolean(data.shortCircuitoActivo)
+      }
     }
   } else if(data && Array.isArray(data.ruta)){
     rutaCircuitoServidor = clonarRutaCircuitoLocal(data.ruta)
@@ -3898,6 +3907,7 @@ const RESCATE_KMH_PER_KNOT = 1.852
 const RESCATE_SPEED_MAX_KT = RESCATE_SPEED_MAX_KMH / RESCATE_KMH_PER_KNOT
 const RESCATE_NUM_MIN = 1
 const RESCATE_NUM_MAX = 3
+const RESCATE_MIN_ZOOM = 14
 const RESCATE_LABEL_MIN_ZOOM = 16
 const HOLD_SHORT_POSITIONS = [
   [-13.734299162212906, -76.2123003602028],
@@ -4026,12 +4036,19 @@ function actualizarEtiquetaRescate(){
 
 function actualizarVisibilidadRescate(){
   if(!vehiculoRescate || !vehiculoRescate.marker) return
+  const visible = map.getZoom() >= RESCATE_MIN_ZOOM
   const estaVisible = map.hasLayer(vehiculoRescate.marker)
-  if(!estaVisible){
+
+  if(visible && !estaVisible){
     vehiculoRescate.marker.addTo(map)
     actualizarIconoRescateFijo()
     actualizarRotacionRescate(vehiculoRescate)
     actualizarEtiquetaRescate()
+    return
+  }
+
+  if(!visible && estaVisible){
+    map.removeLayer(vehiculoRescate.marker)
   }
 }
 
@@ -5070,18 +5087,16 @@ function crearZonaPlantaLaLobera(){
   }).addTo(map)
 
   circulo.bindTooltip(
-    `
-      <div style="text-align:center;line-height:1.12;white-space:nowrap;">
-        <div style="font-weight:700;">SPP05 PLANTA LA LOBERA</div>
-        <div style="margin-top:2px;">1500ft</div>
-        <div style="border-top:1px solid #ffffff;margin:1px 0;"></div>
-        <div>GND</div>
-      </div>
-    `,
+    construirTooltipAltitudesZona(
+      "SPP05 PLANTA LA LOBERA",
+      "1500ft",
+      "GND"
+    ),
     {
       permanent: false,
       direction: "top",
       offset: [0, -8],
+      className: "airspace-zone-tooltip",
       sticky: true
     }
   )
@@ -5141,20 +5156,33 @@ function crearVOR(nombre, lat, lng){
 
 crearVOR("SCO VOR", -13.738556, -76.212750)
 
+function construirTooltipPuntoReferencia(nombre){
+  const titulo = String(nombre || "").trim()
+  if(!titulo) return ""
+
+  return `
+    <div class="visual-reference-tooltip-card">
+      <div class="visual-reference-tooltip-title">${titulo}</div>
+    </div>
+  `
+}
+
 function crearPuntoReferencia(nombre, lat, lng){
   const circulo = L.circleMarker([lat, lng], {
     radius: 7,
-    color: "#ff0000",
+    color: "#000000",
     weight: 2,
-    fillColor: "#ff0000",
-    fillOpacity: 0,
+    fillColor: "#000000",
+    fillOpacity: 0.22,
     interactive: true
   })
 
-  circulo.bindTooltip(nombre, {
+  circulo.bindTooltip(construirTooltipPuntoReferencia(nombre), {
     permanent: false,
     direction: "top",
-    offset: [0, -6]
+    offset: [0, -8],
+    className: "visual-reference-tooltip",
+    sticky: true
   })
 
   return circulo
@@ -5179,6 +5207,24 @@ const PUNTOS_REFERENCIA = [
 const grupoPuntosReferencia = L.layerGroup(
   PUNTOS_REFERENCIA.map(p => crearPuntoReferencia(p.nombre, p.lat, p.lng))
 ).addTo(map)
+
+const PUNTOS_REFERENCIA_MIN_ZOOM = 10
+
+function actualizarVisibilidadPuntosReferencia(){
+  const visible = map.getZoom() >= PUNTOS_REFERENCIA_MIN_ZOOM
+  const estaVisible = map.hasLayer(grupoPuntosReferencia)
+
+  if(visible && !estaVisible){
+    grupoPuntosReferencia.addTo(map)
+    return
+  }
+
+  if(!visible && estaVisible){
+    map.removeLayer(grupoPuntosReferencia)
+  }
+}
+
+actualizarVisibilidadPuntosReferencia()
 
 // ================= VARIABLES =================
 
@@ -5217,8 +5263,7 @@ const PILOTAGE_REALISTIC_TURN_RATE_MAX_DEG_PER_SEC = 5.8
 const PILOTAGE_CONTINUATION_STEP_METERS = 20 * 1852
 const RUMBO_PISTA_22 = 220
 const RUMBO_CIRCUITO_DOWNWIND = 40
-const EXTEND_CIRCUITO_INTERVALO_MS = 500
-const EXTEND_CIRCUITO_PASO_METROS = 0.1 * 1852
+const EXTEND_CIRCUITO_PASO_METROS = 0.5 * 1852
 const SHORT_CIRCUITO_PASO_METROS = 0.5 * 1852
 const EXTEND_TOL_RUMBO_GRADOS = 28
 const DISTANCIA_FADE = 80 * 1852      // 80 NM
@@ -6356,6 +6401,8 @@ clearedToLandPendiente: false,
     orbitEnProcesoVisual: false,
     extendSolicitada: false,
     intervaloExtendCircuito: null,
+    extensionUpwindExtraLocal: 0,
+    extensionDownwindExtraLocal: 0,
     shortSolicitada: false,
     animFrame: null,
     altitudObjetivo: null,
@@ -6457,6 +6504,8 @@ socket.on("crearAeronave", data => {
   orbitEnProcesoVisual: Boolean(data.orbitEnCurso || data.estado === "ORBT"),
   extendSolicitada: false,
   intervaloExtendCircuito: null,
+  extensionUpwindExtraLocal: normalizarExtensionCircuitoLocal(data.extensionAeronave && data.extensionAeronave.upwind),
+  extensionDownwindExtraLocal: normalizarExtensionCircuitoLocal(data.extensionAeronave && data.extensionAeronave.downwind),
   shortSolicitada: Boolean(data.shortCircuitoActivo),
   ultimoSyncTs: Number.isFinite(data.syncTs) ? data.syncTs : null,
   panelLateralEstado: crearEstadoPanelLateralAeronave(),
@@ -6556,6 +6605,9 @@ socket.on("actualizarAeronave", data => {
   }
   if(Object.prototype.hasOwnProperty.call(data, "shortCircuitoActivo")){
     avion.shortSolicitada = Boolean(data.shortCircuitoActivo)
+  }
+  if(Object.prototype.hasOwnProperty.call(data, "extensionAeronave")){
+    sincronizarExtensionCircuitoAeronave(avion, data.extensionAeronave)
   }
 
   if (avion.estado === "ORBT") {
@@ -9421,6 +9473,23 @@ function marcarExtendSolicitado(aeronave, activo){
   actualizarEstadoBotonExtend()
 }
 
+function normalizarExtensionCircuitoLocal(valor){
+  const numero = Number(valor)
+  return Number.isFinite(numero) ? numero : 0
+}
+
+function sincronizarExtensionCircuitoAeronave(aeronave, extensionAeronave){
+  if(!aeronave) return
+
+  const extensionSegura =
+    extensionAeronave && typeof extensionAeronave === "object"
+      ? extensionAeronave
+      : {}
+
+  aeronave.extensionUpwindExtraLocal = normalizarExtensionCircuitoLocal(extensionSegura.upwind)
+  aeronave.extensionDownwindExtraLocal = normalizarExtensionCircuitoLocal(extensionSegura.downwind)
+}
+
 function tramoValidoParaExtend(aeronave){
   if(!aeronave) return false
 
@@ -9431,26 +9500,42 @@ function tramoValidoParaExtend(aeronave){
   return Math.min(diffUpwind, diffDownwind) <= EXTEND_TOL_RUMBO_GRADOS
 }
 
+function obtenerTramoObjetivoAjusteCircuito(aeronave){
+  if(!aeronave) return null
+
+  const heading = normalizarAngulo360(Number(aeronave.angulo) || 0)
+  const diffUpwind = diferenciaAngularAbsoluta(heading, RUMBO_PISTA_22)
+  const diffDownwind = diferenciaAngularAbsoluta(heading, RUMBO_CIRCUITO_DOWNWIND)
+
+  if(Math.min(diffUpwind, diffDownwind) > EXTEND_TOL_RUMBO_GRADOS){
+    return null
+  }
+
+  return diffDownwind < diffUpwind ? "downwind" : "upwind"
+}
+
+function obtenerExtensionTramoCircuitoLocal(aeronave, tramo){
+  if(!aeronave) return 0
+
+  if(tramo === "downwind"){
+    return normalizarExtensionCircuitoLocal(aeronave.extensionDownwindExtraLocal)
+  }
+
+  if(tramo === "upwind"){
+    return normalizarExtensionCircuitoLocal(aeronave.extensionUpwindExtraLocal)
+  }
+
+  return 0
+}
+
 function iniciarExtendCircuito(aeronave){
   if(!aeronave) return
-
-  marcarExtendSolicitado(aeronave, true)
 
   socket.emit("extenderTramoCircuito", {
     id: aeronave.id,
     metros: EXTEND_CIRCUITO_PASO_METROS
   })
-
-  aeronave.intervaloExtendCircuito = setInterval(() => {
-    if(!aeronave.extendSolicitada){
-      return
-    }
-
-    socket.emit("extenderTramoCircuito", {
-      id: aeronave.id,
-      metros: EXTEND_CIRCUITO_PASO_METROS
-    })
-  }, EXTEND_CIRCUITO_INTERVALO_MS)
+  marcarExtendSolicitado(aeronave, false)
 }
 
 function detenerExtendCircuito(aeronave, virarAlFinal = false){
@@ -9856,22 +9941,18 @@ function activarPrincipal(boton){
         return
       }
 
-      if(a.extendSolicitada){
-        detenerExtendCircuito(a, true)
-        return
-      }
-
       if(a.estado !== "CIRCUIT"){
         alert("The aircraft must be on CIRCUIT to extend the leg")
         return
       }
 
-      if(!tramoValidoParaExtend(a)){
+      if(!obtenerTramoObjetivoAjusteCircuito(a)){
         alert("EXTEND is only available for UPWIND or DOWNWIND")
         return
       }
 
       marcarOrbitSolicitado(a, false)
+      marcarShortSolicitado(a, false)
       iniciarExtendCircuito(a)
     })
   }
@@ -9889,7 +9970,8 @@ function activarPrincipal(boton){
         return
       }
 
-      if(!tramoValidoParaExtend(a)){
+      const tramoObjetivo = obtenerTramoObjetivoAjusteCircuito(a)
+      if(!tramoObjetivo){
         alert("SHORT is only available for UPWIND or DOWNWIND")
         return
       }
@@ -9899,9 +9981,14 @@ function activarPrincipal(boton){
       }
 
       marcarShortSolicitado(a, false)
+      const extensionActual = obtenerExtensionTramoCircuitoLocal(a, tramoObjetivo)
+      const metrosPaso =
+        extensionActual > 0
+          ? Math.min(SHORT_CIRCUITO_PASO_METROS, extensionActual)
+          : SHORT_CIRCUITO_PASO_METROS
       socket.emit("acortarTramoCircuito", {
         id: a.id,
-        metros: SHORT_CIRCUITO_PASO_METROS
+        metros: metrosPaso
       })
     })
   }
@@ -12834,6 +12921,7 @@ function puedeArrastrarAeronaveIdle(a){
   return Boolean(
     a &&
     a.estado === "IDLE" &&
+    modoOperacion !== "controlador" &&
     esAeronaveDelCreadorLocal(a)
   )
 }
@@ -14538,7 +14626,10 @@ const ZONAS_ENTRENAMIENTO_RADIALES_SCO = [
     radialFin: 12,
     distanciaInteriorNm: 8,
     distanciaExteriorNm: 14,
-    color: COLOR_ZONAS_ENTRENAMIENTO_A1_A7
+    color: COLOR_ZONAS_ENTRENAMIENTO_A1_A7,
+    tooltipTitulo: "A1",
+    tooltipTecho: "FL120",
+    tooltipPiso: "FL080"
   },
   {
     nombre: "A2",
@@ -14546,7 +14637,10 @@ const ZONAS_ENTRENAMIENTO_RADIALES_SCO = [
     radialFin: 12,
     distanciaInteriorNm: 15,
     distanciaExteriorNm: 23,
-    color: COLOR_ZONAS_ENTRENAMIENTO_A1_A7
+    color: COLOR_ZONAS_ENTRENAMIENTO_A1_A7,
+    tooltipTitulo: "A2",
+    tooltipTecho: "FL120",
+    tooltipPiso: "FL090"
   },
   {
     nombre: "A3",
@@ -14554,7 +14648,10 @@ const ZONAS_ENTRENAMIENTO_RADIALES_SCO = [
     radialFin: 72,
     distanciaInteriorNm: 10,
     distanciaExteriorNm: 17,
-    color: COLOR_ZONAS_ENTRENAMIENTO_A1_A7
+    color: COLOR_ZONAS_ENTRENAMIENTO_A1_A7,
+    tooltipTitulo: "A3",
+    tooltipTecho: "FL120",
+    tooltipPiso: "FL080"
   },
   {
     nombre: "A4",
@@ -14562,7 +14659,10 @@ const ZONAS_ENTRENAMIENTO_RADIALES_SCO = [
     radialFin: 47,
     distanciaInteriorNm: 18,
     distanciaExteriorNm: 24,
-    color: COLOR_ZONAS_ENTRENAMIENTO_A1_A7
+    color: COLOR_ZONAS_ENTRENAMIENTO_A1_A7,
+    tooltipTitulo: "A4",
+    tooltipTecho: "FL120",
+    tooltipPiso: "FL070"
   },
   {
     nombre: "A5",
@@ -14570,7 +14670,10 @@ const ZONAS_ENTRENAMIENTO_RADIALES_SCO = [
     radialFin: 122,
     distanciaInteriorNm: 8,
     distanciaExteriorNm: 14,
-    color: COLOR_ZONAS_ENTRENAMIENTO_A1_A7
+    color: COLOR_ZONAS_ENTRENAMIENTO_A1_A7,
+    tooltipTitulo: "A5",
+    tooltipTecho: "FL120",
+    tooltipPiso: "FL070"
   },
   {
     nombre: "A6",
@@ -14578,7 +14681,10 @@ const ZONAS_ENTRENAMIENTO_RADIALES_SCO = [
     radialFin: 132,
     distanciaInteriorNm: 15,
     distanciaExteriorNm: 20,
-    color: COLOR_ZONAS_ENTRENAMIENTO_A1_A7
+    color: COLOR_ZONAS_ENTRENAMIENTO_A1_A7,
+    tooltipTitulo: "A6",
+    tooltipTecho: "FL120",
+    tooltipPiso: "FL070"
   },
   {
     nombre: "A7",
@@ -14586,7 +14692,10 @@ const ZONAS_ENTRENAMIENTO_RADIALES_SCO = [
     radialFin: 252,
     distanciaInteriorNm: 8,
     distanciaExteriorNm: 18,
-    color: COLOR_ZONAS_ENTRENAMIENTO_A1_A7
+    color: COLOR_ZONAS_ENTRENAMIENTO_A1_A7,
+    tooltipTitulo: "A7",
+    tooltipTecho: "FL120",
+    tooltipPiso: "FL070"
   },
   {
     nombre: "N1",
@@ -14594,7 +14703,10 @@ const ZONAS_ENTRENAMIENTO_RADIALES_SCO = [
     radialFin: 9,
     distanciaInteriorNm: 15,
     distanciaExteriorNm: 19,
-    color: COLOR_ZONAS_ENTRENAMIENTO_N_INFERIORES
+    color: COLOR_ZONAS_ENTRENAMIENTO_N_INFERIORES,
+    tooltipTitulo: "N1",
+    tooltipTecho: "FL050",
+    tooltipPiso: "2000'"
   },
   {
     nombre: "N2",
@@ -14602,7 +14714,10 @@ const ZONAS_ENTRENAMIENTO_RADIALES_SCO = [
     radialFin: 34,
     distanciaInteriorNm: 15,
     distanciaExteriorNm: 19,
-    color: COLOR_ZONAS_ENTRENAMIENTO_N_INFERIORES
+    color: COLOR_ZONAS_ENTRENAMIENTO_N_INFERIORES,
+    tooltipTitulo: "N2",
+    tooltipTecho: "FL050",
+    tooltipPiso: "2000'"
   },
   {
     nombre: "SW",
@@ -14610,7 +14725,10 @@ const ZONAS_ENTRENAMIENTO_RADIALES_SCO = [
     radialFin: 212,
     distanciaInteriorNm: 15,
     distanciaExteriorNm: 25,
-    color: "#ec4899"
+    color: "#ec4899",
+    tooltipTitulo: "SW",
+    tooltipTecho: "FL050",
+    tooltipPiso: "2500'"
   }
 ]
 
@@ -14638,6 +14756,9 @@ const ZONAS_ENTRENAMIENTO_POLIGONALES = [
     nombre: "H",
     color: COLOR_ZONAS_ENTRENAMIENTO_N_INFERIORES,
     etiquetaPosicion: [-13.586551797739036, -76.1685490529263],
+    tooltipTitulo: "H",
+    tooltipTecho: "500'",
+    tooltipPiso: "GND",
     vertices: [
       [-13.5535, -76.188205556],
       // Costado oriental siguiendo la Panamericana, de norte a sur.
@@ -14699,6 +14820,9 @@ const ZONAS_ENTRENAMIENTO_CON_ARCOS = [
     color: COLOR_ZONAS_ENTRENAMIENTO_NE_E1_E2,
     radioInteriorNm: 9,
     radioExteriorNm: 14,
+    tooltipTitulo: "NE",
+    tooltipTecho: "FL050",
+    tooltipPiso: "FL040",
     puntoInicioInterior: [-13.637452778, -76.098291667],
     puntoInicioExterior: [-13.581597222, -76.034713889],
     puntoFinExterior: [-13.677702778, -75.981269444],
@@ -14711,6 +14835,9 @@ const ZONAS_ENTRENAMIENTO_CON_ARCOS = [
     color: COLOR_ZONAS_ENTRENAMIENTO_NE_E1_E2,
     radioInteriorNm: 9,
     radioExteriorNm: 12,
+    tooltipTitulo: "E1",
+    tooltipTecho: "FL050",
+    tooltipPiso: "1500'",
     puntoInicioInterior: [-13.706533333, -76.061272222],
     puntoInicioExterior: [-13.717991667, -76.007344444],
     puntoFinExterior: [-13.7734, -76.009469444],
@@ -14723,6 +14850,9 @@ const ZONAS_ENTRENAMIENTO_CON_ARCOS = [
     color: COLOR_ZONAS_ENTRENAMIENTO_NE_E1_E2,
     radioInteriorNm: 14,
     radioExteriorNm: 18,
+    tooltipTitulo: "E2",
+    tooltipTecho: "FL050",
+    tooltipPiso: "3000'",
     puntoInicioInterior: [-13.730047222, -75.973113889],
     puntoInicioExterior: [-13.727908333, -75.904691667],
     puntoFinExterior: [-13.816583333, -75.914877778],
@@ -14735,6 +14865,9 @@ const ZONAS_ENTRENAMIENTO_CON_ARCOS = [
     color: "#a855f7",
     radioInteriorNm: 12,
     radioExteriorNm: 25,
+    tooltipTitulo: "SPD17",
+    tooltipTecho: "FL050",
+    tooltipPiso: "2500'",
     puntoInicioInterior: [-13.902919444, -76.094475],
     puntoInicioExterior: [-14.081325, -75.966419444],
     puntoFinExterior: [-14.150283333, -76.138869444],
@@ -14747,6 +14880,9 @@ const ZONAS_ENTRENAMIENTO_CON_ARCOS = [
     color: "#7c3aed",
     radioInteriorNm: 12,
     radioExteriorNm: 20,
+    tooltipTitulo: "SPD15",
+    tooltipTecho: "2500'",
+    tooltipPiso: "GND",
     puntoInicioInterior: [-13.902919444, -76.094475],
     puntoInicioExterior: [-14.012338852335, -76.017298189642],
     puntoFinExterior: [-14.039312655089, -76.065234728828],
@@ -14761,6 +14897,9 @@ const ZONAS_PROHIBIDAS = [
     nombre: "SPP69",
     color: "#dc2626",
     etiquetaPosicion: [-14.187472505911023, -76.27256152645464],
+    tooltipTitulo: "SPP PISCO",
+    tooltipTecho: "2500ft AMSL",
+    tooltipPiso: "GND",
     vertices: [
       [-13.784578043993704, -76.5021235161279],
       [-14.448449353853798, -76.50213120003171],
@@ -14792,6 +14931,42 @@ const ZONAS_PROHIBIDAS = [
       [-13.784612019821294, -76.29659120950099],
       [-13.7845776084459, -76.50212855142648]
     ]
+  },
+  {
+    nombre: "SPR68A",
+    color: "#dc2626",
+    etiquetaPosicion: [-13.397009410224006, -76.24982545643131],
+    tooltipTitulo: "SPR68A CORREDOR AÉREO ALFA",
+    tooltipTecho: "3000ft AMSL",
+    tooltipPiso: "GND",
+    vertices: [
+      [-13.0777777778, -76.2930555556],
+      [-13.4166666667, -76.0833333333],
+      [-13.5, -76.0666666667],
+      [-13.7, -76.0],
+      [-13.65, -76.2666666667],
+      [-13.1808333333, -76.5047222222]
+    ]
+  },
+  {
+    nombre: "SPR94",
+    color: "#dc2626",
+    centro: [-13.3791444444, -76.0813333333],
+    radioMetros: 1852,
+    etiquetaPosicion: [-13.3791444444, -76.0813333333],
+    tooltipTitulo: "SPR94 CHINCHA-ICA",
+    tooltipTecho: "1500ft",
+    tooltipPiso: "GND"
+  },
+  {
+    nombre: "SPP04",
+    color: "#dc2626",
+    centro: [-13.2463888889, -76.2988888889],
+    radioMetros: 2000,
+    etiquetaPosicion: [-13.2463888889, -76.2988888889],
+    tooltipTitulo: "SPP04 PLANTA MELCHORITA",
+    tooltipTecho: "1500ft",
+    tooltipPiso: "GND"
   }
 ]
 
@@ -15347,8 +15522,68 @@ function crearMarcadorZonaEntrenamiento(nombre, posicion, color){
   })
 }
 
+function construirTooltipAltitudesZona(titulo, techo, piso){
+  const tituloTexto = String(titulo || "").trim()
+  if(!tituloTexto) return ""
+
+  const techoTexto = String(techo || "").trim()
+  const pisoTexto = String(piso || "").trim()
+  const [codigoZona, ...restoTitulo] = tituloTexto.split(/\s+/)
+  const nombreZona = restoTitulo.join(" ").trim()
+  const tieneDescripcion = Boolean(nombreZona)
+
+  return `
+    <div class="airspace-zone-tooltip-card">
+      ${
+        tieneDescripcion
+          ? `
+      <div class="airspace-zone-tooltip-header">
+        <span class="airspace-zone-tooltip-badge">${codigoZona}</span>
+        <div class="airspace-zone-tooltip-title">${nombreZona}</div>
+      </div>
+      `
+          : `
+      <div class="airspace-zone-tooltip-title airspace-zone-tooltip-title-solo">${codigoZona}</div>
+      `
+      }
+      <div class="airspace-zone-tooltip-levels">
+        ${techoTexto ? `<div class="airspace-zone-tooltip-level airspace-zone-tooltip-level-top">${techoTexto}</div>` : ""}
+        ${(techoTexto || pisoTexto) ? `<div class="airspace-zone-tooltip-divider"></div>` : ""}
+        ${pisoTexto ? `<div class="airspace-zone-tooltip-level airspace-zone-tooltip-level-bottom">${pisoTexto}</div>` : ""}
+      </div>
+    </div>
+  `
+}
+
+function vincularTooltipZona(layer, zona){
+  if(!layer || !zona) return
+
+  const titulo = String(zona.tooltipTitulo || "").trim()
+  if(!titulo) return
+
+  layer.bindTooltip(
+    construirTooltipAltitudesZona(titulo, zona.tooltipTecho, zona.tooltipPiso),
+    {
+      permanent: false,
+      direction: "top",
+      offset: [0, -8],
+      className: "airspace-zone-tooltip"
+    }
+  )
+}
+
+const ZONAS_LABEL_MIN_ZOOM = PUNTOS_REFERENCIA_MIN_ZOOM
+
+function actualizarVisibilidadEtiquetasZonas(){
+  const visible = map.getZoom() >= ZONAS_LABEL_MIN_ZOOM
+  document.querySelectorAll(".training-zone-label-marker").forEach((elemento) => {
+    elemento.style.display = visible ? "block" : "none"
+  })
+}
+
 function construirCapasSectorialesZonasEntrenamiento(zonas){
   return zonas.reduce((listaCapas, zona) => {
+    const tieneTooltip = typeof zona.tooltipTitulo === "string" && zona.tooltipTitulo.trim() !== ""
     const poligono = L.polygon(
       construirPoligonoZonaEntrenamiento(vorSco, zona),
       {
@@ -15358,9 +15593,10 @@ function construirCapasSectorialesZonasEntrenamiento(zonas){
         dashArray: "10 6",
         fillColor: zona.color,
         fillOpacity: 0.14,
-        interactive: false
+        interactive: tieneTooltip
       }
     )
+    vincularTooltipZona(poligono, zona)
 
     const etiqueta = crearMarcadorZonaEntrenamiento(
       zona.nombre,
@@ -15386,6 +15622,7 @@ function dibujarZonasEntrenamientoA1A7(){
     ZONAS_ENTRENAMIENTO_RADIALES_SCO_A1_A7
   )
   zonasEntrenamientoA1A7Layer = L.layerGroup(capas).addTo(map)
+  actualizarVisibilidadEtiquetasZonas()
 }
 
 function dibujarZonasEntrenamientoSco(){
@@ -15404,6 +15641,8 @@ function dibujarZonasEntrenamientoSco(){
       return listaCapas
     }
 
+    const tieneTooltip = typeof zona.tooltipTitulo === "string" && zona.tooltipTitulo.trim() !== ""
+
     const poligono = L.polygon(vertices, {
       color: zona.color,
       weight: 2,
@@ -15411,8 +15650,9 @@ function dibujarZonasEntrenamientoSco(){
       dashArray: "10 6",
       fillColor: zona.color,
       fillOpacity: 0.14,
-      interactive: false
+      interactive: tieneTooltip
     })
+    vincularTooltipZona(poligono, zona)
     const etiqueta = crearMarcadorZonaEntrenamiento(
       zona.nombre,
       Array.isArray(zona.etiquetaPosicion)
@@ -15434,6 +15674,8 @@ function dibujarZonasEntrenamientoSco(){
       return listaCapas
     }
 
+    const tieneTooltip = typeof zona.tooltipTitulo === "string" && zona.tooltipTitulo.trim() !== ""
+
     const poligono = L.polygon(vertices, {
       color: zona.color,
       weight: 2,
@@ -15441,8 +15683,9 @@ function dibujarZonasEntrenamientoSco(){
       dashArray: "10 6",
       fillColor: zona.color,
       fillOpacity: 0.14,
-      interactive: false
+      interactive: tieneTooltip
     })
+    vincularTooltipZona(poligono, zona)
     const etiqueta = crearMarcadorZonaEntrenamiento(
       zona.nombre,
       Array.isArray(zona.etiquetaPosicion)
@@ -15460,6 +15703,7 @@ function dibujarZonasEntrenamientoSco(){
 
   const capas = [...capasSectoriales, ...capasPoligonales, ...capasConArcos]
   zonasEntrenamientoLayer = L.layerGroup(capas).addTo(map)
+  actualizarVisibilidadEtiquetasZonas()
 }
 
 function dibujarZonasProhibidas(){
@@ -15469,6 +15713,36 @@ function dibujarZonasProhibidas(){
   }
 
   const capas = ZONAS_PROHIBIDAS.reduce((listaCapas, zona) => {
+    const centro = Array.isArray(zona.centro) ? zona.centro : null
+    const radioMetros = Number(zona.radioMetros)
+    const tieneTooltip = typeof zona.tooltipTitulo === "string" && zona.tooltipTitulo.trim() !== ""
+    if(centro && centro.length >= 2 && Number.isFinite(radioMetros) && radioMetros > 0){
+      const circulo = L.circle(centro, {
+        radius: radioMetros,
+        color: zona.color,
+        weight: 2,
+        opacity: 0.95,
+        dashArray: "8 6",
+        fillColor: zona.color,
+        fillOpacity: 0.08,
+        interactive: tieneTooltip
+      })
+      vincularTooltipZona(circulo, zona)
+      const etiqueta = crearMarcadorZonaEntrenamiento(
+        zona.nombre,
+        Array.isArray(zona.etiquetaPosicion)
+          ? zona.etiquetaPosicion
+          : centro,
+        zona.color
+      )
+
+      listaCapas.push(circulo)
+      if(etiqueta){
+        listaCapas.push(etiqueta)
+      }
+      return listaCapas
+    }
+
     const vertices = Array.isArray(zona.vertices) ? zona.vertices : []
     if(vertices.length < 3){
       return listaCapas
@@ -15481,8 +15755,9 @@ function dibujarZonasProhibidas(){
       dashArray: "8 6",
       fillColor: zona.color,
       fillOpacity: 0.08,
-      interactive: false
+      interactive: tieneTooltip
     })
+    vincularTooltipZona(poligono, zona)
     const etiqueta = crearMarcadorZonaEntrenamiento(
       zona.nombre,
       Array.isArray(zona.etiquetaPosicion)
@@ -15499,6 +15774,7 @@ function dibujarZonasProhibidas(){
   }, [])
 
   zonasProhibidasLayer = L.layerGroup(capas).addTo(map)
+  actualizarVisibilidadEtiquetasZonas()
 }
 
 chkTma.addEventListener("change", () => {
@@ -15747,6 +16023,7 @@ chkEje.addEventListener("change", () => {
     if(runwayMarkingsLayer){
       dibujarMarcasPista()
     }
+    actualizarVisibilidadEtiquetasZonas()
     actualizarVisibilidadRescate()
     actualizarIconoRescateFijo()
     actualizarEtiquetaRescate()
@@ -15954,6 +16231,8 @@ map.on("zoom", () => {
   aeronaves.forEach(a => actualizarRotacion(a))
   actualizarVisibilidadMarcadoresCuadrados()
   actualizarVisibilidadMarcadoresEstacionamiento()
+  actualizarVisibilidadPuntosReferencia()
+  actualizarVisibilidadEtiquetasZonas()
   actualizarVisibilidadRescate()
   aplicarPatronDiagonalAzulLobera(zonaPlantaLaLobera)
 });

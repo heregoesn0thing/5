@@ -107,6 +107,9 @@ const INGRESO_DOWNWIND_MIN_SEPARACION_WP_M = 80
 const KNOTS_PER_MACH = 661.47
 const SPEED_CONTROL_MAX_MACH = 10
 const SPEED_CONTROL_MAX_KNOTS = Math.round(KNOTS_PER_MACH * SPEED_CONTROL_MAX_MACH)
+const UMBRAL_04_COORDS = { lat: -13.7553277777778, lng: -76.2293055555556 }
+const UMBRAL_22_COORDS = { lat: -13.734536864537288, lng: -76.21175399048074 }
+const CIRCUITO_RESET_UMBRAL_22_DIST_M = 45
 const SCO_VOR_COORDS = { lat: -13.738556, lng: -76.212750 }
 const GO_AROUND_TRIGGER_POINT = {
   lat: -13.737274259116425,
@@ -128,6 +131,9 @@ const GO_AROUND_FINAL_MAX_DIST_M = 1800
 const INTERCEPT_LEG_LOOKAHEAD_MIN_M = 90
 const SHORT_CIRCUITO_FACTOR = 0.5
 const SHORT_CIRCUITO_PASO_M = 0.5 * 1852
+const CIRCUITO_LONGITUD_FINAL_BASE_M = 1.5 * 1852
+const CIRCUITO_LONGITUD_FINAL_SHORT_M = 1.0 * 1852
+const CIRCUITO_LONGITUD_UPWIND_BASE_M = 2.2 * 1852
 const PILOTAGE_DEFAULT_SPEED_INITIAL_KT = 90
 const PILOTAGE_DEFAULT_SPEED_TARGET_KT = 180
 const PILOTAGE_DEFAULT_SPEED_ACCEL_KT_PER_SEC = 12
@@ -301,6 +307,7 @@ function reiniciarGuiadoInterceptacionCircuito(aeronave){
   aeronave.interceptHeadingRef = null
   aeronave.interceptTrackRefT = null
   aeronave.interceptSideRef = 0
+  aeronave.interceptacionDirectaTramo = false
 }
 
 function obtenerLadoRelativoSegmento(posicion, A, B){
@@ -796,6 +803,11 @@ const INTERCEPT_LEG_SOFT_CAPTURE_MIN_TICKS = 6
 const INTERCEPT_LEG_FINAL_ALIGN_DISTANCE_M = 55
 const INTERCEPT_LEG_SIDE_NEUTRAL_DISTANCE_M = 18
 const INTERCEPT_LEG_SIDE_HYSTERESIS_DISTANCE_M = 34
+const INTERCEPT_DIRECT_TO_LEG_ALIGN_DISTANCE_M = 260
+const INTERCEPT_DIRECT_TO_LEG_HEADING_SMOOTH_FACTOR = 0.42
+const INTERCEPT_DIRECT_TO_LEG_MAX_TURN_FAR_DEG = 2.2
+const INTERCEPT_DIRECT_TO_LEG_MAX_TURN_NEAR_DEG = 3.6
+const INTERCEPT_DIRECT_TO_LEG_CAPTURE_DISTANCE_M = 60
 // ================== UTILIDADES ==================
 
 function convertirHoraASegundos(horaStr) {
@@ -898,11 +910,14 @@ function crearRegistroAeronave(dataInicial = {}, opciones = {}) {
     orbitSentido: "RIGHT",
     circuitoSentido: "LEFT",
     shortCircuitoActivo: false,
+    extensionUpwindExtraLocal: 0,
+    extensionDownwindExtraLocal: 0,
     altitudCircuitoAutomaticaActiva: false,
     ingresoDownwindWaypoints: null,
     ingresoDownwindTipo: null,
     interceptTrackRefT: null,
     interceptSideRef: 0,
+    interceptacionDirectaTramo: false,
     ruta: null,
     indice: 0,
     progreso: 0,
@@ -930,6 +945,14 @@ function construirPayloadActualizacionAeronave(aeronave, extras = {}) {
     orbitSentido: normalizarSentidoOrbitTexto(aeronave.orbitSentido),
     shortCircuitoActivo: Boolean(aeronave.shortCircuitoActivo),
     circuitoSentido: normalizarSentidoCircuitoTexto(aeronave.circuitoSentido),
+    extensionAeronave: {
+      upwind: Number.isFinite(Number(aeronave.extensionUpwindExtraLocal))
+        ? Number(aeronave.extensionUpwindExtraLocal)
+        : 0,
+      downwind: Number.isFinite(Number(aeronave.extensionDownwindExtraLocal))
+        ? Number(aeronave.extensionDownwindExtraLocal)
+        : 0
+    },
     syncTs: Number.isFinite(Number(aeronave.syncTs))
       ? Number(aeronave.syncTs)
       : null,
@@ -951,6 +974,8 @@ function detenerAccionActualAeronave(aeronave) {
   aeronave.altitudObjetivo = null
   aeronave.altitudCircuitoAutomaticaActiva = false
   aeronave.shortCircuitoActivo = false
+  aeronave.extensionUpwindExtraLocal = 0
+  aeronave.extensionDownwindExtraLocal = 0
   aeronave.ruta = null
   aeronave.indice = 0
   aeronave.progreso = 0
@@ -967,6 +992,58 @@ function detenerAccionActualAeronave(aeronave) {
   aeronave.rutaAirborneProgreso = 0
   aeronave.syncTs = Date.now()
   return aeronave
+}
+
+function circuitoTieneDimensionesOriginales(sala, aeronave) {
+  if (!sala || !aeronave) return false
+
+  const base = obtenerExtensionesBaseSala(sala)
+  const extraUpwindLocal =
+    typeof aeronave.extensionUpwindExtraLocal === "number"
+      ? aeronave.extensionUpwindExtraLocal
+      : 0
+  const extraDownwindLocal =
+    typeof aeronave.extensionDownwindExtraLocal === "number"
+      ? aeronave.extensionDownwindExtraLocal
+      : 0
+
+  return (
+    !Boolean(aeronave.shortCircuitoActivo) &&
+    base.upwind === 0 &&
+    base.downwind === 0 &&
+    extraUpwindLocal === 0 &&
+    extraDownwindLocal === 0
+  )
+}
+
+function restablecerCircuitoOriginalAlCruzarUmbral22(nombreSala, sala, aeronave) {
+  if (!nombreSala || !sala || !aeronave || !tieneExtensionLocalAeronave(aeronave)) {
+    return false
+  }
+
+  aeronave.shortCircuitoActivo = false
+  aeronave.extensionUpwindExtraLocal = 0
+  aeronave.extensionDownwindExtraLocal = 0
+
+  const rutaCircuitoBase = generarRutaServidorParaAeronave(sala, aeronave)
+  if (!Array.isArray(rutaCircuitoBase) || rutaCircuitoBase.length < 2) {
+    return false
+  }
+
+  reajustarAeronaveEnRuta(aeronave, rutaCircuitoBase)
+
+  io.to(nombreSala).emit("rutaCircuitoActualizada", {
+    id: aeronave.id,
+    ruta: rutaCircuitoBase,
+    sentidoCircuito: normalizarSentidoCircuitoTexto(aeronave.circuitoSentido),
+    shortCircuitoActivo: false,
+    extensionAeronave: {
+      upwind: 0,
+      downwind: 0
+    }
+  })
+
+  return true
 }
 
 function limpiarOrbitacionAeronave(aeronave) {
@@ -1072,6 +1149,30 @@ function calcularDistanciaRestanteBase(aeronave) {
   }
 
   return restante
+}
+
+function redirigirAeronaveAlCircuitoMasCercano(aeronave, rutaNueva) {
+  if (!aeronave || !Array.isArray(rutaNueva) || rutaNueva.length < 2) {
+    return false
+  }
+
+  const proyeccionRuta = obtenerProyeccionRutaMasCercana(
+    { lat: aeronave.lat, lng: aeronave.lng },
+    rutaNueva
+  )
+  if (!proyeccionRuta) {
+    return false
+  }
+
+  aeronave.ruta = rutaNueva
+  aeronave.tramoObjetivo = proyeccionRuta.indiceA
+  aeronave.puntoIntercepto = proyeccionRuta.puntoIntercepto
+  aeronave.ingresoDownwindWaypoints = null
+  aeronave.ingresoDownwindTipo = null
+  aeronave.estado = "INTERCEPTING LEG"
+  reiniciarGuiadoInterceptacionCircuito(aeronave)
+  aeronave.interceptacionDirectaTramo = true
+  return true
 }
 
 function actualizarDescensoClearedToLandBase(aeronave, tipoSegmentoActual, intervaloMS) {
@@ -1533,6 +1634,19 @@ if (a.estado === "INTERCEPTING LEG") {
 
   const posicionActual = { lat: a.lat, lng: a.lng }
   const distanciaSegmento = Math.max(1, distanciaEntre(A, B));
+  const puntoInterceptoDirecto =
+    a.puntoIntercepto &&
+    Number.isFinite(Number(a.puntoIntercepto.lat)) &&
+    Number.isFinite(Number(a.puntoIntercepto.lng))
+      ? {
+          lat: Number(a.puntoIntercepto.lat),
+          lng: Number(a.puntoIntercepto.lng)
+        }
+      : null
+  const ingresoDirectoTramo = Boolean(a.interceptacionDirectaTramo && puntoInterceptoDirecto)
+  const distanciaPuntoIntercepto = puntoInterceptoDirecto
+    ? distanciaEntre(posicionActual, puntoInterceptoDirecto)
+    : Infinity
 
   // Proyeccion sobre tramo + punto adelantado monotono para evitar S-turns.
   const proyeccion = proyectarSobreSegmentoConFactor(
@@ -1565,18 +1679,25 @@ if (a.estado === "INTERCEPTING LEG") {
     ? a.interceptTrackRefT
     : tProyeccion
   const tGuiado = Math.min(1, tGuiadoBase + (anticipacionM / distanciaSegmento));
-  const puntoGuiado = {
-    lat: A.lat + (B.lat - A.lat) * tGuiado,
-    lng: A.lng + (B.lng - A.lng) * tGuiado
-  };
+  const puntoGuiado = ingresoDirectoTramo
+    ? puntoInterceptoDirecto
+    : {
+        lat: A.lat + (B.lat - A.lat) * tGuiado,
+        lng: A.lng + (B.lng - A.lng) * tGuiado
+      };
 
   const rumboGuiado = calcularRumboServidor(posicionActual, puntoGuiado);
   const rumboTramo = calcularRumboServidor(A, B);
 
-  const factorCurva = Math.max(
-    0,
-    Math.min(1, 1 - (distanciaAlTramo / INTERCEPT_LEG_BLEND_DISTANCE_M))
-  );
+  const factorCurva = ingresoDirectoTramo
+    ? Math.max(
+        0,
+        Math.min(1, 1 - (distanciaPuntoIntercepto / INTERCEPT_DIRECT_TO_LEG_ALIGN_DISTANCE_M))
+      )
+    : Math.max(
+        0,
+        Math.min(1, 1 - (distanciaAlTramo / INTERCEPT_LEG_BLEND_DISTANCE_M))
+      );
 
   const signoLateral = obtenerLadoInterceptacionEstable(
     a,
@@ -1585,7 +1706,9 @@ if (a.estado === "INTERCEPTING LEG") {
     B,
     distanciaAlTramo
   )
-  const usarAlineacionDirecta = distanciaAlTramo <= INTERCEPT_LEG_FINAL_ALIGN_DISTANCE_M
+  const usarAlineacionDirecta = ingresoDirectoTramo
+    ? distanciaPuntoIntercepto <= INTERCEPT_DIRECT_TO_LEG_ALIGN_DISTANCE_M
+    : distanciaAlTramo <= INTERCEPT_LEG_FINAL_ALIGN_DISTANCE_M
   const anguloInterceptoMaximo =
     INTERCEPT_LEG_MIN_INTERCEPT_ANGLE_DEG +
     (INTERCEPT_LEG_MAX_INTERCEPT_ANGLE_DEG - INTERCEPT_LEG_MIN_INTERCEPT_ANGLE_DEG) *
@@ -1600,7 +1723,9 @@ if (a.estado === "INTERCEPTING LEG") {
 
   let rumboInterceptoControlado = rumboTramo
   if (Number.isFinite(rumboGuiado)) {
-    if (usarAlineacionDirecta) {
+    if (ingresoDirectoTramo) {
+      rumboInterceptoControlado = rumboGuiado
+    } else if (usarAlineacionDirecta) {
       rumboInterceptoControlado = rumboTramo
     } else if (signoLateral !== 0) {
       const anguloIntercepto = Math.min(
@@ -1618,15 +1743,19 @@ if (a.estado === "INTERCEPTING LEG") {
   const rumboObjetivoBase = interpolarRumbo(
     rumboInterceptoControlado,
     rumboTramo,
-    factorCurva
+    ingresoDirectoTramo ? factorCurva * 0.82 : factorCurva
   );
 
   if (!Number.isFinite(a.interceptHeadingRef)) {
     a.interceptHeadingRef = rumboObjetivoBase;
   } else {
-    const factorSuavizadoRumbo = usarAlineacionDirecta
-      ? Math.max(INTERCEPT_LEG_HEADING_SMOOTH_FACTOR, 0.38)
-      : INTERCEPT_LEG_HEADING_SMOOTH_FACTOR
+    const factorSuavizadoRumbo = ingresoDirectoTramo
+      ? INTERCEPT_DIRECT_TO_LEG_HEADING_SMOOTH_FACTOR
+      : (
+          usarAlineacionDirecta
+            ? Math.max(INTERCEPT_LEG_HEADING_SMOOTH_FACTOR, 0.38)
+            : INTERCEPT_LEG_HEADING_SMOOTH_FACTOR
+        )
     a.interceptHeadingRef = interpolarRumbo(
       a.interceptHeadingRef,
       rumboObjetivoBase,
@@ -1635,10 +1764,17 @@ if (a.estado === "INTERCEPTING LEG") {
   }
   const rumboObjetivo = a.interceptHeadingRef;
 
-  const maxGiro =
-    INTERCEPT_LEG_MAX_TURN_FAR_DEG +
-    (INTERCEPT_LEG_MAX_TURN_NEAR_DEG - INTERCEPT_LEG_MAX_TURN_FAR_DEG) *
-      factorCurva;
+  const maxGiro = ingresoDirectoTramo
+    ? (
+        INTERCEPT_DIRECT_TO_LEG_MAX_TURN_FAR_DEG +
+        (INTERCEPT_DIRECT_TO_LEG_MAX_TURN_NEAR_DEG - INTERCEPT_DIRECT_TO_LEG_MAX_TURN_FAR_DEG) *
+          factorCurva
+      )
+    : (
+        INTERCEPT_LEG_MAX_TURN_FAR_DEG +
+        (INTERCEPT_LEG_MAX_TURN_NEAR_DEG - INTERCEPT_LEG_MAX_TURN_FAR_DEG) *
+          factorCurva
+      );
 
   const headingActual = Number.isFinite(a.angulo) ? a.angulo : rumboObjetivo;
   a.angulo = aplicarVirajeLimitado(headingActual, rumboObjetivo, maxGiro)
@@ -1678,6 +1814,10 @@ if (a.estado === "INTERCEPTING LEG") {
   const capturaRescate =
     a.interceptTicks > INTERCEPT_LEG_RESCUE_CAPTURE_TICKS &&
     distanciaFinalAlTramo < INTERCEPT_LEG_RESCUE_CAPTURE_DISTANCE_M;
+  const capturaDirecta =
+    ingresoDirectoTramo &&
+    distanciaPuntoIntercepto < INTERCEPT_DIRECT_TO_LEG_CAPTURE_DISTANCE_M &&
+    distanciaFinalAlTramo < INTERCEPT_LEG_FORCE_CAPTURE_DISTANCE_M;
 
   let puntoCaptura = proyeccionFinal.punto;
   let indiceCaptura = a.tramoObjetivo;
@@ -1721,7 +1861,7 @@ if (a.estado === "INTERCEPTING LEG") {
     progresoCaptura = distanciaSegmento * tCapturaSinRetroceso;
   }
 
-  if (capturaPrecisa || capturaCercana || capturaForzada || capturaRescate || capturaTimeout) {
+  if (capturaPrecisa || capturaCercana || capturaForzada || capturaRescate || capturaDirecta || capturaTimeout) {
     a.lat = puntoCaptura.lat;
     a.lng = puntoCaptura.lng;
     a.angulo = interpolarRumbo(
@@ -1900,6 +2040,7 @@ if (a.estado === "INTERCEPTING LEG") {
         return
       }
 
+      const posicionAntesMovimiento = { lat: a.lat, lng: a.lng }
       let distanciaRestanteTick = distanciaTick
 
       while (distanciaRestanteTick > 0) {
@@ -1960,6 +2101,29 @@ if (a.estado === "INTERCEPTING LEG") {
 	
 	        a.angulo = (a.angulo + 360) % 360
 	      }
+
+      const distanciaUmbral22Antes = distanciaEntre(
+        posicionAntesMovimiento,
+        UMBRAL_22_COORDS
+      )
+      const distanciaUmbral22Despues = distanciaEntre(
+        { lat: a.lat, lng: a.lng },
+        UMBRAL_22_COORDS
+      )
+      const restablecerCircuitoEnUmbral22 =
+        tieneExtensionLocalAeronave(a) &&
+        (
+          (tipoSegmentoActual === "final" && tipoSegmentoMovimiento === "upwind") ||
+          (
+            (tipoSegmentoActual === "final" || tipoSegmentoMovimiento === "upwind") &&
+            distanciaUmbral22Antes > CIRCUITO_RESET_UMBRAL_22_DIST_M &&
+            distanciaUmbral22Despues <= CIRCUITO_RESET_UMBRAL_22_DIST_M
+          )
+        )
+
+      if (restablecerCircuitoEnUmbral22) {
+        restablecerCircuitoOriginalAlCruzarUmbral22(nombreSala, sala, a)
+      }
 
 	      actualizarDescensoClearedToLandBase(a, tipoSegmentoMovimiento, intervaloMS)
 	
@@ -2024,8 +2188,8 @@ function puntoPlano(origen, rumbo, distancia){
 
 function generarRutaServidor(sala, opciones = {}){
 
-  const umbral04 = { lat: -13.7553277777778, lng: -76.2293055555556 }
-  const umbral22 = { lat: -13.734536864537288, lng: -76.21175399048074 }
+  const umbral04 = UMBRAL_04_COORDS
+  const umbral22 = UMBRAL_22_COORDS
 
   const rumboPista = calcularRumboServidor(umbral04, umbral22)
   const rumboInverso = calcularRumboServidor(umbral22, umbral04)
@@ -2034,7 +2198,6 @@ function generarRutaServidor(sala, opciones = {}){
   const rumboLateral = circuitoDerecha
     ? (rumboInverso + 90) % 360
     : (rumboInverso - 90 + 360) % 360
-  const sentidoSemicirculo = circuitoDerecha ? "ccw" : "cw"
 
   const factorShortCircuitoRaw =
     typeof opciones?.shortFactor === "number" ? opciones.shortFactor : 1
@@ -2045,11 +2208,9 @@ function generarRutaServidor(sala, opciones = {}){
   const usarBaseRecta = Boolean(opciones?.baseRecta)
 
   const separacionFinalDownwindM = 1.5 * 1852
-  const lateralM = separacionFinalDownwindM / 2
 
-  
-  const extensionDownwindBase = 1.0 * 1852
-  const extensionUpwindBase = 1.5 * 1852
+  const longitudFinalBaseM = CIRCUITO_LONGITUD_FINAL_BASE_M
+  const longitudUpwindBaseM = CIRCUITO_LONGITUD_UPWIND_BASE_M
   const extensionGeneral = sala.extensionExtra || 0
   const extensionDownwindExtra =
     typeof sala.extensionDownwindExtra === "number"
@@ -2060,33 +2221,42 @@ function generarRutaServidor(sala, opciones = {}){
       ? sala.extensionUpwindExtra
       : extensionGeneral
 
-  const extensionDownwindMBase = extensionDownwindBase + extensionDownwindExtra
-  const extensionDownwindM = extensionDownwindMBase * factorShortCircuito
-  const extensionUpwindM = extensionUpwindBase + extensionUpwindExtra
+  const longitudFinalMBase = longitudFinalBaseM + extensionDownwindExtra
+  const longitudFinalM = longitudFinalMBase * factorShortCircuito
+  const longitudUpwindM = longitudUpwindBaseM + extensionUpwindExtra
 
-  const finalExt = puntoPlano(umbral22, rumboPista, extensionDownwindM)
-  const salidaExt = puntoPlano(umbral04, rumboInverso, extensionUpwindM)
-
-  // Patr�n "rectangular con lados semicirculares" (tipo racetrack)
+  // Patrón rectangular con vértices suavizados.
   const separacionPiernasM = separacionFinalDownwindM
+  const rumboCentrolinea = rumboInverso
+  const rumboCrosswind = rumboLateral
+  const rumboCrosswindInverso = (rumboCrosswind + 180) % 360
+  const rumboDownwind = rumboPista
+  const rumboBase = rumboCrosswindInverso
+
+  const factorRadioEsquina = usarBaseRecta ? 0.78 : 1
+  const radioEsquinaM = Math.max(
+    120,
+    Math.min(
+      0.25 * 1852 * factorRadioEsquina,
+      Math.max(160, (separacionPiernasM / 2) - 60),
+      Math.max(150, longitudFinalM * 0.45),
+      Math.max(180, longitudUpwindM * 0.32)
+    )
+  )
+
+  const finalExt = puntoPlano(umbral22, rumboPista, longitudFinalM + radioEsquinaM)
+  const salidaExt = puntoPlano(umbral04, rumboInverso, longitudUpwindM + radioEsquinaM)
   const salidaExtLateral = puntoPlano(salidaExt, rumboLateral, separacionPiernasM)
   const finalExtLateral = puntoPlano(finalExt, rumboLateral, separacionPiernasM)
 
-  const centroVirajeSalida = puntoPlano(salidaExt, rumboLateral, lateralM)
-  const centroVirajeFinal = puntoPlano(finalExt, rumboLateral, lateralM)
-  const radialSalidaInicio = (rumboLateral + 180) % 360
-  const radialSalidaFin = rumboLateral
-  const radialFinalInicio = radialSalidaFin
-  const radialFinalFin = radialSalidaInicio
-
   const distanciaRectaM = distanciaEntre(finalExt, salidaExt)
-  const longitudSemicirculoM = Math.PI * lateralM
+  const longitudCurvaM = (Math.PI * radioEsquinaM) / 2
   const separacionObjetivoM = 70
 
   const pasosRecta = Math.max(20, Math.round(distanciaRectaM / separacionObjetivoM))
-  const pasosSemicirculo = Math.max(
-    36,
-    Math.round(longitudSemicirculoM / separacionObjetivoM)
+  const pasosCurva = Math.max(
+    10,
+    Math.round(longitudCurvaM / separacionObjetivoM)
   )
 
   const puntos = []
@@ -2134,76 +2304,95 @@ function generarRutaServidor(sala, opciones = {}){
     }
   }
 
-  function agregarSemicirculo(
-    centro,
-    radialInicio,
-    radialFin,
+  function agregarCurvaSuave(
+    inicioTangente,
+    vertice,
+    finTangente,
     pasos,
     tipoTramo,
-    incluirFin = true,
-    sentido = null
+    incluirFin = true
   ) {
     const limite = incluirFin ? pasos : (pasos - 1)
-
     for (let i = 1; i <= limite; i++) {
       const t = i / pasos
-      let radial = interpolarRumbo(radialInicio, radialFin, t)
-      if (sentido === "cw") {
-        const delta = (radialInicio - radialFin + 360) % 360
-        radial = (radialInicio - (delta * t) + 360) % 360
-      } else if (sentido === "ccw") {
-        const delta = (radialFin - radialInicio + 360) % 360
-        radial = (radialInicio + (delta * t)) % 360
+      const invT = 1 - t
+      const punto = {
+        lat:
+          (invT * invT * inicioTangente.lat) +
+          (2 * invT * t * vertice.lat) +
+          (t * t * finTangente.lat),
+        lng:
+          (invT * invT * inicioTangente.lng) +
+          (2 * invT * t * vertice.lng) +
+          (t * t * finTangente.lng)
       }
-      const punto = puntoPlano(centro, radial, lateralM)
       registrarPunto(punto, tipoTramo)
     }
   }
 
+  const inicioCentrolinea = puntoPlano(finalExt, rumboCentrolinea, radioEsquinaM)
+  const finCentrolinea = puntoPlano(salidaExt, rumboPista, radioEsquinaM)
+  const inicioCrosswind = puntoPlano(salidaExt, rumboCrosswind, radioEsquinaM)
+  const finCrosswind = puntoPlano(salidaExtLateral, rumboCrosswindInverso, radioEsquinaM)
+  const inicioDownwind = puntoPlano(salidaExtLateral, rumboDownwind, radioEsquinaM)
+  const finDownwind = puntoPlano(finalExtLateral, rumboInverso, radioEsquinaM)
+  const inicioBase = puntoPlano(finalExtLateral, rumboBase, radioEsquinaM)
+  const finBase = puntoPlano(finalExt, rumboLateral, radioEsquinaM)
+  const distanciaCrosswindM = distanciaEntre(inicioCrosswind, finCrosswind)
+  const distanciaBaseM = distanciaEntre(inicioBase, finBase)
+  const pasosCrosswind = Math.max(8, Math.round(distanciaCrosswindM / separacionObjetivoM))
+  const pasosBase = Math.max(8, Math.round(distanciaBaseM / separacionObjetivoM))
+
   // 1) Recta de eje pista: FINAL hasta umbral22 y luego UPWIND.
   agregarRecta(
-    finalExt,
-    salidaExt,
+    inicioCentrolinea,
+    finCentrolinea,
     pasosRecta,
     true,
     ({ distanciaRecorrida }) =>
-      distanciaRecorrida <= extensionDownwindM ? "final" : "upwind"
+      distanciaRecorrida <= longitudFinalM ? "final" : "upwind"
   )
 
-  // 2) Lado semicircular de salida: tramo crosswind
-  agregarSemicirculo(
-    centroVirajeSalida,
-    radialSalidaInicio,
-    radialSalidaFin,
-    pasosSemicirculo,
+  // 2) Salida: curva + crosswind recto + curva hacia downwind.
+  agregarCurvaSuave(
+    finCentrolinea,
+    salidaExt,
+    inicioCrosswind,
+    pasosCurva,
     "crosswind",
-    true,
-    sentidoSemicirculo
+    true
+  )
+  agregarRecta(inicioCrosswind, finCrosswind, pasosCrosswind, false, "crosswind")
+  agregarCurvaSuave(
+    finCrosswind,
+    salidaExtLateral,
+    inicioDownwind,
+    pasosCurva,
+    "crosswind",
+    true
   )
 
   // 3) Downwind (opuesto a final): salidaExtLateral -> finalExtLateral
-  agregarRecta(salidaExtLateral, finalExtLateral, pasosRecta, false, "downwind")
+  agregarRecta(inicioDownwind, finDownwind, pasosRecta, false, "downwind")
 
-  // 4) Lado semicircular de final: tramo base
-
-  if (usarBaseRecta) {
-    const distanciaBaseM = distanciaEntre(finalExtLateral, finalExt)
-    const pasosBaseRecta = Math.max(
-      8,
-      Math.round(distanciaBaseM / separacionObjetivoM)
-    )
-    agregarRecta(finalExtLateral, finalExt, pasosBaseRecta, false, "base", false)
-  } else {
-    agregarSemicirculo(
-      centroVirajeFinal,
-      radialFinalInicio,
-      radialFinalFin,
-      pasosSemicirculo,
-      "base",
-      false,
-      sentidoSemicirculo
-    )
-  }
+  // 4) Regreso: curva + base recta + curva hacia final.
+  agregarCurvaSuave(
+    finDownwind,
+    finalExtLateral,
+    inicioBase,
+    pasosCurva,
+    "base",
+    true
+  )
+  agregarRecta(inicioBase, finBase, pasosBase, false, "base", true)
+  agregarCurvaSuave(
+    finBase,
+    finalExt,
+    inicioCentrolinea,
+    pasosCurva,
+    "base",
+    false
+  )
 
   if (puntos.length > 1) {
     // Segmento de cierre (�ltimo -> primero) tambi�n pertenece al tramo base.
@@ -3263,6 +3452,14 @@ socket.on("solicitarSincronizacionTiempo", () => {
   orbitSentido: nuevaAeronave.orbitSentido,
   circuitoSentido: nuevaAeronave.circuitoSentido,
   shortCircuitoActivo: nuevaAeronave.shortCircuitoActivo,
+  extensionAeronave: {
+    upwind: Number.isFinite(Number(nuevaAeronave.extensionUpwindExtraLocal))
+      ? Number(nuevaAeronave.extensionUpwindExtraLocal)
+      : 0,
+    downwind: Number.isFinite(Number(nuevaAeronave.extensionDownwindExtraLocal))
+      ? Number(nuevaAeronave.extensionDownwindExtraLocal)
+      : 0
+  },
   owner: nuevaAeronave.owner
   });
 });
@@ -3412,16 +3609,10 @@ socket.on("extenderTramoCircuito", ({ id, metros }) => {
   )
 
   if (aeronave.estado === "CIRCUIT") {
-    aeronave.ruta = rutaActualizada
-
-    if (proyeccionTramo) {
-      aeronave.indice = proyeccionTramo.indiceA
-      aeronave.progreso = proyeccionTramo.progreso
-    } else {
+    if (!redirigirAeronaveAlCircuitoMasCercano(aeronave, rutaActualizada)) {
+      aeronave.ruta = rutaActualizada
       reajustarAeronaveEnRuta(aeronave, rutaActualizada)
     }
-
-    aeronave.angulo = rumboObjetivo
   } else if (
     (aeronave.estado === "INTERCEPTING ARC" || aeronave.estado === "INTERCEPTING LEG") &&
     aeronave.ruta
@@ -3490,16 +3681,20 @@ socket.on("acortarTramoCircuito", ({ id, metros }) => {
     tramoObjetivo = diffDownwind < diffUpwind ? "downwind" : "upwind"
   }
 
-  const minimoExtra = -SHORT_CIRCUITO_PASO_M
-
-  if (tramoObjetivo === "downwind") {
+  if (circuitoTieneDimensionesOriginales(sala, aeronave)) {
+    tramoObjetivo = "downwind"
+    aeronave.extensionDownwindExtraLocal =
+      -(CIRCUITO_LONGITUD_FINAL_BASE_M - CIRCUITO_LONGITUD_FINAL_SHORT_M)
+  } else if (tramoObjetivo === "downwind") {
     const actual = aeronave.extensionDownwindExtraLocal || 0
+    const minimoExtra = actual > 0 ? 0 : -SHORT_CIRCUITO_PASO_M
     aeronave.extensionDownwindExtraLocal = Math.max(
       minimoExtra,
       actual - metrosSeguros
     )
   } else {
     const actual = aeronave.extensionUpwindExtraLocal || 0
+    const minimoExtra = actual > 0 ? 0 : -SHORT_CIRCUITO_PASO_M
     aeronave.extensionUpwindExtraLocal = Math.max(
       minimoExtra,
       actual - metrosSeguros
@@ -3519,16 +3714,10 @@ socket.on("acortarTramoCircuito", ({ id, metros }) => {
   )
 
   if (aeronave.estado === "CIRCUIT") {
-    aeronave.ruta = rutaActualizada
-
-    if (proyeccionTramo) {
-      aeronave.indice = proyeccionTramo.indiceA
-      aeronave.progreso = proyeccionTramo.progreso
-    } else {
+    if (!redirigirAeronaveAlCircuitoMasCercano(aeronave, rutaActualizada)) {
+      aeronave.ruta = rutaActualizada
       reajustarAeronaveEnRuta(aeronave, rutaActualizada)
     }
-
-    aeronave.angulo = rumboObjetivo
   } else if (
     (aeronave.estado === "INTERCEPTING ARC" || aeronave.estado === "INTERCEPTING LEG") &&
     aeronave.ruta
@@ -4053,6 +4242,17 @@ socket.on("detenerAccionAeronave", ({ id } = {}) => {
   if(!socketPuedeControlarAeronave(salaNombre, sala, aeronave, socket.id)) return
 
   detenerAccionActualAeronave(aeronave)
+  const rutaCircuitoBase = generarRutaServidorParaAeronave(sala, aeronave)
+  io.to(salaNombre).emit("rutaCircuitoActualizada", {
+    id: aeronave.id,
+    ruta: rutaCircuitoBase,
+    sentidoCircuito: normalizarSentidoCircuitoTexto(aeronave.circuitoSentido),
+    shortCircuitoActivo: false,
+    extensionAeronave: {
+      upwind: 0,
+      downwind: 0
+    }
+  })
   emitirActualizacionAeronave(salaNombre, aeronave, {
     detenida: true
   })

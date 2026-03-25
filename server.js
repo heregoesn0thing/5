@@ -1635,7 +1635,7 @@ if (a.estado === "INTERCEPTING LEG") {
 
   const posicionActual = { lat: a.lat, lng: a.lng }
   const distanciaSegmento = Math.max(1, distanciaEntre(A, B));
-  const puntoInterceptoDirecto =
+  let puntoInterceptoDirecto =
     a.puntoIntercepto &&
     Number.isFinite(Number(a.puntoIntercepto.lat)) &&
     Number.isFinite(Number(a.puntoIntercepto.lng))
@@ -1644,12 +1644,8 @@ if (a.estado === "INTERCEPTING LEG") {
           lng: Number(a.puntoIntercepto.lng)
         }
       : null
-  const ingresoDirectoTramo = Boolean(a.interceptacionDirectaTramo && puntoInterceptoDirecto)
-  const distanciaPuntoIntercepto = puntoInterceptoDirecto
-    ? distanciaEntre(posicionActual, puntoInterceptoDirecto)
-    : Infinity
 
-  // Proyeccion sobre tramo + punto adelantado monotono para evitar S-turns.
+  // Proyeccion sobre el tramo para fijar un punto de captura estable.
   const proyeccion = proyectarSobreSegmentoConFactor(
     posicionActual,
     A,
@@ -1662,120 +1658,42 @@ if (a.estado === "INTERCEPTING LEG") {
     puntoProyectado
   );
 
-  const tProyeccion = Math.max(0, Math.min(1, proyeccion.t))
-  if (
-    !Number.isFinite(a.interceptTrackRefT) ||
-    a.interceptTrackRefT > (tProyeccion + 0.22)
-  ) {
-    a.interceptTrackRefT = tProyeccion
-  } else {
-    a.interceptTrackRefT = Math.max(a.interceptTrackRefT, tProyeccion)
+  if (!puntoInterceptoDirecto) {
+    puntoInterceptoDirecto = {
+      lat: puntoProyectado.lat,
+      lng: puntoProyectado.lng
+    }
+    a.puntoIntercepto = puntoInterceptoDirecto
   }
 
-  const anticipacionM = Math.max(
-    INTERCEPT_LEG_LOOKAHEAD_MIN_M,
-    Math.min(INTERCEPT_LEG_LOOKAHEAD_MAX_M, distanciaTick * 14)
-  );
-  const tGuiadoBase = Number.isFinite(a.interceptTrackRefT)
-    ? a.interceptTrackRefT
-    : tProyeccion
-  const tGuiado = Math.min(1, tGuiadoBase + (anticipacionM / distanciaSegmento));
-  const puntoGuiado = ingresoDirectoTramo
-    ? puntoInterceptoDirecto
-    : {
-        lat: A.lat + (B.lat - A.lat) * tGuiado,
-        lng: A.lng + (B.lng - A.lng) * tGuiado
-      };
-
-  const rumboGuiado = calcularRumboServidor(posicionActual, puntoGuiado);
+  a.interceptacionDirectaTramo = true
+  const distanciaPuntoIntercepto = distanciaEntre(
+    posicionActual,
+    puntoInterceptoDirecto
+  )
+  const rumboGuiado = calcularRumboServidor(posicionActual, puntoInterceptoDirecto);
   const rumboTramo = calcularRumboServidor(A, B);
 
-  const factorCurva = ingresoDirectoTramo
-    ? Math.max(
-        0,
-        Math.min(1, 1 - (distanciaPuntoIntercepto / INTERCEPT_DIRECT_TO_LEG_ALIGN_DISTANCE_M))
-      )
-    : Math.max(
-        0,
-        Math.min(1, 1 - (distanciaAlTramo / INTERCEPT_LEG_BLEND_DISTANCE_M))
-      );
-
-  const signoLateral = obtenerLadoInterceptacionEstable(
-    a,
-    posicionActual,
-    A,
-    B,
-    distanciaAlTramo
+  const factorCurva = Math.max(
+    0,
+    Math.min(1, 1 - (distanciaPuntoIntercepto / INTERCEPT_DIRECT_TO_LEG_ALIGN_DISTANCE_M))
   )
-  const usarAlineacionDirecta = ingresoDirectoTramo
-    ? distanciaPuntoIntercepto <= INTERCEPT_DIRECT_TO_LEG_ALIGN_DISTANCE_M
-    : distanciaAlTramo <= INTERCEPT_LEG_FINAL_ALIGN_DISTANCE_M
-  const anguloInterceptoMaximo =
-    INTERCEPT_LEG_MIN_INTERCEPT_ANGLE_DEG +
-    (INTERCEPT_LEG_MAX_INTERCEPT_ANGLE_DEG - INTERCEPT_LEG_MIN_INTERCEPT_ANGLE_DEG) *
-      (1 - factorCurva)
-  const anguloInterceptoDeseado = Math.abs(
-    diferenciaAngular(rumboTramo, rumboGuiado)
-  )
-  const anguloInterceptoMinimo =
-    signoLateral !== 0 && distanciaAlTramo > 35
-      ? INTERCEPT_LEG_MIN_INTERCEPT_ANGLE_DEG * (1 - factorCurva)
-      : 0
+  const usarAlineacionDirecta =
+    distanciaPuntoIntercepto <= INTERCEPT_DIRECT_TO_LEG_CAPTURE_DISTANCE_M ||
+    distanciaAlTramo <= INTERCEPT_LEG_FINAL_ALIGN_DISTANCE_M
+  const rumboObjetivoBase =
+    Number.isFinite(rumboGuiado) && !usarAlineacionDirecta
+      ? rumboGuiado
+      : rumboTramo
+  const rumboObjetivo = Number.isFinite(rumboObjetivoBase)
+    ? rumboObjetivoBase
+    : (Number.isFinite(a.angulo) ? a.angulo : 0)
+  a.interceptHeadingRef = rumboObjetivo
 
-  let rumboInterceptoControlado = rumboTramo
-  if (Number.isFinite(rumboGuiado)) {
-    if (ingresoDirectoTramo) {
-      rumboInterceptoControlado = rumboGuiado
-    } else if (usarAlineacionDirecta) {
-      rumboInterceptoControlado = rumboTramo
-    } else if (signoLateral !== 0) {
-      const anguloIntercepto = Math.min(
-        anguloInterceptoMaximo,
-        Math.max(anguloInterceptoMinimo, anguloInterceptoDeseado)
-      )
-      rumboInterceptoControlado = normalizarAngulo360(
-        rumboTramo + (signoLateral * anguloIntercepto)
-      )
-    } else {
-      rumboInterceptoControlado = rumboGuiado
-    }
-  }
-
-  const rumboObjetivoBase = interpolarRumbo(
-    rumboInterceptoControlado,
-    rumboTramo,
-    ingresoDirectoTramo ? factorCurva * 0.82 : factorCurva
-  );
-
-  if (!Number.isFinite(a.interceptHeadingRef)) {
-    a.interceptHeadingRef = rumboObjetivoBase;
-  } else {
-    const factorSuavizadoRumbo = ingresoDirectoTramo
-      ? INTERCEPT_DIRECT_TO_LEG_HEADING_SMOOTH_FACTOR
-      : (
-          usarAlineacionDirecta
-            ? Math.max(INTERCEPT_LEG_HEADING_SMOOTH_FACTOR, 0.38)
-            : INTERCEPT_LEG_HEADING_SMOOTH_FACTOR
-        )
-    a.interceptHeadingRef = interpolarRumbo(
-      a.interceptHeadingRef,
-      rumboObjetivoBase,
-      factorSuavizadoRumbo
-    );
-  }
-  const rumboObjetivo = a.interceptHeadingRef;
-
-  const maxGiro = ingresoDirectoTramo
-    ? (
-        INTERCEPT_DIRECT_TO_LEG_MAX_TURN_FAR_DEG +
-        (INTERCEPT_DIRECT_TO_LEG_MAX_TURN_NEAR_DEG - INTERCEPT_DIRECT_TO_LEG_MAX_TURN_FAR_DEG) *
-          factorCurva
-      )
-    : (
-        INTERCEPT_LEG_MAX_TURN_FAR_DEG +
-        (INTERCEPT_LEG_MAX_TURN_NEAR_DEG - INTERCEPT_LEG_MAX_TURN_FAR_DEG) *
-          factorCurva
-      );
+  const maxGiro =
+    INTERCEPT_DIRECT_TO_LEG_MAX_TURN_FAR_DEG +
+    (INTERCEPT_DIRECT_TO_LEG_MAX_TURN_NEAR_DEG - INTERCEPT_DIRECT_TO_LEG_MAX_TURN_FAR_DEG) *
+      factorCurva;
 
   const headingActual = Number.isFinite(a.angulo) ? a.angulo : rumboObjetivo;
   a.angulo = aplicarVirajeLimitado(headingActual, rumboObjetivo, maxGiro)
@@ -1816,7 +1734,6 @@ if (a.estado === "INTERCEPTING LEG") {
     a.interceptTicks > INTERCEPT_LEG_RESCUE_CAPTURE_TICKS &&
     distanciaFinalAlTramo < INTERCEPT_LEG_RESCUE_CAPTURE_DISTANCE_M;
   const capturaDirecta =
-    ingresoDirectoTramo &&
     distanciaPuntoIntercepto < INTERCEPT_DIRECT_TO_LEG_CAPTURE_DISTANCE_M &&
     distanciaFinalAlTramo < INTERCEPT_LEG_FORCE_CAPTURE_DISTANCE_M;
 

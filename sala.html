@@ -123,8 +123,8 @@
    <!-- ===============================
      GRUPO TAXI
 ================================= -->
-<div class="grupo">
-  <div class="titulo-grupo">TAXI</div>
+<div class="grupo" id="grupoTaxi">
+  <div class="titulo-grupo" id="tituloGrupoTaxi">TAXI</div>
 
   <div class="taxi-row">
     <button class="btn-lateral taxi-btn" id="taxiCreate">
@@ -3918,6 +3918,7 @@ socket.on("cargarAeronaves", lista => {
 	      pilotageMarker: null,
 	      pilotageObjetivo: null,
 	      pilotageToggleActivo: false,
+	      rutaPilotageActiva: false,
 	      orbitFueraCircuitoPendienteSentido: null,
 	      panelLateralEstado: crearEstadoPanelLateralAeronave()
 	    }
@@ -4453,6 +4454,7 @@ const HOLD_SHORT_POSITIONS = [
   [-13.754251667145528, -76.22948935636957]
 ]
 const HOLD_SHORT_TRIGGER_RADIUS_M = 30
+const LINE_UP_HOLD_SHORT_RADIUS_M = 35
 const HOLD_SHORT_LENGTH_M = 30
 const HOLD_SHORT_ASPECT = 218 / 672
 const HOLD_SHORT_HEADING_DEG = 220
@@ -6546,6 +6548,30 @@ function limpiarMarcaPilotageAeronave(aeronave){
 
   aeronave.pilotageMarker = null
   aeronave.pilotageObjetivo = null
+  aeronave.pilotageMarkerTipo = null
+}
+
+function actualizarTipoMarcaPilotage(aeronave, tipo = "pilotage"){
+  if(!aeronave) return
+
+  const tipoNormalizado = tipo === "orbit" ? "orbit" : "pilotage"
+  aeronave.pilotageMarkerTipo = tipoNormalizado
+
+  if(
+    !aeronave.pilotageMarker ||
+    typeof aeronave.pilotageMarker.getElement !== "function"
+  ){
+    return
+  }
+
+  const elMarker = aeronave.pilotageMarker.getElement()
+  if(!elMarker) return
+
+  const elAnimacion = elMarker.querySelector(".pilotage-target-marker")
+  if(!elAnimacion) return
+
+  elAnimacion.classList.toggle("pilotage-marker-orbit", tipoNormalizado === "orbit")
+  elAnimacion.classList.toggle("pilotage-marker-direct", tipoNormalizado !== "orbit")
 }
 
 function limpiarModoPilotagePendiente(){
@@ -6586,6 +6612,8 @@ function actualizarAnimacionMarcaPilotageSentido(aeronave, sentido = null){
   const elAnimacion = elMarker.querySelector(".pilotage-target-marker")
   if(!elAnimacion) return
 
+  actualizarTipoMarcaPilotage(aeronave, aeronave.pilotageMarkerTipo)
+
   const valor =
     sentido !== null && sentido !== undefined
       ? sentido
@@ -6600,7 +6628,16 @@ function actualizarAnimacionMarcaPilotageSentido(aeronave, sentido = null){
   elAnimacion.classList.toggle("pilotage-spin-right", sentidoNormalizado !== "LEFT")
 }
 
-function marcarObjetivoPilotageEnMapa(aeronave, latlng){
+function debeMantenerMarcaOrbitHastaSalir(aeronave){
+  return Boolean(
+    aeronave &&
+    aeronave.pilotageMarker &&
+    aeronave.pilotageMarkerTipo === "orbit" &&
+    (aeronave.estado === "ORBT" || aeronave.orbitEnProcesoVisual)
+  )
+}
+
+function marcarObjetivoPilotageEnMapa(aeronave, latlng, opciones = {}){
   if(!aeronave || !latlng) return
 
   const lat = Number(latlng.lat)
@@ -6610,6 +6647,9 @@ function marcarObjetivoPilotageEnMapa(aeronave, latlng){
   }
 
   limpiarMarcaPilotageAeronave(aeronave)
+  const tipoMarcador = opciones.tipo === "orbit"
+    ? "orbit"
+    : "pilotage"
 
   aeronave.pilotageObjetivo = { lat, lng }
   const iconoPilotage = L.divIcon({
@@ -6617,11 +6657,17 @@ function marcarObjetivoPilotageEnMapa(aeronave, latlng){
     iconSize: [30, 30],
     iconAnchor: [15, 15],
     html: `
-      <div class="pilotage-target-marker pilotage-spin-right" aria-hidden="true">
+      <div class="pilotage-target-marker pilotage-spin-right ${
+        tipoMarcador === "orbit" ? "pilotage-marker-orbit" : "pilotage-marker-direct"
+      }" aria-hidden="true">
         <span class="pilotage-target-glow"></span>
         <span class="pilotage-target-ring"></span>
         <span class="pilotage-target-ring pilotage-target-ring-alt"></span>
         <span class="pilotage-target-core"></span>
+        <span class="pilotage-target-orbit-halo"></span>
+        <span class="pilotage-target-orbit-shell"></span>
+        <span class="pilotage-target-orbit-sweep"></span>
+        <span class="pilotage-target-orbit-core"></span>
       </div>
     `
   })
@@ -6632,8 +6678,13 @@ function marcarObjetivoPilotageEnMapa(aeronave, latlng){
     keyboard: false,
     zIndexOffset: 650
   }).addTo(map)
+  aeronave.pilotageMarkerTipo = tipoMarcador
 
   requestAnimationFrame(() => {
+    actualizarTipoMarcaPilotage(
+      aeronave,
+      aeronave.pilotageMarkerTipo || tipoMarcador
+    )
     actualizarAnimacionMarcaPilotageSentido(aeronave)
   })
 }
@@ -6734,14 +6785,13 @@ function iniciarOrbitFueraCircuitoHaciaObjetivo(aeronave, sentido, opciones = {}
   }
   aeronave.orbitFueraCircuitoPendienteSentido = sentidoNormalizado
   marcarOrbitSolicitado(aeronave, true, sentidoNormalizado)
+  actualizarTipoMarcaPilotage(aeronave, "orbit")
   aeronave.estado = "PILOTAGE"
   actualizarBotonManual()
   actualizarAnimacionMarcaPilotageSentido(aeronave, sentidoNormalizado)
   const opcionesPilotage = prepararDefaultsPilotageSiNoAsignados(aeronave)
 
   moverAeronaveHacia(aeronave, [objetivo.lat, objetivo.lng], () => {
-    limpiarMarcaPilotageAeronave(aeronave)
-
     if(typeof aeronave.orbitFueraCircuitoPendienteSentido !== "string"){
       // Orbit fuera de circuito cancelado antes de llegar al punto.
       finalizarModoPilotagePendiente(aeronave)
@@ -6785,6 +6835,7 @@ function iniciarPilotageDirectoHaciaObjetivo(aeronave, lat, lng, opciones = {}){
   aeronave.orbitSolicitada = false
   aeronave.orbitEnProcesoVisual = false
   aeronave.orbitFueraCircuitoPendienteSentido = null
+  actualizarTipoMarcaPilotage(aeronave, "pilotage")
   ocultarOpcionesOrbit()
   actualizarEstadoBotonOrbit()
 
@@ -6958,12 +7009,15 @@ function procesarClickMapaPilotage(latlng){
     return true
   }
 
-  marcarObjetivoPilotageEnMapa(aeronave, { lat, lng })
-
   const sentidoOrbitPendiente =
     typeof aeronave.orbitFueraCircuitoPendienteSentido === "string"
       ? normalizarSentidoOrbitCliente(aeronave.orbitFueraCircuitoPendienteSentido)
       : null
+  marcarObjetivoPilotageEnMapa(
+    aeronave,
+    { lat, lng },
+    { tipo: sentidoOrbitPendiente ? "orbit" : "pilotage" }
+  )
   const enMovimientoPilotage =
     aeronave.estado === "PILOTAGE" &&
     Boolean(aeronave.intervaloMovimiento)
@@ -6973,6 +7027,7 @@ function procesarClickMapaPilotage(latlng){
       cancelarAcciones: !enMovimientoPilotage
     })
   } else if(enMovimientoPilotage){
+    actualizarTipoMarcaPilotage(aeronave, "pilotage")
     const opcionesPilotage = prepararDefaultsPilotageSiNoAsignados(aeronave)
 
     moverAeronaveHacia(aeronave, [lat, lng], () => {
@@ -6990,6 +7045,7 @@ function procesarClickMapaPilotage(latlng){
       cancelarAcciones: true
     })
   } else {
+    actualizarTipoMarcaPilotage(aeronave, "pilotage")
     cancelarAccionesAeronave(aeronave)
     marcarOrbitSolicitado(aeronave, false)
     aeronave.estado = "PILOTAGE"
@@ -7146,6 +7202,7 @@ clearedToLandPendiente: false,
 	    pilotageMarker: null,
 	    pilotageObjetivo: null,
 	    pilotageToggleActivo: false,
+	    rutaPilotageActiva: false,
 	    orbitFueraCircuitoPendienteSentido: null,
 	    landingSubOption: null,
     orbitSentido: "RIGHT",
@@ -7272,6 +7329,7 @@ socket.on("crearAeronave", data => {
 		pilotageMarker: null,
 		pilotageObjetivo: null,
 		pilotageToggleActivo: false,
+		rutaPilotageActiva: false,
 		orbitFueraCircuitoPendienteSentido: null,
 		landingSubOption: null,
 		}
@@ -7336,7 +7394,7 @@ socket.on("actualizarAeronave", data => {
     (typeof data.orbitSentido === "number" && Number.isFinite(data.orbitSentido))
   ){
     avion.orbitSentido = normalizarSentidoOrbitCliente(data.orbitSentido)
-    actualizarAnimacionMarcaPilotageSentido(avion, avion.orbitSentido)
+    actualizarAnimacionMarcaPilotageSentido(avion)
   }
   if(
     typeof data.circuitoSentido === "string" ||
@@ -7363,6 +7421,7 @@ socket.on("actualizarAeronave", data => {
     sincronizarExtensionCircuitoAeronave(avion, data.extensionAeronave)
   }
 
+  const salioDeOrbit = estadoAnterior === "ORBT" && avion.estado !== "ORBT"
   if (avion.estado === "ORBT") {
     avion.orbitEnProcesoVisual = true
   } else if (
@@ -7382,6 +7441,9 @@ socket.on("actualizarAeronave", data => {
     if(!mantenerSolicitudOrbitFueraCircuito){
       avion.orbitSolicitada = false
     }
+  }
+  if(salioDeOrbit && avion.pilotageMarkerTipo === "orbit"){
+    limpiarMarcaPilotageAeronave(avion)
   }
 
   if (avion.extendSolicitada && avion.estado !== "CIRCUIT") {
@@ -7523,6 +7585,9 @@ function aplicarPosicionServidorInstantanea(avion, lat, lng, anguloServidor){
     avion.angulo = anguloNum
   }
   actualizarRotacion(avion)
+  if(avion.ruta && (avion.estado === "TAXI" || avion.rutaPilotageActiva)){
+    actualizarRutaRecorrida(avion)
+  }
 }
 
 function validarModoPiloto(){
@@ -8064,7 +8129,7 @@ function seleccionarAeronave(obj){
     limpiarModoPilotagePendiente()
   }
   if(aeronaveAntes && aeronaveAntes.id !== obj.id){
-    if(aeronaveAntes.modoRuta){
+    if(aeronaveAntes.modoRuta && !aeronaveAntes.rutaPilotageActiva){
       eliminarRuta(aeronaveAntes)
     }
     guardarEstadoVisualPanelLateral(aeronaveAntes)
@@ -9692,6 +9757,7 @@ function aplicarLevelInicialManual(valor){
   const ajustePorDelta =
     estadoActual === "MANUAL" ||
     estadoActual === "AUTO" ||
+    estadoActual === "ORBT" ||
     estadoActual === "CIRCUIT" ||
     estadoActual === "INTERCEPTING ARC" ||
     estadoActual === "INTERCEPTING LEG"
@@ -9958,9 +10024,13 @@ function actualizarEstadoBotonOrbit(){
   )
   const bloqueadoManual = btnOrbit.dataset.manualLockTitle !== undefined
   const sentidoOrbit =
-    aeronave && typeof aeronave.orbitSentido === "string"
-      ? normalizarSentidoOrbitCliente(aeronave.orbitSentido)
-      : "RIGHT"
+    aeronave && typeof aeronave.orbitFueraCircuitoPendienteSentido === "string"
+      ? normalizarSentidoOrbitCliente(aeronave.orbitFueraCircuitoPendienteSentido)
+      : (
+        aeronave && typeof aeronave.orbitSentido === "string"
+          ? normalizarSentidoOrbitCliente(aeronave.orbitSentido)
+          : "RIGHT"
+      )
 
   if(!bloqueadoManual){
     btnOrbit.disabled = !habilitado
@@ -10136,6 +10206,7 @@ function marcarOrbitSolicitado(aeronave, activo, sentido = null, mantenerOpcione
   if(!aeronave) return
 
   const orbitSolicitadaAnterior = Boolean(aeronave.orbitSolicitada)
+  const mantenerMarcaOrbitActiva = debeMantenerMarcaOrbitHastaSalir(aeronave)
   aeronave.orbitSolicitada = Boolean(activo)
   if(sentido !== null && sentido !== undefined){
     aeronave.orbitSentido = normalizarSentidoOrbitCliente(sentido)
@@ -10143,10 +10214,16 @@ function marcarOrbitSolicitado(aeronave, activo, sentido = null, mantenerOpcione
     aeronave.orbitSentido = "RIGHT"
   }
 
+  if(aeronave.orbitSolicitada){
+    actualizarTipoMarcaPilotage(aeronave, "orbit")
+  }
+
   if(!aeronave.orbitSolicitada){
-    aeronave.orbitEnProcesoVisual = false
+    if(!mantenerMarcaOrbitActiva){
+      aeronave.orbitEnProcesoVisual = false
+    }
     aeronave.orbitFueraCircuitoPendienteSentido = null
-    if(orbitSolicitadaAnterior){
+    if(orbitSolicitadaAnterior && !mantenerMarcaOrbitActiva){
       limpiarMarcaPilotageAeronave(aeronave)
     }
     if(!mantenerOpciones){
@@ -10548,14 +10625,14 @@ function activarPrincipal(boton){
 
     if(!estadoConOrbitInmediato){
       a.orbitFueraCircuitoPendienteSentido = sentidoNormalizado
+      marcarOrbitSolicitado(a, true, sentidoNormalizado, true)
       actualizarAnimacionMarcaPilotageSentido(a, sentidoNormalizado)
-      const inicioDirecto = iniciarOrbitFueraCircuitoHaciaObjetivo(a, sentidoNormalizado)
-
-      if(!inicioDirecto){
-        marcarOrbitSolicitado(a, true, sentidoNormalizado)
-        alert("Mark the orbit point with P first")
-      }
-
+      aeronavePilotagePendienteId = a.id
+      actualizarCallsignLabelEstado(a)
+      actualizarPanelInfoAeronave(a)
+      actualizarPanelInfo(a)
+      actualizarEstadoBotonOrbit()
+      alert("Select the orbit point on the map")
       return
     }
 
@@ -11797,6 +11874,7 @@ function detenerEstadoLocalAeronave(a){
   a.touchAndGoPendiente = false
   a.clearedToLandPendiente = false
   a.pilotageToggleActivo = false
+  a.rutaPilotageActiva = false
   a.orbitFueraCircuitoPendienteSentido = null
   a.landingSubOption = null
   a.enMovimiento = false
@@ -12863,6 +12941,7 @@ function guiarArcoSrvo(a, actual){
 }
 
 function actualizarEstadoGrupoTaxi(){
+  const tituloGrupoTaxi = document.getElementById("tituloGrupoTaxi")
   const btnTaxiCreate = document.getElementById("taxiCreate")
   const btnTaxiStart = document.getElementById("taxiStart")
   const btnTaxiHold = document.getElementById("taxiHold")
@@ -12873,10 +12952,11 @@ function actualizarEstadoGrupoTaxi(){
 
   const a = obtenerAeronaveVinculadaPanel() || aeronaveSeleccionada
   const altitudActual = Number(a && a.altitud)
+  const tieneAltitudValida = Boolean(a) && Number.isFinite(altitudActual)
+  const enNavegacion = tieneAltitudValida && altitudActual > 0
   const enSuelo =
-    Boolean(a) &&
-    Number.isFinite(altitudActual) &&
-    Math.round(altitudActual) === 0
+    tieneAltitudValida &&
+    altitudActual <= 0
   const modoPiloto = modoOperacion === "piloto"
 
   const rutaCreada =
@@ -12887,19 +12967,42 @@ function actualizarEstadoGrupoTaxi(){
   const holdShortInfo = a && a.marker
     ? obtenerHoldShortLineUpInfo(a.marker.getLatLng())
     : null
+  const altitudLineUpValida =
+    Boolean(a) &&
+    Number.isFinite(altitudActual) &&
+    Math.round(altitudActual) === 0
   const enRangoHoldShort =
     Boolean(holdShortInfo) &&
     Number.isFinite(holdShortInfo.distancia) &&
-    holdShortInfo.distancia <= HOLD_SHORT_TRIGGER_RADIUS_M &&
+    holdShortInfo.distancia <= LINE_UP_HOLD_SHORT_RADIUS_M &&
     !a?.holdShortTaxiATriggered
   const estadoLineUpValido = Boolean(
     a && (a.estado === "TAXI" || a.estado === "IDLE")
   )
 
   const razonAltitud = "Taxi available only at 0 ft"
+  const razonSeleccion = "Select an aircraft first"
   const razonRuta = "Create ROUTE first"
   const razonRodaje = "HOLD available only while taxiing"
-  const razonLineUp = "LINE UP available at Hold Short A/B/C/D"
+  const razonLineUp = "LINE UP available at 0 ft, within 35 m of Hold Short A/B/C/D and pointing to RWY 04/22"
+
+  if(tituloGrupoTaxi){
+    tituloGrupoTaxi.textContent = enNavegacion ? "NAVIGATION" : "TAXI"
+  }
+
+  if(btnTaxiStart){
+    btnTaxiStart.hidden = enNavegacion
+    if(enNavegacion){
+      btnTaxiStart.classList.remove("activo")
+    }
+  }
+
+  if(btnTaxiHold){
+    btnTaxiHold.hidden = enNavegacion
+    if(enNavegacion){
+      btnTaxiHold.classList.remove("activo")
+    }
+  }
 
   const aplicarEstadoBotonTaxi = (btn, habilitado, tituloDeshabilitado = "") => {
     if(!btn) return
@@ -12922,15 +13025,17 @@ function actualizarEstadoGrupoTaxi(){
     }
   }
 
-  const routeHabilitado = enSuelo && !enRodaje
-  const routeTitulo = !enSuelo
-    ? razonAltitud
-    : "Unavailable while taxiing"
+  const routeHabilitado = Boolean(a) && !enRodaje
+  const routeTitulo = !a
+    ? razonSeleccion
+    : enRodaje
+      ? "Unavailable while taxiing"
+      : ""
   aplicarEstadoBotonTaxi(btnTaxiCreate, routeHabilitado, routeTitulo)
   if(btnTaxiCreate){
     btnTaxiCreate.classList.toggle(
       "activo",
-      routeHabilitado && Boolean(a && a.modoRuta)
+      routeHabilitado && Boolean(a && (a.modoRuta || a.rutaPilotageActiva))
     )
   }
 
@@ -12950,9 +13055,18 @@ function actualizarEstadoGrupoTaxi(){
       : razonRodaje
   aplicarEstadoBotonTaxi(btnTaxiHold, holdHabilitado, holdTitulo)
 
-  const lineUpVisible = enSuelo && enRangoHoldShort && estadoLineUpValido
+  const lineUpVisible =
+    altitudLineUpValida &&
+    enRangoHoldShort &&
+    estadoLineUpValido &&
+    estaApuntandoHaciaLineUpRwy0422(a, holdShortInfo)
   if(btnTaxiLineUp){
-    btnTaxiLineUp.classList.toggle("oculto", !lineUpVisible)
+    const ocultarLineUp = enNavegacion || !lineUpVisible
+    btnTaxiLineUp.hidden = ocultarLineUp
+    btnTaxiLineUp.classList.toggle("oculto", ocultarLineUp)
+    if(ocultarLineUp){
+      btnTaxiLineUp.classList.remove("activo")
+    }
   }
   const lineUpHabilitado = lineUpVisible
   aplicarEstadoBotonTaxi(btnTaxiLineUp, lineUpHabilitado, razonLineUp)
@@ -13253,6 +13367,133 @@ function cancelarEstadoAutoEnSuelo(a){
   return true
 }
 
+function aeronaveUsaNavigationPorAltitud(a){
+  const altitudActual = Number(a && a.altitud)
+  return Boolean(a) && Number.isFinite(altitudActual) && altitudActual > 0
+}
+
+function construirRutaPilotageAirborne(a){
+  if(!a || !a.marker || typeof a.marker.getLatLng !== "function"){
+    return null
+  }
+
+  const posicionActual = a.marker.getLatLng()
+  if(!posicionActual){
+    return null
+  }
+
+  const rutaBase =
+    Array.isArray(a.puntosRuta) && a.puntosRuta.length > 0
+      ? a.puntosRuta
+      : a.rutaTemporal
+  const rutaNormalizada = Array.isArray(rutaBase)
+    ? rutaBase.map(normalizarPuntoRutaTaxiLatLng).filter(Boolean)
+    : []
+
+  if(rutaNormalizada.length < 2){
+    return null
+  }
+
+  const indiceActual = obtenerIndiceTramoRutaTaxiMasCercano(
+    rutaNormalizada,
+    posicionActual
+  )
+  const indiceSeguro = Number.isFinite(indiceActual)
+    ? Math.max(0, Math.min(rutaNormalizada.length - 2, indiceActual))
+    : 0
+  const puntosRestantes = rutaNormalizada
+    .slice(indiceSeguro + 1)
+    .filter(Boolean)
+
+  if(puntosRestantes.length === 0){
+    return null
+  }
+
+  return [
+    [posicionActual.lat, posicionActual.lng],
+    ...puntosRestantes.map(punto => [punto.lat, punto.lng])
+  ]
+}
+
+function emitirRutaPilotageAirborne(a, ruta, estado = "PILOTAGE"){
+  if(!socket || !socket.connected || !a || a.esRescate){
+    return
+  }
+
+  socket.emit("setRutaAirborne", {
+    id: a.id,
+    ruta: Array.isArray(ruta) ? ruta : [],
+    estado
+  })
+}
+
+function aplicarEstadoRutaPilotageAirborne(a, estado){
+  if(!a) return
+
+  if(typeof estado === "string" && estado){
+    a.estado = estado
+  }
+
+  actualizarBotonTaxi()
+  actualizarBotonManual()
+  actualizarEstadoBotonOrbit()
+  actualizarPanelManualSegunEstado(a)
+  actualizarCallsignLabelEstado(a)
+  actualizarPanelInfoAeronave(a)
+  actualizarPanelInfo(a)
+
+  if(!a.remoto){
+    sincronizarEstadoAeronaveLocal(a)
+  }
+}
+
+function activarSeguimientoRutaPilotageAirborne(a){
+  const rutaAirborne = construirRutaPilotageAirborne(a)
+  if(!rutaAirborne || rutaAirborne.length < 2){
+    return false
+  }
+
+  prepararDefaultsPilotageSiNoAsignados(a)
+  limpiarMarcaPilotageAeronave(a)
+  a.rutaPilotageActiva = true
+  a.orbitSolicitada = false
+  a.orbitEnProcesoVisual = false
+  a.orbitFueraCircuitoPendienteSentido = null
+  ocultarOpcionesOrbit()
+
+  emitirRutaPilotageAirborne(a, rutaAirborne, "PILOTAGE")
+  aplicarEstadoRutaPilotageAirborne(a, "PILOTAGE")
+  return true
+}
+
+function desactivarSeguimientoRutaPilotageAirborne(a, estado = "AIRBORNE"){
+  if(!a) return
+
+  a.rutaPilotageActiva = false
+  emitirRutaPilotageAirborne(a, [], estado)
+  aplicarEstadoRutaPilotageAirborne(a, estado)
+}
+
+function actualizarRutaTrasEdicion(a){
+  if(!a){
+    return
+  }
+
+  if(aeronaveUsaNavigationPorAltitud(a)){
+    if(Array.isArray(a.rutaTemporal) && a.rutaTemporal.length >= 2){
+      activarSeguimientoRutaPilotageAirborne(a)
+      return
+    }
+
+    if(a.rutaPilotageActiva){
+      desactivarSeguimientoRutaPilotageAirborne(a, "AIRBORNE")
+      return
+    }
+  }
+
+  actualizarBotonTaxi()
+}
+
 function activarModoRuta(){
 
   const a = aeronaveSeleccionada
@@ -13279,6 +13520,7 @@ function activarModoRuta(){
 
   // AHORA ES PROPIEDAD DEL OBJETO
   a.modoRuta = true
+  a.rutaPilotageActiva = false
 
   const pos = a.marker.getLatLng()
 
@@ -13317,7 +13559,7 @@ function agregarPuntoRuta(latlng){
   a.rutaTemporal.push(latlng)
   a.ruta.setLatLngs(a.rutaTemporal)
 
-  actualizarBotonTaxi()
+  actualizarRutaTrasEdicion(a)
 }
 
 function eliminarUltimoTramoRuta(aeronave = null){
@@ -13333,7 +13575,7 @@ function eliminarUltimoTramoRuta(aeronave = null){
     a.ruta.setLatLngs(a.rutaTemporal)
   }
 
-  actualizarBotonTaxi()
+  actualizarRutaTrasEdicion(a)
   return true
 }
 
@@ -13360,6 +13602,8 @@ function eliminarRuta(a){
 
   if(a.estado === "TAXI") return
 
+  const desactivarRutaPilotage = Boolean(a.rutaPilotageActiva)
+
   if(a.animRutaFrame){
     cancelAnimationFrame(a.animRutaFrame)
     a.animRutaFrame = null
@@ -13377,9 +13621,16 @@ function eliminarRuta(a){
   }
 
   a.modoRuta = false
-a.rutaTemporal = []
-a.puntosRuta = []
-a.indiceRuta = 0
+  a.rutaPilotageActiva = false
+  a.rutaTemporal = []
+  a.puntosRuta = []
+  a.indiceRuta = 0
+
+  if(desactivarRutaPilotage){
+    desactivarSeguimientoRutaPilotageAirborne(a, "AIRBORNE")
+    return
+  }
+
   actualizarBotonTaxi()
 }
 
@@ -13520,6 +13771,37 @@ function obtenerHoldShortLineUpInfo(posicion){
   return mejor
 }
 
+function estaApuntandoHaciaLineUpRwy0422(
+  aeronave,
+  holdShortInfo,
+  toleranciaDeg = 20
+){
+  if(!aeronave) return false
+
+  const heading = normalizarAngulo360(Number(aeronave.angulo))
+  if(!Number.isFinite(heading)) return false
+
+  const posicionActual =
+    aeronave.marker && typeof aeronave.marker.getLatLng === "function"
+      ? aeronave.marker.getLatLng()
+      : null
+  const waypointIngreso = normalizarPuntoRutaTaxiLatLng(
+    holdShortInfo &&
+    holdShortInfo.config &&
+    Array.isArray(holdShortInfo.config.waypoints)
+      ? holdShortInfo.config.waypoints[0]
+      : null
+  )
+
+  if(!posicionActual || !waypointIngreso) return false
+
+  const rumboIngreso = calcularBearing(posicionActual, waypointIngreso)
+  return (
+    Number.isFinite(rumboIngreso) &&
+    diferenciaAngularAbsoluta(heading, rumboIngreso) <= toleranciaDeg
+  )
+}
+
 function obtenerDistanciaHoldShortLinea(posicion){
   const info = obtenerHoldShortLineUpInfo(posicion)
   return info ? info.distancia : Infinity
@@ -13538,7 +13820,7 @@ function activarRodajeUmbral22DesdeHoldShort(a, forzarLineUp = false){
   if(
     !infoHoldShort ||
     !Number.isFinite(infoHoldShort.distancia) ||
-    (!forzarLineUp && infoHoldShort.distancia > HOLD_SHORT_TRIGGER_RADIUS_M)
+    (!forzarLineUp && infoHoldShort.distancia > LINE_UP_HOLD_SHORT_RADIUS_M)
   ){
     return
   }
@@ -13564,7 +13846,7 @@ function activarRodajeUmbral22DesdeHoldShort(a, forzarLineUp = false){
   const usarHoldPointExtra =
     Boolean(forzarLineUp) &&
     Number.isFinite(infoHoldShort.distancia) &&
-    infoHoldShort.distancia > HOLD_SHORT_TRIGGER_RADIUS_M &&
+    infoHoldShort.distancia > LINE_UP_HOLD_SHORT_RADIUS_M &&
     holdPoint &&
     Number.isFinite(holdPoint.lat) &&
     Number.isFinite(holdPoint.lng)
@@ -13910,6 +14192,7 @@ function enviarAjuste(tipo, valor, aeronaveObjetivo = null) {
   const esAuto = estadoActual === "AUTO"
   const esCircuito =
     estadoActual === "CIRCUIT" ||
+    estadoActual === "ORBT" ||
     estadoActual === "INTERCEPTING ARC" ||
     estadoActual === "INTERCEPTING LEG"
   const esAirborne = estadoActual === "AIRBORNE"
@@ -13959,6 +14242,9 @@ function enviarAjuste(tipo, valor, aeronaveObjetivo = null) {
   if(tipo === "altitude"){
     aeronave.altitud =
       Math.max(0, aeronave.altitud + valor)
+    if(estadoActual === "ORBT"){
+      aeronave.altitudObjetivo = aeronave.altitud
+    }
     sincronizarLevelControlPanel(aeronave)
   }
 
@@ -17223,6 +17509,9 @@ function aplicarInterpolacionRemota(avion, ahoraMs){
   avion.lng = lngObjetivo
   avion.angulo = anguloObjetivo
   actualizarRotacion(avion)
+  if(avion.ruta && (avion.estado === "TAXI" || avion.rutaPilotageActiva)){
+    actualizarRutaRecorrida(avion)
+  }
 }
 
 function estaSimuladoLocalmente(avion){

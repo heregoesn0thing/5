@@ -1420,7 +1420,7 @@ function iniciarMotorSala(nombreSala){
 
 		      if (
 		        (MOVIMIENTO_AUTORITATIVO_SERVIDOR || !a.owner) &&
-		        a.estado === "AIRBORNE" &&
+		        (a.estado === "AIRBORNE" || a.estado === "PILOTAGE") &&
 		        Array.isArray(a.rutaAirborne) &&
 		        a.rutaAirborne.length >= 2
 		      ) {
@@ -3460,7 +3460,7 @@ socket.on("solicitarSincronizacionTiempo", () => {
   })
 
   // ===== RUTA AIRBORNE =====
-socket.on("setRutaAirborne", ({ id, ruta } = {}) => {
+socket.on("setRutaAirborne", ({ id, ruta, estado } = {}) => {
   const salaNombre = socket.sala
   if (!salaNombre) return
 
@@ -3472,8 +3472,39 @@ socket.on("setRutaAirborne", ({ id, ruta } = {}) => {
 
   if (!socketPuedeControlarAeronave(salaNombre, sala, aeronave, socket.id)) return
 
+  const estadoNormalizado =
+    typeof estado === "string"
+      ? estado.trim().toUpperCase()
+      : ""
   const rutaNormalizada = normalizarRutaLineal(ruta)
-  if (rutaNormalizada.length < 2) return
+
+  if (estadoNormalizado === "PILOTAGE" || estadoNormalizado === "AIRBORNE") {
+    aeronave.estado = estadoNormalizado
+    aeronave.movimiento = null
+    limpiarOrbitacionAeronave(aeronave)
+    reiniciarGuiadoInterceptacionCircuito(aeronave)
+    aeronave.ruta = null
+    aeronave.indice = 0
+    aeronave.progreso = 0
+    aeronave.indiceObjetivo = null
+    aeronave.tramoObjetivo = null
+    aeronave.puntoIntercepto = null
+    aeronave.ingresoDownwindWaypoints = null
+    aeronave.ingresoDownwindTipo = null
+  }
+
+  if (rutaNormalizada.length < 2) {
+    aeronave.rutaAirborne = null
+    aeronave.rutaAirborneFinalizada = false
+    aeronave.rutaAirborneIndice = 0
+    aeronave.rutaAirborneProgreso = 0
+    iniciarMotorSala(salaNombre)
+    io.to(salaNombre).emit(
+      "actualizarAeronave",
+      construirPayloadActualizacionAeronave(aeronave)
+    )
+    return
+  }
 
   aeronave.rutaAirborne = rutaNormalizada
   aeronave.rutaAirborneFinalizada = false
@@ -3487,6 +3518,12 @@ socket.on("setRutaAirborne", ({ id, ruta } = {}) => {
     aeronave.rutaAirborneIndice = 0
     aeronave.rutaAirborneProgreso = 0
   }
+
+  iniciarMotorSala(salaNombre)
+  io.to(salaNombre).emit(
+    "actualizarAeronave",
+    construirPayloadActualizacionAeronave(aeronave)
+  )
 });
 socket.on("iniciarMovimiento", ({ id, destino, opciones, token } = {}) => {
   const salaNombre = socket.sala
@@ -4402,6 +4439,7 @@ socket.on("ajusteManual", ({ id, tipo, valor }) => {
   const esAuto = estadoActual === "AUTO"
   const esCircuito =
     estadoActual === "CIRCUIT" ||
+    estadoActual === "ORBT" ||
     estadoActual === "INTERCEPTING ARC" ||
     estadoActual === "INTERCEPTING LEG"
   const ajustePermitido =
@@ -4440,6 +4478,9 @@ socket.on("ajusteManual", ({ id, tipo, valor }) => {
       a.altitudCircuitoAutomaticaActiva = false
     }
     a.altitud = Math.max(0, a.altitud + valor)
+    if (estadoActual === "ORBT") {
+      a.altitudObjetivo = a.altitud
+    }
   }
 
   io.to(salaNombre).emit("actualizarAeronave", {
@@ -4447,6 +4488,9 @@ socket.on("ajusteManual", ({ id, tipo, valor }) => {
     lat: a.lat,
     lng: a.lng,
     altitud: a.altitud,
+    altitudObjetivo: Number.isFinite(Number(a.altitudObjetivo))
+      ? Math.max(0, Number(a.altitudObjetivo))
+      : null,
     angulo: a.angulo,
     velocidad: a.velocidad,
     velocidadObjetivo: a.velocidadObjetivo,

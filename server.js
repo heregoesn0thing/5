@@ -1,4 +1,4 @@
-﻿const express = require("express");
+const express = require("express");
 const http = require("http");
 const https = require("https");
 const { Server } = require("socket.io");
@@ -110,7 +110,46 @@ const SPEED_CONTROL_MAX_KNOTS = Math.round(KNOTS_PER_MACH * SPEED_CONTROL_MAX_MA
 const UMBRAL_04_COORDS = { lat: -13.7553277777778, lng: -76.2293055555556 }
 const UMBRAL_22_COORDS = { lat: -13.734536864537288, lng: -76.21175399048074 }
 const CIRCUITO_RESET_UMBRAL_22_DIST_M = 45
-const SCO_VOR_COORDS = { lat: -13.738556, lng: -76.212750 }
+const SCO_VOR_COORDS = { lat: -13.738611, lng: -76.212778 }
+const VARIACION_MAGNETICA_VOR_SCO_OESTE_DEG = 2
+const TOUCHDOWN_ZONE_22_COORDS = { ...UMBRAL_22_COORDS }
+const GP_DME_ISAN_COORDS = { lat: -13.735730555555556, lng: -76.21406944444445 }
+const ASOXI_COORDS_SERVIDOR = { lat: -12.760556, lng: -76.606389 }
+
+function convertirRadialScoMagneticoAVerdadero(radialMagnetico) {
+  return normalizarAngulo360(
+    Number(radialMagnetico) - VARIACION_MAGNETICA_VOR_SCO_OESTE_DEG
+  )
+}
+
+function puntoPlanoEnRadialSco(radialMagnetico, distancia) {
+  return puntoPlano(
+    SCO_VOR_COORDS,
+    convertirRadialScoMagneticoAVerdadero(radialMagnetico),
+    distancia
+  )
+}
+
+const PUNTO_REFERENCIA_EJE_041_UMBRAL_22_COORDS = puntoPlano(
+  UMBRAL_22_COORDS,
+  41,
+  1000
+)
+const PUNTO_REFERENCIA_EJE_FINAL_RWY22_COORDS = puntoPlano(
+  UMBRAL_22_COORDS,
+  calcularRumboServidor(UMBRAL_04_COORDS, UMBRAL_22_COORDS),
+  1000
+)
+const SCO_RADIAL_022_5NM_COORDS = puntoPlanoEnRadialSco(22, 5 * 1852)
+const SCO_RADIAL_017_8NM_COORDS = puntoPlanoEnRadialSco(17, 8 * 1852)
+const SCO_RADIAL_040_9NM_COORDS = puntoPlanoEnRadialSco(40, 9 * 1852)
+const SCO_RADIAL_041_4NM_COORDS = puntoPlanoEnRadialSco(41, 4 * 1852)
+const SCO_RADIAL_041_3NM_COORDS = puntoPlanoEnRadialSco(41, 3 * 1852)
+const SCO_RADIAL_041_2NM_COORDS = puntoPlanoEnRadialSco(41, 2 * 1852)
+const GEBED_COORDS_SERVIDOR = puntoPlanoEnRadialSco(341, 35 * 1852)
+const MUMOP_COORDS_SERVIDOR = puntoPlanoEnRadialSco(341, 11 * 1852)
+const KOLMI_COORDS_SERVIDOR = { lat: -13.67305556, lng: -76.16000000 }
+const SILAM_COORDS_SERVIDOR = { lat: -13.69500000, lng: -76.17833333 }
 const GO_AROUND_TRIGGER_POINT = {
   lat: -13.737274259116425,
   lng: -76.21411085128786
@@ -141,6 +180,76 @@ const PILOTAGE_DEFAULT_SPEED_ACCEL_KT_PER_SEC = 12
 const PILOTAGE_REALISTIC_BANK_DEG = 22
 const PILOTAGE_REALISTIC_TURN_RATE_MIN_DEG_PER_SEC = 2
 const PILOTAGE_REALISTIC_TURN_RATE_MAX_DEG_PER_SEC = 5.8
+
+function calcularInterseccionSemiejeConCirculoServidor(
+  origenSemieje,
+  puntoDireccionSemieje,
+  centroCirculo,
+  radioMetros
+){
+  if(
+    !origenSemieje ||
+    !puntoDireccionSemieje ||
+    !centroCirculo
+  ){
+    return null
+  }
+
+  const origenLat = Number(origenSemieje.lat)
+  const origenLng = Number(origenSemieje.lng)
+  const direccionLat = Number(puntoDireccionSemieje.lat)
+  const direccionLng = Number(puntoDireccionSemieje.lng)
+  const centroLat = Number(centroCirculo.lat)
+  const centroLng = Number(centroCirculo.lng)
+  const radio = Math.max(0, Number(radioMetros) || 0)
+  const latFactor = 111320
+  const lngFactor = 111320 * Math.cos(origenLat * Math.PI / 180)
+  if(
+    !Number.isFinite(origenLat) ||
+    !Number.isFinite(origenLng) ||
+    !Number.isFinite(direccionLat) ||
+    !Number.isFinite(direccionLng) ||
+    !Number.isFinite(centroLat) ||
+    !Number.isFinite(centroLng) ||
+    !Number.isFinite(radio) ||
+    radio <= 0 ||
+    !Number.isFinite(lngFactor) ||
+    Math.abs(lngFactor) < 1e-6
+  ){
+    return null
+  }
+
+  const dx = (direccionLng - origenLng) * lngFactor
+  const dy = (direccionLat - origenLat) * latFactor
+  const fx = (origenLng - centroLng) * lngFactor
+  const fy = (origenLat - centroLat) * latFactor
+  const a = (dx * dx) + (dy * dy)
+  const b = 2 * ((fx * dx) + (fy * dy))
+  const c = (fx * fx) + (fy * fy) - (radio * radio)
+  const discriminante = (b * b) - (4 * a * c)
+  if(a <= 1e-6 || discriminante < 0){
+    return null
+  }
+
+  const raiz = Math.sqrt(discriminante)
+  const candidatos = [
+    (-b + raiz) / (2 * a),
+    (-b - raiz) / (2 * a)
+  ]
+    .filter(valor => Number.isFinite(valor))
+    .sort((aValor, bValor) => bValor - aValor)
+  const tSeleccionado =
+    candidatos.find(valor => valor >= 0) ?? candidatos[0]
+  if(!Number.isFinite(tSeleccionado)){
+    return null
+  }
+
+  return {
+    lat: origenLat + ((dy * tSeleccionado) / latFactor),
+    lng: origenLng + ((dx * tSeleccionado) / lngFactor)
+  }
+}
+
 const CLIMB_RATE = {
   A320: 2500,
   A319: 2500,
@@ -155,6 +264,15 @@ const DESCENT_RATE = {
   AN32: 1000,
   C172: 500
 }
+const PROCEDIMIENTO_LLEGADA_HOLDING_SCO_CLAVE = "HOLDING SCO ANTIHORARIO"
+const PROCEDIMIENTO_LLEGADA_GEBED3_HOLDING_MUMOP_CLAVE = "GEBED3 / HOLDING MUMOP"
+const ALTITUD_MINIMA_HOLDING_MUMOP_FT = 4000
+const PROCEDIMIENTO_LLEGADA_ILS_U_CLAVE = "APROXIMACION ILS U"
+const PROCEDIMIENTO_LLEGADA_ILS_T_CLAVE = "APROXIMACION ILS T"
+const PROCEDIMIENTO_LLEGADA_ILS_V_CLAVE = "APROXIMACION ILS V"
+const PROCEDIMIENTO_LLEGADA_VOR_V_CLAVE = "APROXIMACION VOR V"
+const PROCEDIMIENTO_LLEGADA_VOR_U_CLAVE = "APROXIMACION VOR U"
+const PROCEDIMIENTO_LLEGADA_VOR_T_CLAVE = "APROXIMACION VOR T"
 const ESTADOS_VELOCIDAD_MPS = new Set([
   "MANUAL",
   "AUTO",
@@ -264,6 +382,30 @@ function normalizarRutaLineal(ruta){
     salida.push(normalizado)
   })
   return salida
+}
+
+function normalizarNombreProcedimientoLlegadaServidor(valor){
+  if(typeof valor !== "string") return null
+  const limpio = valor.trim()
+  return limpio || null
+}
+
+function obtenerClaveProcedimientoLlegadaServidor(valor){
+  const nombre = normalizarNombreProcedimientoLlegadaServidor(valor)
+  if(!nombre){
+    return ""
+  }
+
+  return nombre
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+}
+
+function normalizarIndiceLoopRutaAirborneServidor(valor){
+  const indice = Number(valor)
+  if(!Number.isFinite(indice)) return 0
+  return Math.max(0, Math.floor(indice))
 }
 
 function normalizarAngulo360(valor){
@@ -399,6 +541,340 @@ function obtenerProyeccionRutaLinealMasCercana(posicion, ruta){
   return mejor
 }
 
+function obtenerProyeccionRutaLinealMasCercanaDesdeIndice(
+  posicion,
+  ruta,
+  indiceMinimo = 0
+){
+  if(!posicion || !Array.isArray(ruta) || ruta.length < 2){
+    return null
+  }
+
+  const inicio = Math.max(
+    1,
+    Math.min(ruta.length - 1, Math.floor(Number(indiceMinimo) || 0) + 1)
+  )
+  let mejor = null
+
+  for(let i = inicio; i < ruta.length; i++){
+    const A = ruta[i - 1]
+    const B = ruta[i]
+    const proyeccion = proyectarSobreSegmentoConFactor(posicion, A, B)
+    const distancia = distanciaEntre(posicion, proyeccion.punto)
+    const distanciaSegmento = distanciaEntre(A, B)
+
+    if(!mejor || distancia < mejor.distancia){
+      mejor = {
+        distancia,
+        indiceA: i - 1,
+        progreso: distanciaSegmento * proyeccion.t,
+        puntoIntercepto: proyeccion.punto
+      }
+    }
+  }
+
+  return mejor
+}
+
+function calcularDistanciaAcumuladaRutaHasta(ruta, indiceSegmento, progresoSegmento = 0){
+  if(!Array.isArray(ruta) || ruta.length < 2){
+    return 0
+  }
+
+  const indiceRaw = Number(indiceSegmento)
+  let distanciaTotal = 0
+
+  if(Number.isFinite(indiceRaw) && indiceRaw >= ruta.length - 1){
+    for(let i = 0; i < ruta.length - 1; i++){
+      distanciaTotal += distanciaEntre(ruta[i], ruta[i + 1])
+    }
+    return distanciaTotal
+  }
+
+  const ultimoIndiceSegmento = Math.max(0, ruta.length - 2)
+  const indice = Number.isFinite(indiceRaw)
+    ? Math.max(0, Math.min(ultimoIndiceSegmento, Math.floor(indiceRaw)))
+    : 0
+
+  for(let i = 0; i < indice; i++){
+    distanciaTotal += distanciaEntre(ruta[i], ruta[i + 1])
+  }
+
+  const A = ruta[indice]
+  const B = ruta[indice + 1]
+  if(A && B){
+    const distanciaSegmento = distanciaEntre(A, B)
+    const progreso = Number.isFinite(Number(progresoSegmento))
+      ? Math.max(0, Math.min(distanciaSegmento, Number(progresoSegmento)))
+      : 0
+    distanciaTotal += progreso
+  }
+
+  return distanciaTotal
+}
+
+function obtenerRestriccionesPerfilAltitudLlegadaServidor(claveProcedimiento){
+  if(claveProcedimiento === PROCEDIMIENTO_LLEGADA_GEBED3_HOLDING_MUMOP_CLAVE){
+    return [
+      { punto: ASOXI_COORDS_SERVIDOR, altitudFt: 8000 },
+      { punto: GEBED_COORDS_SERVIDOR, altitudFt: 7000 },
+      { punto: MUMOP_COORDS_SERVIDOR, altitudFt: 4000 }
+    ]
+  }
+
+  if(
+    claveProcedimiento === PROCEDIMIENTO_LLEGADA_ILS_U_CLAVE
+  ){
+    return [
+      { punto: SCO_VOR_COORDS, altitudFt: 3000 },
+      { punto: SCO_RADIAL_022_5NM_COORDS, altitudFt: 1600 },
+      { punto: SILAM_COORDS_SERVIDOR, altitudFt: 1000 },
+      { punto: TOUCHDOWN_ZONE_22_COORDS, altitudFt: 0 }
+    ]
+  }
+
+  if(
+    claveProcedimiento === PROCEDIMIENTO_LLEGADA_ILS_T_CLAVE
+  ){
+    return [
+      { punto: SCO_VOR_COORDS, altitudFt: 3000 },
+      { punto: SCO_RADIAL_017_8NM_COORDS, altitudFt: 1800 },
+      { punto: KOLMI_COORDS_SERVIDOR, altitudFt: 1600 },
+      { punto: TOUCHDOWN_ZONE_22_COORDS, altitudFt: 0 }
+    ]
+  }
+
+  if(
+    claveProcedimiento === PROCEDIMIENTO_LLEGADA_ILS_V_CLAVE ||
+    claveProcedimiento === PROCEDIMIENTO_LLEGADA_VOR_V_CLAVE
+  ){
+    return [
+      { punto: MUMOP_COORDS_SERVIDOR, altitudFt: 4000 },
+      { punto: SCO_RADIAL_040_9NM_COORDS, altitudFt: 1800 },
+      { punto: KOLMI_COORDS_SERVIDOR, altitudFt: 1600 },
+      { punto: SCO_RADIAL_041_4NM_COORDS, altitudFt: 1280 },
+      { punto: SCO_RADIAL_041_3NM_COORDS, altitudFt: 960 },
+      { punto: SCO_RADIAL_041_2NM_COORDS, altitudFt: 650 },
+      { punto: TOUCHDOWN_ZONE_22_COORDS, altitudFt: 0 }
+    ]
+  }
+
+  if(claveProcedimiento === PROCEDIMIENTO_LLEGADA_VOR_U_CLAVE){
+    return [
+      { punto: SCO_VOR_COORDS, altitudFt: 3000 },
+      { punto: SCO_RADIAL_022_5NM_COORDS, altitudFt: 1600 },
+      { punto: SILAM_COORDS_SERVIDOR, altitudFt: 1000 },
+      { punto: SCO_RADIAL_041_3NM_COORDS, altitudFt: 960 },
+      { punto: SCO_RADIAL_041_2NM_COORDS, altitudFt: 650 },
+      { punto: TOUCHDOWN_ZONE_22_COORDS, altitudFt: 0 }
+    ]
+  }
+
+  if(claveProcedimiento === PROCEDIMIENTO_LLEGADA_VOR_T_CLAVE){
+    return [
+      { punto: SCO_VOR_COORDS, altitudFt: 3000 },
+      { punto: SCO_RADIAL_017_8NM_COORDS, altitudFt: 1800 },
+      { punto: KOLMI_COORDS_SERVIDOR, altitudFt: 1600 },
+      { punto: SCO_RADIAL_041_4NM_COORDS, altitudFt: 1280 },
+      { punto: SCO_RADIAL_041_3NM_COORDS, altitudFt: 960 },
+      { punto: SCO_RADIAL_041_2NM_COORDS, altitudFt: 650 },
+      { punto: TOUCHDOWN_ZONE_22_COORDS, altitudFt: 0 }
+    ]
+  }
+
+  return []
+}
+
+function construirPerfilAltitudLlegadaServidor(aeronave){
+  if(
+    !aeronave ||
+    !Array.isArray(aeronave.rutaAirborne) ||
+    aeronave.rutaAirborne.length < 2
+  ){
+    return null
+  }
+
+  const claveProcedimiento = obtenerClaveProcedimientoLlegadaServidor(
+    aeronave.arrivalProcedureName
+  )
+  const restricciones = obtenerRestriccionesPerfilAltitudLlegadaServidor(
+    claveProcedimiento
+  )
+  if(!restricciones.length){
+    return null
+  }
+
+  const ruta = aeronave.rutaAirborne
+  const indiceActual = Number.isFinite(Number(aeronave.rutaAirborneIndice))
+    ? Math.max(0, Math.floor(Number(aeronave.rutaAirborneIndice)))
+    : 0
+  const progresoActual = Number.isFinite(Number(aeronave.rutaAirborneProgreso))
+    ? Math.max(0, Number(aeronave.rutaAirborneProgreso))
+    : 0
+  const altitudActual = Number.isFinite(Number(aeronave.altitud))
+    ? Math.max(0, Number(aeronave.altitud))
+    : 0
+
+  const puntos = [
+    {
+      distanciaM: calcularDistanciaAcumuladaRutaHasta(
+        ruta,
+        indiceActual,
+        progresoActual
+      ),
+      altitudFt: altitudActual
+    }
+  ]
+  let indiceMinimo = Math.max(0, Math.min(ruta.length - 2, indiceActual))
+
+  restricciones.forEach(restriccion => {
+    const proyeccion = obtenerProyeccionRutaLinealMasCercanaDesdeIndice(
+      restriccion.punto,
+      ruta,
+      indiceMinimo
+    )
+    if(!proyeccion){
+      return
+    }
+
+    const distanciaM = calcularDistanciaAcumuladaRutaHasta(
+      ruta,
+      proyeccion.indiceA,
+      proyeccion.progreso
+    )
+    const ultimoPunto = puntos[puntos.length - 1]
+
+    if(distanciaM <= ultimoPunto.distanciaM + 1){
+      ultimoPunto.distanciaM = Math.max(ultimoPunto.distanciaM, distanciaM)
+      ultimoPunto.altitudFt = restriccion.altitudFt
+    } else {
+      puntos.push({
+        distanciaM,
+        altitudFt: restriccion.altitudFt
+      })
+    }
+
+    indiceMinimo = Math.max(indiceMinimo, proyeccion.indiceA)
+  })
+
+  return puntos.length >= 2
+    ? {
+        claveProcedimiento,
+        puntos
+      }
+    : null
+}
+
+function interpolarAltitudPerfilLlegadaServidor(perfil, distanciaActualM){
+  const puntos = Array.isArray(perfil && perfil.puntos) ? perfil.puntos : []
+  if(!puntos.length){
+    return null
+  }
+
+  const distanciaActual = Number.isFinite(Number(distanciaActualM))
+    ? Math.max(0, Number(distanciaActualM))
+    : 0
+
+  if(distanciaActual <= puntos[0].distanciaM){
+    return puntos[0].altitudFt
+  }
+
+  for(let i = 1; i < puntos.length; i++){
+    const inicio = puntos[i - 1]
+    const fin = puntos[i]
+    if(distanciaActual > fin.distanciaM){
+      continue
+    }
+
+    const longitudTramo = Math.max(1, fin.distanciaM - inicio.distanciaM)
+    const t = Math.max(
+      0,
+      Math.min(1, (distanciaActual - inicio.distanciaM) / longitudTramo)
+    )
+    return inicio.altitudFt + ((fin.altitudFt - inicio.altitudFt) * t)
+  }
+
+  return puntos[puntos.length - 1].altitudFt
+}
+
+function obtenerAltitudMinimaLoopPerfilLlegadaServidor(aeronave, perfil){
+  if(
+    !aeronave ||
+    !perfil ||
+    perfil.claveProcedimiento !== PROCEDIMIENTO_LLEGADA_GEBED3_HOLDING_MUMOP_CLAVE ||
+    !Boolean(aeronave.rutaAirborneLoop) ||
+    !Array.isArray(perfil.puntos) ||
+    !perfil.puntos.length
+  ){
+    return null
+  }
+
+  const loopStartIndex = normalizarIndiceLoopRutaAirborneServidor(
+    aeronave.rutaAirborneLoopStartIndex
+  )
+  const indiceActual = Number.isFinite(Number(aeronave.rutaAirborneIndice))
+    ? Math.max(0, Math.floor(Number(aeronave.rutaAirborneIndice)))
+    : 0
+  if(indiceActual < loopStartIndex){
+    return null
+  }
+
+  const altitudManualOverrideFt = Number(
+    aeronave && aeronave.arrivalHoldingMumopManualAltitudeFt
+  )
+  if(Number.isFinite(altitudManualOverrideFt)){
+    return Math.max(ALTITUD_MINIMA_HOLDING_MUMOP_FT, altitudManualOverrideFt)
+  }
+
+  const ultimoPunto = perfil.puntos[perfil.puntos.length - 1]
+  const altitudLoopFt = Number(ultimoPunto && ultimoPunto.altitudFt)
+  return Number.isFinite(altitudLoopFt)
+    ? Math.max(ALTITUD_MINIMA_HOLDING_MUMOP_FT, altitudLoopFt)
+    : null
+}
+
+function aplicarPerfilAltitudLlegadaServidor(aeronave, intervaloMS = 50){
+  const perfil = aeronave && aeronave.arrivalAltitudeProfile
+  if(
+    !perfil ||
+    !Array.isArray(perfil.puntos) ||
+    perfil.puntos.length < 2 ||
+    !Array.isArray(aeronave.rutaAirborne) ||
+    aeronave.rutaAirborne.length < 2
+  ){
+    return false
+  }
+
+  const altitudLoopFt = obtenerAltitudMinimaLoopPerfilLlegadaServidor(
+    aeronave,
+    perfil
+  )
+  if(Number.isFinite(altitudLoopFt)){
+    const altitudObjetivoFt = Math.max(0, Math.round(altitudLoopFt))
+    aeronave.altitudObjetivo = altitudObjetivoFt
+    ajustarAltitudHaciaObjetivo(aeronave)
+    return true
+  }
+
+  const distanciaActualM = calcularDistanciaAcumuladaRutaHasta(
+    aeronave.rutaAirborne,
+    aeronave.rutaAirborneIndice,
+    aeronave.rutaAirborneProgreso
+  )
+  const altitudPerfilFt = interpolarAltitudPerfilLlegadaServidor(
+    perfil,
+    distanciaActualM
+  )
+  if(!Number.isFinite(altitudPerfilFt)){
+    return false
+  }
+
+  const altitudObjetivoFt = Math.max(0, Math.round(altitudPerfilFt))
+  aeronave.altitudObjetivo = altitudObjetivoFt
+  aeronave.altitud = altitudObjetivoFt
+  return true
+}
+
 function avanzarRutaAirborneLineal(aeronave, intervaloMS){
   if(
     !aeronave ||
@@ -409,6 +885,19 @@ function avanzarRutaAirborneLineal(aeronave, intervaloMS){
   }
 
   const ruta = aeronave.rutaAirborne
+  const ultimoIndiceSegmento = Math.max(0, ruta.length - 2)
+  const loopActivo =
+    Boolean(aeronave.rutaAirborneLoop) &&
+    ruta.length >= 2
+  const loopStartIndex = loopActivo
+    ? Math.max(
+        0,
+        Math.min(
+          ultimoIndiceSegmento,
+          normalizarIndiceLoopRutaAirborneServidor(aeronave.rutaAirborneLoopStartIndex)
+        )
+      )
+    : 0
   let indice =
     Number.isFinite(aeronave.rutaAirborneIndice)
       ? Math.max(0, Math.min(ruta.length - 1, Math.floor(aeronave.rutaAirborneIndice)))
@@ -417,6 +906,11 @@ function avanzarRutaAirborneLineal(aeronave, intervaloMS){
     Number.isFinite(aeronave.rutaAirborneProgreso)
       ? Math.max(0, aeronave.rutaAirborneProgreso)
       : 0
+
+  if(loopActivo && indice >= ruta.length - 1){
+    indice = loopStartIndex
+    progreso = 0
+  }
 
   const velocidadMPS = obtenerVelocidadMpsFallback(aeronave)
   if(!Number.isFinite(velocidadMPS) || velocidadMPS <= 0){
@@ -427,7 +921,11 @@ function avanzarRutaAirborneLineal(aeronave, intervaloMS){
 
   while(distanciaRestante > 0){
     if(indice >= ruta.length - 1){
-      break
+      if(!loopActivo){
+        break
+      }
+      indice = loopStartIndex
+      progreso = 0
     }
 
     const A = ruta[indice]
@@ -444,25 +942,36 @@ function avanzarRutaAirborneLineal(aeronave, intervaloMS){
     distanciaRestante -= restanteSegmento
     indice += 1
     progreso = 0
+
+    if(loopActivo && indice >= ruta.length - 1){
+      indice = loopStartIndex
+    }
   }
 
   if(indice >= ruta.length - 1){
-    const ultimo = ruta[ruta.length - 1]
-    const previo = ruta.length >= 2 ? ruta[ruta.length - 2] : ultimo
-    const rumboFinal = calcularRumboServidor(previo, ultimo)
-    const nuevoPunto =
-      distanciaRestante > 0
-        ? puntoPlano({ lat: ultimo.lat, lng: ultimo.lng }, rumboFinal, distanciaRestante)
-        : { lat: ultimo.lat, lng: ultimo.lng }
+    if(loopActivo){
+      indice = loopStartIndex
+      progreso = 0
+    } else {
+      const ultimo = ruta[ruta.length - 1]
+      const previo = ruta.length >= 2 ? ruta[ruta.length - 2] : ultimo
+      const rumboFinal = calcularRumboServidor(previo, ultimo)
+      const nuevoPunto =
+        distanciaRestante > 0
+          ? puntoPlano({ lat: ultimo.lat, lng: ultimo.lng }, rumboFinal, distanciaRestante)
+          : { lat: ultimo.lat, lng: ultimo.lng }
 
-    aeronave.lat = nuevoPunto.lat
-    aeronave.lng = nuevoPunto.lng
-    aeronave.angulo = rumboFinal
-    aeronave.rutaAirborneFinalizada = true
-    aeronave.rutaAirborneIndice = ruta.length - 1
-    aeronave.rutaAirborneProgreso = 0
-    ajustarAltitudHaciaObjetivo(aeronave, intervaloMS)
-    return true
+      aeronave.lat = nuevoPunto.lat
+      aeronave.lng = nuevoPunto.lng
+      aeronave.angulo = rumboFinal
+      aeronave.rutaAirborneFinalizada = true
+      aeronave.rutaAirborneIndice = ruta.length - 1
+      aeronave.rutaAirborneProgreso = 0
+      if(!aplicarPerfilAltitudLlegadaServidor(aeronave, intervaloMS)){
+        ajustarAltitudHaciaObjetivo(aeronave, intervaloMS)
+      }
+      return true
+    }
   }
 
   const A = ruta[indice]
@@ -473,9 +982,12 @@ function avanzarRutaAirborneLineal(aeronave, intervaloMS){
   aeronave.lat = A.lat + (B.lat - A.lat) * t
   aeronave.lng = A.lng + (B.lng - A.lng) * t
   aeronave.angulo = calcularRumboServidor(A, B)
+  aeronave.rutaAirborneFinalizada = false
   aeronave.rutaAirborneIndice = indice
   aeronave.rutaAirborneProgreso = progreso
-  ajustarAltitudHaciaObjetivo(aeronave, intervaloMS)
+  if(!aplicarPerfilAltitudLlegadaServidor(aeronave, intervaloMS)){
+    ajustarAltitudHaciaObjetivo(aeronave, intervaloMS)
+  }
 
   return true
 }
@@ -925,6 +1437,15 @@ function crearRegistroAeronave(dataInicial = {}, opciones = {}) {
     indiceObjetivo: null,
     tramoObjetivo: null,
     puntoIntercepto: null,
+    rutaAirborne: null,
+    rutaAirborneFinalizada: false,
+    rutaAirborneIndice: 0,
+    rutaAirborneProgreso: 0,
+    rutaAirborneLoop: false,
+    rutaAirborneLoopStartIndex: 0,
+    arrivalProcedureName: null,
+    arrivalAltitudeProfile: null,
+    arrivalHoldingMumopManualAltitudeFt: null,
     syncTs: null,
     estado: "IDLE"
   }
@@ -954,6 +1475,22 @@ function construirPayloadActualizacionAeronave(aeronave, extras = {}) {
         ? Number(aeronave.extensionDownwindExtraLocal)
         : 0
     },
+    arrivalProcedureName: normalizarNombreProcedimientoLlegadaServidor(
+      aeronave.arrivalProcedureName
+    ),
+    rutaAirborne: Array.isArray(aeronave.rutaAirborne)
+      ? normalizarRutaLineal(aeronave.rutaAirborne)
+      : null,
+    rutaAirborneIndice: Number.isFinite(Number(aeronave.rutaAirborneIndice))
+      ? Math.max(0, Math.floor(Number(aeronave.rutaAirborneIndice)))
+      : 0,
+    rutaAirborneProgreso: Number.isFinite(Number(aeronave.rutaAirborneProgreso))
+      ? Math.max(0, Number(aeronave.rutaAirborneProgreso))
+      : 0,
+    rutaAirborneLoop: Boolean(aeronave.rutaAirborneLoop),
+    rutaAirborneLoopStartIndex: normalizarIndiceLoopRutaAirborneServidor(
+      aeronave.rutaAirborneLoopStartIndex
+    ),
     syncTs: Number.isFinite(Number(aeronave.syncTs))
       ? Number(aeronave.syncTs)
       : null,
@@ -991,6 +1528,11 @@ function detenerAccionActualAeronave(aeronave) {
   aeronave.rutaAirborneFinalizada = false
   aeronave.rutaAirborneIndice = 0
   aeronave.rutaAirborneProgreso = 0
+  aeronave.rutaAirborneLoop = false
+  aeronave.rutaAirborneLoopStartIndex = 0
+  aeronave.arrivalProcedureName = null
+  aeronave.arrivalAltitudeProfile = null
+  aeronave.arrivalHoldingMumopManualAltitudeFt = null
   aeronave.syncTs = Date.now()
   return aeronave
 }
@@ -1340,7 +1882,7 @@ function iniciarMotorSala(nombreSala){
 	if (a.estado !== "CLEARED TO LAND") {
 	  limpiarDescensoClearedToLandBase(a)
 	}
-		// 🔥 PRIORIDAD ABSOLUTA LANDING
+		// ?? PRIORIDAD ABSOLUTA LANDING
 			if (a.estado === "LANDING" && a.owner && !MOVIMIENTO_AUTORITATIVO_SERVIDOR) {
 			  return
 		}
@@ -1474,7 +2016,7 @@ function iniciarMotorSala(nombreSala){
       const velocidadMPS = obtenerVelocidadMPSParaRuta(a)
       const distanciaTick = velocidadMPS * (intervaloMS/1000)
 // =====================================
-// 🌀 FASE ARCO 30� ANTES DE INTERCEPTAR
+// ?? FASE ARCO 30? ANTES DE INTERCEPTAR
 // =====================================
 
 if (a.estado === "INTERCEPTING ARC") {
@@ -1577,7 +2119,7 @@ if (a.estado === "INTERCEPTING ARC") {
   a.lat = nuevoPunto.lat;
   a.lng = nuevoPunto.lng;
 
-  // 🎯 Cuando esté cerca → pasar a interceptación fina
+  // ?? Cuando esté cerca ? pasar a interceptación fina
   if (distancia < INTERCEPT_ARC_CAPTURE_DISTANCE_M) {
     if (Array.isArray(a.ingresoDownwindWaypoints) && a.ingresoDownwindWaypoints.length > 0) {
       a.ingresoDownwindWaypoints.shift()
@@ -2313,7 +2855,7 @@ function generarRutaServidor(sala, opciones = {}){
   )
 
   if (puntos.length > 1) {
-    // Segmento de cierre (�ltimo -> primero) tambi�n pertenece al tramo base.
+    // Segmento de cierre (?ltimo -> primero) tambi?n pertenece al tramo base.
     puntos[puntos.length - 1].tramo = "base"
   }
 
@@ -2631,7 +3173,7 @@ function construirIngresoDownwind45(aeronave) {
       waypoints.push(puntoCruce, puntoGota)
     }
 
-    // Tramo final de ingreso a 45� sobre downwind.
+    // Tramo final de ingreso a 45? sobre downwind.
     waypoints.push(preEntryPoint, joinPoint)
   }
 
@@ -3055,18 +3597,20 @@ function procesarGoAroundEnMotor(aeronave, intervaloMS, nombreSala) {
     SCO_VOR_COORDS,
     { lat: aeronave.lat, lng: aeronave.lng }
   )
+  const radialObjetivoVerdadero =
+    convertirRadialScoMagneticoAVerdadero(GO_AROUND_RADIAL_OBJETIVO)
 
   if (aeronave.goAroundFase === "TO_RADIAL") {
-    const errorRadial = diferenciaAngular(radialActual, GO_AROUND_RADIAL_OBJETIVO)
+    const errorRadial = diferenciaAngular(radialActual, radialObjetivoVerdadero)
     if (Math.abs(errorRadial) <= GO_AROUND_INTERCEPT_TOL) {
       aeronave.goAroundFase = "ON_RADIAL"
     }
   }
 
   if (aeronave.goAroundFase === "ON_RADIAL") {
-    const errorRadial = diferenciaAngular(radialActual, GO_AROUND_RADIAL_OBJETIVO)
+    const errorRadial = diferenciaAngular(radialActual, radialObjetivoVerdadero)
     const correccion = Math.max(-12, Math.min(12, errorRadial * 1.5))
-    headingObjetivo = (GO_AROUND_RADIAL_OBJETIVO + correccion + 360) % 360
+    headingObjetivo = (radialObjetivoVerdadero + correccion + 360) % 360
 
     const ascensoPorTick =
       (GO_AROUND_CLIMB_RATE_FPM / 60) * (intervaloMS / 1000)
@@ -3329,7 +3873,7 @@ if (peligroSalas[nombre]) {
       ruta: generarRutaServidor(salas[nombre])
     });
 
-    // 🔥 SINCRONIZAR INMEDIATAMENTE
+    // ?? SINCRONIZAR INMEDIATAMENTE
     const horaActual = obtenerHoraActualSala(nombre);
     if (horaActual) {
       socket.emit("horaSala", horaActual);
@@ -3448,6 +3992,20 @@ socket.on("solicitarSincronizacionTiempo", () => {
       ? Number(nuevaAeronave.extensionDownwindExtraLocal)
       : 0
   },
+  arrivalProcedureName: nuevaAeronave.arrivalProcedureName,
+  rutaAirborne: Array.isArray(nuevaAeronave.rutaAirborne)
+    ? normalizarRutaLineal(nuevaAeronave.rutaAirborne)
+    : null,
+  rutaAirborneIndice: Number.isFinite(Number(nuevaAeronave.rutaAirborneIndice))
+    ? Math.max(0, Math.floor(Number(nuevaAeronave.rutaAirborneIndice)))
+    : 0,
+  rutaAirborneProgreso: Number.isFinite(Number(nuevaAeronave.rutaAirborneProgreso))
+    ? Math.max(0, Number(nuevaAeronave.rutaAirborneProgreso))
+    : 0,
+  rutaAirborneLoop: Boolean(nuevaAeronave.rutaAirborneLoop),
+  rutaAirborneLoopStartIndex: normalizarIndiceLoopRutaAirborneServidor(
+    nuevaAeronave.rutaAirborneLoopStartIndex
+  ),
   owner: nuevaAeronave.owner
   });
 });
@@ -3459,8 +4017,8 @@ socket.on("solicitarSincronizacionTiempo", () => {
     }
   })
 
-  // ===== RUTA AIRBORNE =====
-socket.on("setRutaAirborne", ({ id, ruta, estado } = {}) => {
+// ===== RUTA AIRBORNE =====
+socket.on("setRutaAirborne", ({ id, ruta, estado, loop, loopStartIndex, arrivalProcedureName } = {}) => {
   const salaNombre = socket.sala
   if (!salaNombre) return
 
@@ -3477,6 +4035,9 @@ socket.on("setRutaAirborne", ({ id, ruta, estado } = {}) => {
       ? estado.trim().toUpperCase()
       : ""
   const rutaNormalizada = normalizarRutaLineal(ruta)
+  const loopActivoSolicitado = Boolean(loop)
+  const arrivalProcedureNormalizado =
+    normalizarNombreProcedimientoLlegadaServidor(arrivalProcedureName)
 
   if (estadoNormalizado === "PILOTAGE" || estadoNormalizado === "AIRBORNE") {
     aeronave.estado = estadoNormalizado
@@ -3494,10 +4055,18 @@ socket.on("setRutaAirborne", ({ id, ruta, estado } = {}) => {
   }
 
   if (rutaNormalizada.length < 2) {
+    if(estadoNormalizado){
+      aeronave.estado = estadoNormalizado
+    }
     aeronave.rutaAirborne = null
     aeronave.rutaAirborneFinalizada = false
     aeronave.rutaAirborneIndice = 0
     aeronave.rutaAirborneProgreso = 0
+    aeronave.rutaAirborneLoop = false
+    aeronave.rutaAirborneLoopStartIndex = 0
+    aeronave.arrivalProcedureName = null
+    aeronave.arrivalAltitudeProfile = null
+    aeronave.arrivalHoldingMumopManualAltitudeFt = null
     iniciarMotorSala(salaNombre)
     io.to(salaNombre).emit(
       "actualizarAeronave",
@@ -3508,6 +4077,20 @@ socket.on("setRutaAirborne", ({ id, ruta, estado } = {}) => {
 
   aeronave.rutaAirborne = rutaNormalizada
   aeronave.rutaAirborneFinalizada = false
+  aeronave.rutaAirborneLoop = loopActivoSolicitado
+  aeronave.rutaAirborneLoopStartIndex =
+    loopActivoSolicitado
+      ? Math.max(
+          0,
+          Math.min(
+            rutaNormalizada.length - 2,
+            normalizarIndiceLoopRutaAirborneServidor(loopStartIndex)
+          )
+        )
+      : 0
+  aeronave.arrivalProcedureName = arrivalProcedureNormalizado
+  aeronave.arrivalAltitudeProfile = null
+  aeronave.arrivalHoldingMumopManualAltitudeFt = null
 
   const posicionActual = { lat: aeronave.lat, lng: aeronave.lng }
   const proyeccion = obtenerProyeccionRutaLinealMasCercana(posicionActual, rutaNormalizada)
@@ -3518,6 +4101,9 @@ socket.on("setRutaAirborne", ({ id, ruta, estado } = {}) => {
     aeronave.rutaAirborneIndice = 0
     aeronave.rutaAirborneProgreso = 0
   }
+
+  aeronave.arrivalAltitudeProfile = construirPerfilAltitudLlegadaServidor(aeronave)
+  aplicarPerfilAltitudLlegadaServidor(aeronave)
 
   iniciarMotorSala(salaNombre)
   io.to(salaNombre).emit(
@@ -4123,10 +4709,10 @@ socket.on("actualizarAeronave", (data) => {
   const aeronave = salas[sala].aeronaves.find(a => a.id === data.id);
   if (!aeronave) return;
 
-  // 🔒 Solo el dueño puede actualizar
+  // ?? Solo el dueño puede actualizar
   if (!socketPuedeControlarAeronave(sala, salas[sala], aeronave, socket.id)) return;
 
-  // 🛡 Validación básica de datos
+  // ?? Validación básica de datos
   if (typeof data.lat !== "number") return;
   if (typeof data.lng !== "number") return;
   if (typeof data.altitud !== "number") return;
@@ -4199,6 +4785,36 @@ socket.on("actualizarAeronave", (data) => {
     Number.isFinite(data.altitudObjetivo)
   ) {
     aeronave.altitudObjetivo = Math.max(0, data.altitudObjetivo);
+  }
+  if(Object.prototype.hasOwnProperty.call(data, "arrivalProcedureName")){
+    aeronave.arrivalProcedureName =
+      normalizarNombreProcedimientoLlegadaServidor(data.arrivalProcedureName)
+    aeronave.arrivalAltitudeProfile = construirPerfilAltitudLlegadaServidor(aeronave)
+  }
+  if(Object.prototype.hasOwnProperty.call(data, "rutaAirborneLoop")){
+    aeronave.rutaAirborneLoop = Boolean(data.rutaAirborneLoop)
+  }
+  if(Object.prototype.hasOwnProperty.call(data, "rutaAirborneLoopStartIndex")){
+    aeronave.rutaAirborneLoopStartIndex =
+      normalizarIndiceLoopRutaAirborneServidor(data.rutaAirborneLoopStartIndex)
+  }
+  const claveProcedimientoLlegada = obtenerClaveProcedimientoLlegadaServidor(
+    aeronave.arrivalProcedureName
+  )
+  if(
+    claveProcedimientoLlegada !== PROCEDIMIENTO_LLEGADA_GEBED3_HOLDING_MUMOP_CLAVE ||
+    !Boolean(aeronave.rutaAirborneLoop)
+  ){
+    aeronave.arrivalHoldingMumopManualAltitudeFt = null
+  } else if(
+    estadoRecibido === "AIRBORNE" &&
+    typeof data.altitudObjetivo === "number" &&
+    Number.isFinite(data.altitudObjetivo)
+  ){
+    aeronave.arrivalHoldingMumopManualAltitudeFt = Math.max(
+      ALTITUD_MINIMA_HOLDING_MUMOP_FT,
+      Number(data.altitudObjetivo)
+    )
   }
   if(syncTsRecibido !== null){
     aeronave.syncTs = syncTsRecibido
@@ -4386,7 +5002,7 @@ socket.on("forzarAterrizaje", ({ id }) => {
   if (!aeronave) return
   if (!socketPuedeControlarAeronave(salaNombre, sala, aeronave, socket.id)) return
 
-  // 🔥 CANCELAR TODO LO QUE CONTROLE MOVIMIENTO
+  // ?? CANCELAR TODO LO QUE CONTROLE MOVIMIENTO
 
   limpiarGoAroundAeronave(aeronave)
   limpiarOrbitacionAeronave(aeronave)
@@ -4395,13 +5011,22 @@ socket.on("forzarAterrizaje", ({ id }) => {
   aeronave.progreso = 0
   aeronave.indiceObjetivo = null
   aeronave.puntoIngreso = null
+  aeronave.rutaAirborne = null
+  aeronave.rutaAirborneFinalizada = false
+  aeronave.rutaAirborneIndice = 0
+  aeronave.rutaAirborneProgreso = 0
+  aeronave.rutaAirborneLoop = false
+  aeronave.rutaAirborneLoopStartIndex = 0
+  aeronave.arrivalProcedureName = null
+  aeronave.arrivalAltitudeProfile = null
+  aeronave.arrivalHoldingMumopManualAltitudeFt = null
 
-  // 🔥 CANCELAR MANUAL SI ESTABA ACTIVO
+  // ?? CANCELAR MANUAL SI ESTABA ACTIVO
   if (aeronave.estado === "MANUAL") {
     aeronave.velocidad = aeronave.velocidad || (90 * 0.514444)
   }
 
-  // 🔥 ESTADO DEFINITIVO DE ATERRIZAJE
+  // ?? ESTADO DEFINITIVO DE ATERRIZAJE
   aeronave.estado = "LANDING"
 
   aeronave.syncTs = Date.now()
@@ -4588,7 +5213,7 @@ socket.on("controlTiempo", ({ accion }) => {
   // Mantener reloj siempre en tiempo real (x1).
   reloj.velocidad = 1;
 
-  // 🔥 NUEVO
+  // ?? NUEVO
   io.to(sala).emit("estadoTiempo", {
     pausado: reloj.pausado,
     panelHora: reloj.panelHoraInicio || null
@@ -4654,7 +5279,7 @@ socket.on("disconnect", () => {
     salas[nombre].jugadores =
       salas[nombre].jugadores.filter(id => id !== socket.id);
 
-    // 🟡 Si quedó vacía, iniciar countdown
+    // ?? Si quedó vacía, iniciar countdown
     if (salas[nombre].jugadores.length === 0) {
 
       // Evitar múltiples timeouts
@@ -4702,3 +5327,4 @@ if (motoresSalas[nombre]) {
 server.listen(PORT, () => {
   console.log("Servidor corriendo en puerto", PORT);
 });
+

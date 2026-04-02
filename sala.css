@@ -136,6 +136,25 @@ html, body{
   color: #93c5fd;
   font-size: 12px;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: color 0.18s ease, transform 0.18s ease, opacity 0.18s ease;
+}
+
+#panelInfoAeronave button.header-aircraft-icon:hover{
+  color: #dbeafe;
+  transform: translateY(-1px);
+}
+
+#panelInfoAeronave button.header-aircraft-icon:disabled{
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
 }
 
 /* Cuando estÃ¡ colapsado */
@@ -566,6 +585,7 @@ html, body{
   display:flex;
   gap:8px;
   align-items:center;
+  row-gap: 8px;
 }
 
 #btnMenuPrincipal{
@@ -599,6 +619,7 @@ html, body{
 
 body[data-modo-operacion="piloto"] #btnSesionPiloto{
   display: flex;
+  bottom: 100px;
 }
 
 #btnSesionPiloto.activo{
@@ -609,8 +630,12 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
 #submenuAcciones{
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap-reverse;
   gap: 8px;
   align-items: center;
+  justify-content: flex-end;
+  align-content: flex-end;
+  max-width: min(calc(100vw - 72px), 440px);
   opacity: 0;
   transform: translateX(8px);
   pointer-events: none;
@@ -633,7 +658,12 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
   font-size:16px;
   cursor: pointer;
   box-shadow:0 6px 15px rgba(0,0,0,0.6);
-  transition:0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease,
+    opacity 0.2s ease;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -644,9 +674,62 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
   transform: translateY(-1px);
 }
 
+#btnBuscarLugar{
+  position: absolute;
+  right: 0;
+  bottom: 50px;
+}
+
+body[data-modo-operacion="piloto"] #btnBuscarLugar{
+  bottom: 50px;
+}
+
+#menuAcciones.midiendo-distancia #btnBuscarLugar{
+  bottom: 100px;
+}
+
+#btnBuscarLugar.activo{
+  background:#0f766e;
+  color:#ffffff;
+  box-shadow:0 0 12px rgba(45,212,191,0.35);
+}
+
 #btnMarcaCola.activo{
   background:#b91c1c;
   color:#ffffff;
+}
+
+#btnMedirDistancia.activo{
+  background:#0f766e;
+  color:#ffffff;
+  box-shadow:0 0 12px rgba(45,212,191,0.5);
+}
+
+#menuAcciones.midiendo-distancia #submenuAcciones{
+  opacity: 1;
+  transform: none;
+}
+
+#menuAcciones.midiendo-distancia #submenuAcciones:not(.activo) > :not(#btnMedirDistancia){
+  display: none;
+}
+
+#menuAcciones.midiendo-distancia #submenuAcciones:not(.activo){
+  width: 0;
+  max-width: none;
+  pointer-events: none;
+}
+
+#menuAcciones.midiendo-distancia #btnMedirDistancia{
+  position: absolute;
+  right: 0;
+  bottom: 50px;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPiloto{
+  bottom: 150px;
 }
 
 /* BotÃ³n eliminar */
@@ -689,6 +772,29 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
   padding:2px 6px;
 }
 
+.distance-measure-label-marker{
+  background: transparent;
+  border: none;
+}
+
+.distance-measure-label{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 86px;
+  transform: translate(-50%, -50%);
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(45, 212, 191, 0.9);
+  color: #f8fafc;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.28);
+}
+
 .visual-reference-tooltip{
   background: transparent;
   border: none;
@@ -720,6 +826,55 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
   font-weight: 800;
   line-height: 1.2;
   letter-spacing: 0.03em;
+}
+
+.visual-reference-tooltip-card-mumop{
+  min-width: 144px;
+}
+
+.visual-reference-tooltip-subtitle{
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+}
+
+.visual-reference-tooltip-accent{
+  margin-bottom: 3px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  color: #ef4444;
+}
+
+.visual-reference-tooltip-line{
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+}
+
+.visual-reference-tooltip-emphasis{
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  text-decoration: underline;
+}
+
+.visual-reference-tooltip-emphasis-overline{
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0.03em;
+  display: inline-block;
+  padding-top: 1px;
+  border-top: 1.5px solid currentColor;
 }
 
 .rnav-fix-icon{
@@ -1070,7 +1225,7 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
   --z-modal: 3000;
   --escala-ui-secundaria: 0.8;
   --escala-ui-secundaria-inversa: 1.25;
-  --panel-izq-width: 218px;
+  --panel-izq-width: 256px;
   --panel-izq-offset: 5px;
   --panel-izq-gap: 3px;
   --panel-controles-right-offset: 78px;
@@ -1305,6 +1460,202 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
+}
+
+.panel-busqueda-lugares{
+  position: fixed;
+  right: 20px;
+  bottom: 74px;
+  width: min(360px, calc(100vw - 16px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(17,24,39,0.96);
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 15px 40px rgba(0,0,0,0.65);
+  backdrop-filter: blur(10px);
+  z-index: 2999;
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+  transition: all 0.25s ease;
+}
+
+.panel-busqueda-lugares.visible{
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.panel-busqueda-lugares-header{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #f9fafb;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.panel-busqueda-lugares-cerrar{
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(148,163,184,0.35);
+  border-radius: 8px;
+  background: rgba(15,23,42,0.85);
+  color: #e5e7eb;
+  font-size: 18px;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.panel-busqueda-lugares-cerrar:hover{
+  background: rgba(30,41,59,0.95);
+  transform: translateY(-1px);
+}
+
+.panel-busqueda-lugares-form{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.panel-busqueda-lugares-input{
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(148,163,184,0.3);
+  background: rgba(15,23,42,0.88);
+  color: #e2e8f0;
+}
+
+.panel-busqueda-lugares-input span{
+  flex: 0 0 auto;
+  font-size: 15px;
+}
+
+.panel-busqueda-lugares-input input{
+  width: 100%;
+  min-width: 0;
+  height: 42px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #f8fafc;
+  font-size: 14px;
+}
+
+.panel-busqueda-lugares-input input::placeholder{
+  color: #94a3b8;
+}
+
+.panel-busqueda-lugares-submit{
+  min-width: 68px;
+  height: 42px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #0f766e, #14b8a6);
+  color: #f8fafc;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.panel-busqueda-lugares-submit:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(20,184,166,0.22);
+}
+
+.panel-busqueda-lugares-estado{
+  min-height: 18px;
+  color: #cbd5e1;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.panel-busqueda-lugares-estado[data-state="loading"]{
+  color: #93c5fd;
+}
+
+.panel-busqueda-lugares-estado[data-state="warning"]{
+  color: #fde68a;
+}
+
+.panel-busqueda-lugares-estado[data-state="error"]{
+  color: #fca5a5;
+}
+
+.panel-busqueda-lugares-estado[data-state="success"]{
+  color: #86efac;
+}
+
+.panel-busqueda-lugares-resultados{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.resultado-busqueda-lugar{
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid rgba(148,163,184,0.22);
+  border-radius: 10px;
+  background: rgba(15,23,42,0.88);
+  color: #f8fafc;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.resultado-busqueda-lugar:hover{
+  transform: translateY(-1px);
+  border-color: rgba(56,189,248,0.55);
+  background: rgba(15,23,42,0.98);
+}
+
+.resultado-busqueda-lugar-titulo{
+  font-size: 13px;
+  font-weight: 700;
+  color: #e0f2fe;
+}
+
+.resultado-busqueda-lugar-detalle{
+  font-size: 11px;
+  line-height: 1.35;
+  color: #cbd5e1;
+}
+
+@media (max-width: 640px){
+  .panel-busqueda-lugares{
+    right: 8px;
+    bottom: 72px;
+    width: min(360px, calc(100vw - 16px));
+  }
+
+  .panel-busqueda-lugares-form{
+    grid-template-columns: 1fr;
+  }
+
+  .panel-busqueda-lugares-submit{
+    width: 100%;
+  }
 }
 
 
@@ -1773,6 +2124,14 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
   text-align: center;
   font-size: 9px;
   padding: 7px 6px;
+}
+
+#panelControladorServicios [data-controlador-light]:disabled{
+  opacity: 0.42;
+  cursor: not-allowed;
+  pointer-events: none;
+  filter: saturate(0);
+  box-shadow: none;
 }
 
 #panelControladorServicios .panel-controlador-emergency-pyrotechnic-btn{
@@ -3299,6 +3658,22 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
   gap:8px;
 }
 
+#grupoTaxi,
+#grupoArrival,
+#grupoLanding,
+#grupoDeparture,
+#grupoCircuit{
+  margin-bottom:-8px;
+}
+
+#grupoArrival{
+  gap:0;
+}
+
+#grupoArrival > .arrival-row:not(.arrival-submenu){
+  margin-top:6px;
+}
+
 .titulo-grupo{
   font-size:9px;
   letter-spacing:1px;
@@ -3364,6 +3739,14 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
   box-shadow:0 0 12px rgba(16,185,129,0.5);
 }
 
+.landing-main.landing-main-ready:not(.activo):not(.touch):not(.goaround){
+  background:linear-gradient(145deg,#065f46,#059669);
+  border-color:#34d399;
+  color:#ecfdf5;
+  box-shadow:0 0 12px rgba(52,211,153,0.55);
+  animation: landReadyBlink 0.88s ease-in-out infinite;
+}
+
 /* TOUCH & GO - AZUL */
 
 .landing-main.touch.activo{
@@ -3391,6 +3774,17 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
   50%{
     opacity: 0.5;
     box-shadow:0 0 4px rgba(239,68,68,0.2);
+  }
+}
+
+@keyframes landReadyBlink{
+  0%, 100%{
+    opacity: 1;
+    box-shadow:0 0 12px rgba(52,211,153,0.55);
+  }
+  50%{
+    opacity: 0.48;
+    box-shadow:0 0 4px rgba(52,211,153,0.2);
   }
 }
 
@@ -3478,6 +3872,15 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
   gap:6px;
 }
 
+#grupoDeparture{
+  gap:0;
+}
+
+#grupoDeparture > .departure-immediate-btn,
+#grupoDeparture > .departure-row{
+  margin-top:6px;
+}
+
 .departure-row + .departure-row{
   margin-top:6px;
 }
@@ -3487,6 +3890,54 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
   padding:6px 5px;
   font-size:9px;
   text-align:center;
+}
+
+.arrival-row{
+  display:flex;
+  gap:6px;
+}
+
+.arrival-row .arrival-btn{
+  flex:1;
+  padding:6px 5px;
+  font-size:9px;
+  text-align:center;
+}
+
+.arrival-submenu{
+  max-height:0;
+  overflow:hidden;
+  opacity:0;
+  transform:translateY(-6px);
+  pointer-events:none;
+  transition:all 0.25s ease;
+}
+
+.arrival-submenu.activo{
+  max-height:64px;
+  opacity:1;
+  margin-top:6px;
+  transform:translateY(0);
+  pointer-events:auto;
+}
+
+.arrival-submenu .arrival-btn{
+  font-size:8px;
+}
+
+.arrival-leaf-row{
+  padding-left:16px;
+}
+
+.arrival-leaf-row .arrival-btn{
+  flex:0 0 calc(50% - 3px);
+}
+
+.arrival-btn.activo{
+  background:linear-gradient(145deg,#0f766e,#14b8a6);
+  border-color:#2dd4bf;
+  color:#ecfeff;
+  box-shadow:0 0 10px rgba(45,212,191,0.35);
 }
 
 .departure-mode-btn.activo{
@@ -3516,7 +3967,7 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
 .departure-sid-opciones{
   display:flex;
   gap:6px;
-  margin-top:6px;
+  margin-top:0;
   max-height:0;
   overflow:hidden;
   opacity:0;
@@ -3526,7 +3977,7 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
 .departure-vfr-opciones{
   display:flex;
   gap:6px;
-  margin-top:6px;
+  margin-top:0;
   max-height:0;
   overflow:hidden;
   opacity:0;
@@ -3535,11 +3986,13 @@ body[data-modo-operacion="piloto"] #btnSesionPiloto{
 
 .departure-sid-opciones.activo{
   max-height:64px;
+  margin-top:6px;
   opacity:1;
 }
 
 .departure-vfr-opciones.activo{
   max-height:64px;
+  margin-top:6px;
   opacity:1;
 }
 

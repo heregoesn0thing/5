@@ -6106,6 +6106,9 @@ const grupoVorT = L.layerGroup([
     color: "#000000",
     weight: 2.5,
     opacity: 0.92,
+    dashArray: "8 8",
+    lineCap: "round",
+    lineJoin: "round",
     interactive: false
   })
 ])
@@ -6140,6 +6143,9 @@ const grupoVorU = L.layerGroup([
     color: "#000000",
     weight: 2.5,
     opacity: 0.92,
+    dashArray: "8 8",
+    lineCap: "round",
+    lineJoin: "round",
     interactive: false
   })
 ])
@@ -6150,6 +6156,16 @@ const RUTA_GEBED3_ILS_V_CAPA = compactarRutaAirbornePuntos([
   ...RUTA_ILS_V
 ])
 const RUTA_GEBED3_VOR_V_CAPA = compactarRutaAirbornePuntos(RUTA_GEBED3_ILS_V_CAPA)
+const RUTA_ILS_V_CAPA_DESDE_MUMOP = extraerTramoRutaDesdeReferencia(
+  RUTA_GEBED3_ILS_V_CAPA,
+  MUMOP_COORDS,
+  160
+)
+const RUTA_VOR_V_CAPA_DESDE_MUMOP = extraerTramoRutaDesdeReferencia(
+  RUTA_GEBED3_VOR_V_CAPA,
+  MUMOP_COORDS,
+  160
+)
 const ESTILO_PLUMA_ILS_CAPA = {
   color: "#475569",
   weight: 2.1,
@@ -6169,10 +6185,13 @@ const CAPAS_SENAL_ILS_V = crearPlumaIlsMapa(
   }
 ).getLayers()
 const grupoVorV = L.layerGroup([
-  L.polyline(RUTA_GEBED3_VOR_V_CAPA, {
+  L.polyline(RUTA_VOR_V_CAPA_DESDE_MUMOP, {
     color: "#000000",
     weight: 2.5,
     opacity: 0.92,
+    dashArray: "8 8",
+    lineCap: "round",
+    lineJoin: "round",
     interactive: false
   })
 ])
@@ -6208,10 +6227,13 @@ marcadorTrianguloIlsVHover.on("mouseout", () => {
 })
 
 const grupoIlsV = L.layerGroup([
-  L.polyline(RUTA_GEBED3_ILS_V_CAPA, {
+  L.polyline(RUTA_ILS_V_CAPA_DESDE_MUMOP, {
     color: "#000000",
     weight: 2.5,
     opacity: 0.92,
+    dashArray: "8 8",
+    lineCap: "round",
+    lineJoin: "round",
     interactive: false
   }),
   ...CAPAS_SENAL_ILS_V,
@@ -6280,6 +6302,9 @@ const grupoIlsU = L.layerGroup([
     color: "#000000",
     weight: 2.5,
     opacity: 0.92,
+    dashArray: "8 8",
+    lineCap: "round",
+    lineJoin: "round",
     interactive: false
   }),
   ...CAPAS_SENAL_ILS_U,
@@ -6324,6 +6349,9 @@ const grupoIlsT = L.layerGroup([
     color: "#000000",
     weight: 2.5,
     opacity: 0.92,
+    dashArray: "8 8",
+    lineCap: "round",
+    lineJoin: "round",
     interactive: false
   }),
   ...CAPAS_SENAL_ILS_T,
@@ -6362,6 +6390,9 @@ const grupoStarRoute = L.layerGroup([
     color: "#000000",
     weight: 2.5,
     opacity: 0.92,
+    dashArray: "8 8",
+    lineCap: "round",
+    lineJoin: "round",
     interactive: false
   })
 ])
@@ -19475,6 +19506,9 @@ function estiloRutaHoldingScoCapas(){
     color: "#000000",
     weight: 3,
     opacity: 0.92,
+    dashArray: "8 8",
+    lineCap: "round",
+    lineJoin: "round",
     interactive: false
   }
 }
@@ -19622,13 +19656,31 @@ function estiloRutaProcedimientoSeleccionadaActiva(){
   }
 }
 
-function estiloRutaArrivalCapas(){
-  return {
+function esAproximacionIlsOVor(claveProcedimiento){
+  return (
+    claveProcedimiento === "GEBED3 / HOLDING MUMOP" ||
+    claveProcedimiento === "APROXIMACION VOR V" ||
+    claveProcedimiento === "APROXIMACION VOR T" ||
+    claveProcedimiento === "APROXIMACION VOR U" ||
+    claveProcedimiento === "APROXIMACION ILS V" ||
+    claveProcedimiento === "APROXIMACION ILS U" ||
+    claveProcedimiento === "APROXIMACION ILS T"
+  )
+}
+
+function estiloRutaArrivalCapas(claveProcedimiento = ""){
+  const estilo = {
     color: "#000000",
     weight: 2.5,
     opacity: 0.92,
     interactive: false
   }
+  if(esAproximacionIlsOVor(claveProcedimiento)){
+    estilo.dashArray = "8 8"
+    estilo.lineCap = "round"
+    estilo.lineJoin = "round"
+  }
+  return estilo
 }
 
 function esProcedimientoLlegadaSoportado(claveProcedimiento){
@@ -19661,7 +19713,7 @@ function obtenerEstilosRutaProcedimientoSeleccionada(aeronave){
       base:
         claveProcedimiento === PROCEDIMIENTO_LLEGADA_HOLDING_SCO_CLAVE
           ? { ...estiloRutaHoldingScoCapas() }
-          : { ...estiloRutaArrivalCapas() },
+          : { ...estiloRutaArrivalCapas(claveProcedimiento) },
       active: null
     }
   }

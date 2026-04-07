@@ -2,6 +2,8 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
 <title>RuedeAPisco</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <link rel="stylesheet" href="sala.css">
@@ -20776,6 +20778,13 @@ function limpiarResultadosBusquedaLugares(){
   resultadosBusquedaLugares.replaceChildren()
 }
 
+function limpiarMarcadorBusquedaLugar(){
+  if(!marcadorBusquedaLugar) return
+  marcadorBusquedaLugar.closePopup()
+  marcadorBusquedaLugar.remove()
+  marcadorBusquedaLugar = null
+}
+
 function cerrarPanelBusquedaLugares(){
   if(controladorBusquedaLugares){
     controladorBusquedaLugares.abort()
@@ -21152,7 +21161,12 @@ async function buscarLugaresEnMapa(termino){
   const consultaNormalizada = normalizarTextoBusquedaMapa(consulta)
 
   if(!consulta){
+    if(controladorBusquedaLugares){
+      controladorBusquedaLugares.abort()
+      controladorBusquedaLugares = null
+    }
     limpiarResultadosBusquedaLugares()
+    limpiarMarcadorBusquedaLugar()
     actualizarEstadoBusquedaLugares("Escribe un lugar o un codigo ICAO.", "warning")
     return
   }
@@ -21234,7 +21248,12 @@ if(formBusquedaLugares){
 if(inputBusquedaLugares){
   inputBusquedaLugares.addEventListener("input", () => {
     if(inputBusquedaLugares.value.trim()) return
+    if(controladorBusquedaLugares){
+      controladorBusquedaLugares.abort()
+      controladorBusquedaLugares = null
+    }
     limpiarResultadosBusquedaLugares()
+    limpiarMarcadorBusquedaLugar()
     actualizarEstadoBusquedaLugares(
       "Escribe un lugar o un codigo ICAO para buscar en el mapa.",
       "idle"
@@ -24644,6 +24663,56 @@ window.addEventListener("DOMContentLoaded", () => {
   sincronizarEstadoBotonesArrivalDesdeAeronave()
 })()
 
+let resizeObserverLayoutMobile = null
+let listenersLayoutMobileRegistrados = false
+
+function sincronizarLayoutMobile(){
+  if(!document.body) return
+
+  const esMobile = window.matchMedia("(max-width: 980px), (pointer: coarse)").matches
+  document.body.dataset.mobileUi = esMobile ? "true" : "false"
+
+  if(esMobile){
+    const panelInfo = document.getElementById("panelInfoAeronave")
+    if(panelInfo){
+      const rect = panelInfo.getBoundingClientRect()
+      const siguienteTop = Math.max(12, Math.round(rect.bottom + 8))
+      document.documentElement.style.setProperty("--mobile-panel-tiempo-top", `${siguienteTop}px`)
+    }
+  } else {
+    document.documentElement.style.removeProperty("--mobile-panel-tiempo-top")
+  }
+
+  if(map && typeof map.invalidateSize === "function"){
+    requestAnimationFrame(() => {
+      map.invalidateSize(false)
+    })
+  }
+}
+
+function inicializarLayoutMobile(){
+  const panelInfo = document.getElementById("panelInfoAeronave")
+  if(typeof ResizeObserver === "function" && panelInfo && !resizeObserverLayoutMobile){
+    resizeObserverLayoutMobile = new ResizeObserver(() => {
+      sincronizarLayoutMobile()
+    })
+    resizeObserverLayoutMobile.observe(panelInfo)
+  }
+
+  if(!listenersLayoutMobileRegistrados){
+    window.addEventListener("resize", sincronizarLayoutMobile)
+    window.addEventListener("orientationchange", sincronizarLayoutMobile)
+    if(window.visualViewport){
+      window.visualViewport.addEventListener("resize", sincronizarLayoutMobile)
+    }
+    listenersLayoutMobileRegistrados = true
+  }
+
+  requestAnimationFrame(() => {
+    sincronizarLayoutMobile()
+  })
+}
+
 inicializarCirculosSectorUno();
 sincronizarContenedorTimePendiente();
 sincronizarContenedorLetterPendiente();
@@ -24652,6 +24721,7 @@ inicializarPanelControladorDragDrop();
 aplicarVisibilidadPanelIzquierdoPorModo();
 cargarMetarDesdeApi();
 actualizarIconoPanelDerechoCentro();
+inicializarLayoutMobile();
 </script>
 </body>
 </html>

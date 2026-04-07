@@ -9,6 +9,26 @@ html, body{
   width:100%;
   overflow:hidden;
   background:#000;
+  overscroll-behavior:none;
+}
+
+body{
+  overscroll-behavior:none;
+}
+
+button,
+input,
+select,
+textarea{
+  font:inherit;
+}
+
+button,
+[type="button"],
+[type="submit"],
+select,
+input{
+  touch-action:manipulation;
 }
 
 #map {
@@ -1223,6 +1243,10 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   --z-ui: 1000;
   --z-panel: 2000;
   --z-modal: 3000;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
   --escala-ui-secundaria: 0.8;
   --escala-ui-secundaria-inversa: 1.25;
   --panel-izq-width: 256px;
@@ -5348,4 +5372,420 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   letter-spacing: 0.8px;
   writing-mode: vertical-rl;
   transform: rotate(180deg);
+}
+
+@media (max-width: 980px), (pointer: coarse) {
+  :root{
+    --escala-ui-secundaria: 1;
+    --escala-ui-secundaria-inversa: 1;
+    --panel-izq-width: min(86vw, 340px);
+    --boton-lateral-offset-y: -210px;
+  }
+
+  html,
+  body,
+  #map{
+    height: 100dvh;
+  }
+
+  .leaflet-top{
+    top: calc(var(--safe-top) + 6px);
+  }
+
+  .leaflet-right{
+    right: calc(var(--safe-right) + 8px);
+  }
+
+  .leaflet-left{
+    left: calc(var(--safe-left) + 8px);
+  }
+
+  .leaflet-bottom{
+    bottom: calc(var(--safe-bottom) + 8px);
+  }
+
+  .leaflet-control-zoom a{
+    width: 44px;
+    height: 44px;
+    line-height: 44px;
+    font-size: 20px;
+  }
+
+  .leaflet-control-attribution{
+    max-width: calc(100vw - 120px);
+    font-size: 9px;
+    opacity: 0.55;
+  }
+
+  #panelInfoAeronave{
+    top: calc(var(--safe-top) + 8px);
+    left: calc(var(--safe-left) + 8px);
+    right: calc(var(--safe-right) + 8px);
+    width: auto;
+    max-width: none;
+    max-height: min(42dvh, 340px);
+    padding: 12px;
+    border-radius: 14px;
+    overflow: hidden auto;
+  }
+
+  #panelInfoAeronave .panel-header{
+    min-height: 38px;
+    margin-bottom: 10px;
+  }
+
+  #panelInfoAeronave .panel-body{
+    max-height: none;
+  }
+
+  #panelInfoAeronave .header-controls{
+    gap: 10px;
+  }
+
+  #panelInfoAeronave .panel-info-toggle{
+    padding: 6px 8px;
+  }
+
+  #panelInfoAeronave ~ #panelTiempo{
+    top: var(--mobile-panel-tiempo-top, calc(var(--safe-top) + 88px));
+  }
+
+  #panelTiempo{
+    position: fixed;
+    left: calc(var(--safe-left) + 8px);
+    right: calc(var(--safe-right) + 8px);
+    width: auto;
+    z-index: 9998;
+  }
+
+  .tiempoHeader{
+    gap: 8px;
+    align-items: center;
+  }
+
+  #relojGlobal{
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: center;
+    font-size: clamp(20px, 6vw, 28px);
+    padding: 8px 10px;
+  }
+
+  .tiempoHeaderControles{
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .selectorModoOperacionPanel{
+    margin-top: 8px;
+    justify-content: stretch;
+  }
+
+  .selectorModoOperacionPanel .selectorModoOperacion{
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .btnModoOperacion{
+    min-height: 42px;
+  }
+
+  .btnReloj,
+  .selector-modo-toggle,
+  #btnMenuPrincipal,
+  .btn-accion,
+  .fab-delete{
+    width: 48px;
+    height: 48px;
+    font-size: 18px;
+    border-radius: 12px;
+  }
+
+  .panelConfigReloj{
+    width: min(280px, calc(100vw - 16px - var(--safe-left) - var(--safe-right)));
+  }
+
+  #menuAcciones{
+    right: calc(var(--safe-right) + 10px);
+    bottom: calc(var(--safe-bottom) + 10px);
+    gap: 10px;
+    align-items: flex-end;
+  }
+
+  .fab-row,
+  #submenuAcciones{
+    flex-direction: column-reverse;
+    flex-wrap: nowrap;
+    align-items: flex-end;
+    row-gap: 10px;
+  }
+
+  #submenuAcciones{
+    max-width: none;
+    max-height: min(58dvh, 420px);
+    overflow-y: auto;
+    overflow-x: visible;
+    padding-left: 4px;
+    transform: translateY(8px);
+  }
+
+  #submenuAcciones.activo{
+    transform: translateY(0);
+  }
+
+  #btnBuscarLugar{
+    bottom: 58px;
+  }
+
+  body[data-modo-operacion="piloto"] #btnSesionPiloto{
+    bottom: 116px;
+  }
+
+  #menuAcciones.midiendo-distancia #btnBuscarLugar,
+  #menuAcciones.midiendo-distancia #btnMedirDistancia{
+    bottom: 116px;
+  }
+
+  body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPiloto{
+    bottom: 174px;
+  }
+
+  .panel-capas,
+  .panel-busqueda-lugares,
+  .weather-panel,
+  #createAircraftPanel,
+  #departurePanel{
+    max-width: calc(100vw - 16px - var(--safe-left) - var(--safe-right));
+  }
+
+  .panel-capas{
+    right: calc(var(--safe-right) + 8px);
+    bottom: calc(var(--safe-bottom) + 70px);
+    min-width: 0;
+    width: min(280px, calc(100vw - 16px - var(--safe-left) - var(--safe-right)));
+  }
+
+  .panel-busqueda-lugares{
+    left: calc(var(--safe-left) + 8px);
+    right: calc(var(--safe-right) + 8px);
+    bottom: calc(var(--safe-bottom) + 70px);
+  }
+
+  .weather-panel{
+    top: auto;
+    left: calc(var(--safe-left) + 8px);
+    right: calc(var(--safe-right) + 8px);
+    bottom: calc(var(--safe-bottom) + 70px);
+    width: auto;
+    min-height: 0;
+    max-height: min(62dvh, 520px);
+    transform: none;
+    overflow: auto;
+  }
+
+  #departurePanel{
+    top: calc(var(--safe-top) + 8px);
+    right: calc(var(--safe-right) + 8px);
+    width: min(92vw, 360px);
+  }
+
+  #createAircraftPanel{
+    width: min(92vw, 360px);
+    max-height: min(80dvh, 640px);
+    overflow-y: auto;
+  }
+
+  #createAircraftPanel .panelHeader{
+    padding: 14px 16px;
+  }
+
+  #createAircraftPanel input,
+  #createAircraftPanel select,
+  #createAircraftPanel .btnPrimary{
+    min-height: 44px;
+    font-size: 15px;
+  }
+
+  #menuControles{
+    left: calc(var(--safe-left) + 8px);
+    bottom: calc(var(--safe-bottom) + 12px);
+  }
+
+  .contenido-lateral{
+    width: var(--panel-izq-width);
+    max-height: min(68dvh, 560px);
+    padding: 14px;
+    gap: 14px;
+    border-radius: 16px;
+  }
+
+  .boton-lateral{
+    width: 28px;
+    height: 76px;
+  }
+
+  #menuControles > .boton-lateral,
+  #menuControles.activo .boton-lateral{
+    right: calc(-1 * (28px + var(--panel-izq-gap)));
+  }
+
+  .btn-lateral,
+  .sid-option-btn,
+  .mini-btn{
+    min-height: 40px;
+    font-size: 11px;
+  }
+
+  .taxi-row,
+  .departure-row,
+  .arrival-row,
+  .landing-principales,
+  .landing-opciones,
+  .departure-sid-opciones,
+  .departure-vfr-opciones,
+  .circuit-row,
+  .circuit-orbit-opciones,
+  .circuit-join-opciones,
+  .manual-row{
+    flex-wrap: wrap;
+  }
+
+  .taxi-row .taxi-btn,
+  .taxi-row .rescate-btn,
+  .departure-row .departure-control-btn,
+  .arrival-row .arrival-btn,
+  .landing-principales .landing-main,
+  .landing-opciones .mini-btn,
+  .departure-sid-opciones .sid-option-btn,
+  .departure-vfr-opciones .sid-option-btn,
+  .circuit-row .circuit-btn,
+  .circuit-orbit-opciones .circuit-orbit-btn,
+  .manual-row .manual-btn{
+    flex: 1 1 calc(50% - 3px);
+  }
+
+  .circuit-join-opciones .circuit-join-btn{
+    flex: 1 1 calc(50% - 3px);
+  }
+
+  .landing-opciones.activo,
+  .arrival-submenu.activo,
+  .departure-sid-opciones.activo,
+  .departure-vfr-opciones.activo{
+    max-height: 180px;
+  }
+
+  .circuit-orbit-opciones.activo{
+    display: flex;
+  }
+
+  #panelManual{
+    left: calc(var(--safe-left) + 8px);
+    right: calc(var(--safe-right) + 8px);
+    width: auto;
+    bottom: var(--safe-bottom);
+    transform: translateY(32px);
+  }
+
+  #panelManual.activo{
+    transform: translateY(0);
+  }
+
+  #panelManual .panel-header{
+    min-height: 40px;
+    padding: 8px 12px;
+    font-size: 11px;
+  }
+
+  #panelManual .manual-header-btn{
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+
+  #panelManual .panel-body{
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  #panelManual .control-group{
+    padding: 10px;
+  }
+
+  #panelManual .control-group .value{
+    font-size: 20px;
+  }
+
+  #panelManual .manual-value-input{
+    width: 96px;
+    height: 36px;
+    font-size: 18px;
+  }
+
+  #panelManual .buttons button{
+    min-height: 36px;
+    font-size: 12px;
+  }
+
+  #panelControladorIzquierdo,
+  #panelControladorServicios{
+    left: calc(var(--safe-left) + 8px);
+    top: auto;
+    transform: none;
+    align-items: flex-end;
+  }
+
+  #panelControladorIzquierdo{
+    bottom: calc(var(--safe-bottom) + 10px);
+  }
+
+  #panelControladorServicios{
+    bottom: calc(var(--safe-bottom) + 104px);
+  }
+
+  #panelControladorIzquierdo .panel-controlador-contenido{
+    width: min(86vw, 340px);
+    grid-template-columns: 1fr;
+  }
+
+  #panelControladorServicios .panel-controlador-servicios-contenido{
+    width: min(78vw, 300px);
+    max-height: min(50dvh, 420px);
+  }
+
+  #controladorVistaRect{
+    left: calc(var(--safe-left) + 8px);
+    right: calc(var(--safe-right) + 8px);
+    bottom: calc(var(--safe-bottom) + 8px);
+    width: auto;
+    overflow-x: auto;
+    overflow-y: visible;
+  }
+
+  #controladorVistaRect .controlador-vista-contenido{
+    min-width: 760px;
+  }
+
+  #panelDerechoCentro{
+    top: auto;
+    right: calc(var(--safe-right) + 8px);
+    bottom: calc(var(--safe-bottom) + 74px);
+    transform: none;
+    align-items: flex-end;
+    --panel-derecho-width: min(88vw, 340px);
+  }
+
+  #panelDerechoCentro .panel-derecho-contenido{
+    max-height: min(68dvh, 560px);
+    overflow-y: auto;
+  }
+
+  #panelDerechoCentro .panel-derecho-toggle{
+    top: auto;
+    right: var(--panel-derecho-offset);
+    bottom: 0;
+    transform: none;
+  }
 }

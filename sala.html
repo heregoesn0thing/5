@@ -10699,6 +10699,13 @@ const btnManualPanel = document.getElementById("btnManual")
 const btnAutoPanel = document.getElementById("btnAuto")
 const btnStopAccionPanel = document.getElementById("btnStopAccion")
 
+function puedeDetenerAccionAeronave(aeronave){
+  if(!aeronave) return false
+
+  const estado = String(aeronave.estado || "").trim().toUpperCase()
+  return estado === "TOUCH AND GO" || esEstadoMovimientoServidor(estado)
+}
+
 function activarModoAutoDesdeControles(){
   const aeronaveObjetivo = obtenerAeronaveObjetivoControles()
   if(!aeronaveObjetivo){
@@ -10753,6 +10760,10 @@ if(btnStopAccionPanel){
     const aeronaveObjetivo = obtenerAeronaveObjetivoControles()
     if(!aeronaveObjetivo){
       alert("Select an aircraft first")
+      return
+    }
+    if(!puedeDetenerAccionAeronave(aeronaveObjetivo)){
+      actualizarBotonManual()
       return
     }
 
@@ -17316,6 +17327,7 @@ function actualizarBotonManual() {
   const btnManual = document.getElementById("btnManual")
   const btnAuto = document.getElementById("btnAuto")
   const btnStopAccion = document.getElementById("btnStopAccion")
+  const aeronaveObjetivo = obtenerAeronaveVinculadaPanel() || aeronaveSeleccionada
   if (!btnManual && !btnAuto && !btnStopAccion) return
   const estiloAutoActivo = () => {
     if (!btnAuto) return
@@ -17333,35 +17345,35 @@ function actualizarBotonManual() {
   }
   const estiloManualRojo = () => {
     if (!btnManual) return
-    btnManual.style.background = "linear-gradient(145deg,#7f1d1d,#b91c1c)"
-    btnManual.style.borderColor = "#ef4444"
-    btnManual.style.color = "#fef2f2"
-    btnManual.style.boxShadow = "0 0 12px rgba(239,68,68,0.5)"
+    btnManual.style.background = "linear-gradient(145deg,#1c2233,#232a3d)"
+    btnManual.style.borderColor = "#2c344a"
+    btnManual.style.color = "#cbd5e1"
+    btnManual.style.boxShadow = "none"
   }
   const estiloManualInactivo = () => {
     if (!btnManual) return
-    btnManual.style.background = "#333"
+    btnManual.style.background = "linear-gradient(145deg,#1c2233,#232a3d)"
     btnManual.style.borderColor = "#2c344a"
     btnManual.style.color = "#cbd5e1"
     btnManual.style.boxShadow = "none"
   }
   const estiloStopActivo = () => {
     if (!btnStopAccion) return
-    btnStopAccion.style.background = "#333"
-    btnStopAccion.style.borderColor = "#2c344a"
-    btnStopAccion.style.color = "#cbd5e1"
-    btnStopAccion.style.boxShadow = "none"
+    btnStopAccion.style.background = "linear-gradient(145deg,#7f1d1d,#b91c1c)"
+    btnStopAccion.style.borderColor = "#ef4444"
+    btnStopAccion.style.color = "#fef2f2"
+    btnStopAccion.style.boxShadow = "0 0 12px rgba(239,68,68,0.45)"
   }
   const estiloStopInactivo = () => {
     if (!btnStopAccion) return
-    btnStopAccion.style.background = "#333"
+    btnStopAccion.style.background = "linear-gradient(145deg,#1c2233,#232a3d)"
     btnStopAccion.style.borderColor = "#2c344a"
     btnStopAccion.style.color = "#cbd5e1"
     btnStopAccion.style.boxShadow = "none"
   }
 
   // No hay aeronave seleccionada
-  if (!aeronaveSeleccionada) {
+  if (!aeronaveObjetivo) {
     if (btnManual) {
       btnManual.disabled = true
       btnManual.textContent = "MANUAL"
@@ -17380,6 +17392,7 @@ function actualizarBotonManual() {
       estiloStopInactivo()
       btnStopAccion.style.cursor = "not-allowed"
       btnStopAccion.style.opacity = "0.45"
+      btnStopAccion.title = ""
     }
     return
   }
@@ -17397,15 +17410,22 @@ function actualizarBotonManual() {
     btnAuto.title = ""
   }
   if (btnStopAccion) {
-    btnStopAccion.disabled = false
+    const stopDisponible = puedeDetenerAccionAeronave(aeronaveObjetivo)
+    btnStopAccion.disabled = !stopDisponible
     btnStopAccion.textContent = "STOP"
-    btnStopAccion.style.cursor = "pointer"
-    btnStopAccion.style.opacity = ""
-    btnStopAccion.title = ""
-    estiloStopActivo()
+    btnStopAccion.style.cursor = stopDisponible ? "pointer" : "not-allowed"
+    btnStopAccion.style.opacity = stopDisponible ? "" : "0.45"
+    btnStopAccion.title = stopDisponible
+      ? ""
+      : "Disponible solo cuando la aeronave esta ejecutando una accion"
+    if(stopDisponible){
+      estiloStopActivo()
+    } else {
+      estiloStopInactivo()
+    }
   }
 
-  if (aeronaveSeleccionada.estado === "MANUAL") {
+  if (aeronaveObjetivo.estado === "MANUAL") {
 
     if (btnManual) {
       btnManual.textContent = "MANUAL"
@@ -17420,7 +17440,7 @@ function actualizarBotonManual() {
 
     if (btnManual) {
       btnManual.textContent = "MANUAL"
-      estiloManualInactivo()
+      estiloManualRojo()
     }
     if (btnAuto) {
       btnAuto.textContent = "AUTO"
@@ -23261,6 +23281,62 @@ function obtenerAeronaveObjetivoManualPanel(){
   return obtenerAeronaveObjetivoControles() || aeronaveSeleccionada
 }
 
+function esElementoEditableActivo(elemento){
+  if(!elemento) return false
+
+  if(elemento.isContentEditable) return true
+
+  const tagName = String(elemento.tagName || "").toUpperCase()
+  return (
+    tagName === "INPUT" ||
+    tagName === "TEXTAREA" ||
+    tagName === "SELECT"
+  )
+}
+
+function manejarAtajosTecladoPanelManual(e){
+  if(e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
+  if(esElementoEditableActivo(e.target)) return
+
+  const panelManual = document.getElementById("panelManual")
+  if(!panelManual || !panelManual.classList.contains("activo")) return
+
+  const aeronave = obtenerAeronaveObjetivoManualPanel()
+  if(!aeronave || aeronave.estado !== "MANUAL") return
+
+  switch(e.key){
+    case "ArrowLeft":
+      e.preventDefault()
+      ajustar("heading", -5)
+      return
+    case "ArrowRight":
+      e.preventDefault()
+      ajustar("heading", 5)
+      return
+    case "ArrowUp":
+      e.preventDefault()
+      ajustar("altitude", 100)
+      return
+    case "ArrowDown":
+      e.preventDefault()
+      ajustar("altitude", -100)
+      return
+    default:
+      break
+  }
+
+  const tecla = String(e.key || "").toLowerCase()
+  if(tecla === "w"){
+    e.preventDefault()
+    ajustar("speed", 5)
+    return
+  }
+  if(tecla === "s"){
+    e.preventDefault()
+    ajustar("speed", -5)
+  }
+}
+
 function normalizarValorInputManual(tipo, valorTexto){
   const valorNum = Number.parseFloat(valorTexto)
   if(!Number.isFinite(valorNum)){
@@ -23361,6 +23437,7 @@ function inicializarEdicionValoresManual(){
 }
 
 window.addEventListener("DOMContentLoaded", inicializarEdicionValoresManual)
+document.addEventListener("keydown", manejarAtajosTecladoPanelManual)
 window.addEventListener("DOMContentLoaded", inicializarAlineacionBotonLateralCentro)
 window.addEventListener("DOMContentLoaded", inicializarTogglePanelInfoView)
 

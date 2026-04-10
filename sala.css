@@ -4646,6 +4646,18 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   text-align:center;
 }
 
+#btnStopAccion{
+  background:linear-gradient(145deg,#7f1d1d,#b91c1c);
+  border-color:#ef4444;
+  color:#fef2f2;
+  box-shadow:0 0 10px rgba(239,68,68,0.35);
+}
+
+#btnStopAccion:hover{
+  border-color:#f87171;
+  color:#ffffff;
+}
+
 .circuit-btn.activo{
   background:linear-gradient(145deg,#7f1d1d,#b91c1c);
   border-color:#ef4444;

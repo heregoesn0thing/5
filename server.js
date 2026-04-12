@@ -63,7 +63,7 @@ app.get("/api/metar-decoded", async (req, res) => {
     res.status(502).type("text/plain").send("METAR upstream unavailable")
   }
 })
-// ================== ESTRUCTURAS ==================
+
 
 let salas = {};
 let relojesSalas = {};
@@ -175,8 +175,6 @@ const CIRCUITO_LONGITUD_FINAL_BASE_M = 1.5 * 1852
 const CIRCUITO_LONGITUD_FINAL_SHORT_M = 1.0 * 1852
 const CIRCUITO_LONGITUD_UPWIND_BASE_M = 2.2 * 1852
 const PILOTAGE_DEFAULT_SPEED_INITIAL_KT = 90
-const PILOTAGE_DEFAULT_SPEED_TARGET_KT = 180
-const PILOTAGE_DEFAULT_SPEED_ACCEL_KT_PER_SEC = 12
 const PILOTAGE_REALISTIC_BANK_DEG = 22
 const PILOTAGE_REALISTIC_TURN_RATE_MIN_DEG_PER_SEC = 2
 const PILOTAGE_REALISTIC_TURN_RATE_MAX_DEG_PER_SEC = 5.8
@@ -255,14 +253,24 @@ const CLIMB_RATE = {
   A319: 2500,
   A19: 2500,
   AN32: 1500,
-  C172: 400
+  C172: 400,
+  PA23: 1400,
+  PA28: 700,
+  PA31: 1450,
+  PA34: 1550,
+  PA44: 1340
 }
 const DESCENT_RATE = {
   A320: 1500,
   A319: 1500,
   A19: 1500,
   AN32: 1000,
-  C172: 500
+  C172: 500,
+  PA23: 1000,
+  PA28: 600,
+  PA31: 1100,
+  PA34: 1100,
+  PA44: 900
 }
 const PROCEDIMIENTO_LLEGADA_HOLDING_SCO_CLAVE = "HOLDING SCO ANTIHORARIO"
 const PROCEDIMIENTO_LLEGADA_GEBED3_HOLDING_MUMOP_CLAVE = "GEBED3 / HOLDING MUMOP"
@@ -1032,10 +1040,10 @@ function avanzarMovimientoHacia(aeronave, movimiento, intervaloMS){
   const aplicarAceleracionProgresiva = Boolean(opciones.aplicarAceleracionProgresiva)
   const velocidadObjetivoFinalKt = Number.isFinite(Number(opciones.velocidadObjetivoFinalKt))
     ? Math.max(0, Number(opciones.velocidadObjetivoFinalKt))
-    : PILOTAGE_DEFAULT_SPEED_TARGET_KT
+    : Math.max(0, Number(aeronave.velocidadObjetivo) || PILOTAGE_DEFAULT_SPEED_INITIAL_KT)
   const aceleracionKnotsPorSegundo = Number.isFinite(Number(opciones.aceleracionKnotsPorSegundo))
     ? Math.max(0, Number(opciones.aceleracionKnotsPorSegundo))
-    : PILOTAGE_DEFAULT_SPEED_ACCEL_KT_PER_SEC
+    : 0
   const rumboFijo = Number(opciones.rumboFijo)
   const usarRumboFijo = Number.isFinite(rumboFijo)
   const umbralCongelarRumboM = Number.isFinite(Number(opciones.umbralCongelarRumboM))
@@ -1253,6 +1261,59 @@ function normalizarSentidoOrbitTexto(valor) {
   return "RIGHT"
 }
 
+function normalizarTipoMarcaPilotageServidor(valor) {
+  const texto = typeof valor === "string" ? valor.trim().toLowerCase() : ""
+  if (texto === "orbit" || texto === "pilotage") {
+    return texto
+  }
+  return null
+}
+
+function normalizarObjetivoPilotageServidor(lat, lng) {
+  const latNum = Number(lat)
+  const lngNum = Number(lng)
+  if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
+    return null
+  }
+  return { lat: latNum, lng: lngNum }
+}
+
+function actualizarObjetivoPilotageServidor(aeronave, data = {}) {
+  if (!aeronave || !data || typeof data !== "object") return
+
+  const tieneLat = Object.prototype.hasOwnProperty.call(data, "pilotageObjetivoLat")
+  const tieneLng = Object.prototype.hasOwnProperty.call(data, "pilotageObjetivoLng")
+  const tieneTipo = Object.prototype.hasOwnProperty.call(data, "pilotageMarkerTipo")
+
+  if (!tieneLat && !tieneLng && !tieneTipo) {
+    return
+  }
+
+  if (tieneTipo) {
+    aeronave.pilotageMarkerTipo =
+      normalizarTipoMarcaPilotageServidor(data.pilotageMarkerTipo)
+  }
+
+  if (tieneLat || tieneLng) {
+    const objetivo = normalizarObjetivoPilotageServidor(
+      data.pilotageObjetivoLat,
+      data.pilotageObjetivoLng
+    )
+    aeronave.pilotageObjetivoLat = objetivo ? objetivo.lat : null
+    aeronave.pilotageObjetivoLng = objetivo ? objetivo.lng : null
+  }
+
+  if (
+    aeronave.pilotageMarkerTipo !== "orbit" ||
+    !Number.isFinite(Number(aeronave.pilotageObjetivoLat)) ||
+    !Number.isFinite(Number(aeronave.pilotageObjetivoLng))
+  ) {
+    aeronave.pilotageMarkerTipo = null
+    aeronave.pilotageObjetivoLat = null
+    aeronave.pilotageObjetivoLng = null
+  }
+}
+
 function normalizarSentidoCircuitoTexto(valor) {
   if (typeof valor === "number" && Number.isFinite(valor)) {
     return valor < 0 ? "LEFT" : "RIGHT"
@@ -1321,7 +1382,7 @@ const INTERCEPT_DIRECT_TO_LEG_HEADING_SMOOTH_FACTOR = 0.42
 const INTERCEPT_DIRECT_TO_LEG_MAX_TURN_FAR_DEG = 2.2
 const INTERCEPT_DIRECT_TO_LEG_MAX_TURN_NEAR_DEG = 3.6
 const INTERCEPT_DIRECT_TO_LEG_CAPTURE_DISTANCE_M = 60
-// ================== UTILIDADES ==================
+
 
 function convertirHoraASegundos(horaStr) {
   const [h, m, s] = horaStr.split(":").map(Number);
@@ -1446,6 +1507,9 @@ function crearRegistroAeronave(dataInicial = {}, opciones = {}) {
     arrivalProcedureName: null,
     arrivalAltitudeProfile: null,
     arrivalHoldingMumopManualAltitudeFt: null,
+    pilotageObjetivoLat: null,
+    pilotageObjetivoLng: null,
+    pilotageMarkerTipo: null,
     syncTs: null,
     estado: "IDLE"
   }
@@ -1464,6 +1528,13 @@ function construirPayloadActualizacionAeronave(aeronave, extras = {}) {
     velocidad: aeronave.velocidad,
     velocidadObjetivo: aeronave.velocidadObjetivo,
     estado: aeronave.estado,
+    pilotageObjetivoLat: Number.isFinite(Number(aeronave.pilotageObjetivoLat))
+      ? Number(aeronave.pilotageObjetivoLat)
+      : null,
+    pilotageObjetivoLng: Number.isFinite(Number(aeronave.pilotageObjetivoLng))
+      ? Number(aeronave.pilotageObjetivoLng)
+      : null,
+    pilotageMarkerTipo: normalizarTipoMarcaPilotageServidor(aeronave.pilotageMarkerTipo),
     orbitSentido: normalizarSentidoOrbitTexto(aeronave.orbitSentido),
     shortCircuitoActivo: Boolean(aeronave.shortCircuitoActivo),
     circuitoSentido: normalizarSentidoCircuitoTexto(aeronave.circuitoSentido),
@@ -1605,6 +1676,46 @@ function limpiarOrbitacionAeronave(aeronave) {
   aeronave.orbitBearing = null
   aeronave.orbitAcumulado = 0
   aeronave.orbitFueraCircuitoActivo = false
+}
+
+function activarOrbitacionFueraCircuitoServidor(sala, aeronave, sentido) {
+  if (!sala || !aeronave) return false
+
+  if (!aeronave.ruta || aeronave.ruta.length < 2) {
+    aeronave.ruta = generarRutaServidorParaAeronave(sala, aeronave)
+  }
+  if (!aeronave.ruta || aeronave.ruta.length < 2) {
+    return false
+  }
+
+  limpiarOrbitacionAeronave(aeronave)
+
+  const proyeccionInicial = obtenerProyeccionRutaMasCercana(
+    { lat: aeronave.lat, lng: aeronave.lng },
+    aeronave.ruta
+  )
+  if (proyeccionInicial) {
+    aeronave.indice = proyeccionInicial.indiceA
+    aeronave.progreso = proyeccionInicial.progreso
+  }
+
+  aeronave.orbitSentido = normalizarSentidoOrbitTexto(sentido)
+  aeronave.orbitPendiente = false
+  aeronave.orbitEnCurso = true
+  aeronave.orbitModoContinuo = true
+  aeronave.orbitDetenerSolicitado = false
+  aeronave.orbitAcumulado = 0
+  aeronave.orbitFueraCircuitoActivo = true
+  aeronave.estado = "ORBT"
+
+  if (!Number.isFinite(aeronave.angulo)) {
+    aeronave.angulo = RUMBOS_CIRCUITO.downwind
+  }
+  if (!Number.isFinite(aeronave.velocidad) || aeronave.velocidad <= 0) {
+    aeronave.velocidad = 90 * 0.514444
+  }
+
+  return true
 }
 
 function esEstadoCircuitoConAltitudAutomatica(estado) {
@@ -1796,11 +1907,11 @@ function actualizarDescensoClearedToLandBase(aeronave, tipoSegmentoActual, inter
   }
 }
 
-// ================== RELOJ POR SALA ==================
+
 
 function iniciarRelojSala(nombre) {
 
-  // Evitar duplicados
+  
   if (intervalosSalas[nombre]) return;
 
   intervalosSalas[nombre] = setInterval(() => {
@@ -1882,7 +1993,7 @@ function iniciarMotorSala(nombreSala){
 	if (a.estado !== "CLEARED TO LAND") {
 	  limpiarDescensoClearedToLandBase(a)
 	}
-		// ?? PRIORIDAD ABSOLUTA LANDING
+		
 			if (a.estado === "LANDING" && a.owner && !MOVIMIENTO_AUTORITATIVO_SERVIDOR) {
 			  return
 		}
@@ -1892,22 +2003,31 @@ function iniciarMotorSala(nombreSala){
       actualizarAltitudCircuitoProgresiva(a, intervaloMS)
       if (a.movimiento) {
         const resultado = avanzarMovimientoHacia(a, a.movimiento, intervaloMS)
-        io.to(nombreSala).emit("actualizarAeronave", {
-          id: a.id,
-          lat: a.lat,
-          lng: a.lng,
-          altitud: a.altitud,
-          angulo: a.angulo,
-          velocidad: a.velocidad,
-          velocidadObjetivo: a.velocidadObjetivo,
-          estado: a.estado,
-          orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido),
-          shortCircuitoActivo: Boolean(a.shortCircuitoActivo),
-          circuitoSentido: normalizarSentidoCircuitoTexto(a.circuitoSentido)
-        })
+        emitirActualizacionAeronave(nombreSala, a)
         if (resultado && resultado.completado) {
+          const destinoMovimiento = normalizarPuntoRuta(a.movimiento && a.movimiento.destino)
+          const objetivoOrbitPendiente = normalizarObjetivoPilotageServidor(
+            a.pilotageObjetivoLat,
+            a.pilotageObjetivoLng
+          )
+          const debeAutoOrbitarTrasLiberacion = Boolean(
+            !a.owner &&
+            a.estado === "PILOTAGE" &&
+            a.pilotageMarkerTipo === "orbit" &&
+            destinoMovimiento &&
+            objetivoOrbitPendiente &&
+            Number.isFinite(distanciaEntre(destinoMovimiento, objetivoOrbitPendiente)) &&
+            distanciaEntre(destinoMovimiento, objetivoOrbitPendiente) <= 20
+          )
           const token = a.movimiento && a.movimiento.token
           a.movimiento = null
+          if (debeAutoOrbitarTrasLiberacion) {
+            const sentidoPendiente = normalizarSentidoOrbitTexto(a.orbitSentido)
+            if (activarOrbitacionFueraCircuitoServidor(sala, a, sentidoPendiente)) {
+              emitirActualizacionAeronave(nombreSala, a)
+              return
+            }
+          }
           if (token) {
             io.to(nombreSala).emit("movimientoCompletado", {
               id: a.id,
@@ -1917,9 +2037,9 @@ function iniciarMotorSala(nombreSala){
         }
         return
       }
-      // =====================================
-      // MODO MANUAL  PRIORIDAD ABSOLUTA
-      // =====================================
+      
+      
+      
       if (
         a.estado === "MANUAL" ||
         a.estado === "AUTO" ||
@@ -1944,18 +2064,7 @@ function iniciarMotorSala(nombreSala){
   a.lat = nuevoPunto.lat
   a.lng = nuevoPunto.lng
 
-  io.to(nombreSala).emit("actualizarAeronave", {
-    id: a.id,
-    lat: a.lat,
-    lng: a.lng,
-    altitud: a.altitud,
-    angulo: a.angulo,
-    velocidad: a.velocidad,
-    velocidadObjetivo: a.velocidadObjetivo,
-    estado: a.estado,
-    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido),
-    circuitoSentido: normalizarSentidoCircuitoTexto(a.circuitoSentido)
-  })
+  emitirActualizacionAeronave(nombreSala, a)
 
   return
 }
@@ -1967,18 +2076,7 @@ function iniciarMotorSala(nombreSala){
 		        a.rutaAirborne.length >= 2
 		      ) {
 		        if (avanzarRutaAirborneLineal(a, intervaloMS)) {
-	          io.to(nombreSala).emit("actualizarAeronave", {
-	            id: a.id,
-	            lat: a.lat,
-	            lng: a.lng,
-	            altitud: a.altitud,
-	            angulo: a.angulo,
-	            velocidad: a.velocidad,
-	            velocidadObjetivo: a.velocidadObjetivo,
-	            estado: a.estado,
-	            orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido),
-	            circuitoSentido: normalizarSentidoCircuitoTexto(a.circuitoSentido)
-	          })
+	          emitirActualizacionAeronave(nombreSala, a)
 	          return
 		        }
 		      }
@@ -1996,18 +2094,7 @@ function iniciarMotorSala(nombreSala){
 	          a.lng = nuevoPunto.lng
 	        }
 
-	        io.to(nombreSala).emit("actualizarAeronave", {
-	          id: a.id,
-	          lat: a.lat,
-	          lng: a.lng,
-	          altitud: a.altitud,
-	          angulo: a.angulo,
-	          velocidad: a.velocidad,
-	          velocidadObjetivo: a.velocidadObjetivo,
-	          estado: a.estado,
-	          orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido),
-	          circuitoSentido: normalizarSentidoCircuitoTexto(a.circuitoSentido)
-	        })
+	        emitirActualizacionAeronave(nombreSala, a)
 	        return
 	      }
 
@@ -2015,9 +2102,9 @@ function iniciarMotorSala(nombreSala){
 
       const velocidadMPS = obtenerVelocidadMPSParaRuta(a)
       const distanciaTick = velocidadMPS * (intervaloMS/1000)
-// =====================================
-// ?? FASE ARCO 30? ANTES DE INTERCEPTAR
-// =====================================
+
+
+
 
 if (a.estado === "INTERCEPTING ARC") {
 
@@ -2077,7 +2164,7 @@ if (a.estado === "INTERCEPTING ARC") {
     return
   }
 
-  // Empieza a alinearse con el tramo antes de llegar al ultimo waypoint.
+  
   let rumboObjetivo = calcularRumboServidor(posicionActual, destino)
   if (
     ultimoWaypointIngreso &&
@@ -2119,7 +2206,7 @@ if (a.estado === "INTERCEPTING ARC") {
   a.lat = nuevoPunto.lat;
   a.lng = nuevoPunto.lng;
 
-  // ?? Cuando esté cerca ? pasar a interceptación fina
+  
   if (distancia < INTERCEPT_ARC_CAPTURE_DISTANCE_M) {
     if (Array.isArray(a.ingresoDownwindWaypoints) && a.ingresoDownwindWaypoints.length > 0) {
       a.ingresoDownwindWaypoints.shift()
@@ -2139,24 +2226,13 @@ if (a.estado === "INTERCEPTING ARC") {
     }
   }
 
-  io.to(nombreSala).emit("actualizarAeronave", {
-    id: a.id,
-    lat: a.lat,
-    lng: a.lng,
-    altitud: a.altitud,
-    angulo: a.angulo,
-    velocidad: a.velocidad,
-    velocidadObjetivo: a.velocidadObjetivo,
-    estado: a.estado,
-    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido),
-    circuitoSentido: normalizarSentidoCircuitoTexto(a.circuitoSentido)
-  });
+  emitirActualizacionAeronave(nombreSala, a);
 
   return;
 }
-      // =====================================
-      // FASE 1  INTERCEPTANDO EL CIRCUITO
-      // =====================================
+      
+      
+      
 if (a.estado === "INTERCEPTING LEG") {
 
   if (!Number.isFinite(a.tramoObjetivo)) {
@@ -2187,7 +2263,7 @@ if (a.estado === "INTERCEPTING LEG") {
         }
       : null
 
-  // Proyeccion sobre el tramo para fijar un punto de captura estable.
+  
   const proyeccion = proyectarSobreSegmentoConFactor(
     posicionActual,
     A,
@@ -2263,7 +2339,7 @@ if (a.estado === "INTERCEPTING LEG") {
   const errorRumbo = Math.abs(diferenciaAngular(a.angulo, rumboTramo));
   a.interceptTicks = (a.interceptTicks || 0) + 1;
 
-  // Captura un poco antes cuando ya viene bien alineado, evitando contragiros finales.
+  
   const capturaPrecisa = distanciaFinalAlTramo < 18 && errorRumbo < 8;
   const capturaCercana =
     distanciaFinalAlTramo < INTERCEPT_LEG_SOFT_CAPTURE_DISTANCE_M &&
@@ -2308,7 +2384,7 @@ if (a.estado === "INTERCEPTING LEG") {
     }
   }
 
-  // Evita "retrocesos" visuales al capturar: nunca reducir t sobre el mismo tramo.
+  
   if (!capturaTimeout) {
     const tCapturaSinRetroceso = Math.max(
       0,
@@ -2344,24 +2420,13 @@ if (a.estado === "INTERCEPTING LEG") {
     a.progreso = progresoCaptura;
   }
 
-  io.to(nombreSala).emit("actualizarAeronave", {
-    id: a.id,
-    lat: a.lat,
-    lng: a.lng,
-    altitud: a.altitud,
-    angulo: a.angulo,
-    velocidad: a.velocidad,
-    velocidadObjetivo: a.velocidadObjetivo,
-    estado: a.estado,
-    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido),
-    circuitoSentido: normalizarSentidoCircuitoTexto(a.circuitoSentido)
-  });
+  emitirActualizacionAeronave(nombreSala, a);
 
   return;
 }
-      // =====================================
-      //  FASE 2  MOVIMIENTO NORMAL EN CIRCUITO
-      // =====================================
+      
+      
+      
       if (
         a.estado !== "CIRCUIT" &&
         a.estado !== "ORBT" &&
@@ -2415,7 +2480,7 @@ if (a.estado === "INTERCEPTING LEG") {
                   proyeccionDownwind.puntoIntercepto
                 )
 
-                // Evita teletransporte visible cuando sale de ORBIT.
+                
                 if (distanciaReingreso <= TOLERANCIA_REINGRESO_ORBITA_M) {
                   a.lat = proyeccionDownwind.puntoIntercepto.lat
                   a.lng = proyeccionDownwind.puntoIntercepto.lng
@@ -2431,18 +2496,7 @@ if (a.estado === "INTERCEPTING LEG") {
           }
         }
 
-        io.to(nombreSala).emit("actualizarAeronave", {
-          id: a.id,
-          lat: a.lat,
-          lng: a.lng,
-          altitud: a.altitud,
-          angulo: a.angulo,
-          velocidad: a.velocidad,
-          velocidadObjetivo: a.velocidadObjetivo,
-          estado: a.estado,
-    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido),
-          circuitoSentido: normalizarSentidoCircuitoTexto(a.circuitoSentido)
-        })
+        emitirActualizacionAeronave(nombreSala, a)
 
         return
       }
@@ -2484,18 +2538,7 @@ if (a.estado === "INTERCEPTING LEG") {
         a.orbitBearing = null
         a.orbitAcumulado = 0
 
-        io.to(nombreSala).emit("actualizarAeronave", {
-          id: a.id,
-          lat: a.lat,
-          lng: a.lng,
-          altitud: a.altitud,
-          angulo: a.angulo,
-          velocidad: a.velocidad,
-          velocidadObjetivo: a.velocidadObjetivo,
-          estado: a.estado,
-    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido),
-          circuitoSentido: normalizarSentidoCircuitoTexto(a.circuitoSentido)
-        })
+        emitirActualizacionAeronave(nombreSala, a)
 
         return
       }
@@ -2587,18 +2630,7 @@ if (a.estado === "INTERCEPTING LEG") {
 
 	      actualizarDescensoClearedToLandBase(a, tipoSegmentoMovimiento, intervaloMS)
 	
-      io.to(nombreSala).emit("actualizarAeronave", {
-        id: a.id,
-        lat: a.lat,
-        lng: a.lng,
-        altitud: a.altitud,
-        angulo: a.angulo,
-        velocidad: a.velocidad,
-        velocidadObjetivo: a.velocidadObjetivo,
-        estado: a.estado,
-    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido),
-        circuitoSentido: normalizarSentidoCircuitoTexto(a.circuitoSentido)
-      })
+      emitirActualizacionAeronave(nombreSala, a)
 
     })
 
@@ -2685,7 +2717,7 @@ function generarRutaServidor(sala, opciones = {}){
   const longitudFinalM = longitudFinalMBase * factorShortCircuito
   const longitudUpwindM = longitudUpwindBaseM + extensionUpwindExtra
 
-  // Patrón rectangular con vértices suavizados.
+  
   const separacionPiernasM = separacionFinalDownwindM
   const rumboCentrolinea = rumboInverso
   const rumboCrosswind = rumboLateral
@@ -2803,7 +2835,7 @@ function generarRutaServidor(sala, opciones = {}){
   const pasosCrosswind = Math.max(8, Math.round(distanciaCrosswindM / separacionObjetivoM))
   const pasosBase = Math.max(8, Math.round(distanciaBaseM / separacionObjetivoM))
 
-  // 1) Recta de eje pista: FINAL hasta umbral22 y luego UPWIND.
+  
   agregarRecta(
     inicioCentrolinea,
     finCentrolinea,
@@ -2813,7 +2845,7 @@ function generarRutaServidor(sala, opciones = {}){
       distanciaRecorrida <= longitudFinalM ? "final" : "upwind"
   )
 
-  // 2) Salida: curva + crosswind recto + curva hacia downwind.
+  
   agregarCurvaSuave(
     finCentrolinea,
     salidaExt,
@@ -2832,10 +2864,10 @@ function generarRutaServidor(sala, opciones = {}){
     true
   )
 
-  // 3) Downwind (opuesto a final): salidaExtLateral -> finalExtLateral
+  
   agregarRecta(inicioDownwind, finDownwind, pasosRecta, false, "downwind")
 
-  // 4) Regreso: curva + base recta + curva hacia final.
+  
   agregarCurvaSuave(
     finDownwind,
     finalExtLateral,
@@ -2855,7 +2887,7 @@ function generarRutaServidor(sala, opciones = {}){
   )
 
   if (puntos.length > 1) {
-    // Segmento de cierre (?ltimo -> primero) tambi?n pertenece al tramo base.
+    
     puntos[puntos.length - 1].tramo = "base"
   }
 
@@ -3012,7 +3044,7 @@ function esDownwindValidoParaOrbit(tipoTramo, rumboSegmento, anguloActual) {
     diferenciaAngular(rumboReferencia, RUMBOS_CIRCUITO.downwind)
   )
 
-  // Solo consideramos downwind "real" cuando el rumbo está cercano a 040
+  
   return diffDownwind <= 22
 }
 
@@ -3120,7 +3152,7 @@ function construirIngresoDownwind45(aeronave) {
 
   const joinPoint = vieneDelSur
     ? {
-        // Ingreso desde el sur: unirse exactamente al inicio de downwind.
+        
         lat: A.lat,
         lng: A.lng
       }
@@ -3159,7 +3191,7 @@ function construirIngresoDownwind45(aeronave) {
         sentidoCircuito === "RIGHT"
           ? (rumboDownwind + 270) % 360
           : (rumboDownwind + 90) % 360
-      // Entrada en gota: cruza downwind hacia el exterior y luego abre la gota.
+      
       const puntoCruce = puntoPlano(
         joinPoint,
         rumboCruceExterior,
@@ -3173,7 +3205,7 @@ function construirIngresoDownwind45(aeronave) {
       waypoints.push(puntoCruce, puntoGota)
     }
 
-    // Tramo final de ingreso a 45? sobre downwind.
+    
     waypoints.push(preEntryPoint, joinPoint)
   }
 
@@ -3682,7 +3714,7 @@ function procesarGoAroundEnMotor(aeronave, intervaloMS, nombreSala) {
 
 
 
-// ================== SOCKET ==================
+
 
 io.on("connection", (socket) => {
 
@@ -3777,7 +3809,7 @@ io.on("connection", (socket) => {
     return estado;
   };
 
-  // ===== CREAR SALA =====
+  
   socket.on("crearSala", ({ nombre, horaInicial }) => {
 
     if (salas[nombre]) return;
@@ -3836,7 +3868,7 @@ socket.on("cambiarHora", ({ hora }) => {
   io.to(sala).emit("letraPanelSala", { letra: reloj.letraActual });
 });
 
-  // ===== UNIRSE A SALA =====
+  
   socket.on("unirseSala", (nombre) => {
 
     if (!salas[nombre]) return;
@@ -3873,7 +3905,7 @@ if (peligroSalas[nombre]) {
       ruta: generarRutaServidor(salas[nombre])
     });
 
-    // ?? SINCRONIZAR INMEDIATAMENTE
+    
     const horaActual = obtenerHoraActualSala(nombre);
     if (horaActual) {
       socket.emit("horaSala", horaActual);
@@ -3957,7 +3989,7 @@ socket.on("solicitarSincronizacionTiempo", () => {
   })
 })
 
-  // ===== CREAR AERONAVE =====
+  
   socket.on("crearAeronave", (data) => {
 
   const sala = socket.sala;
@@ -3968,45 +4000,13 @@ socket.on("solicitarSincronizacionTiempo", () => {
 
 
   io.to(sala).emit("crearAeronave", {
-  id: nuevaAeronave.id,
-  tipo: nuevaAeronave.tipo,
-  lat: nuevaAeronave.lat,
-  lng: nuevaAeronave.lng,
-  altitud: nuevaAeronave.altitud,
-  angulo: nuevaAeronave.angulo,
-  estado: nuevaAeronave.estado,
-  velocidad: nuevaAeronave.velocidad,
-  velocidadObjetivo: nuevaAeronave.velocidadObjetivo,
-  orbitPendiente: nuevaAeronave.orbitPendiente,
-  orbitEnCurso: nuevaAeronave.orbitEnCurso,
-  orbitModoContinuo: nuevaAeronave.orbitModoContinuo,
-  orbitDetenerSolicitado: nuevaAeronave.orbitDetenerSolicitado,
-  orbitSentido: nuevaAeronave.orbitSentido,
-  circuitoSentido: nuevaAeronave.circuitoSentido,
-  shortCircuitoActivo: nuevaAeronave.shortCircuitoActivo,
-  extensionAeronave: {
-    upwind: Number.isFinite(Number(nuevaAeronave.extensionUpwindExtraLocal))
-      ? Number(nuevaAeronave.extensionUpwindExtraLocal)
-      : 0,
-    downwind: Number.isFinite(Number(nuevaAeronave.extensionDownwindExtraLocal))
-      ? Number(nuevaAeronave.extensionDownwindExtraLocal)
-      : 0
-  },
-  arrivalProcedureName: nuevaAeronave.arrivalProcedureName,
-  rutaAirborne: Array.isArray(nuevaAeronave.rutaAirborne)
-    ? normalizarRutaLineal(nuevaAeronave.rutaAirborne)
-    : null,
-  rutaAirborneIndice: Number.isFinite(Number(nuevaAeronave.rutaAirborneIndice))
-    ? Math.max(0, Math.floor(Number(nuevaAeronave.rutaAirborneIndice)))
-    : 0,
-  rutaAirborneProgreso: Number.isFinite(Number(nuevaAeronave.rutaAirborneProgreso))
-    ? Math.max(0, Number(nuevaAeronave.rutaAirborneProgreso))
-    : 0,
-  rutaAirborneLoop: Boolean(nuevaAeronave.rutaAirborneLoop),
-  rutaAirborneLoopStartIndex: normalizarIndiceLoopRutaAirborneServidor(
-    nuevaAeronave.rutaAirborneLoopStartIndex
-  ),
-  owner: nuevaAeronave.owner
+    tipo: nuevaAeronave.tipo,
+    owner: nuevaAeronave.owner,
+    orbitPendiente: nuevaAeronave.orbitPendiente,
+    orbitEnCurso: nuevaAeronave.orbitEnCurso,
+    orbitModoContinuo: nuevaAeronave.orbitModoContinuo,
+    orbitDetenerSolicitado: nuevaAeronave.orbitDetenerSolicitado,
+    ...construirPayloadActualizacionAeronave(nuevaAeronave)
   });
 });
 
@@ -4017,7 +4017,7 @@ socket.on("solicitarSincronizacionTiempo", () => {
     }
   })
 
-// ===== RUTA AIRBORNE =====
+
 socket.on("setRutaAirborne", ({ id, ruta, estado, loop, loopStartIndex, arrivalProcedureName } = {}) => {
   const salaNombre = socket.sala
   if (!salaNombre) return
@@ -4147,12 +4147,12 @@ socket.on("extenderSalida", ({ metros }) => {
       ? metros
       : (0.5 * 1852)
 
-  // Extensión general heredada + por tramo (compatibilidad)
+  
   sala.extensionExtra += metrosSeguros
   sala.extensionUpwindExtra = (sala.extensionUpwindExtra || 0) + metrosSeguros
   sala.extensionDownwindExtra = (sala.extensionDownwindExtra || 0) + metrosSeguros
 
-  // Enviar nueva ruta a todos
+  
   const rutaActualizada = regenerarRutaSala(nombreSala)
   io.to(nombreSala).emit("rutaCircuitoActualizada", {
     extensionExtra: sala.extensionExtra,
@@ -4578,11 +4578,6 @@ socket.on("orbitarCircuito", ({ id, sentido } = {}) => {
   if (!aeronave) return
   if (!socketPuedeControlarAeronave(salaNombre, sala, aeronave, socket.id)) return
 
-  if (!aeronave.ruta || aeronave.ruta.length < 2) {
-    aeronave.ruta = generarRutaServidorParaAeronave(sala, aeronave)
-  }
-  if (!aeronave.ruta || aeronave.ruta.length < 2) return
-
   const estadoCompatibleConCircuito =
     aeronave.estado === "CIRCUIT" ||
     aeronave.estado === "ORBT" ||
@@ -4591,37 +4586,21 @@ socket.on("orbitarCircuito", ({ id, sentido } = {}) => {
 
   const sentidoSolicitado = normalizarSentidoOrbitTexto(sentido)
   const sentidoActual = normalizarSentidoOrbitTexto(aeronave.orbitSentido)
+  if (estadoCompatibleConCircuito && !Boolean(aeronave.orbitFueraCircuitoActivo)) {
+    aeronave.pilotageObjetivoLat = null
+    aeronave.pilotageObjetivoLng = null
+    aeronave.pilotageMarkerTipo = null
+  }
   if (!estadoCompatibleConCircuito) {
-    limpiarOrbitacionAeronave(aeronave)
-
-    const proyeccionInicial = obtenerProyeccionRutaMasCercana(
-      { lat: aeronave.lat, lng: aeronave.lng },
-      aeronave.ruta
-    )
-    if (proyeccionInicial) {
-      aeronave.indice = proyeccionInicial.indiceA
-      aeronave.progreso = proyeccionInicial.progreso
-    }
-
-    aeronave.orbitSentido = sentidoSolicitado
-    aeronave.orbitPendiente = false
-    aeronave.orbitEnCurso = true
-    aeronave.orbitModoContinuo = true
-    aeronave.orbitDetenerSolicitado = false
-    aeronave.orbitAcumulado = 0
-    aeronave.orbitFueraCircuitoActivo = true
-    aeronave.estado = "ORBT"
-
-    if (!Number.isFinite(aeronave.angulo)) {
-      aeronave.angulo = RUMBOS_CIRCUITO.downwind
-    }
-    if (!Number.isFinite(aeronave.velocidad) || aeronave.velocidad <= 0) {
-      aeronave.velocidad = 90 * 0.514444
-    }
-
+    if (!activarOrbitacionFueraCircuitoServidor(sala, aeronave, sentidoSolicitado)) return
     iniciarMotorSala(salaNombre)
     return
   }
+
+  if (!aeronave.ruta || aeronave.ruta.length < 2) {
+    aeronave.ruta = generarRutaServidorParaAeronave(sala, aeronave)
+  }
+  if (!aeronave.ruta || aeronave.ruta.length < 2) return
 
   if (aeronave.orbitEnCurso) {
     if (sentidoSolicitado !== sentidoActual) {
@@ -4654,7 +4633,7 @@ socket.on("orbitarCircuito", ({ id, sentido } = {}) => {
         return
       }
 
-      // Saldra cuando complete la orbita actual.
+      
       aeronave.orbitModoContinuo = false
       aeronave.orbitDetenerSolicitado = true
     }
@@ -4673,7 +4652,7 @@ socket.on("orbitarCircuito", ({ id, sentido } = {}) => {
       return
     }
 
-    // Si aun no empezo a orbitar, se cancela inmediatamente.
+    
     limpiarOrbitacionAeronave(aeronave)
     iniciarMotorSala(salaNombre)
     return
@@ -4700,7 +4679,7 @@ socket.on("orbitarCircuito", ({ id, sentido } = {}) => {
 })
 
 
-  // ===== ACTUALIZAR AERONAVE =====
+  
 socket.on("actualizarAeronave", (data) => {
 
   const sala = socket.sala;
@@ -4709,10 +4688,10 @@ socket.on("actualizarAeronave", (data) => {
   const aeronave = salas[sala].aeronaves.find(a => a.id === data.id);
   if (!aeronave) return;
 
-  // ?? Solo el dueño puede actualizar
+  
   if (!socketPuedeControlarAeronave(sala, salas[sala], aeronave, socket.id)) return;
 
-  // ?? Validación básica de datos
+  
   if (typeof data.lat !== "number") return;
   if (typeof data.lng !== "number") return;
   if (typeof data.altitud !== "number") return;
@@ -4771,6 +4750,12 @@ socket.on("actualizarAeronave", (data) => {
   if (permitirAnguloCliente) {
     aeronave.angulo = data.angulo;
   }
+  if (
+    typeof data.orbitSentido === "string" ||
+    (typeof data.orbitSentido === "number" && Number.isFinite(data.orbitSentido))
+  ) {
+    aeronave.orbitSentido = normalizarSentidoOrbitTexto(data.orbitSentido)
+  }
   if (typeof data.velocidad === "number" && Number.isFinite(data.velocidad)) {
     aeronave.velocidad = Math.max(0, data.velocidad);
   }
@@ -4786,6 +4771,7 @@ socket.on("actualizarAeronave", (data) => {
   ) {
     aeronave.altitudObjetivo = Math.max(0, data.altitudObjetivo);
   }
+  actualizarObjetivoPilotageServidor(aeronave, data)
   if(Object.prototype.hasOwnProperty.call(data, "arrivalProcedureName")){
     aeronave.arrivalProcedureName =
       normalizarNombreProcedimientoLlegadaServidor(data.arrivalProcedureName)
@@ -4848,12 +4834,12 @@ socket.on("activarManual", ({ id }) => {
 
   if (aeronave.estado === "MANUAL") {
 
-    // DESACTIVAR MANUAL
+    
     aeronave.estado = "AUTO"
 
   } else {
 
-    // ACTIVAR MANUAL
+    
     aeronave.estado = "MANUAL"
 
     aeronave.ruta = null
@@ -4898,7 +4884,7 @@ socket.on("detenerAccionAeronave", ({ id } = {}) => {
     detenida: true
   })
 })
-// ===== INICIAR CIRCUITO =====
+
 socket.on("iniciarCircuito", ({ id, modoIngreso, sentidoCircuito } = {}) => {
 
   const salaNombre = socket.sala
@@ -5002,7 +4988,7 @@ socket.on("forzarAterrizaje", ({ id }) => {
   if (!aeronave) return
   if (!socketPuedeControlarAeronave(salaNombre, sala, aeronave, socket.id)) return
 
-  // ?? CANCELAR TODO LO QUE CONTROLE MOVIMIENTO
+  
 
   limpiarGoAroundAeronave(aeronave)
   limpiarOrbitacionAeronave(aeronave)
@@ -5021,12 +5007,12 @@ socket.on("forzarAterrizaje", ({ id }) => {
   aeronave.arrivalAltitudeProfile = null
   aeronave.arrivalHoldingMumopManualAltitudeFt = null
 
-  // ?? CANCELAR MANUAL SI ESTABA ACTIVO
+  
   if (aeronave.estado === "MANUAL") {
     aeronave.velocidad = aeronave.velocidad || (90 * 0.514444)
   }
 
-  // ?? ESTADO DEFINITIVO DE ATERRIZAJE
+  
   aeronave.estado = "LANDING"
 
   aeronave.syncTs = Date.now()
@@ -5035,7 +5021,7 @@ socket.on("forzarAterrizaje", ({ id }) => {
   ).emit("actualizarAeronave", construirPayloadActualizacionAeronave(aeronave))
 
 })
-  // ===== ELIMINAR AERONAVE =====
+  
   socket.on("eliminarAeronave", (id) => {
 
     const sala = socket.sala;
@@ -5108,21 +5094,7 @@ socket.on("ajusteManual", ({ id, tipo, valor }) => {
     }
   }
 
-  io.to(salaNombre).emit("actualizarAeronave", {
-    id: a.id,
-    lat: a.lat,
-    lng: a.lng,
-    altitud: a.altitud,
-    altitudObjetivo: Number.isFinite(Number(a.altitudObjetivo))
-      ? Math.max(0, Number(a.altitudObjetivo))
-      : null,
-    angulo: a.angulo,
-    velocidad: a.velocidad,
-    velocidadObjetivo: a.velocidadObjetivo,
-    estado: a.estado,
-    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido),
-    circuitoSentido: normalizarSentidoCircuitoTexto(a.circuitoSentido)
-  })
+  emitirActualizacionAeronave(salaNombre, a)
 
 })
 socket.on("setSpeedKnots", ({ id, speedKnots }) => {
@@ -5144,21 +5116,10 @@ socket.on("setSpeedKnots", ({ id, speedKnots }) => {
   a.velocidad = speedSafe * 0.514444
   a.velocidadObjetivo = speedSafe
 
-  io.to(salaNombre).emit("actualizarAeronave", {
-    id: a.id,
-    lat: a.lat,
-    lng: a.lng,
-    altitud: a.altitud,
-    angulo: a.angulo,
-    velocidad: a.velocidad,
-    velocidadObjetivo: a.velocidadObjetivo,
-    estado: a.estado,
-    orbitSentido: normalizarSentidoOrbitTexto(a.orbitSentido),
-    circuitoSentido: normalizarSentidoCircuitoTexto(a.circuitoSentido)
-  })
+  emitirActualizacionAeronave(salaNombre, a)
 
 })
-  // ===== CONTROL DEL TIEMPO =====
+  
 socket.on("controlTiempo", ({ accion }) => {
 
   const sala = socket.sala;
@@ -5210,10 +5171,10 @@ socket.on("controlTiempo", ({ accion }) => {
     }
   }
 
-  // Mantener reloj siempre en tiempo real (x1).
+  
   reloj.velocidad = 1;
 
-  // ?? NUEVO
+  
   io.to(sala).emit("estadoTiempo", {
     pausado: reloj.pausado,
     panelHora: reloj.panelHoraInicio || null
@@ -5251,7 +5212,7 @@ socket.on("activarPeligroSala", ({ clave }) => {
 
 });
 
-  // ===== DESCONECTAR =====
+  
 socket.on("disconnect", () => {
 
   modosOperacionPorSocket.delete(socket.id)
@@ -5266,6 +5227,20 @@ socket.on("disconnect", () => {
 	      aeronave.owner = null
 	      if(aeronave.estado === "AIRBORNE"){
 	        resincronizarRutaAirborneDesdePos(aeronave)
+	      } else if (
+	        aeronave.estado === "PILOTAGE" &&
+	        !aeronave.movimiento &&
+	        aeronave.pilotageMarkerTipo === "orbit"
+	      ) {
+	        if (
+	          activarOrbitacionFueraCircuitoServidor(
+	            salas[nombre],
+	            aeronave,
+	            aeronave.orbitSentido
+	          )
+	        ) {
+	          emitirActualizacionAeronave(nombre, aeronave)
+	        }
 	      }
 	      aeronavesLiberadas.push(aeronave.id)
 	    })
@@ -5279,17 +5254,17 @@ socket.on("disconnect", () => {
     salas[nombre].jugadores =
       salas[nombre].jugadores.filter(id => id !== socket.id);
 
-    // ?? Si quedó vacía, iniciar countdown
+    
     if (salas[nombre].jugadores.length === 0) {
 
-      // Evitar múltiples timeouts
+      
       if (timeoutsSalas[nombre]) return;
 
       console.log(` Sala ${nombre} vacía. Eliminando en 5 horas si nadie entra.`);
 
       timeoutsSalas[nombre] = setTimeout(() => {
 
-        // Verificar nuevamente antes de borrar
+        
         if (salas[nombre] && salas[nombre].jugadores.length === 0) {
 
           console.log(`Eliminando sala ${nombre} por inactividad.`);
@@ -5310,7 +5285,7 @@ if (motoresSalas[nombre]) {
           io.emit("listaSalas", obtenerListaSalas());
         }
 
-      }, 5 * 60 * 60 * 1000); // 5 horas
+      }, 5 * 60 * 60 * 1000); 
     }
   }
 
@@ -5322,7 +5297,7 @@ if (motoresSalas[nombre]) {
 });
 
 
-// ================== INICIAR SERVIDOR ==================
+
 
 server.listen(PORT, () => {
   console.log("Servidor corriendo en puerto", PORT);

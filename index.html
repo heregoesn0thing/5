@@ -166,7 +166,7 @@
   </div>
 
   <script>
-    // Todo el JS se ejecuta SOLO cuando la página está completamente cargada
+    
     window.addEventListener("load", () => {
       if (typeof io === "undefined") {
         console.error("Socket.IO no está cargado correctamente.");
@@ -192,7 +192,7 @@
     horaInicial: "00:00:00"
   });
 
-  // 🔥 REDIRECCIÓN INMEDIATA
+  
   window.location.href = "/sala?nombre=" + encodeURIComponent(nombre);
 }
 
@@ -232,9 +232,9 @@
         });
       });
 
-      // =========================
-      // TESTS BÁSICOS EN CONSOLA
-      // =========================
+      
+      
+      
       console.assert(typeof socket !== "undefined", "❌ Socket no fue inicializado");
       console.assert(typeof crearSala === "function", "❌ crearSala no está definida");
       console.assert(typeof unirse === "function", "❌ unirse no está definida");

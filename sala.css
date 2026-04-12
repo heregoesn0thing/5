@@ -102,9 +102,9 @@ input{
   background:#000;
   padding:6px;
   border-radius:4px;
-}/* ============================= */
-/* PANEL INFO AERONAVE - ATC */
-/* ============================= */
+}
+
+
 #panelInfoAeronave{
   position: fixed;
   top: 10px;
@@ -120,7 +120,7 @@ input{
   font-family: "Segoe UI", sans-serif;
   font-size: 13px;
   color: #e5e7eb;
- /* AnimaciÃ³n desplegable */
+ 
   overflow: hidden;
   transition: all 0.3s ease;
   
@@ -130,7 +130,7 @@ input{
   flex-direction: column;
 }
 
-/* HEADER */
+
 .panel-header{
   display: flex;
   justify-content: space-between;
@@ -177,7 +177,7 @@ input{
   transform: none;
 }
 
-/* Cuando estÃ¡ colapsado */
+
 #panelInfoAeronave.contraido{
   padding-bottom: 8px;
   height: auto;
@@ -198,7 +198,7 @@ input{
   gap: 5px;
 }
 
-/* Icono */
+
 .header-controls{
   display: flex;
   align-items: center;
@@ -229,11 +229,11 @@ input{
   transition: transform 0.3s ease;
 }
 
-/* RotaciÃ³n del icono */
+
 #panelInfoAeronave.contraido #panelToggleIcon{
   transform: rotate(-90deg);
 }
-/* Indicador de estado */
+
 .estado-indicador{
   width: 10px;
   height: 10px;
@@ -241,7 +241,7 @@ input{
   background: #6b7280;
 }
 
-/* BODY */
+
 #panelInfoAeronave .panel-body{
   display: flex;
   flex-direction: column;
@@ -259,7 +259,7 @@ input{
   margin-top: 4px;
 }
 
-/* Filas */
+
 #panelInfoAeronave .panel-info-view > div{
   display: flex;
   justify-content: space-between;
@@ -269,7 +269,7 @@ input{
   border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 
-/* Etiquetas */
+
 #panelInfoAeronave .label{
   color: #9ca3af;
   font-size: 11px;
@@ -277,7 +277,7 @@ input{
   line-height: 1.2;
 }
 
-/* Valores */
+
 #panelInfoAeronave .valor{
   color: #ffffff;
   font-weight: 600;
@@ -585,10 +585,10 @@ input{
   border: 1px solid rgba(252, 165, 165, 0.55);
   box-shadow: inset 0 0 0 1px rgba(30, 8, 8, 0.35);
 }
-/* ================= PANEL DE ACCIONES =================*/
-/* ============================= */
-/* CONTENEDOR PRINCIPAL */
-/* ============================= */
+
+
+
+
 #menuAcciones{
   position: fixed;
   bottom: 12px;
@@ -600,7 +600,7 @@ input{
   gap: 8px;
 }
 
-/* Fila FAB */
+
 .fab-row{
   display:flex;
   gap:8px;
@@ -752,7 +752,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   bottom: 150px;
 }
 
-/* BotÃ³n eliminar */
+
 .fab-delete{
   width:42px;
   height:42px;
@@ -778,7 +778,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   background:#b91c1c;
 }
 
-/* Clase para ocultar */
+
 .hidden{
   display:none;
 }
@@ -1060,16 +1060,16 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
      1px  1px 0 rgba(240, 253, 244, 0.98);
 }
 
-/* Imagen Danger sobre superficie (metros), escala con el zoom del mapa */
+
 .imagen-peligro-overlay{
   display: block;
   pointer-events: none;
   user-select: none;
 }
 
-/* ============================= */
-/* DANGER âš  */
-/* ============================= */
+
+
+
 #btnDanger{
   background: rgba(120,20,20,0.85);
 }
@@ -1228,15 +1228,15 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   }
 }
 
-/* ============================= */
-/* ANIMACIÃ“N DANGER */
-/* ============================= */
+
+
+
 @keyframes pulseDanger{
   0%{ box-shadow: 0 0 10px rgba(255,0,0,0.5); }
   50%{ box-shadow: 0 0 25px rgba(255,0,0,0.9); }
   100%{ box-shadow: 0 0 10px rgba(255,0,0,0.5); }
 }
-/* =================  =================*/
+
 
 :root{
   --z-map: 1;
@@ -1307,7 +1307,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
 }
 
 #createAircraftPanel { z-index: var(--z-modal); }
-/* ðŸ“± RESPONSIVE MÃ“VIL */
+
 #departurePanel{
   position:absolute;
   top:100px;
@@ -1423,9 +1423,9 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   background: #0284c7;
   transform: translateY(-2px);
 }
-/* ===============================
-   BOTÃ“N CAPAS â€“ ESTILO RADAR PRO
-================================ */
+
+
+
 
 #btnCapas{
   position: static;
@@ -1452,9 +1452,9 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
 }
 
 
-/* ===============================
-   PANEL CAPAS â€“ DISEÃ‘O PREMIUM
-================================ */
+
+
+
 
 .panel-capas{
   position: fixed;
@@ -1683,7 +1683,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
 }
 
 
-/* LABELS */
+
 
 .panel-capas label{
   display: flex;
@@ -1700,7 +1700,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
 }
 
 
-/* CHECKBOX MODERNO */
+
 
 .panel-capas input[type="checkbox"]{
   appearance: none;
@@ -1728,7 +1728,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   left: 3px;
 }
 
-/* ================= MANUAL CONTROL PANEL ================= */
+
 
 #manualPanel {
   position: fixed;
@@ -1759,7 +1759,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
 
   z-index: 9999;
 }
-/* ================= PANEL TIEMPO ================= */
+
 
 #panelTiempo {
   position: absolute;
@@ -1788,7 +1788,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   display: block;
 }
 
-/* Header reloj */
+
 .tiempoHeader {
   display: flex;
   align-items: flex-start;
@@ -1893,7 +1893,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   color: #0b1324;
 }
 
-/* Reloj digital */
+
 #relojGlobal {
   font-size: 28px;
   font-weight: 600;
@@ -1905,7 +1905,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   box-shadow: 0 4px 12px rgba(0,0,0,0.4);
 }
 
-/* BotÃ³n engranaje */
+
 .btnReloj {
   background: #1f2433;
   border: none;
@@ -1928,7 +1928,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   color: #00e0ff;
 }
 
-/* ================= PANEL DESPLEGABLE ================= */
+
 
 .panelConfigReloj {
   position: absolute;
@@ -1950,14 +1950,14 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
-/* TÃ­tulo */
+
 .panelConfigReloj label {
   font-size: 13px;
   color: #aaa;
   letter-spacing: 0.5px;
 }
 
-/* Input */
+
 .panelConfigReloj input {
   background: #151922;
   border: 1px solid #2c344a;
@@ -1972,7 +1972,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   border-color: #00e0ff;
 }
 
-/* BotÃ³n aplicar */
+
 .btnAplicar {
   background: linear-gradient(145deg, #008cff, #0055cc);
   border: none;
@@ -1989,16 +1989,16 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   box-shadow: 0 6px 15px rgba(0,140,255,0.4);
 }
 
-/* Clase ocultar */
+
 .oculto {
   opacity: 0;
   pointer-events: none;
   transform: translateY(-10px);
 }
 
-/* =========================================
-   PANEL LATERAL IZQUIERDO
-========================================= */
+
+
+
 
 #menuControles{
   position:fixed;
@@ -3447,7 +3447,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   background: rgba(66, 32, 6, 0.5);
 }
 
-/* PANEL INTERNO */
+
 
 .contenido-lateral{
   position: relative;
@@ -3481,7 +3481,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   pointer-events: none;
 }
 
-/* BOTÃ“N DESPLEGAR */
+
 
 .boton-lateral{
   position:absolute;
@@ -3672,9 +3672,9 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   color: #e2e8f0;
 }
 
-/* =========================================
-   GRUPOS
-========================================= */
+
+
+
 
 .grupo{
   display:flex;
@@ -3706,9 +3706,9 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   border-bottom:1px solid rgba(255,255,255,0.08);
 }
 
-/* =========================================
-   BOTONES GENERALES
-========================================= */
+
+
+
 
 .btn-lateral{
   padding:7px 6px;
@@ -3732,9 +3732,9 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   transform:translateY(-2px);
 }
 
-/* =========================================
-   LANDING PRINCIPALES EN FILA
-========================================= */
+
+
+
 
 .landing-principales{
   display:flex;
@@ -3742,7 +3742,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   gap:6px;
 }
 
-/* Todos iguales y en fila */
+
 .landing-principales .landing-main{
   flex:1;
   padding:6px 5px;
@@ -3750,11 +3750,11 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   text-align:center;
 }
 
-/* =========================================
-   ESTADOS ACTIVOS
-========================================= */
 
-/* CLEARED - VERDE */
+
+
+
+
 
 .landing-main.activo:not(.touch):not(.goaround){
   background:linear-gradient(145deg,#065f46,#047857);
@@ -3771,7 +3771,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   animation: landReadyBlink 0.88s ease-in-out infinite;
 }
 
-/* TOUCH & GO - AZUL */
+
 
 .landing-main.touch.activo{
   background:linear-gradient(145deg,#1e40af,#2563eb);
@@ -3780,7 +3780,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   box-shadow:0 0 12px rgba(59,130,246,0.5);
 }
 
-/* GO AROUND - ROJO */
+
 
 .landing-main.goaround.activo{
   background:linear-gradient(145deg,#7f1d1d,#b91c1c);
@@ -3812,9 +3812,9 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   }
 }
 
-/* =========================================
-   SUB BOTONES CLEARED (A-B-C-D-E)
-========================================= */
+
+
+
 
 .landing-opciones{
   display:flex;
@@ -3832,7 +3832,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   opacity:1;
 }
 
-/* MINI BOTONES */
+
 
 .mini-btn{
   flex:1;
@@ -3864,9 +3864,9 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   box-shadow:0 0 8px rgba(16,185,129,0.45);
 }
 
-/* =========================================
-   TAXI CONTROLES
-========================================= */
+
+
+
 
 .taxi-row{
   display:flex;
@@ -3887,9 +3887,9 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   text-align:center;
 }
 
-/* =========================================
-   DEPARTURE CONTROLES
-========================================= */
+
+
+
 
 .departure-row{
   display:flex;
@@ -4330,9 +4330,9 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   font-weight: 700;
 }
 
-/* =========================================
-   CIRCUIT CONTROLES
-========================================= */
+
+
+
 
 .circuit-row{
   display:flex;
@@ -4626,9 +4626,9 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   }
 }
 
-/* =========================================
-   MANUAL CONTROL EN FILA
-========================================= */
+
+
+
 
 .manual-row{
   display:flex;
@@ -4665,7 +4665,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   box-shadow:0 0 10px rgba(239,68,68,0.55);
 }
 
-/* Estado activo taxi */
+
 
 .taxi-btn.activo{
   background:linear-gradient(145deg,#78350f,#b45309);
@@ -4687,7 +4687,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   color:#fef2f2;
   box-shadow:0 0 10px rgba(239,68,68,0.55);
 }
-/* ================= CREATE AIRCRAFT PANEL ================= */
+
 
 #createAircraftPanel {
   position: fixed;
@@ -4712,7 +4712,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
-/* HEADER */
+
 #createAircraftPanel .panelHeader {
   display: flex;
   justify-content: center;
@@ -4731,14 +4731,14 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   letter-spacing: 0.5px;
 }
 
-/* BOTÃ“N CIERRE */
+
 #createAircraftPanel .panelHeader span {
   display: block;
   width: 100%;
   text-align: center;
 }
 
-/* BODY */
+
 #createAircraftPanel .panelBody {
   padding: 16px;
   display: flex;
@@ -4746,7 +4746,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   gap: 14px;
 }
 
-/* FORM SECTION */
+
 #createAircraftPanel .formSection {
   display: flex;
   flex-direction: column;
@@ -4759,7 +4759,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   letter-spacing: 0.3px;
 }
 
-/* INPUT & SELECT */
+
 #createAircraftPanel input,
 #createAircraftPanel select {
   background: #151922;
@@ -4778,7 +4778,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   box-shadow: 0 0 8px rgba(0,224,255,0.4);
 }
 
-/* BOTÃ“N PRINCIPAL */
+
 #createAircraftPanel .btnPrimary {
   margin-top: 8px;
   padding: 10px;
@@ -4798,7 +4798,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   box-shadow: 0 10px 20px rgba(0,140,255,0.5);
 }
 
-/* ANIMACIÃ“N DE OCULTO */
+
 .oculto {
   opacity: 0;
   pointer-events: none;
@@ -5799,5 +5799,73 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
     right: var(--panel-derecho-offset);
     bottom: 0;
     transform: none;
+  }
+}
+
+#notificacionesFlotantes{
+  position: fixed;
+  top: calc(var(--safe-top, 0px) + 18px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(92vw, 420px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  pointer-events: none;
+  z-index: 10002;
+}
+
+.notificacion-flotante{
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(125, 211, 252, 0.34);
+  background: rgba(15, 23, 42, 0.92);
+  color: #e2e8f0;
+  box-shadow: 0 18px 36px rgba(2, 6, 23, 0.35);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  font: 600 14px/1.35 "Segoe UI", sans-serif;
+  letter-spacing: 0.01em;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(-10px) scale(0.98);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.notificacion-flotante.visible{
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.notificacion-flotante.info{
+  border-color: rgba(125, 211, 252, 0.36);
+}
+
+.notificacion-flotante.success{
+  border-color: rgba(74, 222, 128, 0.38);
+  background: rgba(6, 78, 59, 0.9);
+}
+
+.notificacion-flotante.warning{
+  border-color: rgba(251, 191, 36, 0.4);
+  background: rgba(120, 53, 15, 0.92);
+}
+
+.notificacion-flotante.error{
+  border-color: rgba(248, 113, 113, 0.42);
+  background: rgba(127, 29, 29, 0.92);
+}
+
+@media (max-width: 720px){
+  #notificacionesFlotantes{
+    top: calc(var(--safe-top, 0px) + 12px);
+    width: min(94vw, 360px);
+  }
+
+  .notificacion-flotante{
+    padding: 11px 14px;
+    font-size: 13px;
   }
 }

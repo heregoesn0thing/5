@@ -272,6 +272,534 @@ const DESCENT_RATE = {
   PA34: 1100,
   PA44: 900
 }
+const TAKEOFF_PROFILE_A32X = {
+  RUNWAY_DISTANCE_M: 1750,
+  ROTATION_KT: 145,
+  RUNWAY_TARGET_KT: 135,
+  SPEED_TO_FL050_KT: 165,
+  SPEED_TO_FL150_KT: 290,
+  SPEED_TO_FL240_KT: 290,
+  CRUISE_MAX_KT: 450,
+  DEFAULT_TARGET_ALT_FT: 24000,
+  ROC_TO_FL050_FPM: 2500,
+  ROC_TO_FL150_FPM: 2500,
+  ROC_TO_FL240_FPM: 2500,
+  FL050_FT: 5000,
+  FL150_FT: 15000,
+  FL240_FT: 24000,
+  RUNWAY_ACCEL_MAX_MPS2: 1.8,
+  RUNWAY_ACCEL_MIN_MPS2: 0.9,
+  CLIMB_ACCEL_KT_PER_SEC: 2.3
+}
+
+function crearPerfilDespegue(base, overrides = {}){
+  return Object.freeze({
+    ...base,
+    ...overrides
+  })
+}
+
+const TAKEOFF_PROFILE_BASE = Object.freeze({
+  RUNWAY_DISTANCE_M: 450,
+  ROTATION_KT: 60,
+  RUNWAY_TARGET_KT: 72,
+  SPEED_TO_FL050_KT: 100,
+  SPEED_TO_FL150_KT: 140,
+  SPEED_TO_FL240_KT: 170,
+  CRUISE_MAX_KT: 190,
+  DEFAULT_TARGET_ALT_FT: 6000,
+  ROC_TO_FL050_FPM: 900,
+  ROC_TO_FL150_FPM: 650,
+  ROC_TO_FL240_FPM: 400,
+  FL050_FT: 5000,
+  FL150_FT: 15000,
+  FL240_FT: 24000,
+  RUNWAY_ACCEL_MAX_MPS2: 1.4,
+  RUNWAY_ACCEL_MIN_MPS2: 0.75,
+  CLIMB_ACCEL_KT_PER_SEC: 1.2
+})
+
+const TAKEOFF_PROFILE_LIGHT_SINGLE = crearPerfilDespegue(TAKEOFF_PROFILE_BASE)
+const TAKEOFF_PROFILE_LIGHT_TWIN = crearPerfilDespegue(TAKEOFF_PROFILE_BASE, {
+  RUNWAY_DISTANCE_M: 620,
+  ROTATION_KT: 72,
+  RUNWAY_TARGET_KT: 84,
+  SPEED_TO_FL050_KT: 110,
+  SPEED_TO_FL150_KT: 150,
+  SPEED_TO_FL240_KT: 175,
+  CRUISE_MAX_KT: 195,
+  DEFAULT_TARGET_ALT_FT: 9000,
+  ROC_TO_FL050_FPM: 1100,
+  ROC_TO_FL150_FPM: 800,
+  ROC_TO_FL240_FPM: 500,
+  RUNWAY_ACCEL_MAX_MPS2: 1.45,
+  RUNWAY_ACCEL_MIN_MPS2: 0.8,
+  CLIMB_ACCEL_KT_PER_SEC: 1.1
+})
+const TAKEOFF_PROFILE_TURBOPROP = crearPerfilDespegue(TAKEOFF_PROFILE_BASE, {
+  RUNWAY_DISTANCE_M: 900,
+  ROTATION_KT: 90,
+  RUNWAY_TARGET_KT: 105,
+  SPEED_TO_FL050_KT: 140,
+  SPEED_TO_FL150_KT: 210,
+  SPEED_TO_FL240_KT: 255,
+  CRUISE_MAX_KT: 290,
+  DEFAULT_TARGET_ALT_FT: 18000,
+  ROC_TO_FL050_FPM: 1900,
+  ROC_TO_FL150_FPM: 1400,
+  ROC_TO_FL240_FPM: 900,
+  RUNWAY_ACCEL_MAX_MPS2: 1.8,
+  RUNWAY_ACCEL_MIN_MPS2: 0.95,
+  CLIMB_ACCEL_KT_PER_SEC: 1.8
+})
+const TAKEOFF_PROFILE_JET = crearPerfilDespegue(TAKEOFF_PROFILE_A32X)
+const TAKEOFF_PROFILE_HELICOPTER = crearPerfilDespegue(TAKEOFF_PROFILE_BASE, {
+  RUNWAY_DISTANCE_M: 60,
+  ROTATION_KT: 35,
+  RUNWAY_TARGET_KT: 50,
+  SPEED_TO_FL050_KT: 80,
+  SPEED_TO_FL150_KT: 110,
+  SPEED_TO_FL240_KT: 130,
+  CRUISE_MAX_KT: 150,
+  DEFAULT_TARGET_ALT_FT: 4000,
+  ROC_TO_FL050_FPM: 1200,
+  ROC_TO_FL150_FPM: 900,
+  ROC_TO_FL240_FPM: 600,
+  RUNWAY_ACCEL_MAX_MPS2: 1.0,
+  RUNWAY_ACCEL_MIN_MPS2: 0.5,
+  CLIMB_ACCEL_KT_PER_SEC: 1.0
+})
+const TAKEOFF_PROFILE_FIGHTER = crearPerfilDespegue(TAKEOFF_PROFILE_BASE, {
+  RUNWAY_DISTANCE_M: 500,
+  ROTATION_KT: 130,
+  RUNWAY_TARGET_KT: 155,
+  SPEED_TO_FL050_KT: 240,
+  SPEED_TO_FL150_KT: 360,
+  SPEED_TO_FL240_KT: 430,
+  CRUISE_MAX_KT: 450,
+  DEFAULT_TARGET_ALT_FT: 28000,
+  ROC_TO_FL050_FPM: 17000,
+  ROC_TO_FL150_FPM: 11000,
+  ROC_TO_FL240_FPM: 6500,
+  RUNWAY_ACCEL_MAX_MPS2: 4.0,
+  RUNWAY_ACCEL_MIN_MPS2: 2.0,
+  CLIMB_ACCEL_KT_PER_SEC: 5.6
+})
+
+const TAKEOFF_PROFILES = Object.freeze({
+  C152: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_SINGLE, {
+    RUNWAY_DISTANCE_M: 260,
+    ROTATION_KT: 52,
+    RUNWAY_TARGET_KT: 60,
+    SPEED_TO_FL050_KT: 80,
+    SPEED_TO_FL150_KT: 95,
+    SPEED_TO_FL240_KT: 105,
+    CRUISE_MAX_KT: 110,
+    DEFAULT_TARGET_ALT_FT: 4000,
+    ROC_TO_FL050_FPM: 700,
+    ROC_TO_FL150_FPM: 450,
+    ROC_TO_FL240_FPM: 250,
+    RUNWAY_ACCEL_MAX_MPS2: 1.25,
+    RUNWAY_ACCEL_MIN_MPS2: 0.7,
+    CLIMB_ACCEL_KT_PER_SEC: 0.8
+  }),
+  C172: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_SINGLE, {
+    RUNWAY_DISTANCE_M: 380,
+    ROTATION_KT: 55,
+    RUNWAY_TARGET_KT: 65,
+    SPEED_TO_FL050_KT: 85,
+    SPEED_TO_FL150_KT: 100,
+    SPEED_TO_FL240_KT: 110,
+    CRUISE_MAX_KT: 120,
+    DEFAULT_TARGET_ALT_FT: 5000,
+    ROC_TO_FL050_FPM: 500,
+    ROC_TO_FL150_FPM: 350,
+    ROC_TO_FL240_FPM: 200,
+    RUNWAY_ACCEL_MAX_MPS2: 1.3,
+    RUNWAY_ACCEL_MIN_MPS2: 0.75,
+    CLIMB_ACCEL_KT_PER_SEC: 0.9
+  }),
+  C180: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_SINGLE, {
+    RUNWAY_DISTANCE_M: 470,
+    ROTATION_KT: 58,
+    RUNWAY_TARGET_KT: 72,
+    SPEED_TO_FL050_KT: 95,
+    SPEED_TO_FL150_KT: 120,
+    SPEED_TO_FL240_KT: 140,
+    CRUISE_MAX_KT: 160,
+    DEFAULT_TARGET_ALT_FT: 7000,
+    ROC_TO_FL050_FPM: 1000,
+    ROC_TO_FL150_FPM: 700,
+    ROC_TO_FL240_FPM: 450,
+    RUNWAY_ACCEL_MAX_MPS2: 1.5,
+    RUNWAY_ACCEL_MIN_MPS2: 0.85,
+    CLIMB_ACCEL_KT_PER_SEC: 1.1
+  }),
+  C206: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_SINGLE, {
+    RUNWAY_DISTANCE_M: 620,
+    ROTATION_KT: 63,
+    RUNWAY_TARGET_KT: 78,
+    SPEED_TO_FL050_KT: 100,
+    SPEED_TO_FL150_KT: 125,
+    SPEED_TO_FL240_KT: 145,
+    CRUISE_MAX_KT: 165,
+    DEFAULT_TARGET_ALT_FT: 8000,
+    ROC_TO_FL050_FPM: 950,
+    ROC_TO_FL150_FPM: 700,
+    ROC_TO_FL240_FPM: 450,
+    RUNWAY_ACCEL_MAX_MPS2: 1.55,
+    RUNWAY_ACCEL_MIN_MPS2: 0.9,
+    CLIMB_ACCEL_KT_PER_SEC: 1.15
+  }),
+  PA28: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_SINGLE, {
+    RUNWAY_DISTANCE_M: 450,
+    ROTATION_KT: 60,
+    RUNWAY_TARGET_KT: 70,
+    SPEED_TO_FL050_KT: 90,
+    SPEED_TO_FL150_KT: 115,
+    SPEED_TO_FL240_KT: 125,
+    CRUISE_MAX_KT: 140,
+    DEFAULT_TARGET_ALT_FT: 6000,
+    ROC_TO_FL050_FPM: 700,
+    ROC_TO_FL150_FPM: 500,
+    ROC_TO_FL240_FPM: 300,
+    RUNWAY_ACCEL_MAX_MPS2: 1.35,
+    RUNWAY_ACCEL_MIN_MPS2: 0.78,
+    CLIMB_ACCEL_KT_PER_SEC: 0.95
+  }),
+  Z42: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_SINGLE, {
+    RUNWAY_DISTANCE_M: 250,
+    ROTATION_KT: 45,
+    RUNWAY_TARGET_KT: 55,
+    SPEED_TO_FL050_KT: 80,
+    SPEED_TO_FL150_KT: 95,
+    SPEED_TO_FL240_KT: 105,
+    CRUISE_MAX_KT: 125,
+    DEFAULT_TARGET_ALT_FT: 4500,
+    ROC_TO_FL050_FPM: 800,
+    ROC_TO_FL150_FPM: 550,
+    ROC_TO_FL240_FPM: 300,
+    RUNWAY_ACCEL_MAX_MPS2: 1.2,
+    RUNWAY_ACCEL_MIN_MPS2: 0.7,
+    CLIMB_ACCEL_KT_PER_SEC: 0.85
+  }),
+  C208: crearPerfilDespegue(TAKEOFF_PROFILE_TURBOPROP, {
+    RUNWAY_DISTANCE_M: 800,
+    ROTATION_KT: 78,
+    RUNWAY_TARGET_KT: 92,
+    SPEED_TO_FL050_KT: 120,
+    SPEED_TO_FL150_KT: 160,
+    SPEED_TO_FL240_KT: 185,
+    CRUISE_MAX_KT: 200,
+    DEFAULT_TARGET_ALT_FT: 12000,
+    ROC_TO_FL050_FPM: 950,
+    ROC_TO_FL150_FPM: 700,
+    ROC_TO_FL240_FPM: 450,
+    RUNWAY_ACCEL_MAX_MPS2: 1.5,
+    RUNWAY_ACCEL_MIN_MPS2: 0.85,
+    CLIMB_ACCEL_KT_PER_SEC: 1.2
+  }),
+  PC12: crearPerfilDespegue(TAKEOFF_PROFILE_TURBOPROP, {
+    RUNWAY_DISTANCE_M: 790,
+    ROTATION_KT: 85,
+    RUNWAY_TARGET_KT: 100,
+    SPEED_TO_FL050_KT: 140,
+    SPEED_TO_FL150_KT: 190,
+    SPEED_TO_FL240_KT: 240,
+    CRUISE_MAX_KT: 280,
+    DEFAULT_TARGET_ALT_FT: 18000,
+    ROC_TO_FL050_FPM: 1800,
+    ROC_TO_FL150_FPM: 1200,
+    ROC_TO_FL240_FPM: 800,
+    RUNWAY_ACCEL_MAX_MPS2: 1.8,
+    RUNWAY_ACCEL_MIN_MPS2: 0.95,
+    CLIMB_ACCEL_KT_PER_SEC: 1.8
+  }),
+  PA23: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_TWIN, {
+    RUNWAY_DISTANCE_M: 650,
+    ROTATION_KT: 70,
+    RUNWAY_TARGET_KT: 82,
+    SPEED_TO_FL050_KT: 110,
+    SPEED_TO_FL150_KT: 145,
+    SPEED_TO_FL240_KT: 165,
+    CRUISE_MAX_KT: 190,
+    DEFAULT_TARGET_ALT_FT: 9000
+  }),
+  PA31: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_TWIN, {
+    RUNWAY_DISTANCE_M: 760,
+    ROTATION_KT: 78,
+    RUNWAY_TARGET_KT: 90,
+    SPEED_TO_FL050_KT: 120,
+    SPEED_TO_FL150_KT: 170,
+    SPEED_TO_FL240_KT: 195,
+    CRUISE_MAX_KT: 220,
+    DEFAULT_TARGET_ALT_FT: 12000,
+    ROC_TO_FL050_FPM: 1600,
+    ROC_TO_FL150_FPM: 1150,
+    ROC_TO_FL240_FPM: 750,
+    RUNWAY_ACCEL_MAX_MPS2: 1.65,
+    RUNWAY_ACCEL_MIN_MPS2: 0.9,
+    CLIMB_ACCEL_KT_PER_SEC: 1.35
+  }),
+  PA34: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_TWIN, {
+    RUNWAY_DISTANCE_M: 600,
+    ROTATION_KT: 75,
+    RUNWAY_TARGET_KT: 86,
+    SPEED_TO_FL050_KT: 110,
+    SPEED_TO_FL150_KT: 155,
+    SPEED_TO_FL240_KT: 175,
+    CRUISE_MAX_KT: 200,
+    DEFAULT_TARGET_ALT_FT: 10000,
+    ROC_TO_FL050_FPM: 1100,
+    ROC_TO_FL150_FPM: 850,
+    ROC_TO_FL240_FPM: 550,
+    RUNWAY_ACCEL_MAX_MPS2: 1.5,
+    RUNWAY_ACCEL_MIN_MPS2: 0.82,
+    CLIMB_ACCEL_KT_PER_SEC: 1.15
+  }),
+  PA44: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_TWIN, {
+    RUNWAY_DISTANCE_M: 470,
+    ROTATION_KT: 68,
+    RUNWAY_TARGET_KT: 80,
+    SPEED_TO_FL050_KT: 100,
+    SPEED_TO_FL150_KT: 140,
+    SPEED_TO_FL240_KT: 160,
+    CRUISE_MAX_KT: 185,
+    ROC_TO_FL050_FPM: 1000,
+    ROC_TO_FL150_FPM: 750,
+    ROC_TO_FL240_FPM: 500,
+    RUNWAY_ACCEL_MAX_MPS2: 1.4,
+    RUNWAY_ACCEL_MIN_MPS2: 0.78,
+    CLIMB_ACCEL_KT_PER_SEC: 1.0
+  }),
+  C303: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_TWIN, {
+    RUNWAY_DISTANCE_M: 650,
+    ROTATION_KT: 72,
+    RUNWAY_TARGET_KT: 84,
+    SPEED_TO_FL050_KT: 110,
+    SPEED_TO_FL150_KT: 150,
+    SPEED_TO_FL240_KT: 170,
+    CRUISE_MAX_KT: 190,
+    DEFAULT_TARGET_ALT_FT: 10000,
+    ROC_TO_FL050_FPM: 1200,
+    ROC_TO_FL150_FPM: 900,
+    ROC_TO_FL240_FPM: 600
+  }),
+  C402: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_TWIN, {
+    RUNWAY_DISTANCE_M: 780,
+    ROTATION_KT: 82,
+    RUNWAY_TARGET_KT: 96,
+    SPEED_TO_FL050_KT: 125,
+    SPEED_TO_FL150_KT: 170,
+    SPEED_TO_FL240_KT: 190,
+    CRUISE_MAX_KT: 230,
+    DEFAULT_TARGET_ALT_FT: 12000,
+    ROC_TO_FL050_FPM: 1400,
+    ROC_TO_FL150_FPM: 1000,
+    ROC_TO_FL240_FPM: 650,
+    RUNWAY_ACCEL_MAX_MPS2: 1.55,
+    RUNWAY_ACCEL_MIN_MPS2: 0.85,
+    CLIMB_ACCEL_KT_PER_SEC: 1.25
+  }),
+  BE20: crearPerfilDespegue(TAKEOFF_PROFILE_TURBOPROP, {
+    RUNWAY_DISTANCE_M: 930,
+    ROTATION_KT: 94,
+    RUNWAY_TARGET_KT: 110,
+    SPEED_TO_FL050_KT: 140,
+    SPEED_TO_FL150_KT: 220,
+    SPEED_TO_FL240_KT: 255,
+    CRUISE_MAX_KT: 290,
+    DEFAULT_TARGET_ALT_FT: 22000,
+    ROC_TO_FL050_FPM: 2500,
+    ROC_TO_FL150_FPM: 1800,
+    ROC_TO_FL240_FPM: 1200,
+    RUNWAY_ACCEL_MAX_MPS2: 1.85,
+    RUNWAY_ACCEL_MIN_MPS2: 0.95,
+    CLIMB_ACCEL_KT_PER_SEC: 1.9
+  }),
+  B190: crearPerfilDespegue(TAKEOFF_PROFILE_TURBOPROP, {
+    RUNWAY_DISTANCE_M: 1100,
+    ROTATION_KT: 104,
+    RUNWAY_TARGET_KT: 120,
+    SPEED_TO_FL050_KT: 150,
+    SPEED_TO_FL150_KT: 230,
+    SPEED_TO_FL240_KT: 270,
+    CRUISE_MAX_KT: 300,
+    DEFAULT_TARGET_ALT_FT: 24000,
+    ROC_TO_FL050_FPM: 2500,
+    ROC_TO_FL150_FPM: 1800,
+    ROC_TO_FL240_FPM: 1200,
+    RUNWAY_ACCEL_MAX_MPS2: 1.9,
+    RUNWAY_ACCEL_MIN_MPS2: 1.0,
+    CLIMB_ACCEL_KT_PER_SEC: 2.0
+  }),
+  DHC6: crearPerfilDespegue(TAKEOFF_PROFILE_TURBOPROP, {
+    RUNWAY_DISTANCE_M: 480,
+    ROTATION_KT: 70,
+    RUNWAY_TARGET_KT: 85,
+    SPEED_TO_FL050_KT: 110,
+    SPEED_TO_FL150_KT: 150,
+    SPEED_TO_FL240_KT: 175,
+    CRUISE_MAX_KT: 190,
+    DEFAULT_TARGET_ALT_FT: 10000,
+    ROC_TO_FL050_FPM: 1600,
+    ROC_TO_FL150_FPM: 1100,
+    ROC_TO_FL240_FPM: 700,
+    RUNWAY_ACCEL_MAX_MPS2: 1.6,
+    RUNWAY_ACCEL_MIN_MPS2: 0.85,
+    CLIMB_ACCEL_KT_PER_SEC: 1.3
+  }),
+  AN32: crearPerfilDespegue(TAKEOFF_PROFILE_TURBOPROP, {
+    RUNWAY_DISTANCE_M: 1050,
+    ROTATION_KT: 102,
+    RUNWAY_TARGET_KT: 118,
+    SPEED_TO_FL050_KT: 145,
+    SPEED_TO_FL150_KT: 205,
+    SPEED_TO_FL240_KT: 255,
+    CRUISE_MAX_KT: 290,
+    DEFAULT_TARGET_ALT_FT: 20000,
+    ROC_TO_FL050_FPM: 1900,
+    ROC_TO_FL150_FPM: 1400,
+    ROC_TO_FL240_FPM: 900,
+    CLIMB_ACCEL_KT_PER_SEC: 1.6
+  }),
+  KT1: crearPerfilDespegue(TAKEOFF_PROFILE_TURBOPROP, {
+    RUNWAY_DISTANCE_M: 560,
+    ROTATION_KT: 82,
+    RUNWAY_TARGET_KT: 96,
+    SPEED_TO_FL050_KT: 130,
+    SPEED_TO_FL150_KT: 210,
+    SPEED_TO_FL240_KT: 270,
+    CRUISE_MAX_KT: 320,
+    DEFAULT_TARGET_ALT_FT: 18000,
+    ROC_TO_FL050_FPM: 2600,
+    ROC_TO_FL150_FPM: 1800,
+    ROC_TO_FL240_FPM: 1100,
+    RUNWAY_ACCEL_MAX_MPS2: 1.95,
+    RUNWAY_ACCEL_MIN_MPS2: 1.0,
+    CLIMB_ACCEL_KT_PER_SEC: 2.4
+  }),
+  A319: crearPerfilDespegue(TAKEOFF_PROFILE_JET, {
+    RUNWAY_DISTANCE_M: 1550,
+    ROTATION_KT: 138,
+    RUNWAY_TARGET_KT: 148,
+    SPEED_TO_FL050_KT: 170,
+    SPEED_TO_FL150_KT: 290,
+    SPEED_TO_FL240_KT: 300,
+    CRUISE_MAX_KT: 450,
+    DEFAULT_TARGET_ALT_FT: 24000,
+    ROC_TO_FL050_FPM: 2500,
+    ROC_TO_FL150_FPM: 2500,
+    ROC_TO_FL240_FPM: 2000,
+    RUNWAY_ACCEL_MAX_MPS2: 1.95,
+    RUNWAY_ACCEL_MIN_MPS2: 1.0,
+    CLIMB_ACCEL_KT_PER_SEC: 2.2
+  }),
+  A320: crearPerfilDespegue(TAKEOFF_PROFILE_JET, {
+    RUNWAY_DISTANCE_M: 1700,
+    ROTATION_KT: 145,
+    RUNWAY_TARGET_KT: 155,
+    SPEED_TO_FL050_KT: 175,
+    SPEED_TO_FL150_KT: 295,
+    SPEED_TO_FL240_KT: 305,
+    CRUISE_MAX_KT: 450,
+    DEFAULT_TARGET_ALT_FT: 24000,
+    ROC_TO_FL050_FPM: 2500,
+    ROC_TO_FL150_FPM: 2500,
+    ROC_TO_FL240_FPM: 2000,
+    RUNWAY_ACCEL_MAX_MPS2: 2.0,
+    RUNWAY_ACCEL_MIN_MPS2: 1.0,
+    CLIMB_ACCEL_KT_PER_SEC: 2.3
+  }),
+  B737: crearPerfilDespegue(TAKEOFF_PROFILE_JET, {
+    RUNWAY_DISTANCE_M: 1650,
+    ROTATION_KT: 143,
+    RUNWAY_TARGET_KT: 153,
+    SPEED_TO_FL050_KT: 175,
+    SPEED_TO_FL150_KT: 295,
+    SPEED_TO_FL240_KT: 305,
+    CRUISE_MAX_KT: 450,
+    DEFAULT_TARGET_ALT_FT: 24000,
+    ROC_TO_FL050_FPM: 2600,
+    ROC_TO_FL150_FPM: 2400,
+    ROC_TO_FL240_FPM: 1900,
+    RUNWAY_ACCEL_MAX_MPS2: 2.0,
+    RUNWAY_ACCEL_MIN_MPS2: 1.0,
+    CLIMB_ACCEL_KT_PER_SEC: 2.3
+  }),
+  B738WX: crearPerfilDespegue(TAKEOFF_PROFILE_JET, {
+    RUNWAY_DISTANCE_M: 1650,
+    ROTATION_KT: 143,
+    RUNWAY_TARGET_KT: 153,
+    SPEED_TO_FL050_KT: 175,
+    SPEED_TO_FL150_KT: 295,
+    SPEED_TO_FL240_KT: 305,
+    CRUISE_MAX_KT: 450,
+    DEFAULT_TARGET_ALT_FT: 24000,
+    ROC_TO_FL050_FPM: 2600,
+    ROC_TO_FL150_FPM: 2400,
+    ROC_TO_FL240_FPM: 1900,
+    RUNWAY_ACCEL_MAX_MPS2: 2.0,
+    RUNWAY_ACCEL_MIN_MPS2: 1.0,
+    CLIMB_ACCEL_KT_PER_SEC: 2.3
+  }),
+  EC45: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 40
+  }),
+  MI17: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 70,
+    ROTATION_KT: 40,
+    RUNWAY_TARGET_KT: 60,
+    SPEED_TO_FL050_KT: 90,
+    SPEED_TO_FL150_KT: 120,
+    SPEED_TO_FL240_KT: 145,
+    CRUISE_MAX_KT: 160,
+    DEFAULT_TARGET_ALT_FT: 5000,
+    ROC_TO_FL050_FPM: 1400,
+    ROC_TO_FL150_FPM: 1100,
+    ROC_TO_FL240_FPM: 700,
+    RUNWAY_ACCEL_MAX_MPS2: 1.1,
+    RUNWAY_ACCEL_MIN_MPS2: 0.55,
+    CLIMB_ACCEL_KT_PER_SEC: 1.1
+  }),
+  F22: crearPerfilDespegue(TAKEOFF_PROFILE_FIGHTER, {
+    RUNWAY_DISTANCE_M: 420,
+    ROTATION_KT: 135,
+    RUNWAY_TARGET_KT: 160,
+    SPEED_TO_FL050_KT: 250,
+    SPEED_TO_FL150_KT: 380,
+    SPEED_TO_FL240_KT: 450,
+    CRUISE_MAX_KT: 450,
+    DEFAULT_TARGET_ALT_FT: 30000,
+    ROC_TO_FL050_FPM: 18000,
+    ROC_TO_FL150_FPM: 12000,
+    ROC_TO_FL240_FPM: 7000,
+    RUNWAY_ACCEL_MAX_MPS2: 4.2,
+    RUNWAY_ACCEL_MIN_MPS2: 2.2,
+    CLIMB_ACCEL_KT_PER_SEC: 6.0
+  }),
+  RFAL: crearPerfilDespegue(TAKEOFF_PROFILE_FIGHTER, {
+    RUNWAY_DISTANCE_M: 480,
+    ROTATION_KT: 132,
+    RUNWAY_TARGET_KT: 158
+  }),
+  B2: crearPerfilDespegue(TAKEOFF_PROFILE_FIGHTER, {
+    RUNWAY_DISTANCE_M: 1500,
+    ROTATION_KT: 150,
+    RUNWAY_TARGET_KT: 170,
+    SPEED_TO_FL050_KT: 220,
+    SPEED_TO_FL150_KT: 300,
+    SPEED_TO_FL240_KT: 380,
+    CRUISE_MAX_KT: 420,
+    DEFAULT_TARGET_ALT_FT: 28000,
+    ROC_TO_FL050_FPM: 4500,
+    ROC_TO_FL150_FPM: 3200,
+    ROC_TO_FL240_FPM: 2200,
+    RUNWAY_ACCEL_MAX_MPS2: 2.3,
+    RUNWAY_ACCEL_MIN_MPS2: 1.1,
+    CLIMB_ACCEL_KT_PER_SEC: 2.8
+  })
+})
 const PROCEDIMIENTO_LLEGADA_HOLDING_SCO_CLAVE = "HOLDING SCO ANTIHORARIO"
 const PROCEDIMIENTO_LLEGADA_GEBED3_HOLDING_MUMOP_CLAVE = "GEBED3 / HOLDING MUMOP"
 const ALTITUD_MINIMA_HOLDING_MUMOP_FT = 4000
@@ -355,6 +883,219 @@ function obtenerVelocidadMpsFallback(a){
   }
 
   return 0
+}
+
+function obtenerPerfilDespegueAeronave(tipo){
+  const clave = String(tipo || "").trim().toUpperCase()
+  return TAKEOFF_PROFILES[clave] || TAKEOFF_PROFILE_BASE
+}
+
+function normalizarFaseDespegue(valor){
+  const fase = String(valor || "").trim().toUpperCase()
+  if(fase === "RUNWAY" || fase === "CLIMB"){
+    return fase
+  }
+  return null
+}
+
+function obtenerProgresoCarreraDespegueMetros(aeronave){
+  const progreso = Number(aeronave && aeronave.takeoffRollProgressM)
+  return Number.isFinite(progreso) ? Math.max(0, progreso) : 0
+}
+
+function reiniciarSecuenciaDespegueAeronave(aeronave){
+  if(!aeronave) return
+  aeronave.fase = null
+  aeronave.takeoffRollProgressM = 0
+}
+
+function registrarAvanceCarreraDespegue(aeronave, metrosRecorridos){
+  if(!aeronave || normalizarFaseDespegue(aeronave.fase) !== "RUNWAY") return
+  const incremento = Number(metrosRecorridos)
+  if(!Number.isFinite(incremento) || incremento <= 0) return
+  aeronave.takeoffRollProgressM =
+    obtenerProgresoCarreraDespegueMetros(aeronave) + incremento
+}
+
+function calcularComandoDespegueAeronave(aeronave, segundosTick = 0.05){
+  const perfil = obtenerPerfilDespegueAeronave(aeronave && aeronave.tipo)
+  const deltaSegundos =
+    Number.isFinite(segundosTick) && segundosTick > 0
+      ? segundosTick
+      : 0.05
+
+  if(!aeronave || aeronave.estado !== "AIRBORNE"){
+    return {
+      activa: false,
+      perfil,
+      fase: null,
+      velocidadObjetivoKt: perfil.CRUISE_MAX_KT,
+      aceleracionKt: 0,
+      climbFPM: 0,
+      permitirAscenso: false,
+      altitudObjetivoFt: perfil.DEFAULT_TARGET_ALT_FT
+    }
+  }
+
+  const progresoRunwayM = obtenerProgresoCarreraDespegueMetros(aeronave)
+  let fase = normalizarFaseDespegue(aeronave.fase)
+  if(!fase && progresoRunwayM <= 0){
+    return {
+      activa: false,
+      perfil,
+      fase: null,
+      velocidadObjetivoKt: perfil.CRUISE_MAX_KT,
+      aceleracionKt: 0,
+      climbFPM: 0,
+      permitirAscenso: false,
+      altitudObjetivoFt: perfil.DEFAULT_TARGET_ALT_FT
+    }
+  }
+
+  const velocidadActualKt = Math.max(0, Number(aeronave.velocidad) || 0)
+  const altitudActualFt = Math.max(0, Number(aeronave.altitud) || 0)
+  if(!fase){
+    fase = altitudActualFt > 1 ? "CLIMB" : "RUNWAY"
+    aeronave.fase = fase
+  }
+
+  const altitudObjetivoRaw = Number(aeronave.altitudObjetivo)
+  const altitudObjetivoFt =
+    Number.isFinite(altitudObjetivoRaw) && altitudObjetivoRaw > 0
+      ? altitudObjetivoRaw
+      : perfil.DEFAULT_TARGET_ALT_FT
+
+  if(fase === "CLIMB" && altitudActualFt >= (altitudObjetivoFt - 1)){
+    reiniciarSecuenciaDespegueAeronave(aeronave)
+    return {
+      activa: false,
+      perfil,
+      fase: null,
+      velocidadObjetivoKt: Number.isFinite(Number(aeronave.velocidadObjetivo))
+        ? Math.max(0, Number(aeronave.velocidadObjetivo))
+        : perfil.CRUISE_MAX_KT,
+      aceleracionKt: 0,
+      climbFPM: 0,
+      permitirAscenso: false,
+      altitudObjetivoFt
+    }
+  }
+
+  if(fase === "RUNWAY"){
+    const progresoNormalizado = Math.max(
+      0,
+      Math.min(1, progresoRunwayM / Math.max(1, perfil.RUNWAY_DISTANCE_M))
+    )
+    const aceleracionMps2 =
+      perfil.RUNWAY_ACCEL_MAX_MPS2 -
+      (
+        (perfil.RUNWAY_ACCEL_MAX_MPS2 - perfil.RUNWAY_ACCEL_MIN_MPS2) *
+        Math.pow(progresoNormalizado, 0.88)
+      )
+    const listoParaElevar =
+      progresoRunwayM >= perfil.RUNWAY_DISTANCE_M &&
+      velocidadActualKt >= (perfil.ROTATION_KT - 1)
+
+    if(!listoParaElevar){
+      return {
+        activa: true,
+        perfil,
+        fase: "RUNWAY",
+        velocidadObjetivoKt: perfil.RUNWAY_TARGET_KT,
+        aceleracionKt: (aceleracionMps2 / 0.514444) * deltaSegundos,
+        climbFPM: 0,
+        permitirAscenso: false,
+        altitudObjetivoFt
+      }
+    }
+
+    aeronave.fase = "CLIMB"
+    fase = "CLIMB"
+  }
+
+  const techoBajoFt = Math.min(perfil.FL050_FT, altitudObjetivoFt)
+  const techoMedioFt = Math.min(perfil.FL150_FT, altitudObjetivoFt)
+  const techoAltoFt = Math.min(perfil.FL240_FT, altitudObjetivoFt)
+
+  let velocidadObjetivoKt = perfil.CRUISE_MAX_KT
+  let climbFPM = 0
+
+  if(altitudActualFt < techoBajoFt){
+    velocidadObjetivoKt = perfil.SPEED_TO_FL050_KT
+    climbFPM = perfil.ROC_TO_FL050_FPM
+  } else if(altitudActualFt < techoMedioFt){
+    velocidadObjetivoKt = perfil.SPEED_TO_FL150_KT
+    climbFPM = perfil.ROC_TO_FL150_FPM
+  } else if(altitudActualFt < techoAltoFt || altitudActualFt < altitudObjetivoFt){
+    velocidadObjetivoKt = perfil.SPEED_TO_FL240_KT
+    climbFPM = perfil.ROC_TO_FL240_FPM
+  }
+
+  return {
+    activa: true,
+    perfil,
+    fase,
+    velocidadObjetivoKt,
+    aceleracionKt: perfil.CLIMB_ACCEL_KT_PER_SEC * deltaSegundos,
+    climbFPM,
+    permitirAscenso: climbFPM > 0,
+    altitudObjetivoFt
+  }
+}
+
+function aplicarPerformanceDespegueAeronave(aeronave, intervaloMS){
+  const segundosTick = Math.max(0.02, (intervaloMS || 50) / 1000)
+  const comandoDespegue = calcularComandoDespegueAeronave(aeronave, segundosTick)
+  if(!comandoDespegue.activa){
+    return false
+  }
+
+  const velocidadObjetivoKt = Number.isFinite(Number(comandoDespegue.velocidadObjetivoKt))
+    ? Math.max(0, Number(comandoDespegue.velocidadObjetivoKt))
+    : 0
+  const aceleracionKt = Number.isFinite(Number(comandoDespegue.aceleracionKt))
+    ? Math.max(0, Number(comandoDespegue.aceleracionKt))
+    : 0
+  const climbFPM = Number.isFinite(Number(comandoDespegue.climbFPM))
+    ? Math.max(0, Number(comandoDespegue.climbFPM))
+    : 0
+  const altitudObjetivoFt = Number.isFinite(Number(comandoDespegue.altitudObjetivoFt))
+    ? Math.max(0, Number(comandoDespegue.altitudObjetivoFt))
+    : comandoDespegue.perfil.DEFAULT_TARGET_ALT_FT
+
+  aeronave.velocidadObjetivo = velocidadObjetivoKt
+  if(
+    !Number.isFinite(Number(aeronave.altitudObjetivo)) ||
+    Number(aeronave.altitudObjetivo) <= 0
+  ){
+    aeronave.altitudObjetivo = altitudObjetivoFt
+  }
+
+  const velocidadActualKt = Math.max(0, Number(aeronave.velocidad) || 0)
+  if(velocidadActualKt < velocidadObjetivoKt){
+    aeronave.velocidad = Math.min(velocidadObjetivoKt, velocidadActualKt + aceleracionKt)
+  } else if(velocidadActualKt > velocidadObjetivoKt){
+    aeronave.velocidad = Math.max(velocidadObjetivoKt, velocidadActualKt - aceleracionKt)
+  } else {
+    aeronave.velocidad = velocidadActualKt
+  }
+
+  if(comandoDespegue.permitirAscenso){
+    const climbFtPorSegundo = climbFPM / 60
+    const altitudActualFt = Math.max(0, Number(aeronave.altitud) || 0)
+    aeronave.altitud = Math.min(
+      altitudObjetivoFt,
+      altitudActualFt + (climbFtPorSegundo * segundosTick)
+    )
+    if(aeronave.altitud >= (altitudObjetivoFt - 1)){
+      aeronave.altitud = altitudObjetivoFt
+      reiniciarSecuenciaDespegueAeronave(aeronave)
+    }
+  } else if(normalizarFaseDespegue(aeronave.fase) === "RUNWAY"){
+    aeronave.altitud = 0
+  }
+
+  return true
 }
 
 function normalizarPuntoRuta(punto){
@@ -920,12 +1661,17 @@ function avanzarRutaAirborneLineal(aeronave, intervaloMS){
     progreso = 0
   }
 
+  const performanceDespegueAplicada = aplicarPerformanceDespegueAeronave(
+    aeronave,
+    intervaloMS
+  )
   const velocidadMPS = obtenerVelocidadMpsFallback(aeronave)
   if(!Number.isFinite(velocidadMPS) || velocidadMPS <= 0){
     return false
   }
 
-  let distanciaRestante = velocidadMPS * (intervaloMS / 1000)
+  const distanciaProgramadaM = velocidadMPS * (intervaloMS / 1000)
+  let distanciaRestante = distanciaProgramadaM
 
   while(distanciaRestante > 0){
     if(indice >= ruta.length - 1){
@@ -975,8 +1721,14 @@ function avanzarRutaAirborneLineal(aeronave, intervaloMS){
       aeronave.rutaAirborneFinalizada = true
       aeronave.rutaAirborneIndice = ruta.length - 1
       aeronave.rutaAirborneProgreso = 0
-      if(!aplicarPerfilAltitudLlegadaServidor(aeronave, intervaloMS)){
-        ajustarAltitudHaciaObjetivo(aeronave, intervaloMS)
+      registrarAvanceCarreraDespegue(aeronave, distanciaProgramadaM)
+      if(
+        !performanceDespegueAplicada &&
+        !aplicarPerfilAltitudLlegadaServidor(aeronave, intervaloMS)
+      ){
+        ajustarAltitudHaciaObjetivo(aeronave, intervaloMS, {
+          bloquearDescenso: aeronave.estado === "PILOTAGE"
+        })
       }
       return true
     }
@@ -993,22 +1745,32 @@ function avanzarRutaAirborneLineal(aeronave, intervaloMS){
   aeronave.rutaAirborneFinalizada = false
   aeronave.rutaAirborneIndice = indice
   aeronave.rutaAirborneProgreso = progreso
-  if(!aplicarPerfilAltitudLlegadaServidor(aeronave, intervaloMS)){
-    ajustarAltitudHaciaObjetivo(aeronave, intervaloMS)
+  registrarAvanceCarreraDespegue(aeronave, distanciaProgramadaM)
+  if(
+    !performanceDespegueAplicada &&
+    !aplicarPerfilAltitudLlegadaServidor(aeronave, intervaloMS)
+  ){
+    ajustarAltitudHaciaObjetivo(aeronave, intervaloMS, {
+      bloquearDescenso: aeronave.estado === "PILOTAGE"
+    })
   }
 
   return true
 }
 
-function ajustarAltitudHaciaObjetivo(aeronave, intervaloMS){
+function ajustarAltitudHaciaObjetivo(aeronave, intervaloMS, opciones = {}){
   if(!aeronave) return
   const objetivoRaw = Number(aeronave.altitudObjetivo)
   if(!Number.isFinite(objetivoRaw)) return
   const objetivo = Math.max(0, objetivoRaw)
   const altitudActual = Number.isFinite(aeronave.altitud) ? aeronave.altitud : 0
   const delta = objetivo - altitudActual
+  const bloquearDescenso = Boolean(opciones && opciones.bloquearDescenso)
   if(Math.abs(delta) < 1){
     aeronave.altitud = objetivo
+    return
+  }
+  if(delta < 0 && bloquearDescenso){
     return
   }
   const tasaFpm = delta > 0
@@ -1504,6 +2266,8 @@ function crearRegistroAeronave(dataInicial = {}, opciones = {}) {
     rutaAirborneProgreso: 0,
     rutaAirborneLoop: false,
     rutaAirborneLoopStartIndex: 0,
+    fase: null,
+    takeoffRollProgressM: 0,
     arrivalProcedureName: null,
     arrivalAltitudeProfile: null,
     arrivalHoldingMumopManualAltitudeFt: null,
@@ -1562,6 +2326,14 @@ function construirPayloadActualizacionAeronave(aeronave, extras = {}) {
     rutaAirborneLoopStartIndex: normalizarIndiceLoopRutaAirborneServidor(
       aeronave.rutaAirborneLoopStartIndex
     ),
+    fase:
+      aeronave.estado === "AIRBORNE"
+        ? normalizarFaseDespegue(aeronave.fase)
+        : null,
+    takeoffRollProgressM:
+      aeronave.estado === "AIRBORNE"
+        ? obtenerProgresoCarreraDespegueMetros(aeronave)
+        : 0,
     syncTs: Number.isFinite(Number(aeronave.syncTs))
       ? Number(aeronave.syncTs)
       : null,
@@ -1601,6 +2373,8 @@ function detenerAccionActualAeronave(aeronave) {
   aeronave.rutaAirborneProgreso = 0
   aeronave.rutaAirborneLoop = false
   aeronave.rutaAirborneLoopStartIndex = 0
+  aeronave.fase = null
+  aeronave.takeoffRollProgressM = 0
   aeronave.arrivalProcedureName = null
   aeronave.arrivalAltitudeProfile = null
   aeronave.arrivalHoldingMumopManualAltitudeFt = null
@@ -2082,6 +2856,10 @@ function iniciarMotorSala(nombreSala){
 		      }
 
 		      if ((MOVIMIENTO_AUTORITATIVO_SERVIDOR || !a.owner) && !ESTADOS_RUTA_SERVIDOR.has(a.estado)) {
+		        const performanceDespegueAplicada =
+		          a.estado === "AIRBORNE"
+		            ? aplicarPerformanceDespegueAeronave(a, intervaloMS)
+		            : false
 		        const velocidadMPS = obtenerVelocidadMpsFallback(a)
 		        if (velocidadMPS > 0) {
 		          const distanciaTick = velocidadMPS * (intervaloMS / 1000)
@@ -2092,6 +2870,9 @@ function iniciarMotorSala(nombreSala){
 	          )
 	          a.lat = nuevoPunto.lat
 	          a.lng = nuevoPunto.lng
+	          if (performanceDespegueAplicada) {
+	            registrarAvanceCarreraDespegue(a, distanciaTick)
+	          }
 	        }
 
 	        emitirActualizacionAeronave(nombreSala, a)
@@ -3414,6 +4195,17 @@ function prepararAeronaveParaCircuito(salaNombre, sala, aeronave, opciones = {})
       ? opciones.sentidoCircuito
       : aeronave.circuitoSentido
   )
+  aeronave.rutaAirborne = null
+  aeronave.rutaAirborneFinalizada = false
+  aeronave.rutaAirborneIndice = 0
+  aeronave.rutaAirborneProgreso = 0
+  aeronave.rutaAirborneLoop = false
+  aeronave.rutaAirborneLoopStartIndex = 0
+  aeronave.arrivalProcedureName = null
+  aeronave.arrivalAltitudeProfile = null
+  aeronave.arrivalHoldingMumopManualAltitudeFt = null
+  aeronave.fase = null
+  aeronave.takeoffRollProgressM = 0
 
   aeronave.ruta = generarRutaServidorParaAeronave(sala, aeronave)
 
@@ -4091,6 +4883,16 @@ socket.on("setRutaAirborne", ({ id, ruta, estado, loop, loopStartIndex, arrivalP
   aeronave.arrivalProcedureName = arrivalProcedureNormalizado
   aeronave.arrivalAltitudeProfile = null
   aeronave.arrivalHoldingMumopManualAltitudeFt = null
+  if(estadoNormalizado === "PILOTAGE"){
+    const altitudActualFt = Number(aeronave.altitud)
+    const altitudObjetivoActualFt = Number(aeronave.altitudObjetivo)
+    if(Number.isFinite(altitudActualFt) && altitudActualFt > 0){
+      aeronave.altitudObjetivo =
+        Number.isFinite(altitudObjetivoActualFt) && altitudObjetivoActualFt > altitudActualFt
+          ? altitudObjetivoActualFt
+          : altitudActualFt
+    }
+  }
 
   const posicionActual = { lat: aeronave.lat, lng: aeronave.lng }
   const proyeccion = obtenerProyeccionRutaLinealMasCercana(posicionActual, rutaNormalizada)
@@ -4729,6 +5531,9 @@ socket.on("actualizarAeronave", (data) => {
   if(typeof data.estado === "string"){
     aeronave.estado = data.estado
   }
+  if(aeronave.estado !== "AIRBORNE"){
+    reiniciarSecuenciaDespegueAeronave(aeronave)
+  }
   if(
     estadoPrevio === "TAXI" &&
     aeronave.estado !== "TAXI" &&
@@ -4770,6 +5575,19 @@ socket.on("actualizarAeronave", (data) => {
     Number.isFinite(data.altitudObjetivo)
   ) {
     aeronave.altitudObjetivo = Math.max(0, data.altitudObjetivo);
+  }
+  if(Object.prototype.hasOwnProperty.call(data, "fase")){
+    aeronave.fase =
+      aeronave.estado === "AIRBORNE"
+        ? normalizarFaseDespegue(data.fase)
+        : null
+  }
+  if(Object.prototype.hasOwnProperty.call(data, "takeoffRollProgressM")){
+    aeronave.takeoffRollProgressM =
+      aeronave.estado === "AIRBORNE" &&
+      Number.isFinite(Number(data.takeoffRollProgressM))
+        ? Math.max(0, Number(data.takeoffRollProgressM))
+        : 0
   }
   actualizarObjetivoPilotageServidor(aeronave, data)
   if(Object.prototype.hasOwnProperty.call(data, "arrivalProcedureName")){

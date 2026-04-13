@@ -4753,6 +4753,12 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   gap: 5px;
 }
 
+#createAircraftPanel .aircraft-type-row{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
 #createAircraftPanel label {
   font-size: 12px;
   color: #9ca3af;
@@ -4948,14 +4954,20 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
 
 #panelManual .control-group .value.value-edit{
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: center;
-  gap: 6px;
+  position: relative;
+  width: 96px;
+  margin: 0 auto 6px;
 }
 
 #panelManual .manual-value-input{
-  width: 78px;
+  width: 100%;
   height: 28px;
+  padding: 0 22px;
+  box-sizing: border-box;
+  appearance: textfield;
+  -moz-appearance: textfield;
   border-radius: 8px;
   border: 1px solid rgba(125, 211, 252, 0.45);
   background: rgba(2, 6, 23, 0.85);
@@ -4967,6 +4979,11 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.45);
 }
 
+#panelManual #spdValue{
+  padding-left: 28px;
+  padding-right: 28px;
+}
+
 #panelManual .manual-value-input:focus{
   border-color: #7dd3fc;
   box-shadow:
@@ -4976,14 +4993,21 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
 
 #panelManual .manual-value-input::-webkit-outer-spin-button,
 #panelManual .manual-value-input::-webkit-inner-spin-button{
+  -webkit-appearance: none;
   margin: 0;
 }
 
 #panelManual .manual-value-unit{
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
   font-size: 12px;
   font-weight: 700;
   color: #93c5fd;
   letter-spacing: 0.4px;
+  line-height: 1;
+  pointer-events: none;
 }
 
 #panelManual .buttons {
@@ -5731,9 +5755,13 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   }
 
   #panelManual .manual-value-input{
-    width: 96px;
+    width: 100%;
     height: 36px;
     font-size: 18px;
+  }
+
+  #panelManual .control-group .value.value-edit{
+    width: 112px;
   }
 
   #panelManual .buttons button{

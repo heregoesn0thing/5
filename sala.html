@@ -26,37 +26,41 @@
 
     <div class="formSection">
       <label>Aircraft Type</label>
-      <select id="tipoSelect">
-        <option value="A319">A319</option>
-        <option value="A320">A320</option>
-        <option value="AN32">AN32</option>
-        <option value="B190">B190</option>
-        <option value="B2">B2</option>
-        <option value="B737">B737</option>
-        <option value="BE20">BE20</option>
-        <option value="C152">C152</option>
-        <option value="C172">C172</option>
-        <option value="C180">C180</option>
-        <option value="C206">C206</option>
-        <option value="C208">C208</option>
-        <option value="C303">C303</option>
-        <option value="C402">C402</option>
-        <option value="DHC6">DHC6</option>
-        <option value="EC45">EC45</option>
-        <option value="F22">F22</option>
-        <option value="KT1">KT1</option>
-        <option value="MI17" hidden disabled>MI17</option>
-        <option value="PA23">PA23</option>
-        <option value="PA28">PA28</option>
-        <option value="PA31">PA31</option>
-        <option value="PA34">PA34</option>
-        <option value="PA44">PA44</option>
-        <option value="PC12">PC12</option>
-        <option value="RFAL">RFAL</option>
-        <option value="Z42">Z42</option>
-        <option value="???" data-weather-only="true" hidden disabled>???</option>
-        <option value="B738WX" data-weather-only="true" hidden disabled>B738 WX</option>
-        <option value="H" data-weather-only="true" hidden disabled>H</option>
+      <div class="aircraft-type-row">
+        <select id="fabricanteSelect" aria-label="Aircraft manufacturer"></select>
+        <select id="modeloSelect" aria-label="Aircraft model"></select>
+      </div>
+      <select id="tipoSelect" hidden aria-hidden="true" tabindex="-1">
+        <option value="A319" data-manufacturer="Airbus">A319</option>
+        <option value="A320" data-manufacturer="Airbus">A320</option>
+        <option value="AN32" data-manufacturer="Antonov">AN32</option>
+        <option value="B190" data-manufacturer="Beechcraft">B190</option>
+        <option value="B2" data-manufacturer="Northrop Grumman">B2</option>
+        <option value="B737" data-manufacturer="Boeing">B737</option>
+        <option value="BE20" data-manufacturer="Beechcraft">BE20</option>
+        <option value="C152" data-manufacturer="Cessna">C152</option>
+        <option value="C172" data-manufacturer="Cessna">C172</option>
+        <option value="C180" data-manufacturer="Cessna">C180</option>
+        <option value="C206" data-manufacturer="Cessna">C206</option>
+        <option value="C208" data-manufacturer="Cessna">C208</option>
+        <option value="C303" data-manufacturer="Cessna">C303</option>
+        <option value="C402" data-manufacturer="Cessna">C402</option>
+        <option value="DHC6" data-manufacturer="De Havilland">DHC6</option>
+        <option value="EC45" data-manufacturer="Eurocopter">EC45</option>
+        <option value="F22" data-manufacturer="Lockheed Martin">F22</option>
+        <option value="KT1" data-manufacturer="KAI">KT1</option>
+        <option value="MI17" data-manufacturer="Mil" hidden disabled>MI17</option>
+        <option value="PA23" data-manufacturer="Piper">PA23</option>
+        <option value="PA28" data-manufacturer="Piper">PA28</option>
+        <option value="PA31" data-manufacturer="Piper">PA31</option>
+        <option value="PA34" data-manufacturer="Piper">PA34</option>
+        <option value="PA44" data-manufacturer="Piper">PA44</option>
+        <option value="PC12" data-manufacturer="Pilatus">PC12</option>
+        <option value="RFAL" data-manufacturer="Dassault">RFAL</option>
+        <option value="Z42" data-manufacturer="Zlin">Z42</option>
+        <option value="???" data-manufacturer="Weather" data-weather-only="true" hidden disabled>???</option>
+        <option value="B738WX" data-manufacturer="Weather" data-weather-only="true" hidden disabled>B738 WX</option>
+        <option value="H" data-manufacturer="Weather" data-weather-only="true" hidden disabled>H</option>
       </select>
     </div>
 
@@ -127,7 +131,7 @@
         <svg id="tcasSvg" class="tcas-svg" viewBox="0 0 200 200"></svg>
         <div id="tcasRangeLabel" class="tcas-range-label">RNG 5 NM</div>
       </div>
-      <div id="tcasSummary" class="tcas-summary">No traffic in envelope</div>
+      <div id="tcasSummary" class="tcas-summary">No traffic</div>
       <div class="tcas-legend">
         <span class="legend-item legend-item-other">OTHER</span>
         <span class="legend-item legend-item-prox">PROX</span>
@@ -6590,6 +6594,8 @@ const HOLD_SHORT_POSITIONS = [
 ]
 const HOLD_SHORT_TRIGGER_RADIUS_M = 30
 const LINE_UP_HOLD_SHORT_RADIUS_M = 35
+const IMMEDIATE_DEPARTURE_HOLD_SHORT_TOLERANCE_M = 8
+const IMMEDIATE_DEPARTURE_HEADING_TOLERANCE_DEG = 30
 const HOLD_SHORT_LENGTH_M = 30
 const HOLD_SHORT_ASPECT = 218 / 672
 const HOLD_SHORT_HEADING_DEG = 220
@@ -8262,6 +8268,7 @@ const PILOTAGE_REALISTIC_BANK_DEG = 22
 const PILOTAGE_REALISTIC_TURN_RATE_MIN_DEG_PER_SEC = 2
 const PILOTAGE_REALISTIC_TURN_RATE_MAX_DEG_PER_SEC = 5.8
 const PILOTAGE_CONTINUATION_STEP_METERS = 20 * 1852
+const REJOIN_DCT_PILOTAGE_TARGET_TOLERANCE_M = 35
 const RUMBO_PISTA_22 = 220
 const RUMBO_CIRCUITO_DOWNWIND = 40
 const EXTEND_CIRCUITO_PASO_METROS = 0.5 * 1852
@@ -8350,11 +8357,13 @@ const DESCENT_RATE = {
 }
 const TAKEOFF_PROFILE_A32X = {
   RUNWAY_DISTANCE_M: 1750,
+  ROTATION_KT: 145,
   RUNWAY_TARGET_KT: 135,
   SPEED_TO_FL050_KT: 165,
   SPEED_TO_FL150_KT: 290,
   SPEED_TO_FL240_KT: 290,
   CRUISE_MAX_KT: 450,
+  DEFAULT_TARGET_ALT_FT: 24000,
   ROC_TO_FL050_FPM: 2500,
   ROC_TO_FL150_FPM: 2500,
   ROC_TO_FL240_FPM: 2500,
@@ -8364,7 +8373,631 @@ const TAKEOFF_PROFILE_A32X = {
   
   RUNWAY_ACCEL_MAX_MPS2: 1.8,
   RUNWAY_ACCEL_MIN_MPS2: 0.9,
-  CLIMB_ACCEL_KT_PER_TICK: 0.4
+  CLIMB_ACCEL_KT_PER_SEC: 2.3
+}
+
+function crearPerfilDespegue(base, overrides = {}){
+  return Object.freeze({
+    ...base,
+    ...overrides
+  })
+}
+
+const TAKEOFF_PROFILE_BASE = Object.freeze({
+  RUNWAY_DISTANCE_M: 450,
+  ROTATION_KT: 60,
+  RUNWAY_TARGET_KT: 72,
+  SPEED_TO_FL050_KT: 100,
+  SPEED_TO_FL150_KT: 140,
+  SPEED_TO_FL240_KT: 170,
+  CRUISE_MAX_KT: 190,
+  DEFAULT_TARGET_ALT_FT: 6000,
+  ROC_TO_FL050_FPM: 900,
+  ROC_TO_FL150_FPM: 650,
+  ROC_TO_FL240_FPM: 400,
+  FL050_FT: 5000,
+  FL150_FT: 15000,
+  FL240_FT: 24000,
+  RUNWAY_ACCEL_MAX_MPS2: 1.4,
+  RUNWAY_ACCEL_MIN_MPS2: 0.75,
+  CLIMB_ACCEL_KT_PER_SEC: 1.2
+})
+
+const TAKEOFF_PROFILE_LIGHT_SINGLE = crearPerfilDespegue(TAKEOFF_PROFILE_BASE)
+const TAKEOFF_PROFILE_LIGHT_TWIN = crearPerfilDespegue(TAKEOFF_PROFILE_BASE, {
+  RUNWAY_DISTANCE_M: 620,
+  ROTATION_KT: 72,
+  RUNWAY_TARGET_KT: 84,
+  SPEED_TO_FL050_KT: 110,
+  SPEED_TO_FL150_KT: 150,
+  SPEED_TO_FL240_KT: 175,
+  CRUISE_MAX_KT: 195,
+  DEFAULT_TARGET_ALT_FT: 9000,
+  ROC_TO_FL050_FPM: 1100,
+  ROC_TO_FL150_FPM: 800,
+  ROC_TO_FL240_FPM: 500,
+  RUNWAY_ACCEL_MAX_MPS2: 1.45,
+  RUNWAY_ACCEL_MIN_MPS2: 0.8,
+  CLIMB_ACCEL_KT_PER_SEC: 1.1
+})
+const TAKEOFF_PROFILE_TURBOPROP = crearPerfilDespegue(TAKEOFF_PROFILE_BASE, {
+  RUNWAY_DISTANCE_M: 900,
+  ROTATION_KT: 90,
+  RUNWAY_TARGET_KT: 105,
+  SPEED_TO_FL050_KT: 140,
+  SPEED_TO_FL150_KT: 210,
+  SPEED_TO_FL240_KT: 255,
+  CRUISE_MAX_KT: 290,
+  DEFAULT_TARGET_ALT_FT: 18000,
+  ROC_TO_FL050_FPM: 1900,
+  ROC_TO_FL150_FPM: 1400,
+  ROC_TO_FL240_FPM: 900,
+  RUNWAY_ACCEL_MAX_MPS2: 1.8,
+  RUNWAY_ACCEL_MIN_MPS2: 0.95,
+  CLIMB_ACCEL_KT_PER_SEC: 1.8
+})
+const TAKEOFF_PROFILE_JET = crearPerfilDespegue(TAKEOFF_PROFILE_A32X)
+const TAKEOFF_PROFILE_HELICOPTER = crearPerfilDespegue(TAKEOFF_PROFILE_BASE, {
+  RUNWAY_DISTANCE_M: 60,
+  ROTATION_KT: 35,
+  RUNWAY_TARGET_KT: 50,
+  SPEED_TO_FL050_KT: 80,
+  SPEED_TO_FL150_KT: 110,
+  SPEED_TO_FL240_KT: 130,
+  CRUISE_MAX_KT: 150,
+  DEFAULT_TARGET_ALT_FT: 4000,
+  ROC_TO_FL050_FPM: 1200,
+  ROC_TO_FL150_FPM: 900,
+  ROC_TO_FL240_FPM: 600,
+  RUNWAY_ACCEL_MAX_MPS2: 1.0,
+  RUNWAY_ACCEL_MIN_MPS2: 0.5,
+  CLIMB_ACCEL_KT_PER_SEC: 1.0
+})
+const TAKEOFF_PROFILE_FIGHTER = crearPerfilDespegue(TAKEOFF_PROFILE_BASE, {
+  RUNWAY_DISTANCE_M: 500,
+  ROTATION_KT: 130,
+  RUNWAY_TARGET_KT: 155,
+  SPEED_TO_FL050_KT: 240,
+  SPEED_TO_FL150_KT: 360,
+  SPEED_TO_FL240_KT: 430,
+  CRUISE_MAX_KT: 450,
+  DEFAULT_TARGET_ALT_FT: 28000,
+  ROC_TO_FL050_FPM: 17000,
+  ROC_TO_FL150_FPM: 11000,
+  ROC_TO_FL240_FPM: 6500,
+  RUNWAY_ACCEL_MAX_MPS2: 4.0,
+  RUNWAY_ACCEL_MIN_MPS2: 2.0,
+  CLIMB_ACCEL_KT_PER_SEC: 5.6
+})
+
+const TAKEOFF_PROFILES = Object.freeze({
+  C152: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_SINGLE, {
+    RUNWAY_DISTANCE_M: 260,
+    ROTATION_KT: 52,
+    RUNWAY_TARGET_KT: 60,
+    SPEED_TO_FL050_KT: 80,
+    SPEED_TO_FL150_KT: 95,
+    SPEED_TO_FL240_KT: 105,
+    CRUISE_MAX_KT: 110,
+    DEFAULT_TARGET_ALT_FT: 4000,
+    ROC_TO_FL050_FPM: 700,
+    ROC_TO_FL150_FPM: 450,
+    ROC_TO_FL240_FPM: 250,
+    RUNWAY_ACCEL_MAX_MPS2: 1.25,
+    RUNWAY_ACCEL_MIN_MPS2: 0.7,
+    CLIMB_ACCEL_KT_PER_SEC: 0.8
+  }),
+  C172: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_SINGLE, {
+    RUNWAY_DISTANCE_M: 380,
+    ROTATION_KT: 55,
+    RUNWAY_TARGET_KT: 65,
+    SPEED_TO_FL050_KT: 85,
+    SPEED_TO_FL150_KT: 100,
+    SPEED_TO_FL240_KT: 110,
+    CRUISE_MAX_KT: 120,
+    DEFAULT_TARGET_ALT_FT: 5000,
+    ROC_TO_FL050_FPM: 500,
+    ROC_TO_FL150_FPM: 350,
+    ROC_TO_FL240_FPM: 200,
+    RUNWAY_ACCEL_MAX_MPS2: 1.3,
+    RUNWAY_ACCEL_MIN_MPS2: 0.75,
+    CLIMB_ACCEL_KT_PER_SEC: 0.9
+  }),
+  C180: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_SINGLE, {
+    RUNWAY_DISTANCE_M: 470,
+    ROTATION_KT: 58,
+    RUNWAY_TARGET_KT: 72,
+    SPEED_TO_FL050_KT: 95,
+    SPEED_TO_FL150_KT: 120,
+    SPEED_TO_FL240_KT: 140,
+    CRUISE_MAX_KT: 160,
+    DEFAULT_TARGET_ALT_FT: 7000,
+    ROC_TO_FL050_FPM: 1000,
+    ROC_TO_FL150_FPM: 700,
+    ROC_TO_FL240_FPM: 450,
+    RUNWAY_ACCEL_MAX_MPS2: 1.5,
+    RUNWAY_ACCEL_MIN_MPS2: 0.85,
+    CLIMB_ACCEL_KT_PER_SEC: 1.1
+  }),
+  C206: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_SINGLE, {
+    RUNWAY_DISTANCE_M: 620,
+    ROTATION_KT: 63,
+    RUNWAY_TARGET_KT: 78,
+    SPEED_TO_FL050_KT: 100,
+    SPEED_TO_FL150_KT: 125,
+    SPEED_TO_FL240_KT: 145,
+    CRUISE_MAX_KT: 165,
+    DEFAULT_TARGET_ALT_FT: 8000,
+    ROC_TO_FL050_FPM: 950,
+    ROC_TO_FL150_FPM: 700,
+    ROC_TO_FL240_FPM: 450,
+    RUNWAY_ACCEL_MAX_MPS2: 1.55,
+    RUNWAY_ACCEL_MIN_MPS2: 0.9,
+    CLIMB_ACCEL_KT_PER_SEC: 1.15
+  }),
+  PA28: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_SINGLE, {
+    RUNWAY_DISTANCE_M: 450,
+    ROTATION_KT: 60,
+    RUNWAY_TARGET_KT: 70,
+    SPEED_TO_FL050_KT: 90,
+    SPEED_TO_FL150_KT: 115,
+    SPEED_TO_FL240_KT: 125,
+    CRUISE_MAX_KT: 140,
+    DEFAULT_TARGET_ALT_FT: 6000,
+    ROC_TO_FL050_FPM: 700,
+    ROC_TO_FL150_FPM: 500,
+    ROC_TO_FL240_FPM: 300,
+    RUNWAY_ACCEL_MAX_MPS2: 1.35,
+    RUNWAY_ACCEL_MIN_MPS2: 0.78,
+    CLIMB_ACCEL_KT_PER_SEC: 0.95
+  }),
+  Z42: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_SINGLE, {
+    RUNWAY_DISTANCE_M: 250,
+    ROTATION_KT: 45,
+    RUNWAY_TARGET_KT: 55,
+    SPEED_TO_FL050_KT: 80,
+    SPEED_TO_FL150_KT: 95,
+    SPEED_TO_FL240_KT: 105,
+    CRUISE_MAX_KT: 125,
+    DEFAULT_TARGET_ALT_FT: 4500,
+    ROC_TO_FL050_FPM: 800,
+    ROC_TO_FL150_FPM: 550,
+    ROC_TO_FL240_FPM: 300,
+    RUNWAY_ACCEL_MAX_MPS2: 1.2,
+    RUNWAY_ACCEL_MIN_MPS2: 0.7,
+    CLIMB_ACCEL_KT_PER_SEC: 0.85
+  }),
+  C208: crearPerfilDespegue(TAKEOFF_PROFILE_TURBOPROP, {
+    RUNWAY_DISTANCE_M: 800,
+    ROTATION_KT: 78,
+    RUNWAY_TARGET_KT: 92,
+    SPEED_TO_FL050_KT: 120,
+    SPEED_TO_FL150_KT: 160,
+    SPEED_TO_FL240_KT: 185,
+    CRUISE_MAX_KT: 200,
+    DEFAULT_TARGET_ALT_FT: 12000,
+    ROC_TO_FL050_FPM: 950,
+    ROC_TO_FL150_FPM: 700,
+    ROC_TO_FL240_FPM: 450,
+    RUNWAY_ACCEL_MAX_MPS2: 1.5,
+    RUNWAY_ACCEL_MIN_MPS2: 0.85,
+    CLIMB_ACCEL_KT_PER_SEC: 1.2
+  }),
+  PC12: crearPerfilDespegue(TAKEOFF_PROFILE_TURBOPROP, {
+    RUNWAY_DISTANCE_M: 790,
+    ROTATION_KT: 85,
+    RUNWAY_TARGET_KT: 100,
+    SPEED_TO_FL050_KT: 140,
+    SPEED_TO_FL150_KT: 190,
+    SPEED_TO_FL240_KT: 240,
+    CRUISE_MAX_KT: 280,
+    DEFAULT_TARGET_ALT_FT: 18000,
+    ROC_TO_FL050_FPM: 1800,
+    ROC_TO_FL150_FPM: 1200,
+    ROC_TO_FL240_FPM: 800,
+    RUNWAY_ACCEL_MAX_MPS2: 1.8,
+    RUNWAY_ACCEL_MIN_MPS2: 0.95,
+    CLIMB_ACCEL_KT_PER_SEC: 1.8
+  }),
+  PA23: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_TWIN, {
+    RUNWAY_DISTANCE_M: 650,
+    ROTATION_KT: 70,
+    RUNWAY_TARGET_KT: 82,
+    SPEED_TO_FL050_KT: 110,
+    SPEED_TO_FL150_KT: 145,
+    SPEED_TO_FL240_KT: 165,
+    CRUISE_MAX_KT: 190,
+    DEFAULT_TARGET_ALT_FT: 9000
+  }),
+  PA31: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_TWIN, {
+    RUNWAY_DISTANCE_M: 760,
+    ROTATION_KT: 78,
+    RUNWAY_TARGET_KT: 90,
+    SPEED_TO_FL050_KT: 120,
+    SPEED_TO_FL150_KT: 170,
+    SPEED_TO_FL240_KT: 195,
+    CRUISE_MAX_KT: 220,
+    DEFAULT_TARGET_ALT_FT: 12000,
+    ROC_TO_FL050_FPM: 1600,
+    ROC_TO_FL150_FPM: 1150,
+    ROC_TO_FL240_FPM: 750,
+    RUNWAY_ACCEL_MAX_MPS2: 1.65,
+    RUNWAY_ACCEL_MIN_MPS2: 0.9,
+    CLIMB_ACCEL_KT_PER_SEC: 1.35
+  }),
+  PA34: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_TWIN, {
+    RUNWAY_DISTANCE_M: 600,
+    ROTATION_KT: 75,
+    RUNWAY_TARGET_KT: 86,
+    SPEED_TO_FL050_KT: 110,
+    SPEED_TO_FL150_KT: 155,
+    SPEED_TO_FL240_KT: 175,
+    CRUISE_MAX_KT: 200,
+    DEFAULT_TARGET_ALT_FT: 10000,
+    ROC_TO_FL050_FPM: 1100,
+    ROC_TO_FL150_FPM: 850,
+    ROC_TO_FL240_FPM: 550,
+    RUNWAY_ACCEL_MAX_MPS2: 1.5,
+    RUNWAY_ACCEL_MIN_MPS2: 0.82,
+    CLIMB_ACCEL_KT_PER_SEC: 1.15
+  }),
+  PA44: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_TWIN, {
+    RUNWAY_DISTANCE_M: 470,
+    ROTATION_KT: 68,
+    RUNWAY_TARGET_KT: 80,
+    SPEED_TO_FL050_KT: 100,
+    SPEED_TO_FL150_KT: 140,
+    SPEED_TO_FL240_KT: 160,
+    CRUISE_MAX_KT: 185,
+    ROC_TO_FL050_FPM: 1000,
+    ROC_TO_FL150_FPM: 750,
+    ROC_TO_FL240_FPM: 500,
+    RUNWAY_ACCEL_MAX_MPS2: 1.4,
+    RUNWAY_ACCEL_MIN_MPS2: 0.78,
+    CLIMB_ACCEL_KT_PER_SEC: 1.0
+  }),
+  C303: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_TWIN, {
+    RUNWAY_DISTANCE_M: 650,
+    ROTATION_KT: 72,
+    RUNWAY_TARGET_KT: 84,
+    SPEED_TO_FL050_KT: 110,
+    SPEED_TO_FL150_KT: 150,
+    SPEED_TO_FL240_KT: 170,
+    CRUISE_MAX_KT: 190,
+    DEFAULT_TARGET_ALT_FT: 10000,
+    ROC_TO_FL050_FPM: 1200,
+    ROC_TO_FL150_FPM: 900,
+    ROC_TO_FL240_FPM: 600
+  }),
+  C402: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_TWIN, {
+    RUNWAY_DISTANCE_M: 780,
+    ROTATION_KT: 82,
+    RUNWAY_TARGET_KT: 96,
+    SPEED_TO_FL050_KT: 125,
+    SPEED_TO_FL150_KT: 170,
+    SPEED_TO_FL240_KT: 190,
+    CRUISE_MAX_KT: 230,
+    DEFAULT_TARGET_ALT_FT: 12000,
+    ROC_TO_FL050_FPM: 1400,
+    ROC_TO_FL150_FPM: 1000,
+    ROC_TO_FL240_FPM: 650,
+    RUNWAY_ACCEL_MAX_MPS2: 1.55,
+    RUNWAY_ACCEL_MIN_MPS2: 0.85,
+    CLIMB_ACCEL_KT_PER_SEC: 1.25
+  }),
+  BE20: crearPerfilDespegue(TAKEOFF_PROFILE_TURBOPROP, {
+    RUNWAY_DISTANCE_M: 930,
+    ROTATION_KT: 94,
+    RUNWAY_TARGET_KT: 110,
+    SPEED_TO_FL050_KT: 140,
+    SPEED_TO_FL150_KT: 220,
+    SPEED_TO_FL240_KT: 255,
+    CRUISE_MAX_KT: 290,
+    DEFAULT_TARGET_ALT_FT: 22000,
+    ROC_TO_FL050_FPM: 2500,
+    ROC_TO_FL150_FPM: 1800,
+    ROC_TO_FL240_FPM: 1200,
+    RUNWAY_ACCEL_MAX_MPS2: 1.85,
+    RUNWAY_ACCEL_MIN_MPS2: 0.95,
+    CLIMB_ACCEL_KT_PER_SEC: 1.9
+  }),
+  B190: crearPerfilDespegue(TAKEOFF_PROFILE_TURBOPROP, {
+    RUNWAY_DISTANCE_M: 1100,
+    ROTATION_KT: 104,
+    RUNWAY_TARGET_KT: 120,
+    SPEED_TO_FL050_KT: 150,
+    SPEED_TO_FL150_KT: 230,
+    SPEED_TO_FL240_KT: 270,
+    CRUISE_MAX_KT: 300,
+    DEFAULT_TARGET_ALT_FT: 24000,
+    ROC_TO_FL050_FPM: 2500,
+    ROC_TO_FL150_FPM: 1800,
+    ROC_TO_FL240_FPM: 1200,
+    RUNWAY_ACCEL_MAX_MPS2: 1.9,
+    RUNWAY_ACCEL_MIN_MPS2: 1.0,
+    CLIMB_ACCEL_KT_PER_SEC: 2.0
+  }),
+  DHC6: crearPerfilDespegue(TAKEOFF_PROFILE_TURBOPROP, {
+    RUNWAY_DISTANCE_M: 480,
+    ROTATION_KT: 70,
+    RUNWAY_TARGET_KT: 85,
+    SPEED_TO_FL050_KT: 110,
+    SPEED_TO_FL150_KT: 150,
+    SPEED_TO_FL240_KT: 175,
+    CRUISE_MAX_KT: 190,
+    DEFAULT_TARGET_ALT_FT: 10000,
+    ROC_TO_FL050_FPM: 1600,
+    ROC_TO_FL150_FPM: 1100,
+    ROC_TO_FL240_FPM: 700,
+    RUNWAY_ACCEL_MAX_MPS2: 1.6,
+    RUNWAY_ACCEL_MIN_MPS2: 0.85,
+    CLIMB_ACCEL_KT_PER_SEC: 1.3
+  }),
+  AN32: crearPerfilDespegue(TAKEOFF_PROFILE_TURBOPROP, {
+    RUNWAY_DISTANCE_M: 1050,
+    ROTATION_KT: 102,
+    RUNWAY_TARGET_KT: 118,
+    SPEED_TO_FL050_KT: 145,
+    SPEED_TO_FL150_KT: 205,
+    SPEED_TO_FL240_KT: 255,
+    CRUISE_MAX_KT: 290,
+    DEFAULT_TARGET_ALT_FT: 20000,
+    ROC_TO_FL050_FPM: 1900,
+    ROC_TO_FL150_FPM: 1400,
+    ROC_TO_FL240_FPM: 900,
+    CLIMB_ACCEL_KT_PER_SEC: 1.6
+  }),
+  KT1: crearPerfilDespegue(TAKEOFF_PROFILE_TURBOPROP, {
+    RUNWAY_DISTANCE_M: 560,
+    ROTATION_KT: 82,
+    RUNWAY_TARGET_KT: 96,
+    SPEED_TO_FL050_KT: 130,
+    SPEED_TO_FL150_KT: 210,
+    SPEED_TO_FL240_KT: 270,
+    CRUISE_MAX_KT: 320,
+    DEFAULT_TARGET_ALT_FT: 18000,
+    ROC_TO_FL050_FPM: 2600,
+    ROC_TO_FL150_FPM: 1800,
+    ROC_TO_FL240_FPM: 1100,
+    RUNWAY_ACCEL_MAX_MPS2: 1.95,
+    RUNWAY_ACCEL_MIN_MPS2: 1.0,
+    CLIMB_ACCEL_KT_PER_SEC: 2.4
+  }),
+  A319: crearPerfilDespegue(TAKEOFF_PROFILE_JET, {
+    RUNWAY_DISTANCE_M: 1550,
+    ROTATION_KT: 138,
+    RUNWAY_TARGET_KT: 148,
+    SPEED_TO_FL050_KT: 170,
+    SPEED_TO_FL150_KT: 290,
+    SPEED_TO_FL240_KT: 300,
+    CRUISE_MAX_KT: 450,
+    DEFAULT_TARGET_ALT_FT: 24000,
+    ROC_TO_FL050_FPM: 2500,
+    ROC_TO_FL150_FPM: 2500,
+    ROC_TO_FL240_FPM: 2000,
+    RUNWAY_ACCEL_MAX_MPS2: 1.95,
+    RUNWAY_ACCEL_MIN_MPS2: 1.0,
+    CLIMB_ACCEL_KT_PER_SEC: 2.2
+  }),
+  A320: crearPerfilDespegue(TAKEOFF_PROFILE_JET, {
+    RUNWAY_DISTANCE_M: 1700,
+    ROTATION_KT: 145,
+    RUNWAY_TARGET_KT: 155,
+    SPEED_TO_FL050_KT: 175,
+    SPEED_TO_FL150_KT: 295,
+    SPEED_TO_FL240_KT: 305,
+    CRUISE_MAX_KT: 450,
+    DEFAULT_TARGET_ALT_FT: 24000,
+    ROC_TO_FL050_FPM: 2500,
+    ROC_TO_FL150_FPM: 2500,
+    ROC_TO_FL240_FPM: 2000,
+    RUNWAY_ACCEL_MAX_MPS2: 2.0,
+    RUNWAY_ACCEL_MIN_MPS2: 1.0,
+    CLIMB_ACCEL_KT_PER_SEC: 2.3
+  }),
+  B737: crearPerfilDespegue(TAKEOFF_PROFILE_JET, {
+    RUNWAY_DISTANCE_M: 1650,
+    ROTATION_KT: 143,
+    RUNWAY_TARGET_KT: 153,
+    SPEED_TO_FL050_KT: 175,
+    SPEED_TO_FL150_KT: 295,
+    SPEED_TO_FL240_KT: 305,
+    CRUISE_MAX_KT: 450,
+    DEFAULT_TARGET_ALT_FT: 24000,
+    ROC_TO_FL050_FPM: 2600,
+    ROC_TO_FL150_FPM: 2400,
+    ROC_TO_FL240_FPM: 1900,
+    RUNWAY_ACCEL_MAX_MPS2: 2.0,
+    RUNWAY_ACCEL_MIN_MPS2: 1.0,
+    CLIMB_ACCEL_KT_PER_SEC: 2.3
+  }),
+  B738WX: crearPerfilDespegue(TAKEOFF_PROFILE_JET, {
+    RUNWAY_DISTANCE_M: 1650,
+    ROTATION_KT: 143,
+    RUNWAY_TARGET_KT: 153,
+    SPEED_TO_FL050_KT: 175,
+    SPEED_TO_FL150_KT: 295,
+    SPEED_TO_FL240_KT: 305,
+    CRUISE_MAX_KT: 450,
+    DEFAULT_TARGET_ALT_FT: 24000,
+    ROC_TO_FL050_FPM: 2600,
+    ROC_TO_FL150_FPM: 2400,
+    ROC_TO_FL240_FPM: 1900,
+    RUNWAY_ACCEL_MAX_MPS2: 2.0,
+    RUNWAY_ACCEL_MIN_MPS2: 1.0,
+    CLIMB_ACCEL_KT_PER_SEC: 2.3
+  }),
+  EC45: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 40
+  }),
+  MI17: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 70,
+    ROTATION_KT: 40,
+    RUNWAY_TARGET_KT: 60,
+    SPEED_TO_FL050_KT: 90,
+    SPEED_TO_FL150_KT: 120,
+    SPEED_TO_FL240_KT: 145,
+    CRUISE_MAX_KT: 160,
+    DEFAULT_TARGET_ALT_FT: 5000,
+    ROC_TO_FL050_FPM: 1400,
+    ROC_TO_FL150_FPM: 1100,
+    ROC_TO_FL240_FPM: 700,
+    RUNWAY_ACCEL_MAX_MPS2: 1.1,
+    RUNWAY_ACCEL_MIN_MPS2: 0.55,
+    CLIMB_ACCEL_KT_PER_SEC: 1.1
+  }),
+  F22: crearPerfilDespegue(TAKEOFF_PROFILE_FIGHTER, {
+    RUNWAY_DISTANCE_M: 420,
+    ROTATION_KT: 135,
+    RUNWAY_TARGET_KT: 160,
+    SPEED_TO_FL050_KT: 250,
+    SPEED_TO_FL150_KT: 380,
+    SPEED_TO_FL240_KT: 450,
+    CRUISE_MAX_KT: 450,
+    DEFAULT_TARGET_ALT_FT: 30000,
+    ROC_TO_FL050_FPM: 18000,
+    ROC_TO_FL150_FPM: 12000,
+    ROC_TO_FL240_FPM: 7000,
+    RUNWAY_ACCEL_MAX_MPS2: 4.2,
+    RUNWAY_ACCEL_MIN_MPS2: 2.2,
+    CLIMB_ACCEL_KT_PER_SEC: 6.0
+  }),
+  RFAL: crearPerfilDespegue(TAKEOFF_PROFILE_FIGHTER, {
+    RUNWAY_DISTANCE_M: 480,
+    ROTATION_KT: 132,
+    RUNWAY_TARGET_KT: 158
+  }),
+  B2: crearPerfilDespegue(TAKEOFF_PROFILE_FIGHTER, {
+    RUNWAY_DISTANCE_M: 1500,
+    ROTATION_KT: 150,
+    RUNWAY_TARGET_KT: 170,
+    SPEED_TO_FL050_KT: 220,
+    SPEED_TO_FL150_KT: 300,
+    SPEED_TO_FL240_KT: 380,
+    CRUISE_MAX_KT: 420,
+    DEFAULT_TARGET_ALT_FT: 28000,
+    ROC_TO_FL050_FPM: 4500,
+    ROC_TO_FL150_FPM: 3200,
+    ROC_TO_FL240_FPM: 2200,
+    RUNWAY_ACCEL_MAX_MPS2: 2.3,
+    RUNWAY_ACCEL_MIN_MPS2: 1.1,
+    CLIMB_ACCEL_KT_PER_SEC: 2.8
+  })
+})
+
+function obtenerPerfilDespegueAeronave(tipo){
+  const clave = String(tipo || "").trim().toUpperCase()
+  return TAKEOFF_PROFILES[clave] || TAKEOFF_PROFILE_BASE
+}
+
+function normalizarFaseDespegue(valor){
+  const fase = String(valor || "").trim().toUpperCase()
+  if(fase === "RUNWAY" || fase === "CLIMB"){
+    return fase
+  }
+  return null
+}
+
+function obtenerProgresoCarreraDespegueMetros(aeronave){
+  const progreso = Number(aeronave && aeronave.takeoffRollProgressM)
+  return Number.isFinite(progreso) ? Math.max(0, progreso) : 0
+}
+
+function registrarAvanceCarreraDespegue(aeronave, metrosRecorridos){
+  if(!aeronave || normalizarFaseDespegue(aeronave.fase) !== "RUNWAY") return
+  const incremento = Number(metrosRecorridos)
+  if(!Number.isFinite(incremento) || incremento <= 0) return
+  aeronave.takeoffRollProgressM = obtenerProgresoCarreraDespegueMetros(aeronave) + incremento
+}
+
+function calcularComandoDespegueAeronave(aeronave, segundosTick = 0.05){
+  const perfil = obtenerPerfilDespegueAeronave(aeronave && aeronave.tipo)
+  const deltaSegundos =
+    Number.isFinite(segundosTick) && segundosTick > 0
+      ? segundosTick
+      : 0.05
+
+  if(!aeronave || aeronave.estado !== "AIRBORNE"){
+    return {
+      perfil,
+      fase: null,
+      velocidadObjetivoKt: perfil.CRUISE_MAX_KT,
+      aceleracionKt: 0,
+      climbFPM: 0,
+      permitirAscenso: true
+    }
+  }
+
+  const velocidadActualKt = Math.max(0, Number(aeronave.velocidad) || 0)
+  let fase = normalizarFaseDespegue(aeronave.fase)
+  if(!fase){
+    fase = Number(aeronave.altitud) > 0 ? "CLIMB" : "RUNWAY"
+    aeronave.fase = fase
+  }
+
+  if(fase === "RUNWAY"){
+    const progresoRunwayM = obtenerProgresoCarreraDespegueMetros(aeronave)
+    const progresoNormalizado = Math.max(
+      0,
+      Math.min(1, progresoRunwayM / Math.max(1, perfil.RUNWAY_DISTANCE_M))
+    )
+    const aceleracionMps2 =
+      perfil.RUNWAY_ACCEL_MAX_MPS2 -
+      (
+        (perfil.RUNWAY_ACCEL_MAX_MPS2 - perfil.RUNWAY_ACCEL_MIN_MPS2) *
+        Math.pow(progresoNormalizado, 0.88)
+      )
+    const listoParaElevar =
+      progresoRunwayM >= perfil.RUNWAY_DISTANCE_M &&
+      velocidadActualKt >= (perfil.ROTATION_KT - 1)
+
+    if(!listoParaElevar){
+      return {
+        perfil,
+        fase: "RUNWAY",
+        velocidadObjetivoKt: perfil.RUNWAY_TARGET_KT,
+        aceleracionKt: (aceleracionMps2 / 0.514444) * deltaSegundos,
+        climbFPM: 0,
+        permitirAscenso: false
+      }
+    }
+
+    aeronave.fase = "CLIMB"
+    fase = "CLIMB"
+  }
+
+  const altitudActualFt = Math.max(0, Number(aeronave.altitud) || 0)
+  const altitudObjetivoRaw = Number(aeronave.altitudObjetivo)
+  const altitudObjetivoFt =
+    Number.isFinite(altitudObjetivoRaw) && altitudObjetivoRaw > 0
+      ? altitudObjetivoRaw
+      : perfil.DEFAULT_TARGET_ALT_FT
+  const techoBajoFt = Math.min(perfil.FL050_FT, altitudObjetivoFt)
+  const techoMedioFt = Math.min(perfil.FL150_FT, altitudObjetivoFt)
+  const techoAltoFt = Math.min(perfil.FL240_FT, altitudObjetivoFt)
+
+  let velocidadObjetivoKt = perfil.CRUISE_MAX_KT
+  let climbFPM = 0
+
+  if(altitudActualFt < techoBajoFt){
+    velocidadObjetivoKt = perfil.SPEED_TO_FL050_KT
+    climbFPM = perfil.ROC_TO_FL050_FPM
+  } else if(altitudActualFt < techoMedioFt){
+    velocidadObjetivoKt = perfil.SPEED_TO_FL150_KT
+    climbFPM = perfil.ROC_TO_FL150_FPM
+  } else if(altitudActualFt < techoAltoFt || altitudActualFt < altitudObjetivoFt){
+    velocidadObjetivoKt = perfil.SPEED_TO_FL240_KT
+    climbFPM = perfil.ROC_TO_FL240_FPM
+  }
+
+  return {
+    perfil,
+    fase,
+    velocidadObjetivoKt,
+    aceleracionKt: perfil.CLIMB_ACCEL_KT_PER_SEC * deltaSegundos,
+    climbFPM,
+    permitirAscenso: climbFPM > 0
+  }
 }
 
 const ORIENTACION_MODELOS = {
@@ -10001,12 +10634,126 @@ function procesarClickMapaPilotage(latlng){
   return true
 }
 
+function obtenerOpcionesTipoAeronaveDisponibles(){
+  const tipoSelect = document.getElementById("tipoSelect")
+  if(!tipoSelect) return []
+
+  return Array.from(tipoSelect.options)
+    .filter(opcion => opcion && opcion.value && !opcion.disabled)
+    .map(opcion => ({
+      value: opcion.value,
+      manufacturer: opcion.dataset.manufacturer || "Other",
+      label: (opcion.textContent || opcion.value).trim() || opcion.value
+    }))
+}
+
+function sincronizarSelectoresTipoAeronave(preferencias = {}){
+  const tipoSelect = document.getElementById("tipoSelect")
+  const fabricanteSelect = document.getElementById("fabricanteSelect")
+  const modeloSelect = document.getElementById("modeloSelect")
+  if(!tipoSelect || !fabricanteSelect || !modeloSelect){
+    return
+  }
+
+  const opcionesDisponibles = obtenerOpcionesTipoAeronaveDisponibles()
+  if(opcionesDisponibles.length === 0){
+    fabricanteSelect.innerHTML = ""
+    modeloSelect.innerHTML = ""
+    fabricanteSelect.disabled = true
+    modeloSelect.disabled = true
+    return
+  }
+
+  const fabricantes = [...new Set(opcionesDisponibles.map(opcion => opcion.manufacturer))]
+  const tipoPreferido = String(preferencias.tipo || tipoSelect.value || "").trim()
+  const opcionPreferida = opcionesDisponibles.find(opcion => opcion.value === tipoPreferido)
+  const fabricantePreferido =
+    String(preferencias.fabricante || "").trim() ||
+    (opcionPreferida ? opcionPreferida.manufacturer : "")
+  const fabricanteFinal = fabricantes.includes(fabricantePreferido)
+    ? fabricantePreferido
+    : fabricantes[0]
+
+  fabricanteSelect.innerHTML = ""
+  fabricantes.forEach(fabricante => {
+    const opcionFabricante = document.createElement("option")
+    opcionFabricante.value = fabricante
+    opcionFabricante.textContent = fabricante
+    fabricanteSelect.appendChild(opcionFabricante)
+  })
+  fabricanteSelect.value = fabricanteFinal
+
+  const modelosFabricante = opcionesDisponibles.filter(
+    opcion => opcion.manufacturer === fabricanteFinal
+  )
+  const modeloPreferido =
+    String(preferencias.modelo || "").trim() ||
+    (
+      opcionPreferida && opcionPreferida.manufacturer === fabricanteFinal
+        ? opcionPreferida.value
+        : ""
+    )
+  const modeloFinal = modelosFabricante.some(opcion => opcion.value === modeloPreferido)
+    ? modeloPreferido
+    : modelosFabricante[0].value
+
+  modeloSelect.innerHTML = ""
+  modelosFabricante.forEach(opcionModelo => {
+    const opcion = document.createElement("option")
+    opcion.value = opcionModelo.value
+    opcion.textContent = opcionModelo.label
+    modeloSelect.appendChild(opcion)
+  })
+  modeloSelect.value = modeloFinal
+  tipoSelect.value = modeloFinal
+
+  fabricanteSelect.disabled = fabricantes.length === 0
+  modeloSelect.disabled = modelosFabricante.length === 0
+}
+
+function manejarCambioFabricanteTipoAeronave(){
+  const fabricanteSelect = document.getElementById("fabricanteSelect")
+  if(!fabricanteSelect) return
+
+  sincronizarSelectoresTipoAeronave({
+    fabricante: fabricanteSelect.value
+  })
+}
+
+function manejarCambioModeloTipoAeronave(){
+  const tipoSelect = document.getElementById("tipoSelect")
+  const modeloSelect = document.getElementById("modeloSelect")
+  if(!tipoSelect || !modeloSelect) return
+
+  tipoSelect.value = modeloSelect.value
+}
+
+function inicializarSelectoresTipoAeronave(){
+  const fabricanteSelect = document.getElementById("fabricanteSelect")
+  const modeloSelect = document.getElementById("modeloSelect")
+  if(!fabricanteSelect || !modeloSelect) return
+
+  if(fabricanteSelect.dataset.bound !== "true"){
+    fabricanteSelect.addEventListener("change", manejarCambioFabricanteTipoAeronave)
+    fabricanteSelect.dataset.bound = "true"
+  }
+
+  if(modeloSelect.dataset.bound !== "true"){
+    modeloSelect.addEventListener("change", manejarCambioModeloTipoAeronave)
+    modeloSelect.dataset.bound = "true"
+  }
+
+  sincronizarSelectoresTipoAeronave()
+}
+
 function mostrarSelectorTipo(latlng){
   if(modoOperacion === "controlador"){
     return
   }
 
   window.tempLatLng = latlng;
+
+  inicializarSelectoresTipoAeronave()
 
   const panel = document.getElementById("createAircraftPanel");
   panel.classList.add("activo");
@@ -10238,6 +10985,10 @@ socket.on("crearAeronave", data => {
   velocidadObjetivo: Number.isFinite(data.velocidadObjetivo)
     ? data.velocidadObjetivo
     : 0,
+  fase: normalizarFaseDespegue(data.fase),
+  takeoffRollProgressM: Number.isFinite(Number(data.takeoffRollProgressM))
+    ? Math.max(0, Number(data.takeoffRollProgressM))
+    : 0,
   ruta: null,
   rutaRecorrida: null,
   rutaCircuito: clonarRutaCircuitoLocal(data.ruta),
@@ -10366,6 +11117,15 @@ socket.on("actualizarAeronave", data => {
   }
   if(typeof data.velocidadObjetivo === "number" && Number.isFinite(data.velocidadObjetivo)){
     avion.velocidadObjetivo = data.velocidadObjetivo
+  }
+  if(Object.prototype.hasOwnProperty.call(data, "fase")){
+    avion.fase = normalizarFaseDespegue(data.fase)
+  }
+  if(Object.prototype.hasOwnProperty.call(data, "takeoffRollProgressM")){
+    const takeoffRollProgressM = Number(data.takeoffRollProgressM)
+    avion.takeoffRollProgressM = Number.isFinite(takeoffRollProgressM)
+      ? Math.max(0, takeoffRollProgressM)
+      : 0
   }
   if(Object.prototype.hasOwnProperty.call(data, "altitudObjetivo")){
     const altitudObjetivoNum = Number(data.altitudObjetivo)
@@ -11755,7 +12515,7 @@ function actualizarPanelTcas(aeronave){
 
   if(!aeronave){
     aplicarNivel("CLEAR")
-    resumenEl.textContent = "No traffic in envelope"
+    resumenEl.textContent = "No traffic"
     dibujarDisplayTcas([])
     listaEl.innerHTML = ""
     const vacioEl = document.createElement("div")
@@ -11771,7 +12531,7 @@ function actualizarPanelTcas(aeronave){
   dibujarDisplayTcas(trafico.intrusosDisplay || [])
 
   if(trafico.total === 0){
-    resumenEl.textContent = "No traffic in envelope"
+    resumenEl.textContent = "No traffic"
     listaEl.innerHTML = ""
     const vacioEl = document.createElement("div")
     vacioEl.className = "tcas-empty"
@@ -14050,11 +14810,28 @@ function activarPrincipal(boton){
       return
     }
 
+    const estabaEnPilotage =
+      a.estado === "PILOTAGE" ||
+      Boolean(a.rutaPilotageActiva)
+
     cancelarAccionesAeronave(a)
     marcarOrbitSolicitado(a, false)
     detenerExtendCircuito(a, false)
     const sentidoCircuito = normalizarSentidoCircuitoCliente(a.circuitoSentido)
     marcarSentidoCircuitoAeronave(a, sentidoCircuito)
+
+    if(
+      a.estado === "PILOTAGE" &&
+      modoIngreso === "nearest" &&
+      reingresarCircuitoDctTrasObjetivoPilotage(a, modoIngreso)
+    ){
+      return
+    }
+
+    if(estabaEnPilotage){
+      reingresarCircuito(a, modoIngreso)
+      return
+    }
 
     socket.emit("iniciarCircuito", {
       id: a.id,
@@ -15508,6 +16285,11 @@ function sincronizarEstadoAeronaveLocal(a){
     velocidad: Number.isFinite(velocidadActual) ? velocidadActual : 0,
     velocidadObjetivo: Number.isFinite(velocidadObjetivoActual) ? velocidadObjetivoActual : 0,
     altitudObjetivo: Number.isFinite(altitudObjetivoActual) ? altitudObjetivoActual : null,
+    fase: a.estado === "AIRBORNE" ? normalizarFaseDespegue(a.fase) : null,
+    takeoffRollProgressM:
+      a.estado === "AIRBORNE"
+        ? obtenerProgresoCarreraDespegueMetros(a)
+        : 0,
     pilotageObjetivoLat,
     pilotageObjetivoLng,
     pilotageMarkerTipo: typeof a.pilotageMarkerTipo === "string" ? a.pilotageMarkerTipo : null,
@@ -16229,6 +17011,86 @@ function reingresarCircuito(a, modoIngreso = "nearest"){
     modoIngreso,
     sentidoCircuito
   })
+}
+
+function reingresarCircuitoDctTrasObjetivoPilotage(a, modoIngreso = "nearest"){
+  if(!a || modoIngreso !== "nearest"){
+    return false
+  }
+
+  const objetivo = obtenerObjetivoPilotageAeronave(a)
+  if(!objetivo){
+    return false
+  }
+
+  let posicionActual = null
+  if(a.marker && typeof a.marker.getLatLng === "function"){
+    const puntoActual = a.marker.getLatLng()
+    const latActual = Number(puntoActual && puntoActual.lat)
+    const lngActual = Number(puntoActual && puntoActual.lng)
+    if(Number.isFinite(latActual) && Number.isFinite(lngActual)){
+      posicionActual = { lat: latActual, lng: lngActual }
+    }
+  }
+
+  if(!posicionActual){
+    const latActual = Number(a.lat)
+    const lngActual = Number(a.lng)
+    if(Number.isFinite(latActual) && Number.isFinite(lngActual)){
+      posicionActual = { lat: latActual, lng: lngActual }
+    }
+  }
+
+  if(!posicionActual){
+    return false
+  }
+
+  const distanciaObjetivo =
+    map && typeof map.distance === "function"
+      ? map.distance(
+          L.latLng(posicionActual.lat, posicionActual.lng),
+          L.latLng(objetivo.lat, objetivo.lng)
+        )
+      : calcularDistancia(
+          posicionActual.lat,
+          posicionActual.lng,
+          objetivo.lat,
+          objetivo.lng
+        )
+
+  if(
+    !Number.isFinite(distanciaObjetivo) ||
+    distanciaObjetivo <= REJOIN_DCT_PILOTAGE_TARGET_TOLERANCE_M
+  ){
+    limpiarMarcaPilotageAeronave(a)
+    reingresarCircuito(a, modoIngreso)
+    return true
+  }
+
+  a.orbitSolicitada = false
+  a.orbitEnProcesoVisual = false
+  a.orbitFueraCircuitoPendienteSentido = null
+  actualizarTipoMarcaPilotage(a, "pilotage")
+  ocultarOpcionesOrbit()
+  actualizarEstadoBotonOrbit()
+  a.estado = "PILOTAGE"
+  actualizarBotonManual()
+  const opcionesPilotage = prepararDefaultsPilotageSiNoAsignados(a)
+
+  moverAeronaveHacia(a, [objetivo.lat, objetivo.lng], () => {
+    limpiarMarcaPilotageAeronave(a)
+    reingresarCircuito(a, modoIngreso)
+  }, opcionesPilotage)
+
+  actualizarCallsignLabelEstado(a)
+  actualizarPanelInfoAeronave(a)
+  actualizarPanelInfo(a)
+  actualizarPanelManualSegunEstado(a)
+  if(!a.remoto){
+    sincronizarEstadoAeronaveLocal(a)
+  }
+
+  return true
 }
 
 
@@ -17202,6 +18064,14 @@ function activarSeguimientoRutaPilotageAirborne(a){
 
   prepararDefaultsPilotageSiNoAsignados(a)
   limpiarMarcaPilotageAeronave(a)
+  const altitudActualFt = Number(a.altitud)
+  const altitudObjetivoActualFt = Number(a.altitudObjetivo)
+  if(Number.isFinite(altitudActualFt) && altitudActualFt > 0){
+    a.altitudObjetivo =
+      Number.isFinite(altitudObjetivoActualFt) && altitudObjetivoActualFt > altitudActualFt
+        ? altitudObjetivoActualFt
+        : altitudActualFt
+  }
   a.rutaPilotageActiva = true
   a.orbitSolicitada = false
   a.orbitEnProcesoVisual = false
@@ -17518,6 +18388,108 @@ function obtenerHoldShortLineUpInfo(posicion){
     }
   })
   return mejor
+}
+
+function obtenerProyeccionLongitudinalHoldShortMetros(
+  posicion,
+  holdShortInfo
+){
+  const posicionActual = normalizarPuntoRutaTaxiLatLng(posicion)
+  const puntoHold = normalizarPuntoRutaTaxiLatLng(
+    holdShortInfo && holdShortInfo.config
+      ? holdShortInfo.config.hold
+      : null
+  )
+  const waypointIngreso = normalizarPuntoRutaTaxiLatLng(
+    holdShortInfo &&
+    holdShortInfo.config &&
+    Array.isArray(holdShortInfo.config.waypoints)
+      ? holdShortInfo.config.waypoints[0]
+      : null
+  )
+  if(!posicionActual || !puntoHold || !waypointIngreso){
+    return null
+  }
+
+  const latitudReferenciaRad =
+    ((puntoHold.lat + waypointIngreso.lat + posicionActual.lat) / 3) *
+    (Math.PI / 180)
+  const metrosPorGradoLat = 111320
+  const metrosPorGradoLng = Math.cos(latitudReferenciaRad) * 111320
+
+  const vectorIngresoNorth =
+    (waypointIngreso.lat - puntoHold.lat) * metrosPorGradoLat
+  const vectorIngresoEast =
+    (waypointIngreso.lng - puntoHold.lng) * metrosPorGradoLng
+  const magnitudIngreso = Math.hypot(vectorIngresoNorth, vectorIngresoEast)
+  if(!(magnitudIngreso > 0)){
+    return null
+  }
+
+  const vectorActualNorth =
+    (posicionActual.lat - puntoHold.lat) * metrosPorGradoLat
+  const vectorActualEast =
+    (posicionActual.lng - puntoHold.lng) * metrosPorGradoLng
+
+  return (
+    (vectorActualNorth * vectorIngresoNorth) +
+    (vectorActualEast * vectorIngresoEast)
+  ) / magnitudIngreso
+}
+
+function estaDetrasHoldShortLineUp(
+  aeronave,
+  holdShortInfo = null,
+  toleranciaMetros = IMMEDIATE_DEPARTURE_HOLD_SHORT_TOLERANCE_M
+){
+  if(!aeronave || !aeronave.marker) return false
+
+  const posicionActual = aeronave.marker.getLatLng()
+  const info = holdShortInfo || obtenerHoldShortLineUpInfo(posicionActual)
+  if(
+    !posicionActual ||
+    !info ||
+    !Number.isFinite(info.distancia) ||
+    info.distancia > LINE_UP_HOLD_SHORT_RADIUS_M
+  ){
+    return false
+  }
+
+  const proyeccionMetros = obtenerProyeccionLongitudinalHoldShortMetros(
+    posicionActual,
+    info
+  )
+  return (
+    Number.isFinite(proyeccionMetros) &&
+    proyeccionMetros <= toleranciaMetros
+  )
+}
+
+function puedeMostrarImmediateDeparture(aeronave){
+  if(!aeronave || !aeronave.marker) return false
+
+  const altitudActual = Number(aeronave.altitud)
+  if(!Number.isFinite(altitudActual) || Math.round(altitudActual) !== 0){
+    return false
+  }
+
+  if(aeronave.estado !== "IDLE" && aeronave.estado !== "TAXI"){
+    return false
+  }
+
+  if(Boolean(aeronave.autoAlineacionRWY22) || Boolean(aeronave.holdShortTaxiATriggered)){
+    return false
+  }
+
+  const holdShortInfo = obtenerHoldShortLineUpInfo(aeronave.marker.getLatLng())
+  return (
+    estaDetrasHoldShortLineUp(aeronave, holdShortInfo) &&
+    estaApuntandoHaciaLineUpRwy0422(
+      aeronave,
+      holdShortInfo,
+      IMMEDIATE_DEPARTURE_HEADING_TOLERANCE_DEG
+    )
+  )
 }
 
 function estaApuntandoHaciaLineUpRwy0422(
@@ -18511,24 +19483,21 @@ function despegar(aeronaveOverride = null){
   a.immediateTakeoffPendiente = false
   a.altitud = 0
   a.velocidad = 0
-  const perfilA32XActivo = (a.tipo === "A319" || a.tipo === "A320")
-  a.velocidadObjetivo = perfilA32XActivo
-    ? TAKEOFF_PROFILE_A32X.RUNWAY_TARGET_KT
-    : 140
-  a.estado = "AIRBORNE"
+  a.takeoffRollProgressM = 0
   a.fase = "RUNWAY"
-  const nivelCruceroA32XFt = (() => {
+  const perfilDespegue = obtenerPerfilDespegueAeronave(a.tipo)
+  a.velocidadObjetivo = perfilDespegue.RUNWAY_TARGET_KT
+  a.estado = "AIRBORNE"
+  const altitudCruceroPerfilFt = (() => {
     const objetivo = Number(a.altitudObjetivo)
-    if(Number.isFinite(objetivo) && objetivo >= TAKEOFF_PROFILE_A32X.FL240_FT){
+    if(Number.isFinite(objetivo) && objetivo > 0){
       return objetivo
     }
-    return TAKEOFF_PROFILE_A32X.FL240_FT
+    return perfilDespegue.DEFAULT_TARGET_ALT_FT
   })()
   const altitudObjetivoActual = Number(a.altitudObjetivo)
   if(!Number.isFinite(altitudObjetivoActual) || altitudObjetivoActual <= 0){
-    a.altitudObjetivo = perfilA32XActivo
-      ? nivelCruceroA32XFt
-      : (ALTITUD_CIRCUITO_FT * 4)
+    a.altitudObjetivo = altitudCruceroPerfilFt
   }
 
   if(a.sid === "KOPRA1"){
@@ -18584,70 +19553,31 @@ function despegar(aeronaveOverride = null){
       segundosTick = maxSegundosTick
     }
     ultimoTickVuelo = ahora
+
+    const comandoDespegue = calcularComandoDespegueAeronave(a, segundosTick)
     const actual = a.marker.getLatLng()
-    const distanciaDesdeSalidaM = map.distance(puntoSalida, actual)
+    const distanciaDesdeSalidaM = obtenerProgresoCarreraDespegueMetros(a)
     const limiteEjeM = Number.isFinite(DISTANCIA_PISTA_RWY22_M)
       ? DISTANCIA_PISTA_RWY22_M
-      : TAKEOFF_PROFILE_A32X.RUNWAY_DISTANCE_M
+      : perfilDespegue.RUNWAY_DISTANCE_M
     const enEjePista =
       Boolean(a.despegueDesdeRWY22) &&
       Number.isFinite(limiteEjeM) &&
       distanciaDesdeSalidaM <= limiteEjeM
 
-    let velocidadObjetivoTick = Number(a.velocidadObjetivo)
-    let aceleracionTick = 0.8
-    let climbFPM = CLIMB_RATE[a.tipo] || 2000
-    let permitirAscenso = true
-
-    if(perfilA32XActivo){
-      const listoParaElevar =
-        distanciaDesdeSalidaM >= TAKEOFF_PROFILE_A32X.RUNWAY_DISTANCE_M &&
-        a.velocidad >= (TAKEOFF_PROFILE_A32X.RUNWAY_TARGET_KT - 1)
-
-      if(!listoParaElevar){
-        a.fase = "RUNWAY"
-        velocidadObjetivoTick = TAKEOFF_PROFILE_A32X.RUNWAY_TARGET_KT
-        const progresoRunway = Math.max(
-          0,
-          Math.min(
-            1,
-            distanciaDesdeSalidaM / TAKEOFF_PROFILE_A32X.RUNWAY_DISTANCE_M
-          )
-        )
-        const aceleracionMps2 =
-          TAKEOFF_PROFILE_A32X.RUNWAY_ACCEL_MAX_MPS2 -
-          (
-            (TAKEOFF_PROFILE_A32X.RUNWAY_ACCEL_MAX_MPS2 -
-             TAKEOFF_PROFILE_A32X.RUNWAY_ACCEL_MIN_MPS2) *
-            Math.pow(progresoRunway, 0.85)
-          )
-        aceleracionTick = (aceleracionMps2 / 0.514444) * segundosTick
-        permitirAscenso = false
-      } else {
-        a.fase = "CLIMB"
-        aceleracionTick = TAKEOFF_PROFILE_A32X.CLIMB_ACCEL_KT_PER_TICK
-
-        if(a.altitud < TAKEOFF_PROFILE_A32X.FL050_FT){
-          velocidadObjetivoTick = TAKEOFF_PROFILE_A32X.SPEED_TO_FL050_KT
-          climbFPM = TAKEOFF_PROFILE_A32X.ROC_TO_FL050_FPM
-        } else if(a.altitud < TAKEOFF_PROFILE_A32X.FL150_FT){
-          velocidadObjetivoTick = TAKEOFF_PROFILE_A32X.SPEED_TO_FL150_KT
-          climbFPM = TAKEOFF_PROFILE_A32X.ROC_TO_FL150_FPM
-        } else if(a.altitud < TAKEOFF_PROFILE_A32X.FL240_FT){
-          velocidadObjetivoTick = TAKEOFF_PROFILE_A32X.SPEED_TO_FL240_KT
-          climbFPM = TAKEOFF_PROFILE_A32X.ROC_TO_FL240_FPM
-        } else if(a.altitud < nivelCruceroA32XFt){
-          velocidadObjetivoTick = TAKEOFF_PROFILE_A32X.SPEED_TO_FL240_KT
-          climbFPM = TAKEOFF_PROFILE_A32X.ROC_TO_FL240_FPM
-        } else {
-          velocidadObjetivoTick = TAKEOFF_PROFILE_A32X.CRUISE_MAX_KT
-          climbFPM = 0
-        }
-      }
-    }
+    let velocidadObjetivoTick = Number(comandoDespegue.velocidadObjetivoKt)
+    let aceleracionTick = Number(comandoDespegue.aceleracionKt)
+    let climbFPM = Number(comandoDespegue.climbFPM)
+    let permitirAscenso = Boolean(comandoDespegue.permitirAscenso)
 
     if(!Number.isFinite(velocidadObjetivoTick) || velocidadObjetivoTick < 0){
       velocidadObjetivoTick = 0
+    }
+    if(!Number.isFinite(aceleracionTick) || aceleracionTick < 0){
+      aceleracionTick = 0
+    }
+    if(!Number.isFinite(climbFPM) || climbFPM < 0){
+      climbFPM = 0
     }
     a.velocidadObjetivo = velocidadObjetivoTick
 
@@ -18662,9 +19592,11 @@ function despegar(aeronaveOverride = null){
 
     
 
-    if(permitirAscenso && a.velocidad >= 25){
+    if(permitirAscenso){
       const climbFPS = climbFPM / 60
       a.altitud += climbFPS * segundosTick
+    } else if(normalizarFaseDespegue(a.fase) === "RUNWAY"){
+      a.altitud = 0
     }
 
     
@@ -18718,6 +19650,7 @@ function despegar(aeronaveOverride = null){
     a.lng = nuevaLng
 
     a.marker.setLatLng([a.lat, a.lng])
+    registrarAvanceCarreraDespegue(a, metrosPorTick)
 
     
 
@@ -18976,7 +19909,11 @@ function configurarModoSalida(aeronave, modoNuevo){
 function tieneImmediateDepartureActiva(aeronave){
   if(!aeronave) return false
   const estado = obtenerEstadoPanelLateralAeronave(aeronave)
-  return Boolean(estado && estado.immediateDepartureActivo)
+  return Boolean(
+    estado &&
+    estado.immediateDepartureActivo &&
+    puedeMostrarImmediateDeparture(aeronave)
+  )
 }
 
 function actualizarEstadoBotonTakeoff(aeronave = null){
@@ -18997,6 +19934,7 @@ function actualizarEstadoBotonTakeoff(aeronave = null){
     Number.isFinite(altitudActual) &&
     Math.round(altitudActual) === 0
 
+  const immediateVisible = Boolean(a && modoOperacion === "piloto" && puedeMostrarImmediateDeparture(a))
   const immediateActivo = Boolean(a && tieneImmediateDepartureActiva(a))
   const listoRWY22 = Boolean(a && estaListoDespegueRwy22(a))
   const listoDespegue = listoRWY22 || puedeDespegarDesdeLIB(a)
@@ -19021,6 +19959,7 @@ function actualizarEstadoBotonTakeoff(aeronave = null){
     a.estado !== "AIRBORNE" &&
     a.estado !== "TAXI"
   const puedeAutoImmediate = Boolean(
+    immediateVisible &&
     puedeSolicitarTakeoff &&
     !listoDespegue &&
     !immediateActivo
@@ -19032,15 +19971,14 @@ function actualizarEstadoBotonTakeoff(aeronave = null){
     vfrListo
 
   if(btnImmediate){
-    const immediateDisponible =
-      modoPiloto && enSuelo && a && a.estado !== "AIRBORNE"
+    const immediateDisponible = immediateVisible
+    btnImmediate.hidden = !immediateDisponible
+    btnImmediate.classList.toggle("oculto", !immediateDisponible)
     btnImmediate.disabled = !immediateDisponible
     btnImmediate.style.opacity = immediateDisponible ? "1" : "0.45"
     btnImmediate.style.cursor = immediateDisponible ? "pointer" : "not-allowed"
-    btnImmediate.title = !modoPiloto
-      ? "Disponible solo en modo PILOTO"
-      : (immediateDisponible ? "" : "IMMEDIATE DEPARTURE available only at 0 ft")
-    btnImmediate.classList.toggle("activo", immediateActivo)
+    btnImmediate.title = ""
+    btnImmediate.classList.toggle("activo", immediateDisponible && immediateActivo)
   }
 
   if(btnVFR){
@@ -19050,7 +19988,11 @@ function actualizarEstadoBotonTakeoff(aeronave = null){
     btnVFR.style.cursor = habilitarVfrBoton ? "pointer" : "not-allowed"
     btnVFR.title = !modoPiloto
       ? "Disponible solo en modo PILOTO"
-      : (habilitarGrupo ? "" : "Alinea a la pista o activa IMMEDIATE DEPARTURE")
+      : (
+        habilitarGrupo
+          ? ""
+          : "Alinea a la pista o situate detras del Hold Short apuntando a RWY +-30deg"
+      )
     btnVFR.classList.toggle("activo", vfrActivo)
   }
 
@@ -19061,7 +20003,11 @@ function actualizarEstadoBotonTakeoff(aeronave = null){
     btnSID.style.cursor = habilitarSidBoton ? "pointer" : "not-allowed"
     btnSID.title = !modoPiloto
       ? "Disponible solo en modo PILOTO"
-      : (habilitarGrupo ? "" : "Alinea a la pista o activa IMMEDIATE DEPARTURE")
+      : (
+        habilitarGrupo
+          ? ""
+          : "Alinea a la pista o situate detras del Hold Short apuntando a RWY +-30deg"
+      )
     btnSID.classList.toggle("activo", ifrActivo)
   }
 
@@ -19101,7 +20047,9 @@ function actualizarEstadoBotonTakeoff(aeronave = null){
     } else if(a && a.estado === "TAXI"){
       btnTakeoff.title = "No disponible durante TAXI"
     } else if(!listoDespegue && !immediateActivo){
-      btnTakeoff.title = "Pulsa TAKE OFF para IMMEDIATE DEPARTURE"
+      btnTakeoff.title = immediateVisible
+        ? "Pulsa TAKE OFF para IMMEDIATE DEPARTURE"
+        : "Alinea a la pista o situate detras del Hold Short apuntando a RWY +-30deg"
     } else if(!vfrActivo && !ifrActivo){
       btnTakeoff.title = "Selecciona VFR o IFR"
     } else if(vfrActivo && !vfrSalidaValida){
@@ -19176,6 +20124,11 @@ function configurarSIDDesdeDeparture(sidNombre){
       const altitudActual = Number(a.altitud)
       if(!Number.isFinite(altitudActual) || Math.round(altitudActual) !== 0){
         alert("IMMEDIATE DEPARTURE available only at 0 ft")
+        actualizarEstadoBotonTakeoff(a)
+        return
+      }
+
+      if(!puedeMostrarImmediateDeparture(a)){
         actualizarEstadoBotonTakeoff(a)
         return
       }
@@ -19393,7 +20346,7 @@ function configurarSIDDesdeDeparture(sidNombre){
       const listoRWY22 = estaListoDespegueRwy22(a)
       const listoDespegue = listoRWY22 || puedeDespegarDesdeLIB(a)
       const immediateActivoInicial = tieneImmediateDepartureActiva(a)
-      if(!listoDespegue && !immediateActivoInicial){
+      if(!listoDespegue && !immediateActivoInicial && puedeMostrarImmediateDeparture(a)){
         const estado = obtenerEstadoPanelLateralAeronave(a)
         if(estado){
           estado.panelAbierto = true
@@ -24127,6 +25080,15 @@ function esElementoEditableActivo(elemento){
   )
 }
 
+function centrarMapaAeronaveManualActual(aeronave){
+  if(!aeronave || !map) return
+
+  const posicion = obtenerPosicionAeronaveTcas(aeronave)
+  if(!posicion) return
+
+  map.panTo(posicion, { animate: false })
+}
+
 function manejarAtajosTecladoPanelManual(e){
   if(e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
   if(esElementoEditableActivo(e.target)) return
@@ -24148,11 +25110,20 @@ function manejarAtajosTecladoPanelManual(e){
       return
     case "ArrowUp":
       e.preventDefault()
-      ajustar("altitude", 100)
+      ajustar("speed", 5)
       return
     case "ArrowDown":
       e.preventDefault()
-      ajustar("altitude", -100)
+      ajustar("speed", -5)
+      return
+    case " ":
+    case "Spacebar":
+      e.preventDefault()
+      centrarMapaAeronaveManualActual(aeronave)
+      return
+    case "Escape":
+      e.preventDefault()
+      activarModoAutoDesdeControles()
       return
     default:
       break
@@ -24161,12 +25132,12 @@ function manejarAtajosTecladoPanelManual(e){
   const tecla = String(e.key || "").toLowerCase()
   if(tecla === "w"){
     e.preventDefault()
-    ajustar("speed", 5)
+    ajustar("altitude", 100)
     return
   }
   if(tecla === "s"){
     e.preventDefault()
-    ajustar("speed", -5)
+    ajustar("altitude", -100)
   }
 }
 
@@ -24320,6 +25291,8 @@ function actualizarOpcionAeronaveWeather(activar){
   if(!activar && seleccionWeather){
     tipoSelect.value = "A320"
   }
+
+  sincronizarSelectoresTipoAeronave()
 }
 
 function cargarWidgetWeatherSPSO(){
@@ -24739,7 +25712,7 @@ window.addEventListener("DOMContentLoaded", () => {
           inputmode="numeric"
           aria-label="Manual speed in knots"
         >
-        <span class="manual-value-unit">kt</span>
+        <span class="manual-value-unit">kts</span>
       </div>
       <div class="buttons">
         <button onclick="ajustar('speed', -5)">-5</button>

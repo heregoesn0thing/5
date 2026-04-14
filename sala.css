@@ -4674,6 +4674,27 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   box-shadow:0 0 10px rgba(245,158,11,0.6);
 }
 
+#rescatePanel .rescate-btn.activo{
+  background:linear-gradient(145deg,#78350f,#b45309);
+  border-color:#f59e0b;
+  color:white;
+  box-shadow:0 0 10px rgba(245,158,11,0.6);
+}
+
+#rescateStart.rescate-btn.activo{
+  background:linear-gradient(145deg,#7f1d1d,#b91c1c);
+  border-color:#ef4444;
+  color:#fef2f2;
+  box-shadow:0 0 10px rgba(239,68,68,0.55);
+}
+
+#rescateStop.rescate-btn.activo{
+  background:linear-gradient(145deg,#7f1d1d,#dc2626);
+  border-color:#f87171;
+  color:#fff1f2;
+  box-shadow:0 0 10px rgba(239,68,68,0.55);
+}
+
 #taxiStart.taxi-btn.activo{
   background:linear-gradient(145deg,#065f46,#047857);
   border-color:#10b981;
@@ -4681,11 +4702,18 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnSesionPi
   box-shadow:0 0 10px rgba(16,185,129,0.55);
 }
 
-#taxiHold.taxi-btn.activo{
+#taxiStart.taxi-btn.hold-mode.activo{
   background:linear-gradient(145deg,#7f1d1d,#b91c1c);
   border-color:#ef4444;
   color:#fef2f2;
   box-shadow:0 0 10px rgba(239,68,68,0.55);
+}
+
+#taxiPushback.taxi-btn.activo{
+  background:linear-gradient(145deg,#1d4ed8,#0ea5e9);
+  border-color:#7dd3fc;
+  color:#eff6ff;
+  box-shadow:0 0 10px rgba(14,165,233,0.5);
 }
 
 

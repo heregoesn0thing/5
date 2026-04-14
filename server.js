@@ -850,6 +850,7 @@ const ESTADOS_MOVIMIENTO_SERVIDOR = new Set([
   "LANDING",
   "ROLLOUT",
   "TAXI",
+  "PUSHBACK",
   "TNG_FINAL",
   "TNG_ROLL",
   "TNG_CLIMB",
@@ -1808,6 +1809,7 @@ function avanzarMovimientoHacia(aeronave, movimiento, intervaloMS){
     : 0
   const rumboFijo = Number(opciones.rumboFijo)
   const usarRumboFijo = Number.isFinite(rumboFijo)
+  const moverEnReversa = Boolean(opciones.moverEnReversa)
   const umbralCongelarRumboM = Number.isFinite(Number(opciones.umbralCongelarRumboM))
     ? Math.max(0, Number(opciones.umbralCongelarRumboM))
     : 8
@@ -1891,12 +1893,15 @@ function avanzarMovimientoHacia(aeronave, movimiento, intervaloMS){
   } else if(distancia > umbralCongelarRumboM){
     const rumboDestino = calcularRumboServidor(posicionActual, destino)
     if(Number.isFinite(rumboDestino)){
+      const rumboVisual = moverEnReversa
+        ? normalizarAngulo360(rumboDestino + 180)
+        : normalizarAngulo360(rumboDestino)
       const headingActual = normalizarAngulo360(
-        Number(aeronave.angulo) || Number(rumboDestino)
+        Number(aeronave.angulo) || Number(rumboVisual)
       )
       aeronave.angulo = virajeRealista
-        ? aplicarVirajeLimitado(headingActual, rumboDestino, maxCambioRumboDeg)
-        : normalizarAngulo360(rumboDestino)
+        ? aplicarVirajeLimitado(headingActual, rumboVisual, maxCambioRumboDeg)
+        : rumboVisual
     }
   }
 
@@ -1909,6 +1914,12 @@ function avanzarMovimientoHacia(aeronave, movimiento, intervaloMS){
   if(distancia <= umbralLlegadaM){
     aeronave.lat = destino.lat
     aeronave.lng = destino.lng
+    if(!usarRumboFijo && moverEnReversa){
+      const rumboDestino = calcularRumboServidor(posicionActual, destino)
+      if(Number.isFinite(rumboDestino)){
+        aeronave.angulo = normalizarAngulo360(rumboDestino + 180)
+      }
+    }
     if(descensoProgresivo){
       aeronave.altitud = altitudObjetivoDescenso
     }
@@ -1954,6 +1965,12 @@ function avanzarMovimientoHacia(aeronave, movimiento, intervaloMS){
     if(distanciaPosterior <= umbralLlegadaM){
       aeronave.lat = destino.lat
       aeronave.lng = destino.lng
+      if(!usarRumboFijo && moverEnReversa){
+        const rumboDestino = calcularRumboServidor(posicionActual, destino)
+        if(Number.isFinite(rumboDestino)){
+          aeronave.angulo = normalizarAngulo360(rumboDestino + 180)
+        }
+      }
       if(descensoProgresivo){
         aeronave.altitud = altitudObjetivoDescenso
       }

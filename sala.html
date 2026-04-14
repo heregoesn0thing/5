@@ -167,8 +167,8 @@
       START
     </button>
 
-    <button class="btn-lateral taxi-btn" id="taxiHold">
-      HOLD
+    <button class="btn-lateral taxi-btn" id="taxiPushback">
+      PUSHBACK
     </button>
   </div>
   <div class="taxi-row">
@@ -630,7 +630,7 @@
         <div class="taxi-row">
           <button class="btn-lateral rescate-btn" id="rescateRoute">ROUTE</button>
           <button class="btn-lateral rescate-btn" id="rescateStart">START</button>
-          <button class="btn-lateral rescate-btn" id="rescateHold">HOLD</button>
+          <button class="btn-lateral rescate-btn" id="rescateStop">STOP</button>
           <button class="btn-lateral rescate-btn" id="rescateSpeed">SPEED</button>
         </div>
         <div id="rescateSpeedPanel" class="rescate-speed-panel" aria-hidden="true">
@@ -681,6 +681,7 @@ const ESTADOS_MOVIMIENTO_SERVIDOR = new Set([
   "LANDING",
   "ROLLOUT",
   "TAXI",
+  "PUSHBACK",
   "TNG_FINAL",
   "TNG_ROLL",
   "TNG_CLIMB",
@@ -960,6 +961,10 @@ function establecerModoOperacion(modo){
   emitirModoOperacionServidor()
   aeronaves.forEach(actualizarInteraccion)
   if(modoOperacion !== "controlador"){
+    const rescateActivo = obtenerVehiculoRescateActivo()
+    if(rescateActivo){
+      rescateActivo.modoRuta = false
+    }
     rescateSeleccionado = null
   }
   actualizarEstadoPanelRescate()
@@ -6844,6 +6849,8 @@ function crearVehiculoRescate(){
     id: nombre,
     marker: marcador,
     icono: iconoRescate,
+    posicionInicial: [...RESCATE_POSICION],
+    anguloInicial: 180,
     estado: "IDLE",
     velocidad: 0,
     velocidadObjetivo: 0,
@@ -6989,6 +6996,111 @@ function obtenerVehiculoRescateActivo(){
   return rescateSeleccionado || vehiculoRescate || null
 }
 
+function obtenerPosicionInicialRescate(a){
+  const posicionBase =
+    Array.isArray(a && a.posicionInicial) && a.posicionInicial.length >= 2
+      ? a.posicionInicial
+      : RESCATE_POSICION
+  return L.latLng(Number(posicionBase[0]), Number(posicionBase[1]))
+}
+
+function vehiculoRescateEstaInicial(a){
+  if(!a || !a.marker){
+    return true
+  }
+
+  const posicionActual = a.marker.getLatLng()
+  const posicionInicial = obtenerPosicionInicialRescate(a)
+  const distanciaInicial = map.distance(posicionActual, posicionInicial)
+  const anguloInicial = Number.isFinite(Number(a.anguloInicial))
+    ? Number(a.anguloInicial)
+    : 180
+  const anguloActual = Number.isFinite(Number(a.angulo))
+    ? Number(a.angulo)
+    : anguloInicial
+  const deltaAngulo = Math.abs(((anguloActual - anguloInicial + 540) % 360) - 180)
+  const tieneRuta = Boolean(
+    a.modoRuta ||
+    a.ruta ||
+    a.rutaRecorrida ||
+    (Array.isArray(a.rutaTemporal) && a.rutaTemporal.length > 0) ||
+    (Array.isArray(a.puntosRuta) && a.puntosRuta.length > 0) ||
+    (Number.isFinite(Number(a.indiceRuta)) && Number(a.indiceRuta) > 0)
+  )
+  const velocidadActual = Number(a.velocidad)
+  const velocidadObjetivo = Number(a.velocidadObjetivo)
+
+  return (
+    (a.estado || "IDLE") === "IDLE" &&
+    distanciaInicial < 0.5 &&
+    deltaAngulo < 0.1 &&
+    !tieneRuta &&
+    (!Number.isFinite(velocidadActual) || Math.abs(velocidadActual) < 0.01) &&
+    (!Number.isFinite(velocidadObjetivo) || Math.abs(velocidadObjetivo) < 0.01)
+  )
+}
+
+function cerrarPanelVelocidadRescate(){
+  const btnSpeed = document.getElementById("rescateSpeed")
+  const speedPanel = document.getElementById("rescateSpeedPanel")
+  if(btnSpeed){
+    btnSpeed.classList.remove("activo")
+  }
+  if(speedPanel){
+    speedPanel.classList.remove("activo")
+    speedPanel.setAttribute("aria-hidden", "true")
+  }
+}
+
+function reiniciarVehiculoRescate(a){
+  if(!a || !a.marker) return
+
+  if(a.motorTaxi){
+    clearInterval(a.motorTaxi)
+    a.motorTaxi = null
+  }
+
+  if(a.animRutaFrame){
+    cancelAnimationFrame(a.animRutaFrame)
+    a.animRutaFrame = null
+  }
+
+  if(a.ruta){
+    map.removeLayer(a.ruta)
+    a.ruta = null
+  }
+
+  if(a.rutaRecorrida){
+    a.rutaRecorrida.setLatLngs([])
+    map.removeLayer(a.rutaRecorrida)
+    a.rutaRecorrida = null
+  }
+
+  const posicionInicial = obtenerPosicionInicialRescate(a)
+  a.marker.setLatLng(posicionInicial)
+  a.lat = posicionInicial.lat
+  a.lng = posicionInicial.lng
+  a.estado = "IDLE"
+  a.velocidad = 0
+  a.velocidadObjetivo = 0
+  a.angulo = Number.isFinite(Number(a.anguloInicial))
+    ? Number(a.anguloInicial)
+    : 180
+  a.anguloVisual = undefined
+  a.modoRuta = false
+  a.rutaTemporal = []
+  a.puntosRuta = []
+  a.indiceRuta = 0
+
+  actualizarIconoRescateFijo()
+  actualizarRotacionRescate(a)
+  actualizarEtiquetaRescate()
+  actualizarInteraccionRescate(a)
+  cerrarPanelVelocidadRescate()
+  actualizarEstadoPanelRescate()
+  emitirEstadoRescate(a, true)
+}
+
 function actualizarEstadoPanelRescate(){
   const panel = document.getElementById("rescatePanel")
   const estadoVacio = document.getElementById("rescatePanelEmpty")
@@ -7006,15 +7118,21 @@ function actualizarEstadoPanelRescate(){
 
   const btnRoute = document.getElementById("rescateRoute")
   const btnStart = document.getElementById("rescateStart")
-  const btnHold = document.getElementById("rescateHold")
+  const btnStop = document.getElementById("rescateStop")
   const btnSpeed = document.getElementById("rescateSpeed")
   const speedPanel = document.getElementById("rescateSpeedPanel")
-  if(!btnRoute || !btnStart || !btnHold) return
+  if(!btnRoute || !btnStart || !btnStop) return
 
   if(!visible){
     btnRoute.disabled = true
     btnStart.disabled = true
-    btnHold.disabled = true
+    btnStop.disabled = true
+    btnRoute.classList.remove("activo")
+    btnStart.classList.remove("activo")
+    btnStart.textContent = "START"
+    btnStart.setAttribute("aria-pressed", "false")
+    btnStop.classList.remove("activo")
+    btnStop.setAttribute("aria-pressed", "false")
     if(btnSpeed){
       btnSpeed.disabled = true
       btnSpeed.style.opacity = "0.45"
@@ -7029,11 +7147,15 @@ function actualizarEstadoPanelRescate(){
   }
 
   const puedeRoute = a.estado !== "TAXI"
+  const enRodaje = a.estado === "TAXI"
   const puedeStart =
-    a.estado === "IDLE" &&
-    Array.isArray(a.puntosRuta) &&
-    a.puntosRuta.length >= 2
-  const puedeHold = a.estado === "TAXI"
+    enRodaje ||
+    (
+      a.estado === "IDLE" &&
+      Array.isArray(a.puntosRuta) &&
+      a.puntosRuta.length >= 2
+    )
+  const puedeStop = !vehiculoRescateEstaInicial(a)
 
   const aplicarEstado = (btn, habilitado, titulo = "") => {
     if(!btn) return
@@ -7044,13 +7166,20 @@ function actualizarEstadoPanelRescate(){
   }
 
   aplicarEstado(btnRoute, puedeRoute, "ROUTE available only when idle")
-  aplicarEstado(btnStart, puedeStart, "Create ROUTE first")
-  aplicarEstado(btnHold, puedeHold, "HOLD available only while taxiing")
+  aplicarEstado(
+    btnStart,
+    puedeStart,
+    enRodaje ? "" : "Create ROUTE first"
+  )
+  aplicarEstado(btnStop, puedeStop, "Already at initial firetruck state")
   aplicarEstado(btnSpeed, true, "")
 
   btnRoute.classList.toggle("activo", puedeRoute && a.modoRuta)
-  btnStart.classList.toggle("activo", a.estado === "TAXI")
-  btnHold.classList.toggle("activo", a.estado === "TAXI")
+  btnStart.textContent = enRodaje ? "HOLD" : "START"
+  btnStart.setAttribute("aria-pressed", String(enRodaje))
+  btnStart.classList.toggle("activo", enRodaje)
+  btnStop.setAttribute("aria-pressed", String(puedeStop))
+  btnStop.classList.toggle("activo", puedeStop)
   if(btnSpeed){
     btnSpeed.classList.toggle("activo", Boolean(speedPanel && speedPanel.classList.contains("activo")))
   }
@@ -7521,7 +7650,7 @@ function moverPorPuntosRescate(a){
 
 const btnRescateRoute = document.getElementById("rescateRoute")
 const btnRescateStart = document.getElementById("rescateStart")
-const btnRescateHold = document.getElementById("rescateHold")
+const btnRescateStop = document.getElementById("rescateStop")
 const btnRescateSpeed = document.getElementById("rescateSpeed")
 const rescateSpeedPanel = document.getElementById("rescateSpeedPanel")
 const rescateSpeedSlider = document.getElementById("rescateSpeedSlider")
@@ -7542,14 +7671,22 @@ if(btnRescateRoute){
 if(btnRescateStart){
   btnRescateStart.addEventListener("click", () => {
     if(modoOperacion !== "controlador") return
+    const a = obtenerVehiculoRescateActivo()
+    if(!a) return
+    if(a.estado === "TAXI"){
+      detenerRodajeRescate()
+      return
+    }
     iniciarRodajeRescate()
   })
 }
 
-if(btnRescateHold){
-  btnRescateHold.addEventListener("click", () => {
+if(btnRescateStop){
+  btnRescateStop.addEventListener("click", () => {
     if(modoOperacion !== "controlador") return
-    detenerRodajeRescate()
+    const a = obtenerVehiculoRescateActivo()
+    if(!a) return
+    reiniciarVehiculoRescate(a)
   })
 }
 
@@ -9119,6 +9256,45 @@ const VELOCIDAD_TAXI_DEFAULT_KT = 10
 const VELOCIDAD_TAXI_MAX_KT = 30
 const ACELERACION_TAXI_KT_POR_SEG = 2
 const VELOCIDAD_TAXI_ATERRIZAJE_KT = VELOCIDAD_TAXI_DEFAULT_KT
+const VELOCIDAD_PUSHBACK_KT = 4
+const PUSHBACK_STAND_MAX_DISTANCE_M = 22
+const PUSHBACK_STANDS = {
+  "1": {
+    stand: [-13.73699731, -76.21831038],
+    ruta: [
+      [-13.737624329732816, -76.21758699417116],
+      [-13.737548729376742, -76.21751457452775]
+    ]
+  },
+  "2A": {
+    stand: [-13.73673047, -76.21808020],
+    ruta: [
+      [-13.737332534348244, -76.21733130073285],
+      [-13.737264754635406, -76.21726958719353]
+    ]
+  },
+  "2B": {
+    stand: [-13.73676178, -76.21804211],
+    ruta: [
+      [-13.737332534348244, -76.21733130073285],
+      [-13.737264754635406, -76.21726958719353]
+    ]
+  },
+  "3": {
+    stand: [-13.73646156, -76.21785258],
+    ruta: [
+      [-13.737082270695671, -76.21711396174656],
+      [-13.73702231165589, -76.21706566419405]
+    ]
+  },
+  "4": {
+    stand: [-13.73619353, -76.21762402],
+    ruta: [
+      [-13.736803330684678, -76.21688857316819],
+      [-13.736735550818779, -76.21681881003678]
+    ]
+  }
+}
 const LIB_MANDI = L.latLng(-12.389000, -76.758094)
 const RUMBO_LIB_MANDI = 140
 const TOLERANCIA_RUMBO = 15
@@ -11238,6 +11414,8 @@ socket.on("actualizarAeronave", data => {
   if (avion.estado === "MANUAL" || detenida) {
     actualizarInteraccion(avion)
   }
+
+  mostrarTaxiing(avion, esEstadoMovimientoSueloAeronave(avion.estado))
 
   if(avion.estado === "TAXI" && avion.ruta){
     actualizarRutaRecorrida(avion)
@@ -14740,7 +14918,7 @@ function activarPrincipal(boton){
 (function inicializarMenuControles(){
   const taxiCreate = document.getElementById("taxiCreate")
   const taxiStart = document.getElementById("taxiStart")
-  const taxiHold = document.getElementById("taxiHold")
+  const taxiPushback = document.getElementById("taxiPushback")
   const taxiLineUp = document.getElementById("taxiLineUp")
   const circuitStart = document.getElementById("circuitStart")
   const circuitShort = document.getElementById("circuitShort")
@@ -14865,20 +15043,30 @@ function activarPrincipal(boton){
         return
       }
       marcarTaxiActivo(taxiStart)
+      if(a.estado === "TAXI"){
+        detenerRodaje(a)
+        return
+      }
       iniciarRodaje()
     })
   }
 
-  if(taxiHold){
-    taxiHold.addEventListener("click", () => {
+  if(taxiPushback){
+    taxiPushback.addEventListener("click", () => {
       if(!validarModoPiloto()) return
       const a = obtenerAeronaveObjetivoControles()
       if(!a){
         alert("Select an aircraft first")
         return
       }
-      marcarTaxiActivo(taxiHold)
-      detenerRodaje(a)
+      if(a.estado === "PUSHBACK"){
+        return
+      }
+      if(iniciarPushbackAeronave(a)){
+        marcarTaxiActivo(taxiPushback)
+      } else {
+        actualizarBotonTaxi()
+      }
     })
   }
 
@@ -16344,6 +16532,7 @@ function moverAeronaveHacia(a, destino, callback, opciones = {}){
     : 0
   const rumboFijo = Number(opciones.rumboFijo)
   const usarRumboFijo = Number.isFinite(rumboFijo)
+  const moverEnReversa = Boolean(opciones.moverEnReversa)
   const umbralCongelarRumboM = Number.isFinite(Number(opciones.umbralCongelarRumboM))
     ? Math.max(0, Number(opciones.umbralCongelarRumboM))
     : 8
@@ -16434,12 +16623,15 @@ function moverAeronaveHacia(a, destino, callback, opciones = {}){
         { lat: destinoLatLng.lat, lng: destinoLatLng.lng }
       )
       if(Number.isFinite(rumboDestino)){
+        const rumboVisual = moverEnReversa
+          ? normalizarAngulo360(rumboDestino + 180)
+          : rumboDestino
         const headingActual = normalizarAngulo360(
-          Number(a.angulo) || Number(rumboDestino)
+          Number(a.angulo) || Number(rumboVisual)
         )
         a.angulo = virajeRealista
-          ? aplicarVirajeLimitado(headingActual, rumboDestino, maxCambioRumboDeg)
-          : rumboDestino
+          ? aplicarVirajeLimitado(headingActual, rumboVisual, maxCambioRumboDeg)
+          : rumboVisual
         actualizarRotacion(a)
       }
     }
@@ -16458,6 +16650,13 @@ function moverAeronaveHacia(a, destino, callback, opciones = {}){
       a.marker.setLatLng(destinoLatLng)
       a.lat = destinoLatLng.lat
       a.lng = destinoLatLng.lng
+      if(!usarRumboFijo && moverEnReversa){
+        const rumboDestino = calcularBearing(actual, destinoLatLng)
+        if(Number.isFinite(rumboDestino)){
+          a.angulo = normalizarAngulo360(rumboDestino + 180)
+          actualizarRotacion(a)
+        }
+      }
       if(descensoProgresivo){
         a.altitud = altitudObjetivoDescenso
       }
@@ -16517,6 +16716,13 @@ function moverAeronaveHacia(a, destino, callback, opciones = {}){
         a.marker.setLatLng(destinoLatLng)
         a.lat = destinoLatLng.lat
         a.lng = destinoLatLng.lng
+        if(!usarRumboFijo && moverEnReversa){
+          const rumboDestino = calcularBearing(actual, destinoLatLng)
+          if(Number.isFinite(rumboDestino)){
+            a.angulo = normalizarAngulo360(rumboDestino + 180)
+            actualizarRotacion(a)
+          }
+        }
         if(descensoProgresivo){
           a.altitud = altitudObjetivoDescenso
         }
@@ -17507,9 +17713,9 @@ function actualizarEstadoGrupoTaxi(){
   const tituloGrupoTaxi = document.getElementById("tituloGrupoTaxi")
   const btnTaxiCreate = document.getElementById("taxiCreate")
   const btnTaxiStart = document.getElementById("taxiStart")
-  const btnTaxiHold = document.getElementById("taxiHold")
+  const btnTaxiPushback = document.getElementById("taxiPushback")
   const btnTaxiLineUp = document.getElementById("taxiLineUp")
-  if(!btnTaxiCreate && !btnTaxiStart && !btnTaxiHold && !btnTaxiLineUp){
+  if(!btnTaxiCreate && !btnTaxiStart && !btnTaxiPushback && !btnTaxiLineUp){
     return
   }
 
@@ -17527,9 +17733,12 @@ function actualizarEstadoGrupoTaxi(){
     Array.isArray(a.puntosRuta) &&
     a.puntosRuta.length >= 2
   const enRodaje = Boolean(a && a.estado === "TAXI")
+  const enPushback = Boolean(a && a.estado === "PUSHBACK")
+  const enMovimientoSuelo = enRodaje || enPushback
   const holdShortInfo = a && a.marker
     ? obtenerHoldShortLineUpInfo(a.marker.getLatLng())
     : null
+  const pushbackStand = obtenerStandPushbackDisponible(a)
   const altitudLineUpValida =
     Boolean(a) &&
     Number.isFinite(altitudActual) &&
@@ -17547,6 +17756,8 @@ function actualizarEstadoGrupoTaxi(){
   const razonSeleccion = "Select an aircraft first"
   const razonRuta = "Create ROUTE first"
   const razonRodaje = "HOLD available only while taxiing"
+  const razonPushback = "PUSHBACK available only at stands 1, 2A, 2B, 3 or 4"
+  const razonPushbackActivo = "Unavailable during PUSHBACK"
   const razonLineUp = "LINE UP available at 0 ft, within 35 m of Hold Short A/B/C/D and pointing to RWY 04/22"
 
   if(tituloGrupoTaxi){
@@ -17557,13 +17768,17 @@ function actualizarEstadoGrupoTaxi(){
     btnTaxiStart.hidden = enNavegacion
     if(enNavegacion){
       btnTaxiStart.classList.remove("activo")
+      btnTaxiStart.classList.remove("hold-mode")
+      btnTaxiStart.textContent = "START"
+      btnTaxiStart.setAttribute("aria-pressed", "false")
     }
   }
 
-  if(btnTaxiHold){
-    btnTaxiHold.hidden = enNavegacion
+  if(btnTaxiPushback){
+    btnTaxiPushback.hidden = enNavegacion
     if(enNavegacion){
-      btnTaxiHold.classList.remove("activo")
+      btnTaxiPushback.classList.remove("activo")
+      btnTaxiPushback.setAttribute("aria-pressed", "false")
     }
   }
 
@@ -17588,10 +17803,12 @@ function actualizarEstadoGrupoTaxi(){
     }
   }
 
-  const routeHabilitado = Boolean(a) && !enRodaje
+  const routeHabilitado = Boolean(a) && !enMovimientoSuelo
   const routeTitulo = !a
     ? razonSeleccion
-    : enRodaje
+    : enPushback
+      ? razonPushbackActivo
+      : enRodaje
       ? "Unavailable while taxiing"
       : ""
   aplicarEstadoBotonTaxi(btnTaxiCreate, routeHabilitado, routeTitulo)
@@ -17602,21 +17819,53 @@ function actualizarEstadoGrupoTaxi(){
     )
   }
 
-  const startHabilitado = enSuelo && rutaCreada && !enRodaje
+  const startHabilitado = enSuelo && rutaCreada && !enRodaje && !enPushback
   const startTitulo = !enSuelo
     ? razonAltitud
+    : enPushback
+      ? razonPushbackActivo
     : !rutaCreada
       ? razonRuta
       : "Already taxiing"
-  aplicarEstadoBotonTaxi(btnTaxiStart, startHabilitado, startTitulo)
-
-  const holdHabilitado = enSuelo && rutaCreada && enRodaje
+  const holdHabilitado = enSuelo && rutaCreada && enRodaje && !enPushback
   const holdTitulo = !enSuelo
     ? razonAltitud
+    : enPushback
+      ? razonPushbackActivo
     : !rutaCreada
       ? razonRuta
       : razonRodaje
-  aplicarEstadoBotonTaxi(btnTaxiHold, holdHabilitado, holdTitulo)
+  const toggleTaxiHabilitado = startHabilitado || holdHabilitado
+  const toggleTaxiTitulo = enPushback ? razonPushbackActivo : (enRodaje ? holdTitulo : startTitulo)
+  aplicarEstadoBotonTaxi(btnTaxiStart, toggleTaxiHabilitado, toggleTaxiTitulo)
+  if(btnTaxiStart){
+    btnTaxiStart.textContent = enRodaje ? "HOLD" : "START"
+    btnTaxiStart.setAttribute("aria-pressed", String(enRodaje))
+    btnTaxiStart.classList.toggle("hold-mode", enRodaje)
+  }
+
+  const pushbackListo =
+    Boolean(a) &&
+    enSuelo &&
+    a.estado === "IDLE" &&
+    Boolean(pushbackStand)
+  const pushbackHabilitado = pushbackListo || enPushback
+  const pushbackTitulo = !a
+    ? razonSeleccion
+    : !enSuelo
+      ? razonAltitud
+      : enPushback
+        ? ""
+        : a.estado !== "IDLE"
+          ? "PUSHBACK available only while idle"
+          : !pushbackStand
+            ? razonPushback
+            : ""
+  aplicarEstadoBotonTaxi(btnTaxiPushback, pushbackHabilitado, pushbackTitulo)
+  if(btnTaxiPushback){
+    btnTaxiPushback.setAttribute("aria-pressed", String(enPushback))
+    btnTaxiPushback.classList.toggle("activo", enPushback)
+  }
 
   const lineUpVisible =
     altitudLineUpValida &&
@@ -17745,6 +17994,113 @@ function actualizarBotonTaxi(){
   actualizarEstadoGrupoTaxi()
 }
 
+function esEstadoMovimientoSueloAeronave(estado){
+  const estadoNormalizado = typeof estado === "string" ? estado.trim().toUpperCase() : ""
+  return estadoNormalizado === "TAXI" || estadoNormalizado === "PUSHBACK"
+}
+
+function obtenerStandPushbackDisponible(a){
+  if(!a || !a.marker || !map){
+    return null
+  }
+
+  const posicion = a.marker.getLatLng()
+  if(!posicion){
+    return null
+  }
+
+  let mejor = null
+  Object.entries(PUSHBACK_STANDS).forEach(([id, config]) => {
+    const stand = Array.isArray(config && config.stand)
+      ? L.latLng(Number(config.stand[0]), Number(config.stand[1]))
+      : null
+    if(!stand){
+      return
+    }
+
+    const distancia = map.distance(posicion, stand)
+    if(!Number.isFinite(distancia) || distancia > PUSHBACK_STAND_MAX_DISTANCE_M){
+      return
+    }
+
+    if(!mejor || distancia < mejor.distancia){
+      mejor = {
+        id,
+        distancia,
+        stand,
+        ruta: Array.isArray(config.ruta)
+          ? config.ruta.map(punto => [Number(punto[0]), Number(punto[1])])
+          : []
+      }
+    }
+  })
+
+  return mejor
+}
+
+function iniciarPushbackAeronave(a){
+  if(!a) return false
+
+  const standPushback = obtenerStandPushbackDisponible(a)
+  if(!standPushback){
+    alert("PUSHBACK available only at stands 1, 2A, 2B, 3 or 4")
+    return false
+  }
+
+  if(a.estado !== "IDLE"){
+    alert("PUSHBACK available only while idle")
+    return false
+  }
+
+  if(a.ruta || a.rutaRecorrida || a.modoRuta || a.rutaPilotageActiva){
+    eliminarRuta(a)
+  }
+
+  a.estado = "PUSHBACK"
+  a.velocidadObjetivo = VELOCIDAD_PUSHBACK_KT
+  a.velocidad = VELOCIDAD_PUSHBACK_KT * 0.514444
+  actualizarInteraccion(a)
+  mostrarTaxiing(a, true)
+  actualizarPanelInfoAeronave(a)
+  actualizarPanelInfo(a)
+  actualizarBotonTaxi()
+  sincronizarEstadoAeronaveLocal(a)
+
+  ejecutarPushbackAeronave(a, standPushback.ruta, 0)
+  return true
+}
+
+function ejecutarPushbackAeronave(a, ruta, indice = 0){
+  if(!a){
+    return
+  }
+
+  const puntos = Array.isArray(ruta) ? ruta : []
+  if(indice >= puntos.length){
+    finalizarPushbackAeronave(a)
+    return
+  }
+
+  moverAeronaveHacia(a, puntos[indice], () => {
+    if(!a || a.estado !== "PUSHBACK"){
+      return
+    }
+    ejecutarPushbackAeronave(a, puntos, indice + 1)
+  }, {
+    velocidadObjetivoFinalKt: VELOCIDAD_PUSHBACK_KT,
+    moverEnReversa: true,
+    umbralCongelarRumboM: 0
+  })
+}
+
+function finalizarPushbackAeronave(a){
+  if(!a) return
+
+  finalizarTaxi(a)
+  actualizarPanelInfoAeronave(a)
+  actualizarPanelInfo(a)
+}
+
 function actualizarPanelInfo(a){
 
   const aircraftInfoEl = document.getElementById("aircraftInfo")
@@ -17759,6 +18115,10 @@ function actualizarPanelInfo(a){
 
   case "TAXI":
     estadoTexto = "TAXIING"
+    break
+
+  case "PUSHBACK":
+    estadoTexto = "PUSHBACK"
     break
 
   case "AIRBORNE":
@@ -18116,8 +18476,8 @@ function activarModoRuta(){
   const a = aeronaveSeleccionada
   if(!a) return
 
-  if(a.estado === "TAXI"){
-    alert("Aircraft is taxiing")
+  if(esEstadoMovimientoSueloAeronave(a.estado)){
+    alert("Aircraft is moving on the ground")
     return
   }
 
@@ -18172,7 +18532,7 @@ function agregarPuntoRuta(latlng){
   const a = aeronaveSeleccionada
   if(!a) return
   if(!a.modoRuta) return
-  if(a.estado === "TAXI") return
+  if(esEstadoMovimientoSueloAeronave(a.estado)) return
 
   a.rutaTemporal.push(latlng)
   a.ruta.setLatLngs(a.rutaTemporal)
@@ -18184,7 +18544,7 @@ function eliminarUltimoTramoRuta(aeronave = null){
   const a = aeronave || aeronaveSeleccionada
   if(!a) return false
   if(!a.modoRuta) return false
-  if(a.estado === "TAXI") return false
+  if(esEstadoMovimientoSueloAeronave(a.estado)) return false
   if(!Array.isArray(a.rutaTemporal)) return false
   if(a.rutaTemporal.length <= 1) return false
 
@@ -18218,7 +18578,7 @@ function eliminarRuta(a){
 
   if(!a) return
 
-  if(a.estado === "TAXI") return
+  if(esEstadoMovimientoSueloAeronave(a.estado)) return
 
   const desactivarRutaPilotage = Boolean(a.rutaPilotageActiva)
 
@@ -19389,9 +19749,9 @@ function despegar(aeronaveOverride = null){
   if(a.estado === "AIRBORNE")
  return
 
-  if(a.estado === "TAXI")
+  if(esEstadoMovimientoSueloAeronave(a.estado))
 {
-    alert("Cannot takeoff while taxiing")
+    alert("Cannot takeoff while moving on the ground")
     return
   }
 
@@ -19957,7 +20317,7 @@ function actualizarEstadoBotonTakeoff(aeronave = null){
     enSuelo &&
     a &&
     a.estado !== "AIRBORNE" &&
-    a.estado !== "TAXI"
+    !esEstadoMovimientoSueloAeronave(a.estado)
   const puedeAutoImmediate = Boolean(
     immediateVisible &&
     puedeSolicitarTakeoff &&
@@ -20044,8 +20404,10 @@ function actualizarEstadoBotonTakeoff(aeronave = null){
       btnTakeoff.title = "Disponible solo en modo PILOTO"
     } else if(!enSuelo){
       btnTakeoff.title = "TAKE OFF available only at 0 ft"
-    } else if(a && a.estado === "TAXI"){
-      btnTakeoff.title = "No disponible durante TAXI"
+    } else if(a && esEstadoMovimientoSueloAeronave(a.estado)){
+      btnTakeoff.title = a.estado === "PUSHBACK"
+        ? "No disponible durante PUSHBACK"
+        : "No disponible durante TAXI"
     } else if(!listoDespegue && !immediateActivo){
       btnTakeoff.title = immediateVisible
         ? "Pulsa TAKE OFF para IMMEDIATE DEPARTURE"
@@ -24896,6 +25258,12 @@ function mostrarTaxiing(a,estado){
 
   const label = el.querySelector(".status-label")
   if(!label) return
+
+  if(estado){
+    label.textContent = a && a.estado === "PUSHBACK"
+      ? "PUSHBACK"
+      : "TAXIING"
+  }
 
   label.style.display = estado ? "block" : "none"
 }

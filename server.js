@@ -2297,6 +2297,12 @@ function crearRegistroAeronave(dataInicial = {}, opciones = {}) {
 }
 
 function construirPayloadActualizacionAeronave(aeronave, extras = {}) {
+  const syncTsPayload =
+    Object.prototype.hasOwnProperty.call(extras, "syncTs") &&
+    Number.isFinite(Number(extras.syncTs))
+      ? Number(extras.syncTs)
+      : Date.now()
+
   return {
     id: aeronave.id,
     lat: aeronave.lat,
@@ -2351,9 +2357,7 @@ function construirPayloadActualizacionAeronave(aeronave, extras = {}) {
       aeronave.estado === "AIRBORNE"
         ? obtenerProgresoCarreraDespegueMetros(aeronave)
         : 0,
-    syncTs: Number.isFinite(Number(aeronave.syncTs))
-      ? Number(aeronave.syncTs)
-      : null,
+    syncTs: syncTsPayload,
     ...extras
   }
 }

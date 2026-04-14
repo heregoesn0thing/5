@@ -116,6 +116,7 @@
 
       <div><span class="label">HDG</span><span class="valor" id="info-heading">---</span></div>
       <div><span class="label">DME</span><span class="valor" id="info-dme">---</span></div>
+      <div><span class="label">RDL</span><span class="valor" id="info-rdl">---</span></div>
       <div><span class="label">Lat</span><span class="valor" id="info-lat">---</span></div>
 
       <div><span class="label">Lng</span><span class="valor" id="info-lng">---</span></div>
@@ -12825,6 +12826,16 @@ document.getElementById("header-id").textContent = a.id || "---"
     infoDmeEl.textContent = dmeTexto
   }
 
+  const infoRdlEl = document.getElementById("info-rdl")
+  if(infoRdlEl){
+    let radialTexto = "---"
+    const radialScoMagnetico = obtenerRadialScoMagneticoAeronave(a)
+    if(Number.isFinite(radialScoMagnetico)){
+      radialTexto = `${String(Math.round(radialScoMagnetico)).padStart(3, "0")}°`
+    }
+    infoRdlEl.textContent = radialTexto
+  }
+
   document.getElementById("info-lat").textContent =
     a.lat !== undefined ? a.lat.toFixed(5) : "-"
 
@@ -12848,6 +12859,7 @@ function limpiarPanelInfoAeronave(){
   asignarTexto("info-velocidad", "---")
   asignarTexto("info-heading", "---")
   asignarTexto("info-dme", "---")
+  asignarTexto("info-rdl", "---")
   asignarTexto("info-lat", "---")
   asignarTexto("info-lng", "---")
   const botonFocusAircraft = document.getElementById("btnPanelInfoFocusAircraft")
@@ -24663,6 +24675,23 @@ function estaEnRadial(a, radial){
 function distanciaDesdeVOR(a){
   const vor = L.latLng(-13.738611, -76.212778)
   return map.distance(vor, a.marker.getLatLng())
+}
+
+function obtenerRadialScoMagneticoAeronave(a){
+  const posicion = obtenerPosicionActualAeronave(a)
+  if(!posicion){
+    return null
+  }
+
+  const vor = { lat: -13.738611, lng: -76.212778 }
+  const radialVerdadero = calcularBearing(vor, posicion)
+  if(!Number.isFinite(radialVerdadero)){
+    return null
+  }
+
+  return normalizarAngulo360(
+    radialVerdadero + VARIACION_MAGNETICA_VOR_SCO_OESTE_DEG
+  )
 }
 
 function actualizarRotacion(a){

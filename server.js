@@ -72,6 +72,7 @@ let peligroSalas = {};
 let timeoutsSalas = {};
 let motoresSalas = {}
 const modosOperacionPorSocket = new Map()
+const sesionesClientePorSocket = new Map()
 const RUMBOS_CIRCUITO = {
   upwind: 220,
   final: 220,
@@ -253,24 +254,52 @@ const CLIMB_RATE = {
   A319: 2500,
   A19: 2500,
   AN32: 1500,
+  B105: 1300,
+  B212: 1200,
+  B412: 1500,
   C172: 400,
+  CH2000: 700,
+  EC45: 1200,
+  H47: 1500,
+  H64: 1800,
+  MI8: 1200,
+  MI17: 1300,
+  MI24: 1800,
   PA23: 1400,
   PA28: 700,
   PA31: 1450,
   PA34: 1550,
-  PA44: 1340
+  PA44: 1340,
+  R22: 900,
+  R44: 1100,
+  RAH66: 2000,
+  S61: 1200
 }
 const DESCENT_RATE = {
   A320: 1500,
   A319: 1500,
   A19: 1500,
   AN32: 1000,
+  B105: 900,
+  B212: 850,
+  B412: 1000,
   C172: 500,
+  CH2000: 500,
+  EC45: 800,
+  H47: 1000,
+  H64: 1200,
+  MI8: 900,
+  MI17: 1000,
+  MI24: 1200,
   PA23: 1000,
   PA28: 600,
   PA31: 1100,
   PA34: 1100,
-  PA44: 900
+  PA44: 900,
+  R22: 700,
+  R44: 800,
+  RAH66: 1300,
+  S61: 900
 }
 const TAKEOFF_PROFILE_A32X = {
   RUNWAY_DISTANCE_M: 1750,
@@ -762,6 +791,162 @@ const TAKEOFF_PROFILES = Object.freeze({
     RUNWAY_ACCEL_MIN_MPS2: 0.55,
     CLIMB_ACCEL_KT_PER_SEC: 1.1
   }),
+  B105: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 40,
+    ROTATION_KT: 42,
+    RUNWAY_TARGET_KT: 62,
+    SPEED_TO_FL050_KT: 95,
+    SPEED_TO_FL150_KT: 120,
+    SPEED_TO_FL240_KT: 135,
+    CRUISE_MAX_KT: 145,
+    DEFAULT_TARGET_ALT_FT: 5000,
+    ROC_TO_FL050_FPM: 1400,
+    ROC_TO_FL150_FPM: 1000,
+    ROC_TO_FL240_FPM: 650
+  }),
+  B212: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 60,
+    ROTATION_KT: 40,
+    RUNWAY_TARGET_KT: 58,
+    SPEED_TO_FL050_KT: 90,
+    SPEED_TO_FL150_KT: 115,
+    SPEED_TO_FL240_KT: 130,
+    CRUISE_MAX_KT: 140,
+    DEFAULT_TARGET_ALT_FT: 5000,
+    ROC_TO_FL050_FPM: 1250,
+    ROC_TO_FL150_FPM: 950,
+    ROC_TO_FL240_FPM: 650
+  }),
+  B412: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 65,
+    ROTATION_KT: 45,
+    RUNWAY_TARGET_KT: 65,
+    SPEED_TO_FL050_KT: 105,
+    SPEED_TO_FL150_KT: 130,
+    SPEED_TO_FL240_KT: 145,
+    CRUISE_MAX_KT: 160,
+    DEFAULT_TARGET_ALT_FT: 6000,
+    ROC_TO_FL050_FPM: 1700,
+    ROC_TO_FL150_FPM: 1200,
+    ROC_TO_FL240_FPM: 800
+  }),
+  CH2000: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_SINGLE, {
+    RUNWAY_DISTANCE_M: 320,
+    ROTATION_KT: 55,
+    RUNWAY_TARGET_KT: 65,
+    SPEED_TO_FL050_KT: 85,
+    SPEED_TO_FL150_KT: 100,
+    SPEED_TO_FL240_KT: 110,
+    CRUISE_MAX_KT: 120,
+    DEFAULT_TARGET_ALT_FT: 5000,
+    ROC_TO_FL050_FPM: 700,
+    ROC_TO_FL150_FPM: 500,
+    ROC_TO_FL240_FPM: 300
+  }),
+  H47: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 85,
+    ROTATION_KT: 48,
+    RUNWAY_TARGET_KT: 68,
+    SPEED_TO_FL050_KT: 110,
+    SPEED_TO_FL150_KT: 130,
+    SPEED_TO_FL240_KT: 145,
+    CRUISE_MAX_KT: 165,
+    DEFAULT_TARGET_ALT_FT: 6000,
+    ROC_TO_FL050_FPM: 1600,
+    ROC_TO_FL150_FPM: 1200,
+    ROC_TO_FL240_FPM: 800
+  }),
+  H64: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 55,
+    ROTATION_KT: 50,
+    RUNWAY_TARGET_KT: 70,
+    SPEED_TO_FL050_KT: 120,
+    SPEED_TO_FL150_KT: 145,
+    SPEED_TO_FL240_KT: 160,
+    CRUISE_MAX_KT: 180,
+    DEFAULT_TARGET_ALT_FT: 8000,
+    ROC_TO_FL050_FPM: 1800,
+    ROC_TO_FL150_FPM: 1300,
+    ROC_TO_FL240_FPM: 900
+  }),
+  MI8: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 65,
+    ROTATION_KT: 40,
+    RUNWAY_TARGET_KT: 58,
+    SPEED_TO_FL050_KT: 90,
+    SPEED_TO_FL150_KT: 115,
+    SPEED_TO_FL240_KT: 135,
+    CRUISE_MAX_KT: 150,
+    DEFAULT_TARGET_ALT_FT: 5000,
+    ROC_TO_FL050_FPM: 1350,
+    ROC_TO_FL150_FPM: 1000,
+    ROC_TO_FL240_FPM: 700
+  }),
+  MI24: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 60,
+    ROTATION_KT: 52,
+    RUNWAY_TARGET_KT: 72,
+    SPEED_TO_FL050_KT: 125,
+    SPEED_TO_FL150_KT: 155,
+    SPEED_TO_FL240_KT: 175,
+    CRUISE_MAX_KT: 195,
+    DEFAULT_TARGET_ALT_FT: 9000,
+    ROC_TO_FL050_FPM: 2200,
+    ROC_TO_FL150_FPM: 1600,
+    ROC_TO_FL240_FPM: 1100
+  }),
+  R22: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 25,
+    ROTATION_KT: 28,
+    RUNWAY_TARGET_KT: 42,
+    SPEED_TO_FL050_KT: 65,
+    SPEED_TO_FL150_KT: 85,
+    SPEED_TO_FL240_KT: 100,
+    CRUISE_MAX_KT: 110,
+    DEFAULT_TARGET_ALT_FT: 3500,
+    ROC_TO_FL050_FPM: 900,
+    ROC_TO_FL150_FPM: 650,
+    ROC_TO_FL240_FPM: 400
+  }),
+  R44: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 30,
+    ROTATION_KT: 34,
+    RUNWAY_TARGET_KT: 48,
+    SPEED_TO_FL050_KT: 80,
+    SPEED_TO_FL150_KT: 100,
+    SPEED_TO_FL240_KT: 115,
+    CRUISE_MAX_KT: 130,
+    DEFAULT_TARGET_ALT_FT: 4500,
+    ROC_TO_FL050_FPM: 1100,
+    ROC_TO_FL150_FPM: 800,
+    ROC_TO_FL240_FPM: 500
+  }),
+  RAH66: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 45,
+    ROTATION_KT: 50,
+    RUNWAY_TARGET_KT: 70,
+    SPEED_TO_FL050_KT: 120,
+    SPEED_TO_FL150_KT: 150,
+    SPEED_TO_FL240_KT: 170,
+    CRUISE_MAX_KT: 190,
+    DEFAULT_TARGET_ALT_FT: 8000,
+    ROC_TO_FL050_FPM: 2000,
+    ROC_TO_FL150_FPM: 1500,
+    ROC_TO_FL240_FPM: 1000
+  }),
+  S61: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 75,
+    ROTATION_KT: 44,
+    RUNWAY_TARGET_KT: 62,
+    SPEED_TO_FL050_KT: 98,
+    SPEED_TO_FL150_KT: 122,
+    SPEED_TO_FL240_KT: 138,
+    CRUISE_MAX_KT: 150,
+    DEFAULT_TARGET_ALT_FT: 6000,
+    ROC_TO_FL050_FPM: 1400,
+    ROC_TO_FL150_FPM: 1050,
+    ROC_TO_FL240_FPM: 700
+  }),
   F22: crearPerfilDespegue(TAKEOFF_PROFILE_FIGHTER, {
     RUNWAY_DISTANCE_M: 420,
     ROTATION_KT: 135,
@@ -855,7 +1040,7 @@ const ESTADOS_MOVIMIENTO_SERVIDOR = new Set([
   "TNG_ROLL",
   "TNG_CLIMB",
   "TNG_INTERCEPT",
-  "REJOINING"
+  "JOINING"
 ])
 
 function estadoVelocidadEnMps(estado){
@@ -2211,11 +2396,105 @@ function horaObjetoATexto(horaObj) {
   return horas + ":" + minutos + ":" + segundos;
 }
 
+function normalizarSesionClienteId(valor, fallback = "") {
+  const texto = typeof valor === "string" ? valor.trim() : ""
+  if (texto) {
+    return texto.slice(0, 120)
+  }
+  return typeof fallback === "string" ? fallback : ""
+}
+
+function socketEstaEnSala(socket, nombreSala) {
+  if (!socket || !nombreSala) return false
+  if (socket.rooms && typeof socket.rooms.has === "function") {
+    return socket.rooms.has(nombreSala)
+  }
+  return socket.sala === nombreSala
+}
+
+function obtenerJugadoresActivosSala(nombreSala, socketIdIgnorado = "") {
+  if (!nombreSala || !salas[nombreSala]) {
+    return []
+  }
+
+  const jugadoresUnicos = new Set()
+  io.sockets.sockets.forEach((socketActivo) => {
+    if (!socketActivo) return
+    if (socketIdIgnorado && socketActivo.id === socketIdIgnorado) return
+    if (!socketEstaEnSala(socketActivo, nombreSala)) return
+
+    const sesionId = normalizarSesionClienteId(
+      sesionesClientePorSocket.get(socketActivo.id),
+      socketActivo.id
+    )
+    if (sesionId) {
+      jugadoresUnicos.add(sesionId)
+    }
+  })
+
+  return [...jugadoresUnicos]
+}
+
+function sincronizarJugadoresSala(nombreSala, socketIdIgnorado = "") {
+  if (!nombreSala || !salas[nombreSala]) {
+    return []
+  }
+
+  const jugadores = obtenerJugadoresActivosSala(nombreSala, socketIdIgnorado)
+  salas[nombreSala].jugadores = jugadores
+  return jugadores
+}
+
+function cancelarEliminacionSalaPendiente(nombreSala) {
+  if (!timeoutsSalas[nombreSala]) return
+  clearTimeout(timeoutsSalas[nombreSala])
+  delete timeoutsSalas[nombreSala]
+}
+
+function programarEliminacionSalaSiVacia(nombreSala, socketIdIgnorado = "") {
+  if (!nombreSala || !salas[nombreSala]) return
+
+  const jugadores = sincronizarJugadoresSala(nombreSala, socketIdIgnorado)
+  if (jugadores.length !== 0) {
+    cancelarEliminacionSalaPendiente(nombreSala)
+    return
+  }
+
+  if (timeoutsSalas[nombreSala]) return
+
+  console.log(` Sala ${nombreSala} vacia. Eliminando en 5 horas si nadie entra.`)
+
+  timeoutsSalas[nombreSala] = setTimeout(() => {
+    if (
+      salas[nombreSala] &&
+      sincronizarJugadoresSala(nombreSala).length === 0
+    ) {
+      console.log(`Eliminando sala ${nombreSala} por inactividad.`)
+
+      if (intervalosSalas[nombreSala]) {
+        clearInterval(intervalosSalas[nombreSala]);
+        delete intervalosSalas[nombreSala];
+      }
+      if (motoresSalas[nombreSala]) {
+        clearInterval(motoresSalas[nombreSala])
+        delete motoresSalas[nombreSala]
+      }
+
+      delete salas[nombreSala];
+      delete relojesSalas[nombreSala];
+      delete peligroSalas[nombreSala];
+      delete timeoutsSalas[nombreSala];
+
+      io.emit("listaSalas", obtenerListaSalas());
+    }
+  }, 5 * 60 * 60 * 1000)
+}
+
 
 function obtenerListaSalas() {
   return Object.keys(salas).map(nombre => ({
     nombre,
-    jugadores: salas[nombre].jugadores.length
+    jugadores: sincronizarJugadoresSala(nombre).length
   }));
 }
 
@@ -2277,6 +2556,8 @@ function crearRegistroAeronave(dataInicial = {}, opciones = {}) {
     indiceObjetivo: null,
     tramoObjetivo: null,
     puntoIntercepto: null,
+    puntoIngreso: null,
+    puntoIngresoProgreso: null,
     rutaAirborne: null,
     rutaAirborneFinalizada: false,
     rutaAirborneIndice: 0,
@@ -2315,6 +2596,7 @@ function construirPayloadActualizacionAeronave(aeronave, extras = {}) {
     velocidad: aeronave.velocidad,
     velocidadObjetivo: aeronave.velocidadObjetivo,
     estado: aeronave.estado,
+    puntoIngreso: normalizarPuntoRuta(aeronave.puntoIngreso),
     pilotageObjetivoLat: Number.isFinite(Number(aeronave.pilotageObjetivoLat))
       ? Number(aeronave.pilotageObjetivoLat)
       : null,
@@ -2388,6 +2670,7 @@ function detenerAccionActualAeronave(aeronave) {
   aeronave.ingresoDownwindTipo = null
   aeronave.movimiento = null
   aeronave.puntoIngreso = null
+  aeronave.puntoIngresoProgreso = null
   aeronave.rutaAirborne = null
   aeronave.rutaAirborneFinalizada = false
   aeronave.rutaAirborneIndice = 0
@@ -2515,6 +2798,7 @@ function activarOrbitacionFueraCircuitoServidor(sala, aeronave, sentido) {
 
 function esEstadoCircuitoConAltitudAutomatica(estado) {
   return (
+    estado === "JOINING" ||
     estado === "CIRCUIT" ||
     estado === "INTERCEPTING ARC" ||
     estado === "INTERCEPTING LEG" ||
@@ -2816,6 +3100,16 @@ function iniciarMotorSala(nombreSala){
           )
           const token = a.movimiento && a.movimiento.token
           a.movimiento = null
+          if (completarIngresoManualCircuito(a)) {
+            emitirActualizacionAeronave(nombreSala, a)
+            if (token) {
+              io.to(nombreSala).emit("movimientoCompletado", {
+                id: a.id,
+                token
+              })
+            }
+            return
+          }
           if (debeAutoOrbitarTrasLiberacion) {
             const sentidoPendiente = normalizarSentidoOrbitTexto(a.orbitSentido)
             if (activarOrbitacionFueraCircuitoServidor(sala, a, sentidoPendiente)) {
@@ -2910,8 +3204,15 @@ function iniciarMotorSala(nombreSala){
 
 if (a.estado === "INTERCEPTING ARC") {
 
+  const puntoIngresoManual = normalizarPuntoRuta(a.puntoIngreso)
+  const ingresoManualActivo = Boolean(
+    puntoIngresoManual &&
+    !Array.isArray(a.ingresoDownwindWaypoints)
+  )
   const destino =
-    (Array.isArray(a.ingresoDownwindWaypoints) && a.ingresoDownwindWaypoints.length > 0)
+    ingresoManualActivo
+      ? puntoIngresoManual
+      : (Array.isArray(a.ingresoDownwindWaypoints) && a.ingresoDownwindWaypoints.length > 0)
       ? a.ingresoDownwindWaypoints[0]
       : a.puntoIntercepto;
   if (!destino) {
@@ -2954,6 +3255,7 @@ if (a.estado === "INTERCEPTING ARC") {
   }
 
   if (
+    !ingresoManualActivo &&
     ultimoWaypointIngreso &&
     puntoTramoObjetivo &&
     distanciaTramoObjetivo <= INTERCEPT_ARC_DIRECT_TO_LEG_DISTANCE_M
@@ -2969,6 +3271,7 @@ if (a.estado === "INTERCEPTING ARC") {
   
   let rumboObjetivo = calcularRumboServidor(posicionActual, destino)
   if (
+    !ingresoManualActivo &&
     ultimoWaypointIngreso &&
     Number.isFinite(rumboTramoObjetivo) &&
     Number.isFinite(distanciaTramoObjetivo)
@@ -3010,6 +3313,35 @@ if (a.estado === "INTERCEPTING ARC") {
 
   
   if (distancia < INTERCEPT_ARC_CAPTURE_DISTANCE_M) {
+    if (ingresoManualActivo) {
+      const indiceIngreso =
+        Number.isFinite(a.tramoObjetivo) && Array.isArray(a.ruta) && a.ruta.length > 0
+          ? ((a.tramoObjetivo % a.ruta.length) + a.ruta.length) % a.ruta.length
+          : 0
+      const progresoIngreso = Number.isFinite(Number(a.puntoIngresoProgreso))
+        ? Math.max(0, Number(a.puntoIngresoProgreso))
+        : 0
+
+      a.lat = puntoIngresoManual.lat
+      a.lng = puntoIngresoManual.lng
+      if (Number.isFinite(rumboTramoObjetivo)) {
+        a.angulo = rumboTramoObjetivo
+      }
+      a.ingresoDownwindWaypoints = null
+      a.ingresoDownwindTipo = null
+      a.puntoIntercepto = null
+      a.estado = "CIRCUIT"
+      reiniciarGuiadoInterceptacionCircuito(a)
+      a.indice = indiceIngreso
+      a.tramoObjetivo = indiceIngreso
+      a.progreso = progresoIngreso
+      a.puntoIngreso = null
+      a.puntoIngresoProgreso = null
+
+      emitirActualizacionAeronave(nombreSala, a);
+      return;
+    }
+
     if (Array.isArray(a.ingresoDownwindWaypoints) && a.ingresoDownwindWaypoints.length > 0) {
       a.ingresoDownwindWaypoints.shift()
 
@@ -4210,6 +4542,11 @@ function prepararAeronaveParaCircuito(salaNombre, sala, aeronave, opciones = {})
   if (!salaNombre || !sala || !aeronave) return false
 
   limpiarOrbitacionAeronave(aeronave)
+  reiniciarGuiadoInterceptacionCircuito(aeronave)
+  aeronave.movimiento = null
+  aeronave.pilotageObjetivoLat = null
+  aeronave.pilotageObjetivoLng = null
+  aeronave.pilotageMarkerTipo = null
   aeronave.altitudCircuitoAutomaticaActiva = true
   aeronave.circuitoSentido = normalizarSentidoCircuitoTexto(
     opciones && opciones.sentidoCircuito !== undefined
@@ -4235,6 +4572,66 @@ function prepararAeronaveParaCircuito(salaNombre, sala, aeronave, opciones = {})
     ruta: aeronave.ruta,
     sentidoCircuito: normalizarSentidoCircuitoTexto(aeronave.circuitoSentido)
   })
+
+  const puntoIngresoLat = Number(opciones?.puntoIngreso?.lat)
+  const puntoIngresoLng = Number(opciones?.puntoIngreso?.lng)
+  const puntoIngreso =
+    Number.isFinite(puntoIngresoLat) && Number.isFinite(puntoIngresoLng)
+      ? {
+          lat: puntoIngresoLat,
+          lng: puntoIngresoLng
+        }
+      : null
+  aeronave.puntoIngreso = puntoIngreso
+  aeronave.puntoIngresoProgreso = null
+
+  if (puntoIngreso) {
+    const proyeccionIngreso = obtenerProyeccionRutaMasCercana(
+      puntoIngreso,
+      aeronave.ruta
+    )
+    if (proyeccionIngreso) {
+      const distanciaPuntoIngreso = distanciaEntre(
+        { lat: aeronave.lat, lng: aeronave.lng },
+        proyeccionIngreso.puntoIntercepto
+      )
+      aeronave.tramoObjetivo = proyeccionIngreso.indiceA
+      aeronave.puntoIntercepto = proyeccionIngreso.puntoIntercepto
+      aeronave.puntoIngreso = proyeccionIngreso.puntoIntercepto
+      aeronave.puntoIngresoProgreso = Number.isFinite(Number(proyeccionIngreso.progreso))
+        ? Math.max(0, Number(proyeccionIngreso.progreso))
+        : 0
+      aeronave.ingresoDownwindWaypoints = null
+      aeronave.ingresoDownwindTipo = null
+      if (
+        Number.isFinite(distanciaPuntoIngreso) &&
+        distanciaPuntoIngreso > INTERCEPT_ARC_CAPTURE_DISTANCE_M
+      ) {
+        aeronave.movimiento = {
+          destino: proyeccionIngreso.puntoIntercepto,
+          opciones: {
+            velocidadObjetivoFinalKt: GO_AROUND_SPEED_DEFAULT_KT,
+            virajeRealista: true,
+            bancoMaxGrados: PILOTAGE_REALISTIC_BANK_DEG,
+            tasaVirajeMinDegSeg: PILOTAGE_REALISTIC_TURN_RATE_MIN_DEG_PER_SEC,
+            tasaVirajeMaxDegSeg: PILOTAGE_REALISTIC_TURN_RATE_MAX_DEG_PER_SEC,
+            umbralCongelarRumboM: Math.max(8, INTERCEPT_ARC_CAPTURE_DISTANCE_M * 0.5),
+            estadoDuranteMovimiento: "JOINING"
+          },
+          token: null
+        }
+      } else {
+        aeronave.movimiento = null
+      }
+      aeronave.estado = "INTERCEPTING ARC"
+      reiniciarGuiadoInterceptacionCircuito(aeronave)
+      aeronave.velocidad = GO_AROUND_SPEED_DEFAULT_KT * 0.514444
+      aeronave.velocidadObjetivo = GO_AROUND_SPEED_DEFAULT_KT
+
+      iniciarMotorSala(salaNombre)
+      return true
+    }
+  }
 
   const modoIngresoRaw =
     opciones && typeof opciones.modoIngreso === "string"
@@ -4356,6 +4753,66 @@ function prepararAeronaveParaCircuito(salaNombre, sala, aeronave, opciones = {})
   return true
 }
 
+function completarIngresoManualCircuito(aeronave) {
+  if (
+    !aeronave ||
+    !Array.isArray(aeronave.ruta) ||
+    aeronave.ruta.length < 2
+  ) {
+    return false
+  }
+
+  const puntoIngreso = normalizarPuntoRuta(aeronave.puntoIngreso)
+  if (!puntoIngreso) {
+    return false
+  }
+
+  const proyeccionIngreso = obtenerProyeccionRutaMasCercana(
+    puntoIngreso,
+    aeronave.ruta
+  )
+  if (
+    !proyeccionIngreso ||
+    !Number.isFinite(Number(proyeccionIngreso.indiceA)) ||
+    !proyeccionIngreso.puntoIntercepto
+  ) {
+    return false
+  }
+
+  const indiceIngreso =
+    ((Number(proyeccionIngreso.indiceA) % aeronave.ruta.length) + aeronave.ruta.length) %
+    aeronave.ruta.length
+  const A = aeronave.ruta[indiceIngreso]
+  const B = aeronave.ruta[(indiceIngreso - 1 + aeronave.ruta.length) % aeronave.ruta.length]
+  const rumboIngreso =
+    A && B
+      ? calcularRumboServidor(A, B)
+      : (Number.isFinite(Number(aeronave.angulo)) ? Number(aeronave.angulo) : 0)
+  const puntoIngresoSobreRuta = normalizarPuntoRuta(proyeccionIngreso.puntoIntercepto) || puntoIngreso
+
+  aeronave.lat = puntoIngresoSobreRuta.lat
+  aeronave.lng = puntoIngresoSobreRuta.lng
+  if (Number.isFinite(rumboIngreso)) {
+    aeronave.angulo = rumboIngreso
+  }
+
+  aeronave.indice = indiceIngreso
+  aeronave.indiceObjetivo = null
+  aeronave.tramoObjetivo = indiceIngreso
+  aeronave.progreso = Number.isFinite(Number(proyeccionIngreso.progreso))
+    ? Math.max(0, Number(proyeccionIngreso.progreso))
+    : 0
+  limpiarOrbitacionAeronave(aeronave)
+  aeronave.puntoIntercepto = null
+  aeronave.ingresoDownwindWaypoints = null
+  aeronave.ingresoDownwindTipo = null
+  aeronave.estado = "CIRCUIT"
+  reiniciarGuiadoInterceptacionCircuito(aeronave)
+  aeronave.puntoIngreso = null
+  aeronave.puntoIngresoProgreso = null
+  return true
+}
+
 function procesarGoAroundEnMotor(aeronave, intervaloMS, nombreSala) {
   if (!aeronave || !aeronave.goAroundActivo) return false
   if (aeronave.movimiento) {
@@ -4408,6 +4865,8 @@ function procesarGoAroundEnMotor(aeronave, intervaloMS, nombreSala) {
     aeronave.progreso = 0
     aeronave.tramoObjetivo = null
     aeronave.puntoIntercepto = null
+    aeronave.puntoIngreso = null
+    aeronave.puntoIngresoProgreso = null
 
     if (
       !Number.isFinite(aeronave.velocidadObjetivo) ||
@@ -4512,6 +4971,8 @@ function procesarGoAroundEnMotor(aeronave, intervaloMS, nombreSala) {
       aeronave.progreso = 0
       aeronave.tramoObjetivo = null
       aeronave.puntoIntercepto = null
+      aeronave.puntoIngreso = null
+      aeronave.puntoIngresoProgreso = null
 
       emitirActualizacionAeronave(nombreSala, aeronave)
       return true
@@ -4682,20 +5143,34 @@ socket.on("cambiarHora", ({ hora }) => {
 });
 
   
-  socket.on("unirseSala", (nombre) => {
+  socket.on("unirseSala", (payload) => {
+    const nombre =
+      typeof payload === "string"
+        ? payload.trim()
+        : typeof payload?.nombre === "string"
+          ? payload.nombre.trim()
+          : ""
+    if (!nombre || !salas[nombre]) return;
 
-    if (!salas[nombre]) return;
+    const sessionId = normalizarSesionClienteId(
+      typeof payload === "object" && payload ? payload.sessionId : "",
+      socket.id
+    )
+    sesionesClientePorSocket.set(socket.id, sessionId)
+
+    const salaAnterior =
+      typeof socket.sala === "string" ? socket.sala.trim() : ""
+    if (salaAnterior && salaAnterior !== nombre) {
+      socket.leave(salaAnterior)
+      sincronizarJugadoresSala(salaAnterior)
+      programarEliminacionSalaSiVacia(salaAnterior)
+    }
 
     socket.join(nombre);
     socket.sala = nombre;
+    sincronizarJugadoresSala(nombre)
+    cancelarEliminacionSalaPendiente(nombre)
 
-    if (!salas[nombre].jugadores.includes(socket.id)) {
-      salas[nombre].jugadores.push(socket.id);
-    }
-if (timeoutsSalas[nombre]) {
-  clearTimeout(timeoutsSalas[nombre]);
-  delete timeoutsSalas[nombre];
-}
     salas[nombre].aeronaves.forEach(a => {
       if(a){
         a.owner = null
@@ -4781,6 +5256,31 @@ socket.on("solicitarRutaCircuito", () => {
   })
 })
 
+socket.on("solicitarRutaCircuitoAeronave", ({ id } = {}) => {
+
+  const nombreSala = socket.sala
+  if (!nombreSala) return
+
+  const sala = salas[nombreSala]
+  if (!sala) return
+
+  const aeronave = sala.aeronaves.find(a => a.id === id)
+  if (!aeronave) return
+  if (!socketPuedeControlarAeronave(nombreSala, sala, aeronave, socket.id)) return
+
+  const rutaCircuitoBase = generarRutaServidorParaAeronave(sala, aeronave)
+  socket.emit("rutaCircuitoActualizada", {
+    id: aeronave.id,
+    ruta: rutaCircuitoBase,
+    sentidoCircuito: normalizarSentidoCircuitoTexto(aeronave.circuitoSentido),
+    shortCircuitoActivo: Boolean(aeronave.shortCircuitoActivo),
+    extensionAeronave: {
+      upwind: aeronave.extensionUpwindExtraLocal || 0,
+      downwind: aeronave.extensionDownwindExtraLocal || 0
+    }
+  })
+})
+
 socket.on("solicitarSincronizacionTiempo", () => {
   const sala = socket.sala
   if (!sala) return
@@ -4831,7 +5331,7 @@ socket.on("solicitarSincronizacionTiempo", () => {
   })
 
 
-socket.on("setRutaAirborne", ({ id, ruta, estado, loop, loopStartIndex, arrivalProcedureName } = {}) => {
+socket.on("setRutaAirborne", ({ id, ruta, estado, loop, loopStartIndex, arrivalProcedureName, puntoIngreso } = {}) => {
   const salaNombre = socket.sala
   if (!salaNombre) return
 
@@ -4851,6 +5351,7 @@ socket.on("setRutaAirborne", ({ id, ruta, estado, loop, loopStartIndex, arrivalP
   const loopActivoSolicitado = Boolean(loop)
   const arrivalProcedureNormalizado =
     normalizarNombreProcedimientoLlegadaServidor(arrivalProcedureName)
+  const puntoIngresoNormalizado = normalizarPuntoRuta(puntoIngreso)
 
   if (estadoNormalizado === "PILOTAGE" || estadoNormalizado === "AIRBORNE") {
     aeronave.estado = estadoNormalizado
@@ -4865,6 +5366,8 @@ socket.on("setRutaAirborne", ({ id, ruta, estado, loop, loopStartIndex, arrivalP
     aeronave.puntoIntercepto = null
     aeronave.ingresoDownwindWaypoints = null
     aeronave.ingresoDownwindTipo = null
+    aeronave.puntoIngreso = null
+    aeronave.puntoIngresoProgreso = null
   }
 
   if (rutaNormalizada.length < 2) {
@@ -4880,6 +5383,8 @@ socket.on("setRutaAirborne", ({ id, ruta, estado, loop, loopStartIndex, arrivalP
     aeronave.arrivalProcedureName = null
     aeronave.arrivalAltitudeProfile = null
     aeronave.arrivalHoldingMumopManualAltitudeFt = null
+    aeronave.puntoIngreso = null
+    aeronave.puntoIngresoProgreso = null
     iniciarMotorSala(salaNombre)
     io.to(salaNombre).emit(
       "actualizarAeronave",
@@ -4925,6 +5430,20 @@ socket.on("setRutaAirborne", ({ id, ruta, estado, loop, loopStartIndex, arrivalP
     aeronave.rutaAirborneProgreso = 0
   }
 
+  const proyeccionPuntoIngreso = puntoIngresoNormalizado
+    ? obtenerProyeccionRutaLinealMasCercana(puntoIngresoNormalizado, rutaNormalizada)
+    : null
+  if (proyeccionPuntoIngreso && proyeccionPuntoIngreso.puntoIntercepto) {
+    aeronave.puntoIngreso = proyeccionPuntoIngreso.puntoIntercepto
+    aeronave.puntoIngresoProgreso =
+      Number.isFinite(Number(proyeccionPuntoIngreso.progreso))
+        ? Math.max(0, Number(proyeccionPuntoIngreso.progreso))
+        : null
+  } else {
+    aeronave.puntoIngreso = null
+    aeronave.puntoIngresoProgreso = null
+  }
+
   aeronave.arrivalAltitudeProfile = construirPerfilAltitudLlegadaServidor(aeronave)
   aplicarPerfilAltitudLlegadaServidor(aeronave)
 
@@ -4949,13 +5468,34 @@ socket.on("iniciarMovimiento", ({ id, destino, opciones, token } = {}) => {
   const destinoNormalizado = normalizarPuntoRuta(destino)
   if (!destinoNormalizado) return
 
+  const opcionesMovimiento =
+    opciones && typeof opciones === "object" ? opciones : {}
+  const estadoDuranteMovimientoRaw =
+    typeof opcionesMovimiento.estadoDuranteMovimiento === "string"
+      ? opcionesMovimiento.estadoDuranteMovimiento.trim().toUpperCase()
+      : ""
+
   aeronave.movimiento = {
     destino: destinoNormalizado,
-    opciones: opciones && typeof opciones === "object" ? opciones : {},
+    opciones: opcionesMovimiento,
     token: typeof token === "string" ? token : null
   }
 
+  if (estadoDuranteMovimientoRaw) {
+    if (estadoDuranteMovimientoRaw === "JOINING") {
+      limpiarOrbitacionAeronave(aeronave)
+    }
+    aeronave.estado = estadoDuranteMovimientoRaw
+    if (estadoDuranteMovimientoRaw === "JOINING") {
+      aeronave.altitudCircuitoAutomaticaActiva = true
+      aeronave.altitudObjetivo = ALTITUD_CIRCUITO_FT
+      aeronave.puntoIngreso = destinoNormalizado
+      aeronave.puntoIngresoProgreso = null
+    }
+  }
+
   iniciarMotorSala(salaNombre)
+  emitirActualizacionAeronave(salaNombre, aeronave)
 })
 socket.on("extenderSalida", ({ metros }) => {
 
@@ -5451,6 +5991,8 @@ socket.on("orbitarCircuito", ({ id, sentido } = {}) => {
         aeronave.puntoIntercepto = null
         aeronave.ingresoDownwindWaypoints = null
         aeronave.ingresoDownwindTipo = null
+        aeronave.puntoIngreso = null
+        aeronave.puntoIngresoProgreso = null
         emitirActualizacionAeronave(salaNombre, aeronave)
         iniciarMotorSala(salaNombre)
         return
@@ -5724,7 +6266,7 @@ socket.on("detenerAccionAeronave", ({ id } = {}) => {
   })
 })
 
-socket.on("iniciarCircuito", ({ id, modoIngreso, sentidoCircuito } = {}) => {
+socket.on("iniciarCircuito", ({ id, modoIngreso, sentidoCircuito, puntoIngreso } = {}) => {
 
   const salaNombre = socket.sala
   if (!salaNombre) return
@@ -5734,18 +6276,31 @@ socket.on("iniciarCircuito", ({ id, modoIngreso, sentidoCircuito } = {}) => {
   const aeronave = sala.aeronaves.find(a => a.id === id)
   if (!aeronave) return
 
+  const puntoIngresoValido =
+    Number.isFinite(Number(puntoIngreso?.lat)) &&
+    Number.isFinite(Number(puntoIngreso?.lng))
+
   if (!socketPuedeControlarAeronave(salaNombre, sala, aeronave, socket.id)) return
   if (
   aeronave.estado === "CIRCUIT" ||
-  aeronave.estado === "INTERCEPTING ARC" ||
-  aeronave.estado === "INTERCEPTING LEG"
+  (
+    (
+      aeronave.estado === "INTERCEPTING ARC" ||
+      aeronave.estado === "INTERCEPTING LEG"
+    ) &&
+    !puntoIngresoValido
+  )
 ) return
 
   limpiarGoAroundAeronave(aeronave)
-  prepararAeronaveParaCircuito(salaNombre, sala, aeronave, {
+  const circuitoPreparado = prepararAeronaveParaCircuito(salaNombre, sala, aeronave, {
     modoIngreso,
-    sentidoCircuito
+    sentidoCircuito,
+    puntoIngreso
   })
+  if (circuitoPreparado) {
+    emitirActualizacionAeronave(salaNombre, aeronave)
+  }
 })
 socket.on("iniciarGoAround", ({ id }) => {
 
@@ -5780,6 +6335,8 @@ socket.on("iniciarGoAround", ({ id }) => {
   aeronave.puntoIntercepto = null
   aeronave.ingresoDownwindWaypoints = null
   aeronave.ingresoDownwindTipo = null
+  aeronave.puntoIngreso = null
+  aeronave.puntoIngresoProgreso = null
 
   if (
     !Number.isFinite(aeronave.velocidadObjetivo) ||
@@ -5813,6 +6370,12 @@ socket.on("detenerCircuito", ({ id }) => {
   aeronave.indice = 0
   aeronave.progreso = 0
   aeronave.indiceObjetivo = null
+  aeronave.tramoObjetivo = null
+  aeronave.puntoIntercepto = null
+  aeronave.ingresoDownwindWaypoints = null
+  aeronave.ingresoDownwindTipo = null
+  aeronave.puntoIngreso = null
+  aeronave.puntoIngresoProgreso = null
 
 })
 socket.on("forzarAterrizaje", ({ id }) => {
@@ -5836,6 +6399,7 @@ socket.on("forzarAterrizaje", ({ id }) => {
   aeronave.progreso = 0
   aeronave.indiceObjetivo = null
   aeronave.puntoIngreso = null
+  aeronave.puntoIngresoProgreso = null
   aeronave.rutaAirborne = null
   aeronave.rutaAirborneFinalizada = false
   aeronave.rutaAirborneIndice = 0
@@ -5888,6 +6452,7 @@ socket.on("ajusteManual", ({ id, tipo, valor }) => {
   const esManual = estadoActual === "MANUAL"
   const esAuto = estadoActual === "AUTO"
   const esCircuito =
+    estadoActual === "JOINING" ||
     estadoActual === "CIRCUIT" ||
     estadoActual === "ORBT" ||
     estadoActual === "INTERCEPTING ARC" ||
@@ -6055,6 +6620,7 @@ socket.on("activarPeligroSala", ({ clave }) => {
 socket.on("disconnect", () => {
 
   modosOperacionPorSocket.delete(socket.id)
+  sesionesClientePorSocket.delete(socket.id)
 
   for (let nombre in salas) {
 
@@ -6090,11 +6656,10 @@ socket.on("disconnect", () => {
       iniciarMotorSala(nombre)
     }
 
-    salas[nombre].jugadores =
-      salas[nombre].jugadores.filter(id => id !== socket.id);
+    programarEliminacionSalaSiVacia(nombre, socket.id)
 
     
-    if (salas[nombre].jugadores.length === 0) {
+    if (false && salas[nombre].jugadores.length === 0) {
 
       
       if (timeoutsSalas[nombre]) return;

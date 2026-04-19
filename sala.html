@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
@@ -34,8 +34,11 @@
         <option value="A319" data-manufacturer="Airbus">A319</option>
         <option value="A320" data-manufacturer="Airbus">A320</option>
         <option value="AN32" data-manufacturer="Antonov">AN32</option>
+        <option value="B105" data-manufacturer="MBB">Bo 105</option>
         <option value="B190" data-manufacturer="Beechcraft">B190</option>
         <option value="B2" data-manufacturer="Northrop Grumman">B2</option>
+        <option value="B212" data-manufacturer="Bell">Bell 212</option>
+        <option value="B412" data-manufacturer="Bell">Bell 412</option>
         <option value="B737" data-manufacturer="Boeing">B737</option>
         <option value="BE20" data-manufacturer="Beechcraft">BE20</option>
         <option value="C152" data-manufacturer="Cessna">C152</option>
@@ -45,18 +48,27 @@
         <option value="C208" data-manufacturer="Cessna">C208</option>
         <option value="C303" data-manufacturer="Cessna">C303</option>
         <option value="C402" data-manufacturer="Cessna">C402</option>
+        <option value="CH2000" data-manufacturer="Zenair">CH2000</option>
         <option value="DHC6" data-manufacturer="De Havilland">DHC6</option>
         <option value="EC45" data-manufacturer="Eurocopter">EC45</option>
         <option value="F22" data-manufacturer="Lockheed Martin">F22</option>
+        <option value="H47" data-manufacturer="Boeing">CH-47</option>
+        <option value="H64" data-manufacturer="Boeing">AH-64</option>
         <option value="KT1" data-manufacturer="KAI">KT1</option>
-        <option value="MI17" data-manufacturer="Mil" hidden disabled>MI17</option>
+        <option value="MI8" data-manufacturer="Mil">MI8</option>
+        <option value="MI17" data-manufacturer="Mil">MI17</option>
+        <option value="MI24" data-manufacturer="Mil">MI24</option>
         <option value="PA23" data-manufacturer="Piper">PA23</option>
         <option value="PA28" data-manufacturer="Piper">PA28</option>
         <option value="PA31" data-manufacturer="Piper">PA31</option>
         <option value="PA34" data-manufacturer="Piper">PA34</option>
         <option value="PA44" data-manufacturer="Piper">PA44</option>
         <option value="PC12" data-manufacturer="Pilatus">PC12</option>
+        <option value="R22" data-manufacturer="Robinson">R22</option>
+        <option value="R44" data-manufacturer="Robinson">R44</option>
+        <option value="RAH66" data-manufacturer="Boeing-Sikorsky">RAH-66</option>
         <option value="RFAL" data-manufacturer="Dassault">RFAL</option>
+        <option value="S61" data-manufacturer="Sikorsky">S-61</option>
         <option value="Z42" data-manufacturer="Zlin">Z42</option>
         <option value="???" data-manufacturer="Weather" data-weather-only="true" hidden disabled>???</option>
         <option value="B738WX" data-manufacturer="Weather" data-weather-only="true" hidden disabled>B738 WX</option>
@@ -111,15 +123,13 @@
     <div class="panel-info-view">
       <div><span class="label">State</span><span class="valor" id="info-estado">---</span></div>
 
-      <div><span class="label">Alt</span><span class="valor" id="info-altitud">---</span></div>
+      <div><span class="label">Lvl</span><span class="valor" id="info-altitud">---</span></div>
       <div><span class="label">Spd</span><span class="valor" id="info-velocidad">---</span></div>
 
       <div><span class="label">HDG</span><span class="valor" id="info-heading">---</span></div>
       <div><span class="label">DME</span><span class="valor" id="info-dme">---</span></div>
       <div><span class="label">RDL</span><span class="valor" id="info-rdl">---</span></div>
-      <div><span class="label">Lat</span><span class="valor" id="info-lat">---</span></div>
-
-      <div><span class="label">Lng</span><span class="valor" id="info-lng">---</span></div>
+      <div><span class="label">Lat/Lng</span><span class="valor" id="info-latlng">---</span></div>
     </div>
 
     <section id="panelTcasLateral" class="tcas-panel panel-tcas-view" aria-hidden="true">
@@ -401,12 +411,9 @@
         RIGHT
       </button>
     </div>
-    <button class="btn-lateral circuit-btn circuit-join-btn" data-join="dct" type="button">DCT</button>
-    <button class="btn-lateral circuit-btn circuit-join-btn" data-join="upw" type="button">UPW</button>
-    <button class="btn-lateral circuit-btn circuit-join-btn" data-join="cw" type="button">CW</button>
-    <button class="btn-lateral circuit-btn circuit-join-btn" data-join="dw" type="button">DW</button>
-    <button class="btn-lateral circuit-btn circuit-join-btn" data-join="bs" type="button">BS</button>
-    <button class="btn-lateral circuit-btn circuit-join-btn" data-join="fnl" type="button">FNL</button>
+    <div class="circuit-join-hint" id="circuitJoinHint">
+      Select LEFT or RIGHT and click any point on the circuit to join there.
+    </div>
   </div>
   <div id="circuitOrbitOpciones" class="circuit-orbit-opciones" aria-hidden="true">
     <button class="btn-lateral circuit-btn circuit-orbit-btn" id="circuitOrbitLeft" type="button">
@@ -470,12 +477,16 @@
     <button id="btnDanger" class="btn-accion" onclick="activarModoPeligro()">&#9888;</button>
     <button id="btnWeather" class="btn-accion" type="button">&#127780;</button>
     <button id="btnMedirDistancia" class="btn-accion" type="button" title="Distance">&#128207;</button>
+    <button id="btnDrawMapa" class="btn-accion btn-draw" type="button" title="Draw map" hidden aria-hidden="true">
+      <span class="btn-draw-icon" aria-hidden="true">&#9998;</span>
+      <span class="btn-draw-label">DRAW</span>
+    </button>
     <button id="btnMarcaCola" class="btn-accion btn-menu" type="button">&#x1F525;</button>
     <button id="btnEliminarModo" class="btn-accion fab-delete" type="button" title="Delete Aircraft">&#128465;</button>
   </div>
 
   <button id="btnBuscarLugar" class="btn-accion" type="button" title="Search" aria-label="Search">&#128269;</button>
-  <button id="btnSesionPiloto" class="btn-accion" onclick="actualizarSesion()" type="button">P</button>
+  <button id="btnPilotage" class="btn-accion" onclick="togglePilotage()" type="button">P</button>
   <button onclick="toggleMenuAcciones()" id="btnMenuPrincipal">
     &#128736;
   </button>
@@ -518,6 +529,40 @@
     Escribe un lugar o un codigo ICAO para buscar en el mapa.
   </div>
   <div id="resultadosBusquedaLugares" class="panel-busqueda-lugares-resultados"></div>
+</div>
+
+<div id="panelDibujoMapa" class="panel-dibujo-mapa" aria-hidden="true">
+  <div class="panel-dibujo-mapa-header">
+    <span>DRAW TOOLS</span>
+    <button
+      id="btnCerrarPanelDibujoMapa"
+      class="panel-dibujo-mapa-cerrar"
+      type="button"
+      aria-label="Close draw panel"
+    >&times;</button>
+  </div>
+  <div class="panel-dibujo-mapa-tools" role="group" aria-label="Map draw tools">
+    <button id="btnDibujoHerramientaPunto" class="panel-dibujo-mapa-tool" type="button">POINT</button>
+    <button id="btnDibujoHerramientaLinea" class="panel-dibujo-mapa-tool" type="button">LINE</button>
+    <button id="btnDibujoHerramientaPoligono" class="panel-dibujo-mapa-tool" type="button">AREA</button>
+    <button id="btnDibujoFinalizar" class="panel-dibujo-mapa-tool panel-dibujo-mapa-tool-secundario" type="button">FINISH</button>
+    <button id="btnDibujoDeshacer" class="panel-dibujo-mapa-tool panel-dibujo-mapa-tool-secundario" type="button">UNDO</button>
+    <button id="btnDibujoLimpiar" class="panel-dibujo-mapa-tool panel-dibujo-mapa-tool-secundario" type="button">CLEAR</button>
+  </div>
+  <div class="panel-dibujo-mapa-ajustes">
+    <label class="panel-dibujo-mapa-ajuste-color">
+      <span>Color</span>
+      <input id="inputColorDibujoMapa" type="color" value="#38bdf8" aria-label="Draw color">
+    </label>
+    <label class="panel-dibujo-mapa-ajuste-grosor">
+      <span>Size</span>
+      <input id="inputGrosorDibujoMapa" type="range" min="1" max="8" value="3" aria-label="Draw size">
+      <strong id="valorGrosorDibujoMapa">3 px</strong>
+    </label>
+  </div>
+  <div id="estadoPanelDibujoMapa" class="panel-dibujo-mapa-estado">
+    Select a tool and click on the map to draw.
+  </div>
 </div>
 
 <div id="panelControladorServicios" class="contraido">
@@ -660,6 +705,41 @@
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const socket = io()
+const STORAGE_KEY_CLIENTE_PESTANA_ID = "simuladorClientePestanaId"
+const WINDOW_NAME_CLIENTE_PESTANA_PREFIJO = "__simuladorClientePestanaId__"
+
+function generarPestanaClienteId(){
+  if(window.crypto && typeof window.crypto.randomUUID === "function"){
+    return window.crypto.randomUUID()
+  }
+  return `tab-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+function obtenerPestanaClienteId(){
+  try{
+    const guardado = sessionStorage.getItem(STORAGE_KEY_CLIENTE_PESTANA_ID)
+    if(typeof guardado === "string" && guardado.trim()){
+      return guardado.trim()
+    }
+
+    const nuevo = generarPestanaClienteId()
+    sessionStorage.setItem(STORAGE_KEY_CLIENTE_PESTANA_ID, nuevo)
+    return nuevo
+  }catch(error){
+    if(
+      typeof window.name === "string" &&
+      window.name.startsWith(WINDOW_NAME_CLIENTE_PESTANA_PREFIJO)
+    ){
+      return window.name.slice(WINDOW_NAME_CLIENTE_PESTANA_PREFIJO.length)
+    }
+
+    const nuevo = generarPestanaClienteId()
+    window.name = `${WINDOW_NAME_CLIENTE_PESTANA_PREFIJO}${nuevo}`
+    return nuevo
+  }
+}
+
+const pestanaClienteId = obtenerPestanaClienteId()
 socket.on("connect", () => {
   emitirModoOperacionServidor()
 })
@@ -687,7 +767,7 @@ const ESTADOS_MOVIMIENTO_SERVIDOR = new Set([
   "TNG_ROLL",
   "TNG_CLIMB",
   "TNG_INTERCEPT",
-  "REJOINING"
+  "JOINING"
 ])
 const MOVIMIENTO_AUTORITATIVO_SERVIDOR = true
 const movimientosServidorPendientes = new Map()
@@ -741,6 +821,7 @@ function esEstadoConRutaCircuitoVisual(aeronave){
   if(!aeronave) return false
 
   return (
+    aeronave.estado === "JOINING" ||
     aeronave.estado === "CIRCUIT" ||
     aeronave.estado === "ORBT" ||
     aeronave.estado === "INTERCEPTING ARC" ||
@@ -783,7 +864,10 @@ function unirseSalaActiva(){
   const sala = obtenerSalaActiva()
   if(!sala) return
   localStorage.setItem("salaActiva", sala)
-  socket.emit("unirseSala", sala)
+  socket.emit("unirseSala", {
+    nombre: sala,
+    sessionId: pestanaClienteId
+  })
   registrarRescateSiNecesario()
 }
 
@@ -956,7 +1040,7 @@ function establecerModoOperacion(modo){
   document.body.dataset.modoOperacion = modoOperacion
   actualizarSelectorModoOperacion()
   aplicarVisibilidadPanelIzquierdoPorModo()
-  actualizarEstadoBotonSesionPiloto()
+  actualizarEstadoBotonPilotage()
   actualizarEstadoBotonTakeoff()
   actualizarEstadoGrupoTaxi()
   emitirModoOperacionServidor()
@@ -4092,6 +4176,12 @@ socket.on("rutaCircuito", data => {
   ){
     dibujarRutaServidor()
   }
+  if(typeof refrescarVisualizacionJoinCircuito === "function"){
+    refrescarVisualizacionJoinCircuito()
+  }
+  if(typeof actualizarMensajeJoinCircuito === "function"){
+    actualizarMensajeJoinCircuito()
+  }
 })
 if(!nombreSala){
   const destinoRedireccion = "/"
@@ -4195,6 +4285,10 @@ socket.on("cargarAeronaves", lista => {
         : 0,
       rutaAirborneLoop: Boolean(data.rutaAirborneLoop),
       rutaAirborneLoopStartIndex: normalizarIndiceLoopRutaAirborne(data.rutaAirborneLoopStartIndex),
+      arrivalIngresoPunto: normalizarPuntoJoinCircuitoLocal(data.puntoIngreso),
+      arrivalIngresoMarker: null,
+      joinCircuitoPunto: normalizarPuntoJoinCircuitoLocal(data.puntoIngreso),
+      joinCircuitoMarker: null,
       orbitSentido: normalizarSentidoOrbitCliente(data.orbitSentido),
       circuitoSentido: normalizarSentidoCircuitoCliente(data.circuitoSentido),
       orbitSolicitada: Boolean(data.orbitModoContinuo || data.orbitPendiente),
@@ -4225,6 +4319,8 @@ socket.on("cargarAeronaves", lista => {
     inicializarArrastreAeronave(nueva)
     inicializarRotacionConRueda(nueva)
     actualizarInteraccion(nueva)
+    sincronizarMarcadorPuntoArrivalAeronave(nueva)
+    sincronizarMarcadorPuntoJoinAeronave(nueva)
 
     marker.on("click", function(event){
 
@@ -4372,6 +4468,12 @@ socket.on("rutaCircuitoActualizada", data => {
     typeof dibujarRutaServidor === "function"
   ){
     dibujarRutaServidor()
+  }
+  if(typeof refrescarVisualizacionJoinCircuito === "function"){
+    refrescarVisualizacionJoinCircuito()
+  }
+  if(typeof actualizarMensajeJoinCircuito === "function"){
+    actualizarMensajeJoinCircuito()
   }
 
 })
@@ -6147,17 +6249,25 @@ marcadorTrianguloVorTHover.on("mouseout", () => {
   }
 })
 
-const grupoVorT = L.layerGroup([
-  marcadorTrianguloVorTHover,
-  L.polyline(RUTA_VOR_T, {
+const ARRIVAL_ROUTE_LINE_WEIGHT = 1.7
+const ARRIVAL_ROUTE_LINE_OPACITY = 0.76
+
+function crearEstiloRutaLlegadaMapa(opciones = {}){
+  return {
     color: "#000000",
-    weight: 2.5,
-    opacity: 0.92,
+    weight: ARRIVAL_ROUTE_LINE_WEIGHT,
+    opacity: ARRIVAL_ROUTE_LINE_OPACITY,
     dashArray: "8 8",
     lineCap: "round",
     lineJoin: "round",
-    interactive: false
-  })
+    interactive: false,
+    ...opciones
+  }
+}
+
+const grupoVorT = L.layerGroup([
+  marcadorTrianguloVorTHover,
+  L.polyline(RUTA_VOR_T, crearEstiloRutaLlegadaMapa())
 ])
 
 marcadorTrianguloVorUHover = crearMarcadorTrianguloMapa(
@@ -6186,15 +6296,7 @@ marcadorTrianguloVorUHover.on("mouseout", () => {
 
 const grupoVorU = L.layerGroup([
   marcadorTrianguloVorUHover,
-  L.polyline(RUTA_VOR_U, {
-    color: "#000000",
-    weight: 2.5,
-    opacity: 0.92,
-    dashArray: "8 8",
-    lineCap: "round",
-    lineJoin: "round",
-    interactive: false
-  })
+  L.polyline(RUTA_VOR_U, crearEstiloRutaLlegadaMapa())
 ])
 
 const RUTA_GEBED3_ILS_V_CAPA = compactarRutaAirbornePuntos([
@@ -6232,15 +6334,7 @@ const CAPAS_SENAL_ILS_V = crearPlumaIlsMapa(
   }
 ).getLayers()
 const grupoVorV = L.layerGroup([
-  L.polyline(RUTA_VOR_V_CAPA_DESDE_MUMOP, {
-    color: "#000000",
-    weight: 2.5,
-    opacity: 0.92,
-    dashArray: "8 8",
-    lineCap: "round",
-    lineJoin: "round",
-    interactive: false
-  })
+  L.polyline(RUTA_VOR_V_CAPA_DESDE_MUMOP, crearEstiloRutaLlegadaMapa())
 ])
 
 marcadorTrianguloIlsVHover = crearMarcadorTrianguloMapa(
@@ -6274,15 +6368,7 @@ marcadorTrianguloIlsVHover.on("mouseout", () => {
 })
 
 const grupoIlsV = L.layerGroup([
-  L.polyline(RUTA_ILS_V_CAPA_DESDE_MUMOP, {
-    color: "#000000",
-    weight: 2.5,
-    opacity: 0.92,
-    dashArray: "8 8",
-    lineCap: "round",
-    lineJoin: "round",
-    interactive: false
-  }),
+  L.polyline(RUTA_ILS_V_CAPA_DESDE_MUMOP, crearEstiloRutaLlegadaMapa()),
   ...CAPAS_SENAL_ILS_V,
   marcadorTrianguloIlsVHover,
   etiquetaSuperiorTrianguloIlsVIf
@@ -6345,15 +6431,7 @@ marcadorTrianguloIlsUHover.on("mouseout", () => {
 })
 
 const grupoIlsU = L.layerGroup([
-  L.polyline(RUTA_ILS_U, {
-    color: "#000000",
-    weight: 2.5,
-    opacity: 0.92,
-    dashArray: "8 8",
-    lineCap: "round",
-    lineJoin: "round",
-    interactive: false
-  }),
+  L.polyline(RUTA_ILS_U, crearEstiloRutaLlegadaMapa()),
   ...CAPAS_SENAL_ILS_U,
   marcadorTrianguloIlsUHover
 ])
@@ -6392,15 +6470,7 @@ marcadorTrianguloIlsTHover.on("mouseout", () => {
 })
 
 const grupoIlsT = L.layerGroup([
-  L.polyline(RUTA_ILS_T, {
-    color: "#000000",
-    weight: 2.5,
-    opacity: 0.92,
-    dashArray: "8 8",
-    lineCap: "round",
-    lineJoin: "round",
-    interactive: false
-  }),
+  L.polyline(RUTA_ILS_T, crearEstiloRutaLlegadaMapa()),
   ...CAPAS_SENAL_ILS_T,
   marcadorTrianguloIlsTHover
 ])
@@ -6431,17 +6501,13 @@ const RUTA_STAR_GEBED3_HOLDING_MUMOP_CAPA = compactarRutaAirbornePuntos([
   GEBED_COORDS,
   ...construirRutaHoldingMumop()
 ])
+const GEBED3_HOLDING_MUMOP_LINE_WEIGHT = ARRIVAL_ROUTE_LINE_WEIGHT
 
 const grupoStarRoute = L.layerGroup([
-  L.polyline(RUTA_STAR_GEBED3_HOLDING_MUMOP_CAPA, {
-    color: "#000000",
-    weight: 2.5,
-    opacity: 0.92,
-    dashArray: "8 8",
-    lineCap: "round",
-    lineJoin: "round",
-    interactive: false
-  })
+  L.polyline(
+    RUTA_STAR_GEBED3_HOLDING_MUMOP_CAPA,
+    crearEstiloRutaLlegadaMapa({ weight: GEBED3_HOLDING_MUMOP_LINE_WEIGHT })
+  )
 ])
 
 const LOC_ISAN_COORDS = [-13.756897222222221, -76.23063055555556]
@@ -8385,13 +8451,20 @@ let ultimaAeronaveSeleccionada = null
 let seguimientoManualEyeActivo = false
 let intervaloSeguimientoManualEye = null
 let aeronavePilotagePendienteId = null
+let aeronaveJoinCircuitoPendienteId = null
 let aeronaveVfrPendienteId = null
+let marcadorPrevisualizacionJoinCircuito = null
+let arrivalIngresoSeleccionPendiente = null
+let rutaArrivalIngresoPreviewLayer = null
+let marcadorPrevisualizacionArrivalIngreso = null
 const VELOCIDAD = 8
-const TIPOS = ["A320","A319","B737","C152","C172","C180","C206","PA28","C208","PC12","PA23","PA31","PA34","PA44","C303","C402","BE20","B190","DHC6","AN32","EC45","MI17","KT1","Z42","B2","F22","RFAL"]
+const TIPOS = ["A320","A319","B737","B105","B212","B412","C152","C172","C180","C206","C208","CH2000","PA28","PC12","PA23","PA31","PA34","PA44","C303","C402","BE20","B190","DHC6","AN32","EC45","H47","H64","MI8","MI17","MI24","KT1","R22","R44","RAH66","S61","Z42","B2","F22","RFAL"]
 const ALTITUD_INICIAL_MIN_FT = 0
 const ALTITUD_INICIAL_MAX_FT = 45000
 const ALTITUD_INICIAL_STEP_FT = 100
 const ALTITUD_CIRCUITO_FT = 1500
+const JOIN_CIRCUITO_MAX_DISTANCIA_SELECCION_M = 750
+const ARRIVAL_INGRESO_MAX_DISTANCIA_SELECCION_M = 750
 let altitudInicialCreacionFt = 0
 const SPEED_CONTROL_MODE_KT = "KT"
 const SPEED_CONTROL_MODE_MACH = "MACH"
@@ -8474,24 +8547,52 @@ const CLIMB_RATE = {
   A319: 2500,
   A19: 2500,
   AN32: 1500,
+  B105: 1300,
+  B212: 1200,
+  B412: 1500,
   C172: 400,
+  CH2000: 700,
+  EC45: 1200,
+  H47: 1500,
+  H64: 1800,
+  MI8: 1200,
+  MI17: 1300,
+  MI24: 1800,
   PA23: 1400,
   PA28: 700,
   PA31: 1450,
   PA34: 1550,
-  PA44: 1340
+  PA44: 1340,
+  R22: 900,
+  R44: 1100,
+  RAH66: 2000,
+  S61: 1200
 }
 const DESCENT_RATE = {
   A320: 1500,
   A319: 1500,
   A19: 1500,
   AN32: 1000,
+  B105: 900,
+  B212: 850,
+  B412: 1000,
   C172: 500,
+  CH2000: 500,
+  EC45: 800,
+  H47: 1000,
+  H64: 1200,
+  MI8: 900,
+  MI17: 1000,
+  MI24: 1200,
   PA23: 1000,
   PA28: 600,
   PA31: 1100,
   PA34: 1100,
-  PA44: 900
+  PA44: 900,
+  R22: 700,
+  R44: 800,
+  RAH66: 1300,
+  S61: 900
 }
 const TAKEOFF_PROFILE_A32X = {
   RUNWAY_DISTANCE_M: 1750,
@@ -8984,6 +9085,162 @@ const TAKEOFF_PROFILES = Object.freeze({
     RUNWAY_ACCEL_MIN_MPS2: 0.55,
     CLIMB_ACCEL_KT_PER_SEC: 1.1
   }),
+  B105: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 40,
+    ROTATION_KT: 42,
+    RUNWAY_TARGET_KT: 62,
+    SPEED_TO_FL050_KT: 95,
+    SPEED_TO_FL150_KT: 120,
+    SPEED_TO_FL240_KT: 135,
+    CRUISE_MAX_KT: 145,
+    DEFAULT_TARGET_ALT_FT: 5000,
+    ROC_TO_FL050_FPM: 1400,
+    ROC_TO_FL150_FPM: 1000,
+    ROC_TO_FL240_FPM: 650
+  }),
+  B212: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 60,
+    ROTATION_KT: 40,
+    RUNWAY_TARGET_KT: 58,
+    SPEED_TO_FL050_KT: 90,
+    SPEED_TO_FL150_KT: 115,
+    SPEED_TO_FL240_KT: 130,
+    CRUISE_MAX_KT: 140,
+    DEFAULT_TARGET_ALT_FT: 5000,
+    ROC_TO_FL050_FPM: 1250,
+    ROC_TO_FL150_FPM: 950,
+    ROC_TO_FL240_FPM: 650
+  }),
+  B412: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 65,
+    ROTATION_KT: 45,
+    RUNWAY_TARGET_KT: 65,
+    SPEED_TO_FL050_KT: 105,
+    SPEED_TO_FL150_KT: 130,
+    SPEED_TO_FL240_KT: 145,
+    CRUISE_MAX_KT: 160,
+    DEFAULT_TARGET_ALT_FT: 6000,
+    ROC_TO_FL050_FPM: 1700,
+    ROC_TO_FL150_FPM: 1200,
+    ROC_TO_FL240_FPM: 800
+  }),
+  CH2000: crearPerfilDespegue(TAKEOFF_PROFILE_LIGHT_SINGLE, {
+    RUNWAY_DISTANCE_M: 320,
+    ROTATION_KT: 55,
+    RUNWAY_TARGET_KT: 65,
+    SPEED_TO_FL050_KT: 85,
+    SPEED_TO_FL150_KT: 100,
+    SPEED_TO_FL240_KT: 110,
+    CRUISE_MAX_KT: 120,
+    DEFAULT_TARGET_ALT_FT: 5000,
+    ROC_TO_FL050_FPM: 700,
+    ROC_TO_FL150_FPM: 500,
+    ROC_TO_FL240_FPM: 300
+  }),
+  H47: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 85,
+    ROTATION_KT: 48,
+    RUNWAY_TARGET_KT: 68,
+    SPEED_TO_FL050_KT: 110,
+    SPEED_TO_FL150_KT: 130,
+    SPEED_TO_FL240_KT: 145,
+    CRUISE_MAX_KT: 165,
+    DEFAULT_TARGET_ALT_FT: 6000,
+    ROC_TO_FL050_FPM: 1600,
+    ROC_TO_FL150_FPM: 1200,
+    ROC_TO_FL240_FPM: 800
+  }),
+  H64: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 55,
+    ROTATION_KT: 50,
+    RUNWAY_TARGET_KT: 70,
+    SPEED_TO_FL050_KT: 120,
+    SPEED_TO_FL150_KT: 145,
+    SPEED_TO_FL240_KT: 160,
+    CRUISE_MAX_KT: 180,
+    DEFAULT_TARGET_ALT_FT: 8000,
+    ROC_TO_FL050_FPM: 1800,
+    ROC_TO_FL150_FPM: 1300,
+    ROC_TO_FL240_FPM: 900
+  }),
+  MI8: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 65,
+    ROTATION_KT: 40,
+    RUNWAY_TARGET_KT: 58,
+    SPEED_TO_FL050_KT: 90,
+    SPEED_TO_FL150_KT: 115,
+    SPEED_TO_FL240_KT: 135,
+    CRUISE_MAX_KT: 150,
+    DEFAULT_TARGET_ALT_FT: 5000,
+    ROC_TO_FL050_FPM: 1350,
+    ROC_TO_FL150_FPM: 1000,
+    ROC_TO_FL240_FPM: 700
+  }),
+  MI24: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 60,
+    ROTATION_KT: 52,
+    RUNWAY_TARGET_KT: 72,
+    SPEED_TO_FL050_KT: 125,
+    SPEED_TO_FL150_KT: 155,
+    SPEED_TO_FL240_KT: 175,
+    CRUISE_MAX_KT: 195,
+    DEFAULT_TARGET_ALT_FT: 9000,
+    ROC_TO_FL050_FPM: 2200,
+    ROC_TO_FL150_FPM: 1600,
+    ROC_TO_FL240_FPM: 1100
+  }),
+  R22: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 25,
+    ROTATION_KT: 28,
+    RUNWAY_TARGET_KT: 42,
+    SPEED_TO_FL050_KT: 65,
+    SPEED_TO_FL150_KT: 85,
+    SPEED_TO_FL240_KT: 100,
+    CRUISE_MAX_KT: 110,
+    DEFAULT_TARGET_ALT_FT: 3500,
+    ROC_TO_FL050_FPM: 900,
+    ROC_TO_FL150_FPM: 650,
+    ROC_TO_FL240_FPM: 400
+  }),
+  R44: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 30,
+    ROTATION_KT: 34,
+    RUNWAY_TARGET_KT: 48,
+    SPEED_TO_FL050_KT: 80,
+    SPEED_TO_FL150_KT: 100,
+    SPEED_TO_FL240_KT: 115,
+    CRUISE_MAX_KT: 130,
+    DEFAULT_TARGET_ALT_FT: 4500,
+    ROC_TO_FL050_FPM: 1100,
+    ROC_TO_FL150_FPM: 800,
+    ROC_TO_FL240_FPM: 500
+  }),
+  RAH66: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 45,
+    ROTATION_KT: 50,
+    RUNWAY_TARGET_KT: 70,
+    SPEED_TO_FL050_KT: 120,
+    SPEED_TO_FL150_KT: 150,
+    SPEED_TO_FL240_KT: 170,
+    CRUISE_MAX_KT: 190,
+    DEFAULT_TARGET_ALT_FT: 8000,
+    ROC_TO_FL050_FPM: 2000,
+    ROC_TO_FL150_FPM: 1500,
+    ROC_TO_FL240_FPM: 1000
+  }),
+  S61: crearPerfilDespegue(TAKEOFF_PROFILE_HELICOPTER, {
+    RUNWAY_DISTANCE_M: 75,
+    ROTATION_KT: 44,
+    RUNWAY_TARGET_KT: 62,
+    SPEED_TO_FL050_KT: 98,
+    SPEED_TO_FL150_KT: 122,
+    SPEED_TO_FL240_KT: 138,
+    CRUISE_MAX_KT: 150,
+    DEFAULT_TARGET_ALT_FT: 6000,
+    ROC_TO_FL050_FPM: 1400,
+    ROC_TO_FL150_FPM: 1050,
+    ROC_TO_FL240_FPM: 700
+  }),
   F22: crearPerfilDespegue(TAKEOFF_PROFILE_FIGHTER, {
     RUNWAY_DISTANCE_M: 420,
     ROTATION_KT: 135,
@@ -9324,12 +9581,35 @@ let sidSalidaComunCache = null
 const menuAcciones = document.getElementById("menuAcciones")
 const btnEliminar = document.getElementById("btnEliminarModo")
 const btnMedirDistancia = document.getElementById("btnMedirDistancia")
+const btnDrawMapa = document.getElementById("btnDrawMapa")
+const panelDibujoMapa = document.getElementById("panelDibujoMapa")
+const btnCerrarPanelDibujoMapa = document.getElementById("btnCerrarPanelDibujoMapa")
+const btnDibujoHerramientaPunto = document.getElementById("btnDibujoHerramientaPunto")
+const btnDibujoHerramientaLinea = document.getElementById("btnDibujoHerramientaLinea")
+const btnDibujoHerramientaPoligono = document.getElementById("btnDibujoHerramientaPoligono")
+const btnDibujoFinalizar = document.getElementById("btnDibujoFinalizar")
+const btnDibujoDeshacer = document.getElementById("btnDibujoDeshacer")
+const btnDibujoLimpiar = document.getElementById("btnDibujoLimpiar")
+const inputColorDibujoMapa = document.getElementById("inputColorDibujoMapa")
+const inputGrosorDibujoMapa = document.getElementById("inputGrosorDibujoMapa")
+const valorGrosorDibujoMapa = document.getElementById("valorGrosorDibujoMapa")
+const estadoPanelDibujoMapa = document.getElementById("estadoPanelDibujoMapa")
 const capaMedicionDistancia = L.layerGroup().addTo(map)
+const capaDibujoMapa = L.layerGroup().addTo(map)
+const capaPrevisualizacionDibujoMapa = L.layerGroup().addTo(map)
 const medicionesDistancia = []
+const trazosDibujoMapa = []
+const HERRAMIENTA_DIBUJO_PUNTO = "punto"
+const HERRAMIENTA_DIBUJO_LINEA = "linea"
+const HERRAMIENTA_DIBUJO_POLIGONO = "poligono"
 let modoMedicionDistanciaActivo = false
+let modoDibujoMapaActivo = false
 let puntoInicioMedicionDistancia = null
 let marcadorInicioMedicionDistancia = null
 let lineaPrevisualizacionMedicionDistancia = null
+let herramientaDibujoMapaActiva = HERRAMIENTA_DIBUJO_LINEA
+let puntosPendientesDibujoMapa = []
+let ultimoPuntoCursorDibujoMapa = null
 
 function formatearDistanciaMedicion(metros){
   const distanciaMetros = Math.max(0, Number(metros) || 0)
@@ -9465,6 +9745,7 @@ function establecerModoMedicionDistanciaActivo(activo){
   if(modoMedicionDistanciaActivo){
     modoEliminar = false
     btnEliminar.classList.remove("activo")
+    cerrarPanelDibujoMapa()
     return
   }
 
@@ -9513,6 +9794,389 @@ function procesarContextMenuMapaMedicionDistancia(){
   }
   return true
 }
+
+function obtenerColorDibujoMapaActivo(){
+  const color = String(inputColorDibujoMapa && inputColorDibujoMapa.value || "").trim()
+  return /^#[0-9a-f]{6}$/i.test(color) ? color : "#38bdf8"
+}
+
+function obtenerGrosorDibujoMapaActivo(){
+  const grosor = Number(inputGrosorDibujoMapa && inputGrosorDibujoMapa.value)
+  if(!Number.isFinite(grosor)){
+    return 3
+  }
+  return Math.max(1, Math.min(8, Math.round(grosor)))
+}
+
+function actualizarEtiquetaGrosorDibujoMapa(){
+  if(!valorGrosorDibujoMapa){
+    return
+  }
+  valorGrosorDibujoMapa.textContent = `${obtenerGrosorDibujoMapaActivo()} px`
+}
+
+function obtenerEstiloTrazoDibujoMapa(){
+  return {
+    color: obtenerColorDibujoMapaActivo(),
+    weight: obtenerGrosorDibujoMapaActivo(),
+    opacity: 0.95,
+    lineCap: "round",
+    lineJoin: "round",
+    interactive: false
+  }
+}
+
+function agregarTrazoDibujoMapa(capa){
+  if(!capa){
+    return
+  }
+  capa.addTo(capaDibujoMapa)
+  trazosDibujoMapa.push(capa)
+}
+
+function actualizarEstadoPanelDibujoMapa(){
+  if(!estadoPanelDibujoMapa){
+    return
+  }
+
+  if(!modoDibujoMapaActivo){
+    estadoPanelDibujoMapa.textContent = "Select a tool and click on the map to draw."
+    return
+  }
+
+  if(herramientaDibujoMapaActiva === HERRAMIENTA_DIBUJO_PUNTO){
+    estadoPanelDibujoMapa.textContent = "Click on the map to add points."
+    return
+  }
+
+  if(herramientaDibujoMapaActiva === HERRAMIENTA_DIBUJO_LINEA){
+    estadoPanelDibujoMapa.textContent = puntosPendientesDibujoMapa.length
+      ? "Click the end point to complete the line."
+      : "Click the start point to begin a line."
+    return
+  }
+
+  if(puntosPendientesDibujoMapa.length >= 3){
+    estadoPanelDibujoMapa.textContent = "Double click or FINISH to close the area."
+    return
+  }
+
+  const faltantes = 3 - puntosPendientesDibujoMapa.length
+  estadoPanelDibujoMapa.textContent = `Add ${faltantes} more point${faltantes === 1 ? "" : "s"} to finish the area.`
+}
+
+function actualizarBotonesHerramientaDibujoMapa(){
+  if(btnDibujoHerramientaPunto){
+    btnDibujoHerramientaPunto.classList.toggle(
+      "activo",
+      herramientaDibujoMapaActiva === HERRAMIENTA_DIBUJO_PUNTO
+    )
+  }
+  if(btnDibujoHerramientaLinea){
+    btnDibujoHerramientaLinea.classList.toggle(
+      "activo",
+      herramientaDibujoMapaActiva === HERRAMIENTA_DIBUJO_LINEA
+    )
+  }
+  if(btnDibujoHerramientaPoligono){
+    btnDibujoHerramientaPoligono.classList.toggle(
+      "activo",
+      herramientaDibujoMapaActiva === HERRAMIENTA_DIBUJO_POLIGONO
+    )
+  }
+
+  if(btnDibujoFinalizar){
+    const disponible =
+      herramientaDibujoMapaActiva === HERRAMIENTA_DIBUJO_POLIGONO &&
+      puntosPendientesDibujoMapa.length >= 3
+    btnDibujoFinalizar.disabled = !disponible
+    btnDibujoFinalizar.classList.toggle("activo", disponible)
+  }
+}
+
+function limpiarPendienteDibujoMapa(){
+  puntosPendientesDibujoMapa = []
+  ultimoPuntoCursorDibujoMapa = null
+  capaPrevisualizacionDibujoMapa.clearLayers()
+  actualizarBotonesHerramientaDibujoMapa()
+  actualizarEstadoPanelDibujoMapa()
+}
+
+function limpiarTrazosDibujoMapa(){
+  limpiarPendienteDibujoMapa()
+  while(trazosDibujoMapa.length){
+    const trazo = trazosDibujoMapa.pop()
+    if(trazo && capaDibujoMapa.hasLayer(trazo)){
+      capaDibujoMapa.removeLayer(trazo)
+    }
+  }
+}
+
+function obtenerDestinoPrevisualizacionDibujoMapa(){
+  if(!ultimoPuntoCursorDibujoMapa){
+    return null
+  }
+  if(
+    herramientaDibujoMapaActiva === HERRAMIENTA_DIBUJO_LINEA &&
+    puntosPendientesDibujoMapa.length === 1
+  ){
+    return ultimoPuntoCursorDibujoMapa
+  }
+  if(
+    herramientaDibujoMapaActiva === HERRAMIENTA_DIBUJO_POLIGONO &&
+    puntosPendientesDibujoMapa.length >= 1
+  ){
+    return ultimoPuntoCursorDibujoMapa
+  }
+  return null
+}
+
+function refrescarPrevisualizacionDibujoMapa(){
+  capaPrevisualizacionDibujoMapa.clearLayers()
+
+  if(!modoDibujoMapaActivo || !puntosPendientesDibujoMapa.length){
+    return
+  }
+
+  const color = obtenerColorDibujoMapaActivo()
+  const grosor = obtenerGrosorDibujoMapaActivo()
+  const destino = obtenerDestinoPrevisualizacionDibujoMapa()
+  const puntosLinea = puntosPendientesDibujoMapa.slice()
+
+  if(destino){
+    puntosLinea.push(destino)
+  }
+
+  puntosPendientesDibujoMapa.forEach(punto => {
+    L.circleMarker(punto, {
+      radius: Math.max(3, grosor + 1),
+      color,
+      weight: 2,
+      fillColor: "#f8fafc",
+      fillOpacity: 0.95,
+      interactive: false
+    }).addTo(capaPrevisualizacionDibujoMapa)
+  })
+
+  if(puntosLinea.length >= 2){
+    L.polyline(puntosLinea, {
+      color,
+      weight: Math.max(2, grosor),
+      dashArray: "6 7",
+      opacity: 0.85,
+      lineCap: "round",
+      lineJoin: "round",
+      interactive: false
+    }).addTo(capaPrevisualizacionDibujoMapa)
+  }
+}
+
+function establecerHerramientaDibujoMapa(herramienta){
+  if(
+    herramienta !== HERRAMIENTA_DIBUJO_PUNTO &&
+    herramienta !== HERRAMIENTA_DIBUJO_LINEA &&
+    herramienta !== HERRAMIENTA_DIBUJO_POLIGONO
+  ){
+    return
+  }
+  herramientaDibujoMapaActiva = herramienta
+  limpiarPendienteDibujoMapa()
+}
+
+function establecerModoDibujoMapaActivo(activo){
+  modoDibujoMapaActivo = Boolean(activo)
+
+  if(menuAcciones){
+    menuAcciones.classList.toggle("dibujando-mapa", modoDibujoMapaActivo)
+  }
+  if(btnDrawMapa){
+    btnDrawMapa.classList.toggle("activo", modoDibujoMapaActivo)
+    btnDrawMapa.setAttribute("aria-pressed", String(modoDibujoMapaActivo))
+  }
+  if(panelDibujoMapa){
+    panelDibujoMapa.classList.toggle("visible", modoDibujoMapaActivo)
+    panelDibujoMapa.setAttribute("aria-hidden", modoDibujoMapaActivo ? "false" : "true")
+  }
+
+  const mapaElemento = map && typeof map.getContainer === "function"
+    ? map.getContainer()
+    : null
+  if(mapaElemento){
+    mapaElemento.classList.toggle("modo-dibujo-mapa", modoDibujoMapaActivo)
+  }
+
+  if(map && map.doubleClickZoom){
+    if(modoDibujoMapaActivo){
+      map.doubleClickZoom.disable()
+    } else {
+      map.doubleClickZoom.enable()
+    }
+  }
+
+  if(!modoDibujoMapaActivo){
+    capaPrevisualizacionDibujoMapa.clearLayers()
+    puntosPendientesDibujoMapa = []
+    ultimoPuntoCursorDibujoMapa = null
+    actualizarBotonesHerramientaDibujoMapa()
+    actualizarEstadoPanelDibujoMapa()
+    return
+  }
+
+  const panelCapasLocal = document.getElementById("panelCapas")
+  const btnCapasLocal = document.getElementById("btnCapas")
+  if(panelCapasLocal){
+    panelCapasLocal.classList.remove("visible")
+  }
+  if(btnCapasLocal){
+    btnCapasLocal.classList.remove("activo")
+  }
+  if(typeof cerrarPanelBusquedaLugares === "function"){
+    cerrarPanelBusquedaLugares()
+  }
+  if(modoMedicionDistanciaActivo){
+    establecerModoMedicionDistanciaActivo(false)
+  }
+
+  actualizarBotonesHerramientaDibujoMapa()
+  actualizarEstadoPanelDibujoMapa()
+}
+
+function abrirPanelDibujoMapa(){
+  establecerModoDibujoMapaActivo(true)
+}
+
+function cerrarPanelDibujoMapa(){
+  establecerModoDibujoMapaActivo(false)
+  limpiarTrazosDibujoMapa()
+}
+
+function togglePanelDibujoMapa(){
+  if(modoDibujoMapaActivo){
+    cerrarPanelDibujoMapa()
+  } else {
+    abrirPanelDibujoMapa()
+  }
+}
+
+function finalizarPoligonoDibujoMapa(){
+  if(
+    herramientaDibujoMapaActiva !== HERRAMIENTA_DIBUJO_POLIGONO ||
+    puntosPendientesDibujoMapa.length < 3
+  ){
+    return false
+  }
+
+  const estilo = obtenerEstiloTrazoDibujoMapa()
+  agregarTrazoDibujoMapa(
+    L.polygon(puntosPendientesDibujoMapa, {
+      ...estilo,
+      fillColor: estilo.color,
+      fillOpacity: 0.2
+    })
+  )
+  limpiarPendienteDibujoMapa()
+  return true
+}
+
+function deshacerDibujoMapa(){
+  if(puntosPendientesDibujoMapa.length){
+    puntosPendientesDibujoMapa.pop()
+    refrescarPrevisualizacionDibujoMapa()
+    actualizarBotonesHerramientaDibujoMapa()
+    actualizarEstadoPanelDibujoMapa()
+    return true
+  }
+
+  const ultimoTrazo = trazosDibujoMapa.pop()
+  if(ultimoTrazo){
+    capaDibujoMapa.removeLayer(ultimoTrazo)
+    actualizarEstadoPanelDibujoMapa()
+    return true
+  }
+
+  return false
+}
+
+function procesarClickMapaDibujo(latlng){
+  if(!modoDibujoMapaActivo || !latlng){
+    return false
+  }
+
+  const punto = L.latLng(latlng.lat, latlng.lng)
+  ultimoPuntoCursorDibujoMapa = punto
+
+  if(herramientaDibujoMapaActiva === HERRAMIENTA_DIBUJO_PUNTO){
+    const estilo = obtenerEstiloTrazoDibujoMapa()
+    agregarTrazoDibujoMapa(
+      L.circleMarker(punto, {
+        radius: Math.max(4, estilo.weight + 1),
+        color: estilo.color,
+        weight: 2,
+        fillColor: estilo.color,
+        fillOpacity: 0.9,
+        interactive: false
+      })
+    )
+    actualizarEstadoPanelDibujoMapa()
+    return true
+  }
+
+  puntosPendientesDibujoMapa.push(punto)
+  if(
+    herramientaDibujoMapaActiva === HERRAMIENTA_DIBUJO_LINEA &&
+    puntosPendientesDibujoMapa.length >= 2
+  ){
+    agregarTrazoDibujoMapa(
+      L.polyline(puntosPendientesDibujoMapa.slice(0, 2), obtenerEstiloTrazoDibujoMapa())
+    )
+    limpiarPendienteDibujoMapa()
+    return true
+  }
+
+  refrescarPrevisualizacionDibujoMapa()
+  actualizarBotonesHerramientaDibujoMapa()
+  actualizarEstadoPanelDibujoMapa()
+  return true
+}
+
+function actualizarPrevisualizacionDibujoMapa(latlng){
+  if(!modoDibujoMapaActivo){
+    return
+  }
+
+  ultimoPuntoCursorDibujoMapa = latlng
+    ? L.latLng(latlng.lat, latlng.lng)
+    : null
+  refrescarPrevisualizacionDibujoMapa()
+}
+
+function procesarDobleClickMapaDibujo(evento){
+  if(!modoDibujoMapaActivo){
+    return false
+  }
+
+  if(evento && evento.originalEvent){
+    evento.originalEvent.preventDefault()
+    evento.originalEvent.stopPropagation()
+  }
+
+  if(herramientaDibujoMapaActiva === HERRAMIENTA_DIBUJO_POLIGONO){
+    finalizarPoligonoDibujoMapa()
+  }
+  return true
+}
+
+function procesarContextMenuMapaDibujo(){
+  if(!modoDibujoMapaActivo){
+    return false
+  }
+  deshacerDibujoMapa()
+  return true
+}
+
+actualizarEtiquetaGrosorDibujoMapa()
+actualizarBotonesHerramientaDibujoMapa()
+actualizarEstadoPanelDibujoMapa()
 
 btnEliminar.addEventListener("click", () => {
 
@@ -9652,9 +10316,17 @@ const AIRCRAFT_ICON_OVERRIDES_PX = {
   H: 34
 }
 const AIRCRAFT_ICON_SIZE_EQUIVALENTS = {
+  B105: "H",
+  B212: "H",
+  B412: "H",
   C152: "C172",
   C180: "C172",
   C206: "C172",
+  CH2000: "C172",
+  H47: "H",
+  H64: "H",
+  MI8: "H",
+  MI24: "H",
   PA23: "C172",
   PA28: "C172",
   PC12: "BE20",
@@ -9667,13 +10339,21 @@ const AIRCRAFT_ICON_SIZE_EQUIVALENTS = {
   DHC6: "B190",
   KT1: "C172",
   Z42: "C172",
-  MI17: "H"
+  MI17: "H",
+  R22: "H",
+  R44: "H",
+  RAH66: "H",
+  S61: "H"
 }
 const AIRCRAFT_ICON_SIZE_MULTIPLIERS = {
+  B105: 0.95,
+  B212: 1.08,
+  B412: 1.12,
   C152: 1.12,
   C172: 1.15,
   C180: 1.2,
   C206: 1.32,
+  CH2000: 1.08,
   PA23: 1.5,
   PA28: 1.38,
   PC12: 1.22,
@@ -9684,9 +10364,32 @@ const AIRCRAFT_ICON_SIZE_MULTIPLIERS = {
   C402: 1.2,
   C208: 1.7,
   DHC6: 1.14,
+  H47: 1.35,
+  H64: 1.14,
   KT1: 1.18,
+  MI8: 1.14,
+  MI17: 1.18,
+  MI24: 1.16,
+  R22: 0.82,
+  R44: 0.92,
+  RAH66: 1.05,
+  S61: 1.12,
   Z42: 1.12
 }
+const AIRCRAFT_ICON_CUSTOM_SOURCES = Object.freeze({
+  B105: "B105.svg",
+  B212: "B212.svg",
+  B412: "B412.svg",
+  CH2000: "CH2000.svg",
+  H47: "H47.svg",
+  H64: "H64.svg",
+  MI8: "Mi8.svg",
+  MI24: "Mi24.svg",
+  R22: "R22.svg",
+  R44: "R44.svg",
+  RAH66: "RAH-66.svg",
+  S61: "S61.svg"
+})
 
 function obtenerDimensionReferenciaIcono(tipo){
   const tipoReferencia = AIRCRAFT_ICON_SIZE_EQUIVALENTS[tipo] || tipo
@@ -9720,8 +10423,16 @@ function crearIcono(callsign, tipo){
 
   let contenidoAvion;
   const anchoPx = calcularAnchoIconoAvion(tipo)
+  const iconoPersonalizado = AIRCRAFT_ICON_CUSTOM_SOURCES[tipo]
 
-  if(tipo === "C152"){
+  if(iconoPersonalizado){
+    contenidoAvion = `
+      <img src="img/${iconoPersonalizado}"
+           class="icon-aircraft"
+           style="width:${anchoPx}px;">
+    `;
+  }
+  else if(tipo === "C152"){
     contenidoAvion = `
       <img src="img/C152.svg"
            class="icon-aircraft"
@@ -9925,6 +10636,18 @@ function crearIcono(callsign, tipo){
 
 map.on("click", function(e){
 
+  if(procesarClickMapaJoinCircuito(e.latlng)){
+    return
+  }
+
+  if(procesarClickMapaArrivalIngreso(e.latlng)){
+    return
+  }
+
+  if(procesarClickMapaDibujo(e.latlng)){
+    return
+  }
+
   if(procesarClickMapaMedicionDistancia(e.latlng)){
     return
   }
@@ -9963,6 +10686,10 @@ map.on("contextmenu", function(e){
     e.originalEvent.preventDefault()
   }
 
+  if(procesarContextMenuMapaDibujo()){
+    return
+  }
+
   if(procesarContextMenuMapaMedicionDistancia()){
     return
   }
@@ -9987,11 +10714,19 @@ map.on("contextmenu", function(e){
 
   mostrarSelectorTipo(e.latlng)
 })
+map.on("dblclick", function(e){
+  if(procesarDobleClickMapaDibujo(e)){
+    return
+  }
+})
 map.on("click", function(e){
   console.log(e.latlng.lat, e.latlng.lng);
 });
 map.on("mousemove", function(e){
+  actualizarPrevisualizacionJoinCircuito(e.latlng)
+  actualizarPrevisualizacionArrivalIngreso(e.latlng)
   actualizarPrevisualizacionMedicionDistancia(e.latlng)
+  actualizarPrevisualizacionDibujoMapa(e.latlng)
 })
 
 function limpiarMarcaPilotageAeronave(aeronave){
@@ -11065,6 +11800,10 @@ clearedToLandPendiente: false,
 	    monitorTouchAndGo: null,
 	    pilotageMarker: null,
 	    pilotageObjetivo: null,
+	    arrivalIngresoPunto: null,
+	    arrivalIngresoMarker: null,
+	    joinCircuitoPunto: null,
+	    joinCircuitoMarker: null,
 	    pilotageMarkerTipo: null,
 	    pilotageMarkerEsCompartido: false,
 	    pilotageObjetivoCompartido: null,
@@ -11091,6 +11830,8 @@ clearedToLandPendiente: false,
   inicializarArrastreAeronave(nueva)
   inicializarRotacionConRueda(nueva)
   actualizarInteraccion(nueva)
+  sincronizarMarcadorPuntoArrivalAeronave(nueva)
+  sincronizarMarcadorPuntoJoinAeronave(nueva)
 
   marker.on("click", function(event){
 
@@ -11191,6 +11932,10 @@ socket.on("crearAeronave", data => {
     : 0,
   rutaAirborneLoop: Boolean(data.rutaAirborneLoop),
   rutaAirborneLoopStartIndex: normalizarIndiceLoopRutaAirborne(data.rutaAirborneLoopStartIndex),
+  arrivalIngresoPunto: normalizarPuntoJoinCircuitoLocal(data.puntoIngreso),
+  arrivalIngresoMarker: null,
+  joinCircuitoPunto: normalizarPuntoJoinCircuitoLocal(data.puntoIngreso),
+  joinCircuitoMarker: null,
   orbitSentido: normalizarSentidoOrbitCliente(data.orbitSentido),
   circuitoSentido: normalizarSentidoCircuitoCliente(data.circuitoSentido),
   orbitSolicitada: Boolean(data.orbitModoContinuo || data.orbitPendiente),
@@ -11310,6 +12055,10 @@ socket.on("actualizarAeronave", data => {
       ? Math.max(0, altitudObjetivoNum)
       : null
   }
+  if(Object.prototype.hasOwnProperty.call(data, "puntoIngreso")){
+    avion.arrivalIngresoPunto = normalizarPuntoJoinCircuitoLocal(data.puntoIngreso)
+    avion.joinCircuitoPunto = normalizarPuntoJoinCircuitoLocal(data.puntoIngreso)
+  }
   if(Object.prototype.hasOwnProperty.call(data, "shortCircuitoActivo")){
     avion.shortSolicitada = Boolean(data.shortCircuitoActivo)
   }
@@ -11392,6 +12141,8 @@ socket.on("actualizarAeronave", data => {
   }
 
   actualizarCallsignLabelEstado(avion)
+  sincronizarMarcadorPuntoArrivalAeronave(avion)
+  sincronizarMarcadorPuntoJoinAeronave(avion)
 
   if (aeronaveSeleccionada && avion.id === aeronaveSeleccionada.id) {
 
@@ -11574,7 +12325,7 @@ function refrescarUITrasCambioOwner(aeronaveActualizada = null){
   actualizarBotonTaxi()
   actualizarEstadoBotonOrbit()
   actualizarEstadoBotonExtend()
-  actualizarEstadoBotonSesionPiloto()
+  actualizarEstadoBotonPilotage()
   if(aeronaveAntes && aeronaveAntes.id !== obj.id){
     actualizarInteraccion(aeronaveAntes)
   }
@@ -11710,6 +12461,7 @@ socket.on("borrarAeronave", id => {
     map.removeLayer(avion.puntoColaLayer)
     avion.puntoColaLayer = null
   }
+  limpiarMarcadorPuntoJoinAeronave(avion, true)
   if(avion.temporizadorEliminarBoom){
     clearTimeout(avion.temporizadorEliminarBoom)
     avion.temporizadorEliminarBoom = null
@@ -12014,6 +12766,80 @@ function establecerModoMarcaColaActivo(activo){
   })
 })()
 
+;(function inicializarPanelDibujoMapa(){
+  if(btnDrawMapa){
+    btnDrawMapa.addEventListener("click", (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      togglePanelDibujoMapa()
+    })
+  }
+
+  if(btnCerrarPanelDibujoMapa){
+    btnCerrarPanelDibujoMapa.addEventListener("click", (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      cerrarPanelDibujoMapa()
+    })
+  }
+
+  if(btnDibujoHerramientaPunto){
+    btnDibujoHerramientaPunto.addEventListener("click", (e) => {
+      e.preventDefault()
+      establecerHerramientaDibujoMapa(HERRAMIENTA_DIBUJO_PUNTO)
+    })
+  }
+
+  if(btnDibujoHerramientaLinea){
+    btnDibujoHerramientaLinea.addEventListener("click", (e) => {
+      e.preventDefault()
+      establecerHerramientaDibujoMapa(HERRAMIENTA_DIBUJO_LINEA)
+    })
+  }
+
+  if(btnDibujoHerramientaPoligono){
+    btnDibujoHerramientaPoligono.addEventListener("click", (e) => {
+      e.preventDefault()
+      establecerHerramientaDibujoMapa(HERRAMIENTA_DIBUJO_POLIGONO)
+    })
+  }
+
+  if(btnDibujoFinalizar){
+    btnDibujoFinalizar.addEventListener("click", (e) => {
+      e.preventDefault()
+      finalizarPoligonoDibujoMapa()
+    })
+  }
+
+  if(btnDibujoDeshacer){
+    btnDibujoDeshacer.addEventListener("click", (e) => {
+      e.preventDefault()
+      deshacerDibujoMapa()
+    })
+  }
+
+  if(btnDibujoLimpiar){
+    btnDibujoLimpiar.addEventListener("click", (e) => {
+      e.preventDefault()
+      limpiarTrazosDibujoMapa()
+      actualizarEstadoPanelDibujoMapa()
+    })
+  }
+
+  if(inputColorDibujoMapa){
+    inputColorDibujoMapa.addEventListener("input", () => {
+      refrescarPrevisualizacionDibujoMapa()
+    })
+  }
+
+  if(inputGrosorDibujoMapa){
+    inputGrosorDibujoMapa.addEventListener("input", () => {
+      actualizarEtiquetaGrosorDibujoMapa()
+      refrescarPrevisualizacionDibujoMapa()
+    })
+  }
+})()
+
 setInterval(actualizarIconosBoomPorProximidad, 150)
 setInterval(actualizarIconosColaAeronaves, 80)
 
@@ -12029,51 +12855,117 @@ document.addEventListener("click", function(e){
 })
 
 function entrarSala(nombre){
-  socket.emit("unirseSala", nombre)
+  socket.emit("unirseSala", {
+    nombre,
+    sessionId: pestanaClienteId
+  })
   localStorage.setItem("salaActiva", nombre)
   registrarRescateSiNecesario()
 }
-function actualizarSesion(){
+function togglePilotage(){
   const aeronave = obtenerAeronaveObjetivoControles() || aeronaveSeleccionada
   if(!aeronave){
     alert("Select an aircraft first")
-    actualizarEstadoBotonSesionPiloto()
+    actualizarEstadoBotonPilotage()
     return
   }
 
   if(!esAeronaveDelCreadorLocal(aeronave)){
     alert("Only the aircraft creator can use PILOTAGE")
-    actualizarEstadoBotonSesionPiloto()
+    actualizarEstadoBotonPilotage()
     return
   }
 
   const nuevoEstadoPilotage = !Boolean(aeronave.pilotageToggleActivo)
-  aeronave.pilotageToggleActivo = nuevoEstadoPilotage
   if(!nuevoEstadoPilotage){
-    limpiarMarcaPilotageAeronave(aeronave)
-    if(aeronavePilotagePendienteId === aeronave.id){
-      limpiarModoPilotagePendiente()
-    }
+    desactivarTogglePilotageAeronave(aeronave)
+    return
   }
-  actualizarEstadoBotonSesionPiloto()
+  aeronave.pilotageToggleActivo = true
+  actualizarEstadoBotonPilotage()
 }
 
-function actualizarEstadoBotonSesionPiloto(){
-  const btnSesionPiloto = document.getElementById("btnSesionPiloto")
-  if(!btnSesionPiloto) return
+function desactivarTogglePilotageAeronave(aeronave = null){
+  const aeronaveObjetivo =
+    aeronave ||
+    obtenerAeronaveObjetivoControles() ||
+    obtenerAeronaveVinculadaPanel() ||
+    aeronaveSeleccionada
+  if(!aeronaveObjetivo){
+    actualizarEstadoBotonPilotage()
+    return false
+  }
+
+  aeronaveObjetivo.pilotageToggleActivo = false
+  limpiarMarcaPilotageAeronave(aeronaveObjetivo)
+  if(aeronavePilotagePendienteId === aeronaveObjetivo.id){
+    limpiarModoPilotagePendiente()
+  }
+  actualizarEstadoBotonPilotage()
+  return true
+}
+
+function actualizarEstadoBotonPilotage(){
+  const btnPilotage = document.getElementById("btnPilotage")
+  if(!btnPilotage) return
 
   const aeronave = obtenerAeronaveVinculadaPanel() || aeronaveSeleccionada
   const habilitado = Boolean(aeronave && esAeronaveDelCreadorLocal(aeronave))
   const activo = Boolean(habilitado && aeronave.pilotageToggleActivo)
 
-  btnSesionPiloto.disabled = !habilitado
-  btnSesionPiloto.classList.toggle("activo", activo)
-  btnSesionPiloto.style.opacity = habilitado ? "1" : "0.45"
-  btnSesionPiloto.style.cursor = habilitado ? "pointer" : "not-allowed"
-  btnSesionPiloto.title = habilitado
+  btnPilotage.disabled = !habilitado
+  btnPilotage.classList.toggle("activo", activo)
+  btnPilotage.style.opacity = habilitado ? "1" : "0.45"
+  btnPilotage.style.cursor = habilitado ? "pointer" : "not-allowed"
+  btnPilotage.title = habilitado
     ? (activo ? "PILOTAGE toggle enabled" : "Enable PILOTAGE")
     : "Select your aircraft first"
-  btnSesionPiloto.setAttribute("aria-pressed", String(activo))
+  btnPilotage.setAttribute("aria-pressed", String(activo))
+}
+
+function inicializarAutoApagadoPilotagePorControles(){
+  if(document.body.dataset.pilotageAutoOffBound === "1"){
+    return
+  }
+  document.body.dataset.pilotageAutoOffBound = "1"
+
+  const selectorBotonesControlAeronave = [
+    "#menuControles .taxi-btn",
+    "#menuControles .landing-main",
+    "#menuControles #landingOpciones .mini-btn",
+    "#menuControles .arrival-btn",
+    "#menuControles .departure-control-btn",
+    "#menuControles #departureVfrOpciones .vfr-option-btn",
+    "#menuControles #departureSidOpciones .sid-option-btn",
+    "#menuControles .circuit-btn",
+    "#menuControles .manual-btn",
+    "#menuControles .boton-lateral-level",
+    "#menuControles .boton-lateral-speed",
+    "#panelManual #btnManualM",
+    "#panelManual .buttons button"
+  ].join(",")
+
+  document.addEventListener("click", (evento) => {
+    const botonControl =
+      evento &&
+      evento.target &&
+      typeof evento.target.closest === "function"
+        ? evento.target.closest(selectorBotonesControlAeronave)
+        : null
+    if(!botonControl || botonControl.disabled){
+      return
+    }
+
+    const aeronave =
+      obtenerAeronaveObjetivoControles() ||
+      obtenerAeronaveVinculadaPanel() ||
+      aeronaveSeleccionada
+    if(!aeronave || !Boolean(aeronave.pilotageToggleActivo)){
+      return
+    }
+
+    desactivarTogglePilotageAeronave(aeronave)
+  }, true)
 }
 
 function seleccionarAeronave(obj){
@@ -12084,6 +12976,15 @@ function seleccionarAeronave(obj){
   const aeronaveAntes = obtenerAeronaveVinculadaPanel() || aeronaveSeleccionada
   if(aeronavePilotagePendienteId && aeronavePilotagePendienteId !== obj.id){
     limpiarModoPilotagePendiente()
+  }
+  if(aeronaveJoinCircuitoPendienteId && aeronaveJoinCircuitoPendienteId !== obj.id){
+    ocultarOpcionesJoin()
+  }
+  if(
+    arrivalIngresoSeleccionPendiente &&
+    arrivalIngresoSeleccionPendiente.aeronaveId !== obj.id
+  ){
+    desactivarModoSeleccionArrivalIngreso()
   }
   if(aeronaveAntes && aeronaveAntes.id !== obj.id){
     if(aeronaveAntes.modoRuta && !aeronaveAntes.rutaPilotageActiva){
@@ -12142,9 +13043,11 @@ actualizarBotonManual()
   actualizarEstadoGrupoLanding()
   actualizarEstadoBotonOrbit()
   actualizarEstadoBotonExtend()
-  actualizarEstadoBotonSesionPiloto()
+  actualizarEstadoBotonPilotage()
   refrescarPatronVisual()
   refrescarRutaProcedimientoAeronaveSeleccionada(obj)
+  sincronizarMarcadoresPuntoArrivalAeronaves()
+  sincronizarMarcadoresPuntoJoinAeronaves()
   sincronizarVisibilidadRutasAeronaves()
 }
 const btnManualPanel = document.getElementById("btnManual")
@@ -12831,16 +13734,19 @@ document.getElementById("header-id").textContent = a.id || "---"
     let radialTexto = "---"
     const radialScoMagnetico = obtenerRadialScoMagneticoAeronave(a)
     if(Number.isFinite(radialScoMagnetico)){
-      radialTexto = `${String(Math.round(radialScoMagnetico)).padStart(3, "0")}°`
+      radialTexto = `R${String(Math.round(radialScoMagnetico)).padStart(3, "0")}`
     }
     infoRdlEl.textContent = radialTexto
   }
 
-  document.getElementById("info-lat").textContent =
-    a.lat !== undefined ? a.lat.toFixed(5) : "-"
-
-  document.getElementById("info-lng").textContent =
-    a.lng !== undefined ? a.lng.toFixed(5) : "-"
+  const infoLatLngEl = document.getElementById("info-latlng")
+  if(infoLatLngEl){
+    const latNum = Number(a.lat)
+    const lngNum = Number(a.lng)
+    const latTexto = Number.isFinite(latNum) ? latNum.toFixed(5) : "-"
+    const lngTexto = Number.isFinite(lngNum) ? lngNum.toFixed(5) : "-"
+    infoLatLngEl.textContent = `${latTexto} / ${lngTexto}`
+  }
 
   actualizarPanelTcas(a)
 }
@@ -12860,8 +13766,7 @@ function limpiarPanelInfoAeronave(){
   asignarTexto("info-heading", "---")
   asignarTexto("info-dme", "---")
   asignarTexto("info-rdl", "---")
-  asignarTexto("info-lat", "---")
-  asignarTexto("info-lng", "---")
+  asignarTexto("info-latlng", "---")
   const botonFocusAircraft = document.getElementById("btnPanelInfoFocusAircraft")
   if(botonFocusAircraft){
     botonFocusAircraft.disabled = true
@@ -13828,6 +14733,8 @@ function limpiarProcedimientoLlegadaAirborneAeronave(aeronave, opciones = {}){
   aeronave.rutaAirborneProgreso = 0
   aeronave.rutaAirborneLoop = false
   aeronave.rutaAirborneLoopStartIndex = 0
+  aeronave.arrivalIngresoPunto = null
+  limpiarMarcadorPuntoArrivalAeronave(aeronave, true)
 
   if(opciones.refrescarRuta !== false){
     refrescarRutaProcedimientoAeronaveSeleccionada(aeronave)
@@ -14096,6 +15003,7 @@ function aplicarLevelInicialManual(valor){
   const ajustePorDelta =
     estadoActual === "MANUAL" ||
     estadoActual === "AUTO" ||
+    estadoActual === "JOINING" ||
     estadoActual === "ORBT" ||
     estadoActual === "CIRCUIT" ||
     estadoActual === "INTERCEPTING ARC" ||
@@ -14460,18 +15368,826 @@ function actualizarEstadoBotonSentidoCircuito(){
     })
 }
 
-function obtenerModoIngresoJoin(valor){
-  const clave = String(valor || "").trim().toLowerCase()
-  if(clave === "dct") return "nearest"
-  if(clave === "upw") return "upwind"
-  if(clave === "cw") return "crosswind"
-  if(clave === "dw") return "downwind"
-  if(clave === "bs") return "base"
-  if(clave === "fnl") return "final"
-  return "nearest-if-close"
+function esModoSeleccionJoinCircuitoActivo(){
+  return Boolean(aeronaveJoinCircuitoPendienteId)
 }
 
-function mostrarOpcionesJoin(){
+function obtenerAeronaveJoinCircuitoPendiente(){
+  if(!esModoSeleccionJoinCircuitoActivo()){
+    return null
+  }
+
+  const aeronave = aeronaves.find(a => a && a.id === aeronaveJoinCircuitoPendienteId)
+  if(!aeronave || !esAeronaveDelCreadorLocal(aeronave)){
+    aeronaveJoinCircuitoPendienteId = null
+    limpiarPrevisualizacionJoinCircuito()
+    return null
+  }
+
+  return aeronave
+}
+
+function obtenerRutaJoinCircuitoActiva(){
+  const aeronave = obtenerAeronaveJoinCircuitoPendiente()
+  if(
+    !aeronave ||
+    !Array.isArray(aeronave.rutaCircuito) ||
+    aeronave.rutaCircuito.length < 2
+  ){
+    return null
+  }
+
+  return aeronave.rutaCircuito
+}
+
+function limpiarPrevisualizacionJoinCircuito(){
+  if(
+    marcadorPrevisualizacionJoinCircuito &&
+    map &&
+    map.hasLayer(marcadorPrevisualizacionJoinCircuito)
+  ){
+    map.removeLayer(marcadorPrevisualizacionJoinCircuito)
+  }
+  marcadorPrevisualizacionJoinCircuito = null
+}
+
+function normalizarPuntoJoinCircuitoLocal(punto){
+  const lat = Number(punto && punto.lat)
+  const lng = Number(punto && punto.lng)
+  if(!Number.isFinite(lat) || !Number.isFinite(lng)){
+    return null
+  }
+
+  return { lat, lng }
+}
+
+function esEstadoPendienteJoinCircuito(estado){
+  return (
+    estado === "JOINING" ||
+    estado === "INTERCEPTING ARC" ||
+    estado === "INTERCEPTING LEG"
+  )
+}
+
+function obtenerRadioMarcadorPuntoJoinSegunZoom(){
+  if(!map || typeof map.getZoom !== "function"){
+    return 4
+  }
+
+  const zoomActual = Number(map.getZoom())
+  if(!Number.isFinite(zoomActual)){
+    return 4
+  }
+
+  return Math.max(2, Math.min(5, 2 + ((zoomActual - 11) * 0.35)))
+}
+
+function obtenerGrosorMarcadorPuntoJoinSegunZoom(){
+  if(!map || typeof map.getZoom !== "function"){
+    return 2
+  }
+
+  const zoomActual = Number(map.getZoom())
+  if(!Number.isFinite(zoomActual)){
+    return 2
+  }
+
+  return Math.max(1, Math.min(2.5, 1 + ((zoomActual - 11) * 0.14)))
+}
+
+function esMarcadorPuntoJoinVisibleParaAeronave(aeronave){
+  if(!aeronave) return false
+
+  const aeronaveVisual = obtenerAeronaveVinculadaPanel() || aeronaveSeleccionada
+  return Boolean(
+    aeronaveVisual &&
+    aeronaveVisual.id === aeronave.id &&
+    esEstadoPendienteJoinCircuito(aeronave.estado)
+  )
+}
+
+function limpiarMarcadorPuntoJoinAeronave(aeronave, limpiarPunto = false){
+  if(!aeronave) return
+
+  if(
+    aeronave.joinCircuitoMarker &&
+    map &&
+    map.hasLayer(aeronave.joinCircuitoMarker)
+  ){
+    map.removeLayer(aeronave.joinCircuitoMarker)
+  }
+  aeronave.joinCircuitoMarker = null
+
+  if(limpiarPunto){
+    aeronave.joinCircuitoPunto = null
+  }
+}
+
+function actualizarEstiloMarcadorPuntoJoinAeronave(aeronave){
+  if(
+    !aeronave ||
+    !aeronave.joinCircuitoMarker ||
+    typeof aeronave.joinCircuitoMarker.setStyle !== "function" ||
+    typeof aeronave.joinCircuitoMarker.setRadius !== "function"
+  ){
+    return false
+  }
+
+  const radius = obtenerRadioMarcadorPuntoJoinSegunZoom()
+  const weight = obtenerGrosorMarcadorPuntoJoinSegunZoom()
+  aeronave.joinCircuitoMarker.setRadius(radius)
+  aeronave.joinCircuitoMarker.setStyle({ weight })
+  return true
+}
+
+function mostrarMarcadorPuntoJoinAeronave(aeronave){
+  if(!aeronave || !map) return false
+
+  const punto = normalizarPuntoJoinCircuitoLocal(aeronave.joinCircuitoPunto)
+  if(!punto){
+    limpiarMarcadorPuntoJoinAeronave(aeronave, true)
+    return false
+  }
+
+  aeronave.joinCircuitoPunto = punto
+  const puntoJoin = L.latLng(punto.lat, punto.lng)
+  const radius = obtenerRadioMarcadorPuntoJoinSegunZoom()
+  const weight = obtenerGrosorMarcadorPuntoJoinSegunZoom()
+  if(!aeronave.joinCircuitoMarker){
+    aeronave.joinCircuitoMarker = L.circleMarker(puntoJoin, {
+      radius,
+      color: "#f59e0b",
+      weight,
+      fillColor: "#fde68a",
+      fillOpacity: 1,
+      interactive: false
+    }).addTo(map)
+    if(typeof aeronave.joinCircuitoMarker.bringToFront === "function"){
+      aeronave.joinCircuitoMarker.bringToFront()
+    }
+    return true
+  }
+
+  aeronave.joinCircuitoMarker.setLatLng(puntoJoin)
+  if(!map.hasLayer(aeronave.joinCircuitoMarker)){
+    aeronave.joinCircuitoMarker.addTo(map)
+  }
+  actualizarEstiloMarcadorPuntoJoinAeronave(aeronave)
+  if(typeof aeronave.joinCircuitoMarker.bringToFront === "function"){
+    aeronave.joinCircuitoMarker.bringToFront()
+  }
+  return true
+}
+
+function sincronizarMarcadorPuntoJoinAeronave(aeronave){
+  if(!aeronave) return false
+
+  if(!esEstadoPendienteJoinCircuito(aeronave.estado)){
+    limpiarMarcadorPuntoJoinAeronave(aeronave, true)
+    return false
+  }
+
+  if(!esMarcadorPuntoJoinVisibleParaAeronave(aeronave)){
+    limpiarMarcadorPuntoJoinAeronave(aeronave, false)
+    return false
+  }
+
+  return mostrarMarcadorPuntoJoinAeronave(aeronave)
+}
+
+function sincronizarMarcadoresPuntoJoinAeronaves(){
+  aeronaves.forEach(aeronave => {
+    sincronizarMarcadorPuntoJoinAeronave(aeronave)
+  })
+}
+
+function tienePuntoIngresoArrivalActivoAeronave(aeronave){
+  const punto = normalizarPuntoJoinCircuitoLocal(aeronave && aeronave.arrivalIngresoPunto)
+  return Boolean(
+    punto &&
+    normalizarNombreProcedimientoLlegada(aeronave && aeronave.arrivalProcedureName) &&
+    Array.isArray(aeronave && aeronave.rutaAirborne) &&
+    aeronave.rutaAirborne.length >= 2
+  )
+}
+
+function haCruzadoPuntoIngresoArrivalAeronave(aeronave){
+  const punto = normalizarPuntoJoinCircuitoLocal(aeronave && aeronave.arrivalIngresoPunto)
+  if(!punto){
+    return false
+  }
+
+  return haCruzadoReferenciaRutaAirborne(
+    aeronave,
+    [punto.lat, punto.lng],
+    140
+  )
+}
+
+function esMarcadorPuntoArrivalVisibleParaAeronave(aeronave){
+  if(
+    !aeronave ||
+    !tienePuntoIngresoArrivalActivoAeronave(aeronave) ||
+    haCruzadoPuntoIngresoArrivalAeronave(aeronave)
+  ){
+    return false
+  }
+
+  const aeronaveVisual = obtenerAeronaveVinculadaPanel() || aeronaveSeleccionada
+  return Boolean(
+    aeronaveVisual &&
+    aeronaveVisual.id === aeronave.id
+  )
+}
+
+function limpiarMarcadorPuntoArrivalAeronave(aeronave, limpiarPunto = false){
+  if(!aeronave) return
+
+  if(
+    aeronave.arrivalIngresoMarker &&
+    map &&
+    map.hasLayer(aeronave.arrivalIngresoMarker)
+  ){
+    map.removeLayer(aeronave.arrivalIngresoMarker)
+  }
+  aeronave.arrivalIngresoMarker = null
+
+  if(limpiarPunto){
+    aeronave.arrivalIngresoPunto = null
+  }
+}
+
+function actualizarEstiloMarcadorPuntoArrivalAeronave(aeronave){
+  if(
+    !aeronave ||
+    !aeronave.arrivalIngresoMarker ||
+    typeof aeronave.arrivalIngresoMarker.setStyle !== "function" ||
+    typeof aeronave.arrivalIngresoMarker.setRadius !== "function"
+  ){
+    return false
+  }
+
+  const radius = obtenerRadioMarcadorPuntoJoinSegunZoom()
+  const weight = obtenerGrosorMarcadorPuntoJoinSegunZoom()
+  aeronave.arrivalIngresoMarker.setRadius(radius)
+  aeronave.arrivalIngresoMarker.setStyle({
+    color: "#eab308",
+    fillColor: "#fde047",
+    weight
+  })
+  return true
+}
+
+function mostrarMarcadorPuntoArrivalAeronave(aeronave){
+  if(!aeronave || !map) return false
+
+  const punto = normalizarPuntoJoinCircuitoLocal(aeronave.arrivalIngresoPunto)
+  if(!punto){
+    limpiarMarcadorPuntoArrivalAeronave(aeronave, true)
+    return false
+  }
+
+  aeronave.arrivalIngresoPunto = punto
+  const puntoArrival = L.latLng(punto.lat, punto.lng)
+  const radius = obtenerRadioMarcadorPuntoJoinSegunZoom()
+  const weight = obtenerGrosorMarcadorPuntoJoinSegunZoom()
+  if(!aeronave.arrivalIngresoMarker){
+    aeronave.arrivalIngresoMarker = L.circleMarker(puntoArrival, {
+      radius,
+      color: "#eab308",
+      weight,
+      fillColor: "#fde047",
+      fillOpacity: 1,
+      interactive: false
+    }).addTo(map)
+    if(typeof aeronave.arrivalIngresoMarker.bringToFront === "function"){
+      aeronave.arrivalIngresoMarker.bringToFront()
+    }
+    return true
+  }
+
+  aeronave.arrivalIngresoMarker.setLatLng(puntoArrival)
+  if(!map.hasLayer(aeronave.arrivalIngresoMarker)){
+    aeronave.arrivalIngresoMarker.addTo(map)
+  }
+  actualizarEstiloMarcadorPuntoArrivalAeronave(aeronave)
+  if(typeof aeronave.arrivalIngresoMarker.bringToFront === "function"){
+    aeronave.arrivalIngresoMarker.bringToFront()
+  }
+  return true
+}
+
+function sincronizarMarcadorPuntoArrivalAeronave(aeronave){
+  if(!aeronave) return false
+
+  if(!tienePuntoIngresoArrivalActivoAeronave(aeronave)){
+    limpiarMarcadorPuntoArrivalAeronave(aeronave, false)
+    return false
+  }
+
+  if(haCruzadoPuntoIngresoArrivalAeronave(aeronave)){
+    limpiarMarcadorPuntoArrivalAeronave(aeronave, false)
+    return false
+  }
+
+  if(!esMarcadorPuntoArrivalVisibleParaAeronave(aeronave)){
+    limpiarMarcadorPuntoArrivalAeronave(aeronave, false)
+    return false
+  }
+
+  return mostrarMarcadorPuntoArrivalAeronave(aeronave)
+}
+
+function sincronizarMarcadoresPuntoArrivalAeronaves(){
+  aeronaves.forEach(aeronave => {
+    sincronizarMarcadorPuntoArrivalAeronave(aeronave)
+  })
+}
+
+function limpiarPrevisualizacionArrivalIngreso(){
+  if(
+    marcadorPrevisualizacionArrivalIngreso &&
+    map &&
+    map.hasLayer(marcadorPrevisualizacionArrivalIngreso)
+  ){
+    map.removeLayer(marcadorPrevisualizacionArrivalIngreso)
+  }
+  marcadorPrevisualizacionArrivalIngreso = null
+}
+
+function limpiarVisualizacionSeleccionArrivalIngreso(){
+  if(
+    rutaArrivalIngresoPreviewLayer &&
+    map &&
+    map.hasLayer(rutaArrivalIngresoPreviewLayer)
+  ){
+    map.removeLayer(rutaArrivalIngresoPreviewLayer)
+  }
+  rutaArrivalIngresoPreviewLayer = null
+}
+
+function esModoSeleccionArrivalIngresoActivo(){
+  return Boolean(arrivalIngresoSeleccionPendiente)
+}
+
+function obtenerAeronaveArrivalIngresoPendiente(){
+  if(!esModoSeleccionArrivalIngresoActivo()){
+    return null
+  }
+
+  const aeronave = aeronaves.find(
+    a => a && a.id === arrivalIngresoSeleccionPendiente.aeronaveId
+  )
+  if(!aeronave || !esAeronaveDelCreadorLocal(aeronave)){
+    desactivarModoSeleccionArrivalIngreso({ sincronizarUI: false })
+    return null
+  }
+
+  return aeronave
+}
+
+function obtenerRutaArrivalIngresoActiva(){
+  const ruta = arrivalIngresoSeleccionPendiente &&
+    Array.isArray(arrivalIngresoSeleccionPendiente.rutaPreview)
+      ? clonarRutaAirborneLocal(arrivalIngresoSeleccionPendiente.rutaPreview)
+      : null
+  return Array.isArray(ruta) && ruta.length >= 2 ? ruta : null
+}
+
+function refrescarVisualizacionSeleccionArrivalIngreso(){
+  const rutaPreview = obtenerRutaArrivalIngresoActiva()
+  if(!Array.isArray(rutaPreview) || rutaPreview.length < 2){
+    limpiarVisualizacionSeleccionArrivalIngreso()
+    return false
+  }
+
+  if(rutaArrivalIngresoPreviewLayer){
+    rutaArrivalIngresoPreviewLayer.setLatLngs(rutaPreview)
+  } else {
+    rutaArrivalIngresoPreviewLayer = L.polyline(rutaPreview, {
+      color: "#22d3ee",
+      weight: 5,
+      opacity: 0.96,
+      dashArray: "12 8",
+      lineCap: "round",
+      lineJoin: "round",
+      interactive: false
+    }).addTo(map)
+  }
+
+  if(typeof rutaArrivalIngresoPreviewLayer.bringToFront === "function"){
+    rutaArrivalIngresoPreviewLayer.bringToFront()
+  }
+  return true
+}
+
+function desactivarModoSeleccionArrivalIngreso(opciones = {}){
+  arrivalIngresoSeleccionPendiente = null
+  limpiarPrevisualizacionArrivalIngreso()
+  limpiarVisualizacionSeleccionArrivalIngreso()
+
+  if(
+    opciones.sincronizarUI !== false &&
+    typeof window.sincronizarEstadoBotonesArrivalDesdeAeronave === "function"
+  ){
+    window.sincronizarEstadoBotonesArrivalDesdeAeronave()
+  }
+}
+
+function activarModoSeleccionArrivalIngreso(aeronave, configuracion = {}){
+  const rutaPreview = clonarRutaAirborneLocal(configuracion.rutaPreview)
+  if(
+    !aeronave ||
+    !Array.isArray(rutaPreview) ||
+    rutaPreview.length < 2 ||
+    typeof configuracion.resolverPlan !== "function"
+  ){
+    return false
+  }
+
+  if(modoMedicionDistanciaActivo){
+    establecerModoMedicionDistanciaActivo(false)
+  }
+  if(modoDibujoMapaActivo){
+    cerrarPanelDibujoMapa()
+  }
+  if(esModoSeleccionJoinCircuitoActivo()){
+    ocultarOpcionesJoin()
+  }
+
+  arrivalIngresoSeleccionPendiente = {
+    aeronaveId: aeronave.id,
+    rutaPreview,
+    resolverPlan: configuracion.resolverPlan,
+    uiPrincipal: String(configuracion.uiPrincipal || "").trim().toLowerCase(),
+    uiSecundario: String(configuracion.uiSecundario || "").trim().toLowerCase()
+  }
+  limpiarPrevisualizacionArrivalIngreso()
+  refrescarVisualizacionSeleccionArrivalIngreso()
+  mostrarNotificacionTemporal(
+    configuracion.mensaje ||
+      "Click any point on the highlighted arrival route to choose the entry point",
+    "info",
+    3200
+  )
+  return true
+}
+
+function obtenerProyeccionArrivalIngreso(latlng){
+  const rutaPreview = obtenerRutaArrivalIngresoActiva()
+  if(!latlng || !Array.isArray(rutaPreview) || rutaPreview.length < 2){
+    return null
+  }
+
+  return obtenerProyeccionRutaLinealMasCercanaCliente(latlng, rutaPreview)
+}
+
+function actualizarPrevisualizacionArrivalIngreso(latlng){
+  if(!esModoSeleccionArrivalIngresoActivo()){
+    limpiarPrevisualizacionArrivalIngreso()
+    return false
+  }
+
+  const proyeccion = obtenerProyeccionArrivalIngreso(latlng)
+  if(
+    !proyeccion ||
+    !proyeccion.puntoIntercepto ||
+    !Number.isFinite(proyeccion.distancia) ||
+    proyeccion.distancia > ARRIVAL_INGRESO_MAX_DISTANCIA_SELECCION_M
+  ){
+    limpiarPrevisualizacionArrivalIngreso()
+    return false
+  }
+
+  const puntoIngreso = L.latLng(
+    Number(proyeccion.puntoIntercepto.lat),
+    Number(proyeccion.puntoIntercepto.lng)
+  )
+  if(!marcadorPrevisualizacionArrivalIngreso){
+    marcadorPrevisualizacionArrivalIngreso = L.circleMarker(puntoIngreso, {
+      radius: 4,
+      color: "#facc15",
+      weight: 2,
+      fillColor: "#fef08a",
+      fillOpacity: 0.95,
+      interactive: false
+    }).addTo(map)
+    if(typeof marcadorPrevisualizacionArrivalIngreso.bringToFront === "function"){
+      marcadorPrevisualizacionArrivalIngreso.bringToFront()
+    }
+    return true
+  }
+
+  marcadorPrevisualizacionArrivalIngreso.setLatLng(puntoIngreso)
+  if(typeof marcadorPrevisualizacionArrivalIngreso.bringToFront === "function"){
+    marcadorPrevisualizacionArrivalIngreso.bringToFront()
+  }
+  return true
+}
+
+function procesarClickMapaArrivalIngreso(latlng){
+  if(!esModoSeleccionArrivalIngresoActivo()){
+    return false
+  }
+
+  const aeronave = obtenerAeronaveArrivalIngresoPendiente()
+  if(!aeronave){
+    desactivarModoSeleccionArrivalIngreso()
+    return true
+  }
+
+  const proyeccion = obtenerProyeccionArrivalIngreso(latlng)
+  if(
+    !proyeccion ||
+    !proyeccion.puntoIntercepto ||
+    !Number.isFinite(proyeccion.distancia) ||
+    proyeccion.distancia > ARRIVAL_INGRESO_MAX_DISTANCIA_SELECCION_M
+  ){
+    mostrarNotificacionTemporal(
+      "Click closer to the highlighted arrival route",
+      "warning",
+      2400
+    )
+    return true
+  }
+
+  const puntoIngreso = {
+    lat: Number(proyeccion.puntoIntercepto.lat),
+    lng: Number(proyeccion.puntoIntercepto.lng)
+  }
+  const planLlegada = arrivalIngresoSeleccionPendiente.resolverPlan(
+    aeronave,
+    puntoIngreso,
+    proyeccion
+  )
+  if(
+    !planLlegada ||
+    !Array.isArray(planLlegada.ruta) ||
+    planLlegada.ruta.length < 2
+  ){
+    mostrarNotificacionTemporal(
+      "Unable to build the selected arrival entry",
+      "warning",
+      2600
+    )
+    return true
+  }
+
+  const opcionesLlegada = {
+    ...(planLlegada.opciones || {}),
+    puntoIngreso
+  }
+  if(activarProcedimientoLlegadaAirborne(aeronave, planLlegada.ruta, opcionesLlegada)){
+    mostrarNotificacionTemporal(
+      "Aircraft entering through the selected arrival point",
+      "info",
+      2600
+    )
+  }
+  return true
+}
+
+function actualizarMensajeJoinCircuito(){
+  const hint = document.getElementById("circuitJoinHint")
+  if(!hint) return
+
+  if(!esModoSeleccionJoinCircuitoActivo()){
+    hint.textContent = "Select LEFT or RIGHT and click any point on the circuit to join there."
+    return
+  }
+
+  const rutaActiva = obtenerRutaJoinCircuitoActiva()
+  hint.textContent = rutaActiva
+    ? "Click any point on the highlighted circuit to choose the join point."
+    : "Loading the circuit for this aircraft..."
+}
+
+function cancelarOrbitParaJoinCircuito(aeronave){
+  if(!aeronave){
+    return false
+  }
+
+  const orbitActivo = Boolean(
+    aeronave.orbitSolicitada ||
+    aeronave.orbitEnProcesoVisual ||
+    aeronave.estado === "ORBT" ||
+    typeof aeronave.orbitFueraCircuitoPendienteSentido === "string"
+  )
+  if(!orbitActivo){
+    return false
+  }
+
+  aeronave.orbitSolicitada = false
+  aeronave.orbitEnProcesoVisual = false
+  aeronave.orbitFueraCircuitoPendienteSentido = null
+  if(aeronave.pilotageMarkerTipo === "orbit"){
+    limpiarMarcaPilotageAeronave(aeronave)
+  }
+  if(aeronavePilotagePendienteId === aeronave.id){
+    limpiarModoPilotagePendiente()
+  }
+
+  ocultarOpcionesOrbit()
+  actualizarEstadoBotonOrbit()
+  actualizarCallsignLabelEstado(aeronave)
+  actualizarPanelInfoAeronave(aeronave)
+  actualizarPanelInfo(aeronave)
+  return true
+}
+
+function refrescarVisualizacionJoinCircuito(){
+  const rutaJoinActiva = obtenerRutaJoinCircuitoActiva()
+  if(rutaJoinActiva){
+    dibujarRutaServidor(rutaJoinActiva)
+    return
+  }
+
+  const chkPatronEl = document.getElementById("chkPatron")
+  if(chkPatronEl && chkPatronEl.checked){
+    dibujarRutaServidor()
+    return
+  }
+
+  if(patronJoinHitLayer){
+    map.removeLayer(patronJoinHitLayer)
+    patronJoinHitLayer = null
+  }
+  if(patronLayer){
+    map.removeLayer(patronLayer)
+    patronLayer = null
+  }
+}
+
+function solicitarRutaVisualJoinCircuito(aeronave){
+  if(!aeronave) return
+
+  if(
+    Array.isArray(aeronave.rutaCircuito) &&
+    aeronave.rutaCircuito.length > 1
+  ){
+    refrescarVisualizacionJoinCircuito()
+    actualizarMensajeJoinCircuito()
+    return
+  }
+
+  socket.emit("solicitarRutaCircuitoAeronave", {
+    id: aeronave.id
+  })
+}
+
+function activarModoSeleccionJoinCircuito(aeronave){
+  if(!aeronave){
+    return false
+  }
+
+  if(modoMedicionDistanciaActivo){
+    establecerModoMedicionDistanciaActivo(false)
+  }
+  if(modoDibujoMapaActivo){
+    cerrarPanelDibujoMapa()
+  }
+  cancelarOrbitParaJoinCircuito(aeronave)
+
+  aeronaveJoinCircuitoPendienteId = aeronave.id
+  limpiarPrevisualizacionJoinCircuito()
+  solicitarRutaVisualJoinCircuito(aeronave)
+  refrescarVisualizacionJoinCircuito()
+  actualizarMensajeJoinCircuito()
+  mostrarNotificacionTemporal(
+    "Click any point on the circuit to join there",
+    "info",
+    3200
+  )
+  return true
+}
+
+function desactivarModoSeleccionJoinCircuito(){
+  aeronaveJoinCircuitoPendienteId = null
+  limpiarPrevisualizacionJoinCircuito()
+  refrescarVisualizacionJoinCircuito()
+  actualizarMensajeJoinCircuito()
+}
+
+function obtenerProyeccionJoinCircuito(latlng){
+  const rutaJoinActiva = obtenerRutaJoinCircuitoActiva()
+  if(!latlng || !Array.isArray(rutaJoinActiva) || rutaJoinActiva.length < 2){
+    return null
+  }
+
+  return obtenerProyeccionRutaLinealMasCercanaCliente(latlng, rutaJoinActiva)
+}
+
+function actualizarPrevisualizacionJoinCircuito(latlng){
+  if(!esModoSeleccionJoinCircuitoActivo()){
+    limpiarPrevisualizacionJoinCircuito()
+    return false
+  }
+
+  const proyeccion = obtenerProyeccionJoinCircuito(latlng)
+  if(
+    !proyeccion ||
+    !proyeccion.puntoIntercepto ||
+    !Number.isFinite(proyeccion.distancia) ||
+    proyeccion.distancia > JOIN_CIRCUITO_MAX_DISTANCIA_SELECCION_M
+  ){
+    limpiarPrevisualizacionJoinCircuito()
+    return false
+  }
+
+  const puntoJoin = L.latLng(
+    Number(proyeccion.puntoIntercepto.lat),
+    Number(proyeccion.puntoIntercepto.lng)
+  )
+  if(!marcadorPrevisualizacionJoinCircuito){
+    marcadorPrevisualizacionJoinCircuito = L.circleMarker(puntoJoin, {
+      radius: 5,
+      color: "#facc15",
+      weight: 2,
+      fillColor: "#fff7ae",
+      fillOpacity: 0.95,
+      interactive: false
+    }).addTo(map)
+    return true
+  }
+
+  marcadorPrevisualizacionJoinCircuito.setLatLng(puntoJoin)
+  return true
+}
+
+function procesarClickMapaJoinCircuito(latlng){
+  if(!esModoSeleccionJoinCircuitoActivo()){
+    return false
+  }
+
+  const aeronave = obtenerAeronaveJoinCircuitoPendiente()
+  if(!aeronave){
+    ocultarOpcionesJoin()
+    return true
+  }
+
+  const proyeccion = obtenerProyeccionJoinCircuito(latlng)
+  if(!proyeccion || !proyeccion.puntoIntercepto){
+    solicitarRutaVisualJoinCircuito(aeronave)
+    actualizarMensajeJoinCircuito()
+    mostrarNotificacionTemporal("Loading the circuit...", "info", 2200)
+    return true
+  }
+
+  if(
+    !Number.isFinite(proyeccion.distancia) ||
+    proyeccion.distancia > JOIN_CIRCUITO_MAX_DISTANCIA_SELECCION_M
+  ){
+    mostrarNotificacionTemporal(
+      "Click closer to the circuit line",
+      "warning",
+      2400
+    )
+    return true
+  }
+
+  const puntoIngreso = {
+    lat: Number(proyeccion.puntoIntercepto.lat),
+    lng: Number(proyeccion.puntoIntercepto.lng)
+  }
+  const sentidoCircuito = normalizarSentidoCircuitoCliente(aeronave.circuitoSentido)
+  cancelarOrbitParaJoinCircuito(aeronave)
+  aeronave.joinCircuitoPunto = puntoIngreso
+  mostrarMarcadorPuntoJoinAeronave(aeronave)
+  marcarSentidoCircuitoAeronave(aeronave, sentidoCircuito)
+  mostrarNotificacionTemporal(
+    "Aircraft flying to the selected circuit point",
+    "info",
+    2400
+  )
+
+  moverAeronaveHacia(
+    aeronave,
+    puntoIngreso,
+    () => {
+      socket.emit("iniciarCircuito", {
+        id: aeronave.id,
+        sentidoCircuito,
+        puntoIngreso
+      })
+    },
+    {
+      velocidadObjetivoFinalKt: Math.max(
+        0,
+        Number(aeronave.velocidadObjetivo) || PILOTAGE_DEFAULT_SPEED_INITIAL_KT
+      ),
+      virajeRealista: true,
+      bancoMaxGrados: PILOTAGE_REALISTIC_BANK_DEG,
+      tasaVirajeMinDegSeg: PILOTAGE_REALISTIC_TURN_RATE_MIN_DEG_PER_SEC,
+      tasaVirajeMaxDegSeg: PILOTAGE_REALISTIC_TURN_RATE_MAX_DEG_PER_SEC,
+      umbralCongelarRumboM: 12,
+      estadoDuranteMovimiento: "JOINING"
+    }
+  )
+  ocultarOpcionesJoin()
+  return true
+}
+
+function mostrarOpcionesJoin(aeronave = null){
   const contenedor = document.getElementById("circuitJoinOpciones")
   const btnJoin = document.getElementById("circuitStart")
   if(!contenedor) return
@@ -14482,7 +16198,12 @@ function mostrarOpcionesJoin(){
   contenedor.setAttribute("aria-hidden", "false")
   if(btnJoin){
     btnJoin.setAttribute("aria-expanded", "true")
+    btnJoin.classList.add("activo")
   }
+  if(aeronave){
+    activarModoSeleccionJoinCircuito(aeronave)
+  }
+  actualizarMensajeJoinCircuito()
 }
 
 function ocultarOpcionesJoin(){
@@ -14494,17 +16215,19 @@ function ocultarOpcionesJoin(){
   contenedor.setAttribute("aria-hidden", "true")
   if(btnJoin){
     btnJoin.setAttribute("aria-expanded", "false")
+    btnJoin.classList.remove("activo")
   }
+  desactivarModoSeleccionJoinCircuito()
 }
 
-function toggleOpcionesJoin(){
+function toggleOpcionesJoin(aeronave = null){
   const contenedor = document.getElementById("circuitJoinOpciones")
   if(!contenedor) return
 
   if(contenedor.classList.contains("activo")){
     ocultarOpcionesJoin()
   } else {
-    mostrarOpcionesJoin()
+    mostrarOpcionesJoin(aeronave)
   }
 }
 
@@ -14936,9 +16659,6 @@ function activarPrincipal(boton){
   const circuitShort = document.getElementById("circuitShort")
   const circuitExtend = document.getElementById("circuitExtend")
   const circuitTurn = document.getElementById("circuitTurn")
-  const circuitJoinButtons = Array.from(
-    document.querySelectorAll("#circuitJoinOpciones .circuit-join-btn")
-  )
   const circuitSideButtons = Array.from(
     document.querySelectorAll("#circuitJoinOpciones .circuit-side-btn")
   )
@@ -14993,7 +16713,7 @@ function activarPrincipal(boton){
 
   }
 
-  function iniciarCircuitoConModo(modoIngreso){
+  function iniciarCircuitoConModo(modoIngreso, puntoIngreso = null){
     const a = obtenerAeronaveObjetivoControles()
     if(!a){
       alert("Select an aircraft first")
@@ -15005,12 +16725,13 @@ function activarPrincipal(boton){
       Boolean(a.rutaPilotageActiva)
 
     cancelarAccionesAeronave(a)
-    marcarOrbitSolicitado(a, false)
+    cancelarOrbitParaJoinCircuito(a)
     detenerExtendCircuito(a, false)
     const sentidoCircuito = normalizarSentidoCircuitoCliente(a.circuitoSentido)
     marcarSentidoCircuitoAeronave(a, sentidoCircuito)
 
     if(
+      !puntoIngreso &&
       a.estado === "PILOTAGE" &&
       modoIngreso === "nearest" &&
       reingresarCircuitoDctTrasObjetivoPilotage(a, modoIngreso)
@@ -15019,14 +16740,15 @@ function activarPrincipal(boton){
     }
 
     if(estabaEnPilotage){
-      reingresarCircuito(a, modoIngreso)
+      reingresarCircuito(a, modoIngreso, puntoIngreso)
       return
     }
 
     socket.emit("iniciarCircuito", {
       id: a.id,
       modoIngreso,
-      sentidoCircuito
+      sentidoCircuito,
+      puntoIngreso
     })
   }
 
@@ -15104,7 +16826,7 @@ function activarPrincipal(boton){
         alert("Select an aircraft first")
         return
       }
-      toggleOpcionesJoin()
+      toggleOpcionesJoin(a)
     })
   }
 
@@ -15122,14 +16844,10 @@ function activarPrincipal(boton){
         id: a.id,
         sentido: sentidoCircuito
       })
-    })
-  })
-
-  circuitJoinButtons.forEach(btn => {
-    btn.addEventListener("click", () => {
-      const modoIngreso = obtenerModoIngresoJoin(btn.dataset.join)
-      iniciarCircuitoConModo(modoIngreso)
-      ocultarOpcionesJoin()
+      if(esModoSeleccionJoinCircuitoActivo()){
+        limpiarPrevisualizacionJoinCircuito()
+        solicitarRutaVisualJoinCircuito(a)
+      }
     })
   })
 
@@ -16315,6 +18033,7 @@ function detenerEstadoLocalAeronave(a){
 
   cancelarAccionesAeronave(a)
   limpiarMarcaPilotageAeronave(a)
+  limpiarMarcadorPuntoJoinAeronave(a, true)
   limpiarInterpolacionRemotaAeronave(a)
   mostrarTaxiing(a, false)
 
@@ -17209,10 +18928,16 @@ function iniciarAscensoTouchAndGo(a){
 }
 
 
-function reingresarCircuito(a, modoIngreso = "nearest"){
+function reingresarCircuito(a, modoIngreso = "nearest", puntoIngreso = null){
   if(!a) return
 
-  a.estado = "REJOINING"
+  a.estado = "JOINING"
+  a.joinCircuitoPunto = normalizarPuntoJoinCircuitoLocal(puntoIngreso)
+  if(a.joinCircuitoPunto){
+    mostrarMarcadorPuntoJoinAeronave(a)
+  } else {
+    limpiarMarcadorPuntoJoinAeronave(a, true)
+  }
   desactivarSeleccionLandingTouchAndGo(a)
   actualizarPanelInfoAeronave(a)
   actualizarPanelInfo(a)
@@ -17227,7 +18952,8 @@ function reingresarCircuito(a, modoIngreso = "nearest"){
   socket.emit("iniciarCircuito", {
     id: a.id,
     modoIngreso,
-    sentidoCircuito
+    sentidoCircuito,
+    puntoIngreso
   })
 }
 
@@ -18165,6 +19891,10 @@ function actualizarPanelInfo(a){
     estadoTexto = "PILOTAGE"
     break
 
+  case "JOINING":
+    estadoTexto = "JOINING"
+    break
+
   case "CIRCUIT":
     estadoTexto = "TRAFFIC PATTERN"
     break
@@ -18222,7 +19952,7 @@ function formatearVelocidadVisual(a, padding = false){
 
   if(knots > SPEED_CONTROL_MAX_KT){
     const mach = knots / KNOTS_PER_MACH
-    return "MACH " + mach.toFixed(2)
+    return `MACH ${mach.toFixed(2)} (${knots} kt)`
   }
 
   if(padding){
@@ -18265,8 +19995,11 @@ function cerrarPanel(){
     actualizarInteraccion(aeronavePrev)
   }
   limpiarPanelControlesAeronave(true)
+  sincronizarMarcadoresPuntoArrivalAeronaves()
+  sincronizarMarcadoresPuntoJoinAeronaves()
+  desactivarModoSeleccionArrivalIngreso({ sincronizarUI: false })
   actualizarBotonTaxi()
-  actualizarEstadoBotonSesionPiloto()
+  actualizarEstadoBotonPilotage()
   refrescarPatronVisual()
   limpiarRutaProcedimientoSeleccionada()
   sincronizarVisibilidadRutasAeronaves()
@@ -19293,6 +21026,7 @@ function enviarAjuste(tipo, valor, aeronaveObjetivo = null) {
   const esManual = estadoActual === "MANUAL"
   const esAuto = estadoActual === "AUTO"
   const esCircuito =
+    estadoActual === "JOINING" ||
     estadoActual === "CIRCUIT" ||
     estadoActual === "ORBT" ||
     estadoActual === "INTERCEPTING ARC" ||
@@ -20850,6 +22584,7 @@ let zonasProhibidasLayer = null
 let ejePista = null
 let runwayMarkingsLayer = null
 var patronLayer = null
+var patronJoinHitLayer = null
 let sidKopraLayer = null
 let sidTelotLayer = null
 let holdingScoLayer = null
@@ -21684,15 +23419,7 @@ function dibujarRutaSidTelot1(){
 }
 
 function estiloRutaHoldingScoCapas(){
-  return {
-    color: "#000000",
-    weight: 3,
-    opacity: 0.92,
-    dashArray: "8 8",
-    lineCap: "round",
-    lineJoin: "round",
-    interactive: false
-  }
+  return crearEstiloRutaLlegadaMapa()
 }
 
 function construirRutaHoldingSco(){
@@ -21851,16 +23578,9 @@ function esAproximacionIlsOVor(claveProcedimiento){
 }
 
 function estiloRutaArrivalCapas(claveProcedimiento = ""){
-  const estilo = {
-    color: "#000000",
-    weight: 2.5,
-    opacity: 0.92,
-    interactive: false
-  }
-  if(esAproximacionIlsOVor(claveProcedimiento)){
-    estilo.dashArray = "8 8"
-    estilo.lineCap = "round"
-    estilo.lineJoin = "round"
+  const estilo = crearEstiloRutaLlegadaMapa()
+  if(claveProcedimiento === "GEBED3 / HOLDING MUMOP"){
+    estilo.weight = GEBED3_HOLDING_MUMOP_LINE_WEIGHT
   }
   return estilo
 }
@@ -22403,6 +24123,185 @@ function obtenerProyeccionRutaLinealMasCercanaCliente(posicion, ruta){
   return mejor
 }
 
+function normalizarPuntoIngresoArrivalSeleccionado(puntoIngreso){
+  if(Array.isArray(puntoIngreso) && puntoIngreso.length >= 2){
+    const lat = Number(puntoIngreso[0])
+    const lng = Number(puntoIngreso[1])
+    if(Number.isFinite(lat) && Number.isFinite(lng)){
+      return { lat, lng }
+    }
+  }
+
+  if(puntoIngreso && typeof puntoIngreso === "object"){
+    const lat = Number(puntoIngreso.lat)
+    const lng = Number(puntoIngreso.lng)
+    if(Number.isFinite(lat) && Number.isFinite(lng)){
+      return { lat, lng }
+    }
+  }
+
+  return null
+}
+
+function obtenerProyeccionIngresoArrivalSeleccionado(rutaBase, puntoIngreso){
+  const puntoNormalizado = normalizarPuntoIngresoArrivalSeleccionado(puntoIngreso)
+  if(!Array.isArray(rutaBase) || rutaBase.length < 2 || !puntoNormalizado){
+    return null
+  }
+
+  return obtenerProyeccionRutaLinealMasCercanaCliente(
+    L.latLng(puntoNormalizado.lat, puntoNormalizado.lng),
+    rutaBase
+  )
+}
+
+function construirPlanLlegadaHoldingScoConIngresoSeleccionado(aeronave, puntoIngreso){
+  const posicionActual = obtenerPosicionActualAeronave(aeronave)
+  const rutaHolding = compactarRutaAirbornePuntos(construirRutaHoldingSco())
+  if(!posicionActual || !Array.isArray(rutaHolding) || rutaHolding.length < 2){
+    return null
+  }
+
+  const proyeccion = obtenerProyeccionIngresoArrivalSeleccionado(
+    rutaHolding,
+    puntoIngreso
+  )
+  if(!proyeccion || !proyeccion.puntoIntercepto){
+    return null
+  }
+
+  const puntoSeleccionado = [
+    Number(proyeccion.puntoIntercepto.lat),
+    Number(proyeccion.puntoIntercepto.lng)
+  ]
+  const rutaHoldingCiclica = [
+    puntoSeleccionado,
+    ...rutaHolding.slice(proyeccion.indiceB),
+    ...rutaHolding.slice(1, proyeccion.indiceB),
+    puntoSeleccionado
+  ]
+  const ruta = compactarRutaAirbornePuntos([
+    [posicionActual.lat, posicionActual.lng],
+    ...rutaHoldingCiclica
+  ])
+  if(ruta.length < 2){
+    return null
+  }
+
+  let loopStartIndex = encontrarIndicePuntoEnRuta(ruta, puntoSeleccionado, 80, 0)
+  if(loopStartIndex < 0 || loopStartIndex >= ruta.length - 1){
+    loopStartIndex = Math.max(0, Math.min(ruta.length - 2, 1))
+  }
+
+  return {
+    ruta,
+    loopStartIndex
+  }
+}
+
+function construirRutaLlegadaDesdeHoldingScoHaciaRutaBaseConIngresoSeleccionado(
+  aeronave,
+  rutaBase,
+  puntoIngreso
+){
+  const posicionActual = obtenerPosicionActualAeronave(aeronave)
+  const rutaProcedimiento = compactarRutaAirbornePuntos(rutaBase)
+  const rutaHolding = compactarRutaAirbornePuntos(construirRutaHoldingSco())
+  if(
+    !posicionActual ||
+    !Array.isArray(rutaProcedimiento) ||
+    rutaProcedimiento.length < 2 ||
+    !Array.isArray(rutaHolding) ||
+    rutaHolding.length < 2
+  ){
+    return null
+  }
+
+  const proyeccion = obtenerProyeccionIngresoArrivalSeleccionado(
+    rutaHolding,
+    puntoIngreso
+  )
+  if(!proyeccion || !proyeccion.puntoIntercepto){
+    return null
+  }
+
+  const puntoSeleccionado = [
+    Number(proyeccion.puntoIntercepto.lat),
+    Number(proyeccion.puntoIntercepto.lng)
+  ]
+  const rutaSalida = compactarRutaAirbornePuntos([
+    [posicionActual.lat, posicionActual.lng],
+    puntoSeleccionado,
+    ...rutaHolding.slice(proyeccion.indiceB),
+    ...rutaProcedimiento.slice(1)
+  ])
+
+  return rutaSalida.length >= 2 ? rutaSalida : null
+}
+
+function construirPlanRutaPublicadaDesdeIngresoSeleccionado(
+  aeronave,
+  rutaPublicada,
+  opciones = {}
+){
+  const posicionActual = obtenerPosicionActualAeronave(aeronave)
+  const rutaBase = compactarRutaAirbornePuntos(rutaPublicada)
+  if(!posicionActual || !Array.isArray(rutaBase) || rutaBase.length < 2){
+    return null
+  }
+
+  const proyeccion = obtenerProyeccionIngresoArrivalSeleccionado(
+    rutaBase,
+    opciones.puntoIngreso
+  )
+  if(!proyeccion || !proyeccion.puntoIntercepto){
+    return null
+  }
+
+  const puntoSeleccionado = [
+    Number(proyeccion.puntoIntercepto.lat),
+    Number(proyeccion.puntoIntercepto.lng)
+  ]
+  const ruta = compactarRutaAirbornePuntos([
+    [posicionActual.lat, posicionActual.lng],
+    puntoSeleccionado,
+    ...rutaBase.slice(proyeccion.indiceB)
+  ])
+  if(ruta.length < 2){
+    return null
+  }
+
+  if(!Boolean(opciones.loop)){
+    return { ruta }
+  }
+
+  const referenciaLoop = opciones.loopReferencePoint
+  const toleranciaLoopM = Number.isFinite(Number(opciones.loopReferenceToleranceM))
+    ? Math.max(20, Number(opciones.loopReferenceToleranceM))
+    : 160
+  const indiceLoopBase = Array.isArray(referenciaLoop)
+    ? encontrarIndicePuntoEnRuta(rutaBase, referenciaLoop, toleranciaLoopM, 1)
+    : -1
+  const seleccionDentroLoop =
+    indiceLoopBase >= 0 && proyeccion.indiceA >= indiceLoopBase
+
+  let loopStartIndex = seleccionDentroLoop
+    ? encontrarIndicePuntoEnRuta(ruta, puntoSeleccionado, 80, 0)
+    : (
+        indiceLoopBase >= 0
+          ? encontrarIndicePuntoEnRuta(ruta, referenciaLoop, toleranciaLoopM, 1)
+          : -1
+      )
+  if(loopStartIndex < 0 || loopStartIndex >= ruta.length - 1){
+    loopStartIndex = Math.max(0, Math.min(ruta.length - 2, 1))
+  }
+
+  return {
+    ruta,
+    loopStartIndex
+  }
+}
+
 function construirPlanLlegadaHoldingScoDesdeActual(aeronave){
   const posicionActual = obtenerPosicionActualAeronave(aeronave)
   const rutaHolding = compactarRutaAirbornePuntos(construirRutaHoldingSco())
@@ -22867,6 +24766,7 @@ function activarProcedimientoLlegadaAirborne(aeronave, ruta, opciones = {}){
     opciones.minAltitudeFt
   )
 
+  desactivarModoSeleccionArrivalIngreso({ sincronizarUI: false })
   cancelarAccionesAeronave(aeronave)
   reiniciarEstadosActivosPanelControles(aeronave, { preserveArrival: true })
   limpiarMarcaPilotageAeronave(aeronave)
@@ -22886,6 +24786,7 @@ function activarProcedimientoLlegadaAirborne(aeronave, ruta, opciones = {}){
     opciones.loopStartIndex
   )
   const velocidadInicialArrivalKt = Number(opciones.initialSpeedKt)
+  const puntoIngresoArrival = normalizarPuntoJoinCircuitoLocal(opciones.puntoIngreso)
 
   aeronave.estado = estadoRuta
   asignarRutaAirborneLocal(aeronave, rutaNormalizada, {
@@ -22893,6 +24794,7 @@ function activarProcedimientoLlegadaAirborne(aeronave, ruta, opciones = {}){
     loop,
     loopStartIndex
   })
+  aeronave.arrivalIngresoPunto = puntoIngresoArrival
   if(Number.isFinite(altitudObjetivoArrival)){
     aeronave.altitudObjetivo = altitudObjetivoArrival
   }
@@ -22910,7 +24812,8 @@ function activarProcedimientoLlegadaAirborne(aeronave, ruta, opciones = {}){
     estado: estadoRuta,
     loop,
     loopStartIndex,
-    arrivalProcedureName: nombreProcedimiento
+    arrivalProcedureName: nombreProcedimiento,
+    puntoIngreso: puntoIngresoArrival
   })
   if(
     Number.isFinite(velocidadInicialArrivalKt) &&
@@ -22924,6 +24827,10 @@ function activarProcedimientoLlegadaAirborne(aeronave, ruta, opciones = {}){
 
   refrescarPanelTrasProcedimientoLlegada(aeronave, estadoRuta)
   refrescarRutaProcedimientoAeronaveSeleccionada(aeronave)
+  sincronizarMarcadorPuntoArrivalAeronave(aeronave)
+  if(typeof window.sincronizarEstadoBotonesArrivalDesdeAeronave === "function"){
+    window.sincronizarEstadoBotonesArrivalDesdeAeronave()
+  }
   return true
 }
 
@@ -22981,6 +24888,9 @@ function cerrarPanelBusquedaLugares(){
 
 function abrirPanelBusquedaLugares(){
   if(!panelBusquedaLugares) return
+
+  cerrarPanelDibujoMapa()
+  ocultarOpcionesJoin()
 
   if(panelCapas){
     panelCapas.classList.remove("visible")
@@ -23465,12 +25375,24 @@ document.addEventListener("keydown", (e) => {
     panelBusquedaLugares.classList.contains("visible")
   ){
     cerrarPanelBusquedaLugares()
+    return
+  }
+
+  if(e.key === "Escape" && esModoSeleccionJoinCircuitoActivo()){
+    ocultarOpcionesJoin()
+    return
+  }
+
+  if(e.key === "Escape" && modoDibujoMapaActivo){
+    cerrarPanelDibujoMapa()
   }
 })
 
 btnCapas.addEventListener("click", () => {
   if(!panelCapas.classList.contains("visible")){
     cerrarPanelBusquedaLugares()
+    cerrarPanelDibujoMapa()
+    ocultarOpcionesJoin()
   }
 
   panelCapas.classList.toggle("visible")
@@ -24364,6 +26286,8 @@ chkEje.addEventListener("change", () => {
     actualizarIconoHoldShort()
     actualizarIconosSignosRunway()
     actualizarVisibilidadSignosRunway()
+    sincronizarMarcadoresPuntoArrivalAeronaves()
+    sincronizarMarcadoresPuntoJoinAeronaves()
   })
 
 
@@ -24383,6 +26307,10 @@ chkPatron.addEventListener("change", () => {
 
   } else {
 
+    if (patronJoinHitLayer) {
+      map.removeLayer(patronJoinHitLayer)
+      patronJoinHitLayer = null
+    }
     if (patronLayer) {
       map.removeLayer(patronLayer)
       patronLayer = null
@@ -24585,10 +26513,18 @@ function girarSuavemente(a, headingActual, headingObjetivo, deltaTiempo = 0.05){
   return aplicarVirajeLimitado(headingActual, headingObjetivo, maxCambio)
 }
 
-function dibujarRutaServidor(){
+function dibujarRutaServidor(rutaPersonalizada = null){
+  const joinActivo = esModoSeleccionJoinCircuitoActivo()
 
-  const rutaVisual = obtenerRutaCircuitoVisualActual()
+  const rutaVisual =
+    Array.isArray(rutaPersonalizada) && rutaPersonalizada.length > 1
+      ? rutaPersonalizada
+      : obtenerRutaCircuitoVisualActual()
   if(!Array.isArray(rutaVisual) || rutaVisual.length < 2){
+    if(patronJoinHitLayer){
+      map.removeLayer(patronJoinHitLayer)
+      patronJoinHitLayer = null
+    }
     if(patronLayer){
       map.removeLayer(patronLayer)
       patronLayer = null
@@ -24596,6 +26532,10 @@ function dibujarRutaServidor(){
     return
   }
 
+  if(patronJoinHitLayer){
+    map.removeLayer(patronJoinHitLayer)
+    patronJoinHitLayer = null
+  }
   if(patronLayer){
     map.removeLayer(patronLayer)
   }
@@ -24604,10 +26544,38 @@ function dibujarRutaServidor(){
     rutaVisual.map(p => [p.lat, p.lng]),
     {
       color: "#ffff00",
-      weight: 2,
-      dashArray: "8 8"
+      weight: joinActivo ? 4 : 2,
+      dashArray: "8 8",
+      interactive: true,
+      bubblingMouseEvents: true
     }
   ).addTo(map)
+
+  if(joinActivo){
+    patronJoinHitLayer = L.polyline(
+      rutaVisual.map(p => [p.lat, p.lng]),
+      {
+        color: "#ffffff",
+        weight: 18,
+        opacity: 0.01,
+        interactive: true,
+        bubblingMouseEvents: false
+      }
+    ).addTo(map)
+
+    patronJoinHitLayer.on("click", (e) => {
+      if(e && e.originalEvent){
+        e.originalEvent.preventDefault()
+      }
+      procesarClickMapaJoinCircuito(e && e.latlng ? e.latlng : null)
+    })
+
+    patronJoinHitLayer.on("mousemove", (e) => {
+      actualizarPrevisualizacionJoinCircuito(e && e.latlng ? e.latlng : null)
+    })
+
+    patronLayer.bringToFront()
+  }
 }
 function estaAlineadoConPista(a){
 
@@ -25539,20 +27507,27 @@ function manejarAtajosTecladoPanelManual(e){
 }
 
 function normalizarValorInputManual(tipo, valorTexto){
-  const valorNum = Number.parseFloat(valorTexto)
-  if(!Number.isFinite(valorNum)){
-    return null
-  }
-
   if(tipo === "heading"){
+    const valorNum = Number.parseFloat(valorTexto)
+    if(!Number.isFinite(valorNum)){
+      return null
+    }
     return Math.round(normalizarAngulo360(valorNum))
   }
 
   if(tipo === "speed"){
+    const valorNum = Number.parseFloat(valorTexto)
+    if(!Number.isFinite(valorNum)){
+      return null
+    }
     return Math.round(limitarVelocidadControlKnots(valorNum))
   }
 
   if(tipo === "altitude"){
+    const valorNum = Number.parseFloat(valorTexto)
+    if(!Number.isFinite(valorNum)){
+      return null
+    }
     return Math.max(0, Math.round(valorNum))
   }
 
@@ -25638,6 +27613,7 @@ function inicializarEdicionValoresManual(){
 }
 
 window.addEventListener("DOMContentLoaded", inicializarEdicionValoresManual)
+window.addEventListener("DOMContentLoaded", inicializarAutoApagadoPilotagePorControles)
 document.addEventListener("keydown", manejarAtajosTecladoPanelManual)
 window.addEventListener("DOMContentLoaded", inicializarAlineacionBotonLateralCentro)
 window.addEventListener("DOMContentLoaded", inicializarTogglePanelInfoView)
@@ -25755,7 +27731,7 @@ function toggleWeatherPanel(forzarActivo = null){
   document.body.dataset.modoOperacion = modoOperacion
   actualizarSelectorModoOperacion()
   aplicarVisibilidadPanelIzquierdoPorModo()
-  actualizarEstadoBotonSesionPiloto()
+  actualizarEstadoBotonPilotage()
   emitirModoOperacionServidor()
   inicializarPanelControladorDragDrop()
   inicializarPanelControladorServicios()
@@ -26520,9 +28496,68 @@ window.addEventListener("DOMContentLoaded", () => {
     return null
   }
 
+  function obtenerSeleccionArrivalPendienteUI(){
+    const aeronave = obtenerAeronaveArrivalActivaUI()
+    if(
+      !aeronave ||
+      !arrivalIngresoSeleccionPendiente ||
+      arrivalIngresoSeleccionPendiente.aeronaveId !== aeronave.id
+    ){
+      return null
+    }
+
+    return arrivalIngresoSeleccionPendiente
+  }
+
+  function aplicarEstadoVisualArrivalPendiente(seleccionPendiente){
+    if(!seleccionPendiente){
+      return false
+    }
+
+    const principal = String(seleccionPendiente.uiPrincipal || "").trim().toLowerCase()
+    const secundario = String(seleccionPendiente.uiSecundario || "").trim().toLowerCase()
+
+    limpiarEstadoVisualArrival()
+
+    if(principal === "gebed3"){
+      aplicarEstadoMenu(btnGebed3, menuGebed3, true)
+      if(secundario === "mumop" && btnGebed3Mumop){
+        btnGebed3Mumop.classList.add("activo")
+      } else if(secundario === "ilsv" && btnGebed3IlsV){
+        btnGebed3IlsV.classList.add("activo")
+      } else if(secundario === "vorv" && btnGebed3VorV){
+        btnGebed3VorV.classList.add("activo")
+      }
+    } else if(principal === "ils"){
+      aplicarEstadoMenu(btnIls, menuIls, true)
+      if(secundario === "u" && btnIlsU){
+        btnIlsU.classList.add("activo")
+      } else if(secundario === "t" && btnIlsT){
+        btnIlsT.classList.add("activo")
+      }
+    } else if(principal === "vor"){
+      aplicarEstadoMenu(btnVor, menuVor, true)
+      if(secundario === "u" && btnVorU){
+        btnVorU.classList.add("activo")
+      } else if(secundario === "t" && btnVorT){
+        btnVorT.classList.add("activo")
+      }
+    }
+
+    return true
+  }
+
   function sincronizarEstadoBotonesArrivalDesdeAeronave(){
     const preferirMenuIls = Boolean(btnIls && btnIls.classList.contains("activo"))
     const preferirMenuVor = Boolean(btnVor && btnVor.classList.contains("activo"))
+    const seleccionPendiente = obtenerSeleccionArrivalPendienteUI()
+    if(seleccionPendiente){
+      aplicarEstadoVisualArrivalPendiente(seleccionPendiente)
+      sincronizarCapasVisualesArrival()
+      refrescarVisualizacionSeleccionArrivalIngreso()
+      return
+    }
+
     limpiarEstadoVisualArrival()
 
     const aeronave = obtenerAeronaveArrivalActivaUI()
@@ -26577,18 +28612,36 @@ window.addEventListener("DOMContentLoaded", () => {
     sincronizarEstadoBotonesArrivalDesdeAeronave
 
   function reiniciarBotonesGebed3(){
+    if(
+      arrivalIngresoSeleccionPendiente &&
+      arrivalIngresoSeleccionPendiente.uiPrincipal === "gebed3"
+    ){
+      desactivarModoSeleccionArrivalIngreso({ sincronizarUI: false })
+    }
     aplicarEstadoMenu(btnGebed3, menuGebed3, false)
     botonesGebed3.forEach(btn => btn.classList.remove("activo"))
     sincronizarCapasVisualesArrival()
   }
 
   function reiniciarBotonesIls(){
+    if(
+      arrivalIngresoSeleccionPendiente &&
+      arrivalIngresoSeleccionPendiente.uiPrincipal === "ils"
+    ){
+      desactivarModoSeleccionArrivalIngreso({ sincronizarUI: false })
+    }
     aplicarEstadoMenu(btnIls, menuIls, false)
     limpiarBotonesSeleccion("ils")
     sincronizarCapasVisualesArrival()
   }
 
   function reiniciarBotonesVor(){
+    if(
+      arrivalIngresoSeleccionPendiente &&
+      arrivalIngresoSeleccionPendiente.uiPrincipal === "vor"
+    ){
+      desactivarModoSeleccionArrivalIngreso({ sincronizarUI: false })
+    }
     aplicarEstadoMenu(btnVor, menuVor, false)
     limpiarBotonesSeleccion("vor")
     sincronizarCapasVisualesArrival()
@@ -26635,93 +28688,193 @@ window.addEventListener("DOMContentLoaded", () => {
     return aeronave
   }
 
-  function activarHoldingScoArrival(){
+  function iniciarSeleccionArrival(configuracion = {}){
     const aeronave = obtenerAeronaveLlegadaValida()
     if(!aeronave){
       return false
     }
 
-    const planHolding = construirPlanLlegadaHoldingScoDesdeActual(aeronave)
-    if(!planHolding || !Array.isArray(planHolding.ruta) || planHolding.ruta.length < 2){
-      alert("Unable to build Holding SCO route")
+    const rutaPreview = compactarRutaAirbornePuntos(configuracion.rutaPreview)
+    if(!Array.isArray(rutaPreview) || rutaPreview.length < 2){
+      alert(configuracion.mensajeError || "Unable to build the arrival route")
       return false
     }
 
-    return activarProcedimientoLlegadaAirborne(aeronave, planHolding.ruta, {
-      state: "AIRBORNE",
-      loop: true,
-      loopStartIndex: planHolding.loopStartIndex,
-      minAltitudeFt: ALTITUD_MINIMA_ARRIVAL_ILS_VOR_FT,
-      initialSpeedKt: VELOCIDAD_INICIAL_ARRIVAL_ILS_VOR_KT,
-      procedureName: "Holding SCO antihorario"
+    if(typeof configuracion.prepararVisuales === "function"){
+      configuracion.prepararVisuales(aeronave)
+    }
+
+    if(typeof configuracion.resolverPlan !== "function"){
+      return false
+    }
+
+    return activarModoSeleccionArrivalIngreso(aeronave, {
+      rutaPreview,
+      uiPrincipal: configuracion.uiPrincipal,
+      uiSecundario: configuracion.uiSecundario,
+      mensaje: configuracion.mensaje,
+      resolverPlan: (avion, puntoIngreso, proyeccion) =>
+        configuracion.resolverPlan(avion, puntoIngreso, proyeccion)
+    })
+  }
+
+  function desactivarSeleccionArrivalPendienteSiCoincide(uiPrincipal, uiSecundario = ""){
+    const seleccionPendiente = obtenerSeleccionArrivalPendienteUI()
+    if(!seleccionPendiente){
+      return false
+    }
+
+    const principalPendiente = String(seleccionPendiente.uiPrincipal || "").trim().toLowerCase()
+    const secundarioPendiente = String(seleccionPendiente.uiSecundario || "").trim().toLowerCase()
+    if(principalPendiente !== String(uiPrincipal || "").trim().toLowerCase()){
+      return false
+    }
+    if(secundarioPendiente !== String(uiSecundario || "").trim().toLowerCase()){
+      return false
+    }
+
+    desactivarModoSeleccionArrivalIngreso({ sincronizarUI: false })
+    return true
+  }
+
+  function activarHoldingScoArrival(uiPrincipal = "ils"){
+    return iniciarSeleccionArrival({
+      rutaPreview: construirRutaHoldingSco(),
+      uiPrincipal,
+      mensajeError: "Unable to build Holding SCO route",
+      mensaje: "Click a point on Holding SCO to choose where the aircraft will enter",
+      resolverPlan: (aeronave, puntoIngreso) => {
+        const planHolding = construirPlanLlegadaHoldingScoConIngresoSeleccionado(
+          aeronave,
+          puntoIngreso
+        )
+        if(
+          !planHolding ||
+          !Array.isArray(planHolding.ruta) ||
+          planHolding.ruta.length < 2
+        ){
+          return null
+        }
+
+        return {
+          ruta: planHolding.ruta,
+          opciones: {
+            state: "AIRBORNE",
+            loop: true,
+            loopStartIndex: planHolding.loopStartIndex,
+            minAltitudeFt: ALTITUD_MINIMA_ARRIVAL_ILS_VOR_FT,
+            initialSpeedKt: VELOCIDAD_INICIAL_ARRIVAL_ILS_VOR_KT,
+            procedureName: "Holding SCO antihorario"
+          }
+        }
+      }
     })
   }
 
   function activarLlegadaGebed3HoldingMumop(){
-    const aeronave = obtenerAeronaveLlegadaValida()
-    if(!aeronave){
-      return false
-    }
+    return iniciarSeleccionArrival({
+      rutaPreview: RUTA_STAR_GEBED3_HOLDING_MUMOP_CAPA,
+      uiPrincipal: "gebed3",
+      uiSecundario: "mumop",
+      mensajeError: "Unable to build GEBED3 Holding MUMOP route",
+      mensaje: "Click any point on GEBED3 to choose where the aircraft will enter",
+      resolverPlan: (aeronave, puntoIngreso) => {
+        aeronave.altitudObjetivo = 8000
+        const velocidadActualKnots = Number(obtenerVelocidadEnNudos(aeronave))
+        if(!Number.isFinite(velocidadActualKnots) || velocidadActualKnots <= 0){
+          aeronave.velocidadObjetivo = 90
+        }
 
-    aeronave.altitudObjetivo = 8000
-    const velocidadActualKnots = Number(obtenerVelocidadEnNudos(aeronave))
-    if(!Number.isFinite(velocidadActualKnots) || velocidadActualKnots <= 0){
-      aeronave.velocidadObjetivo = 90
-    }
+        const planGebed3 = construirPlanRutaPublicadaDesdeIngresoSeleccionado(
+          aeronave,
+          RUTA_STAR_GEBED3_HOLDING_MUMOP_CAPA,
+          {
+            puntoIngreso,
+            loop: true,
+            loopReferencePoint: MUMOP_COORDS,
+            loopReferenceToleranceM: 160
+          }
+        )
+        if(
+          !planGebed3 ||
+          !Array.isArray(planGebed3.ruta) ||
+          planGebed3.ruta.length < 2
+        ){
+          return null
+        }
 
-    const planGebed3 = construirRutaLlegadaGebed3HoldingMumopDesdeActual(aeronave)
-    if(!planGebed3 || !Array.isArray(planGebed3.ruta) || planGebed3.ruta.length < 2){
-      alert("Unable to build GEBED3 Holding MUMOP route")
-      return false
-    }
-
-    return activarProcedimientoLlegadaAirborne(aeronave, planGebed3.ruta, {
-      state: "AIRBORNE",
-      loop: true,
-      loopStartIndex: planGebed3.loopStartIndex,
-      procedureName: "GEBED3 / Holding MUMOP"
+        return {
+          ruta: planGebed3.ruta,
+          opciones: {
+            state: "AIRBORNE",
+            loop: true,
+            loopStartIndex: planGebed3.loopStartIndex,
+            procedureName: "GEBED3 / Holding MUMOP"
+          }
+        }
+      }
     })
   }
 
   function activarAproximacionVorT(){
-    const aeronave = obtenerAeronaveLlegadaValida()
-    if(!aeronave){
-      return false
-    }
+    return iniciarSeleccionArrival({
+      rutaPreview: construirRutaHoldingSco(),
+      uiPrincipal: "vor",
+      uiSecundario: "t",
+      mensajeError: "Unable to build VOR T route",
+      mensaje: "Click a point on Holding SCO to choose where the aircraft will join VOR T",
+      resolverPlan: (aeronave, puntoIngreso) => {
+        const rutaVorT = construirRutaLlegadaDesdeHoldingScoHaciaRutaBaseConIngresoSeleccionado(
+          aeronave,
+          RUTA_VOR_T,
+          puntoIngreso
+        )
+        if(!Array.isArray(rutaVorT) || rutaVorT.length < 2){
+          return null
+        }
 
-    const rutaVorT = construirRutaLlegadaVorTDesdeActual(aeronave)
-    if(!rutaVorT || rutaVorT.length < 2){
-      alert("Unable to build VOR T route")
-      return false
-    }
-
-    return activarProcedimientoLlegadaAirborne(aeronave, rutaVorT, {
-      state: "AIRBORNE",
-      loop: false,
-      loopStartIndex: 0,
-      minAltitudeFt: ALTITUD_MINIMA_ARRIVAL_ILS_VOR_FT,
-      procedureName: "Aproximación VOR T"
+        return {
+          ruta: rutaVorT,
+          opciones: {
+            state: "AIRBORNE",
+            loop: false,
+            loopStartIndex: 0,
+            minAltitudeFt: ALTITUD_MINIMA_ARRIVAL_ILS_VOR_FT,
+            procedureName: "Aproximación VOR T"
+          }
+        }
+      }
     })
   }
 
   function activarAproximacionVorU(){
-    const aeronave = obtenerAeronaveLlegadaValida()
-    if(!aeronave){
-      return false
-    }
+    return iniciarSeleccionArrival({
+      rutaPreview: construirRutaHoldingSco(),
+      uiPrincipal: "vor",
+      uiSecundario: "u",
+      mensajeError: "Unable to build VOR U route",
+      mensaje: "Click a point on Holding SCO to choose where the aircraft will join VOR U",
+      resolverPlan: (aeronave, puntoIngreso) => {
+        const rutaVorU = construirRutaLlegadaDesdeHoldingScoHaciaRutaBaseConIngresoSeleccionado(
+          aeronave,
+          RUTA_VOR_U,
+          puntoIngreso
+        )
+        if(!Array.isArray(rutaVorU) || rutaVorU.length < 2){
+          return null
+        }
 
-    const rutaVorU = construirRutaLlegadaVorUDesdeActual(aeronave)
-    if(!rutaVorU || rutaVorU.length < 2){
-      alert("Unable to build VOR U route")
-      return false
-    }
-
-    return activarProcedimientoLlegadaAirborne(aeronave, rutaVorU, {
-      state: "AIRBORNE",
-      loop: false,
-      loopStartIndex: 0,
-      minAltitudeFt: ALTITUD_MINIMA_ARRIVAL_ILS_VOR_FT,
-      procedureName: "Aproximación VOR U"
+        return {
+          ruta: rutaVorU,
+          opciones: {
+            state: "AIRBORNE",
+            loop: false,
+            loopStartIndex: 0,
+            minAltitudeFt: ALTITUD_MINIMA_ARRIVAL_ILS_VOR_FT,
+            procedureName: "Aproximación VOR U"
+          }
+        }
+      }
     })
   }
 
@@ -26777,48 +28930,70 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   function activarAproximacionIlsU(){
-    const aeronave = obtenerAeronaveLlegadaValida()
-    if(!aeronave){
-      return false
-    }
+    return iniciarSeleccionArrival({
+      rutaPreview: construirRutaHoldingSco(),
+      uiPrincipal: "ils",
+      uiSecundario: "u",
+      mensajeError: "Unable to build ILS U route",
+      mensaje: "Click a point on Holding SCO to choose where the aircraft will join ILS U",
+      prepararVisuales: () => {
+        mostrarSenalIlsSeleccionada("U")
+      },
+      resolverPlan: (aeronave, puntoIngreso) => {
+        const rutaIlsU = construirRutaLlegadaDesdeHoldingScoHaciaRutaBaseConIngresoSeleccionado(
+          aeronave,
+          RUTA_ILS_U,
+          puntoIngreso
+        )
+        if(!Array.isArray(rutaIlsU) || rutaIlsU.length < 2){
+          return null
+        }
 
-    const rutaIlsU = construirRutaLlegadaIlsUDesdeActual(aeronave)
-    if(!rutaIlsU || rutaIlsU.length < 2){
-      alert("Unable to build ILS U route")
-      return false
-    }
-
-    mostrarSenalIlsSeleccionada("U")
-
-    return activarProcedimientoLlegadaAirborne(aeronave, rutaIlsU, {
-      state: "AIRBORNE",
-      loop: false,
-      loopStartIndex: 0,
-      minAltitudeFt: ALTITUD_MINIMA_ARRIVAL_ILS_VOR_FT,
-      procedureName: "Aproximación ILS U"
+        return {
+          ruta: rutaIlsU,
+          opciones: {
+            state: "AIRBORNE",
+            loop: false,
+            loopStartIndex: 0,
+            minAltitudeFt: ALTITUD_MINIMA_ARRIVAL_ILS_VOR_FT,
+            procedureName: "Aproximación ILS U"
+          }
+        }
+      }
     })
   }
 
   function activarAproximacionIlsT(){
-    const aeronave = obtenerAeronaveLlegadaValida()
-    if(!aeronave){
-      return false
-    }
+    return iniciarSeleccionArrival({
+      rutaPreview: construirRutaHoldingSco(),
+      uiPrincipal: "ils",
+      uiSecundario: "t",
+      mensajeError: "Unable to build ILS T route",
+      mensaje: "Click a point on Holding SCO to choose where the aircraft will join ILS T",
+      prepararVisuales: () => {
+        mostrarSenalIlsSeleccionada("T")
+      },
+      resolverPlan: (aeronave, puntoIngreso) => {
+        const rutaIlsT = construirRutaLlegadaDesdeHoldingScoHaciaRutaBaseConIngresoSeleccionado(
+          aeronave,
+          RUTA_ILS_T,
+          puntoIngreso
+        )
+        if(!Array.isArray(rutaIlsT) || rutaIlsT.length < 2){
+          return null
+        }
 
-    const rutaIlsT = construirRutaLlegadaIlsTDesdeActual(aeronave)
-    if(!rutaIlsT || rutaIlsT.length < 2){
-      alert("Unable to build ILS T route")
-      return false
-    }
-
-    mostrarSenalIlsSeleccionada("T")
-
-    return activarProcedimientoLlegadaAirborne(aeronave, rutaIlsT, {
-      state: "AIRBORNE",
-      loop: false,
-      loopStartIndex: 0,
-      minAltitudeFt: ALTITUD_MINIMA_ARRIVAL_ILS_VOR_FT,
-      procedureName: "Aproximación ILS T"
+        return {
+          ruta: rutaIlsT,
+          opciones: {
+            state: "AIRBORNE",
+            loop: false,
+            loopStartIndex: 0,
+            minAltitudeFt: ALTITUD_MINIMA_ARRIVAL_ILS_VOR_FT,
+            procedureName: "Aproximación ILS T"
+          }
+        }
+      }
     })
   }
 
@@ -26852,6 +29027,9 @@ window.addEventListener("DOMContentLoaded", () => {
 
       const activar = !btn.classList.contains("activo")
       const opcionGebed3 = String(btn.dataset.arrivalGebed3 || "").trim().toLowerCase()
+      if(!activar){
+        desactivarSeleccionArrivalPendienteSiCoincide("gebed3", opcionGebed3)
+      }
       if(activar && opcionGebed3 === "mumop"){
         if(!activarLlegadaGebed3HoldingMumop()){
           return
@@ -26888,7 +29066,10 @@ window.addEventListener("DOMContentLoaded", () => {
       cerrarGrupoPrincipal(menu)
       aplicarEstadoMenu(boton, menu, true)
 
-      if((boton === btnIls || boton === btnVor) && !activarHoldingScoArrival()){
+      if(
+        (boton === btnIls || boton === btnVor) &&
+        !activarHoldingScoArrival(boton === btnVor ? "vor" : "ils")
+      ){
         cerrarGrupoPrincipal()
         return
       }
@@ -26905,6 +29086,9 @@ window.addEventListener("DOMContentLoaded", () => {
       if(!grupo) return
 
       const activar = !btn.classList.contains("activo")
+      if(!activar){
+        desactivarSeleccionArrivalPendienteSiCoincide(grupo, opcion.toLowerCase())
+      }
       if(activar && grupo === "vor"){
         if(opcion === "U" && !activarAproximacionVorU()){
           return

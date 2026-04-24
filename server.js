@@ -138,9 +138,10 @@ const PUNTO_REFERENCIA_EJE_041_UMBRAL_22_COORDS = puntoPlano(
 )
 const PUNTO_REFERENCIA_EJE_FINAL_RWY22_COORDS = puntoPlano(
   UMBRAL_22_COORDS,
-  calcularRumboServidor(UMBRAL_04_COORDS, UMBRAL_22_COORDS),
+  calcularRumboServidor(UMBRAL_22_COORDS, UMBRAL_04_COORDS),
   1000
 )
+const RUMBO_PISTA_22 = calcularRumboServidor(UMBRAL_22_COORDS, UMBRAL_04_COORDS)
 const SCO_RADIAL_022_5NM_COORDS = puntoPlanoEnRadialSco(22, 5 * 1852)
 const SCO_RADIAL_017_8NM_COORDS = puntoPlanoEnRadialSco(17, 8 * 1852)
 const SCO_RADIAL_040_9NM_COORDS = puntoPlanoEnRadialSco(40, 9 * 1852)
@@ -170,11 +171,28 @@ const GO_AROUND_MANUAL_SWITCH_DISTANCE_M = 5 * 1852
 const GO_AROUND_FINAL_HEADING_ACTIVACION_TOL = 35
 const GO_AROUND_FINAL_MAX_DIST_M = 1800
 const INTERCEPT_LEG_LOOKAHEAD_MIN_M = 90
-const SHORT_CIRCUITO_FACTOR = 0.5
 const SHORT_CIRCUITO_PASO_M = 0.5 * 1852
 const CIRCUITO_LONGITUD_FINAL_BASE_M = 1.5 * 1852
 const CIRCUITO_LONGITUD_FINAL_SHORT_M = 1.0 * 1852
+const CIRCUITO_LONGITUD_FINAL_SHORT_MIN_M = 0.3 * 1852
+const SHORT_CIRCUITO_FACTOR =
+  CIRCUITO_LONGITUD_FINAL_SHORT_MIN_M / CIRCUITO_LONGITUD_FINAL_BASE_M
 const CIRCUITO_LONGITUD_UPWIND_BASE_M = 2.2 * 1852
+const DEPARTURE_RDL_RIGHT_TRIGGER_DME_M = 2 * 1852
+const DEPARTURE_RDL_LEFT_TRIGGER_DME_M = 3 * 1852
+const DEPARTURE_RDL_AUTO_TRIGGER_DME_M = 2.3 * 1852
+const DEPARTURE_RDL_TURN_RATE_DEG_PER_SEC = 3
+const DEPARTURE_RDL_INTERCEPT_DME_M = 5 * 1852
+const DEPARTURE_RDL_INTERCEPT_POINT_TOL_M = 0.18 * 1852
+const DEPARTURE_RDL_CAPTURE_TOL_DEG = 3
+const DEPARTURE_RDL_TRACK_CORRECTION_MAX_DEG = 12
+const AIRBORNE_SPEED_MAX_KT = 250
+const VFR_PUNTO_GIRO_MTASA_COORDS = { lat: -13.773769737847493, lng: -76.24485433101655 }
+const VFR_PUNTO_GIRO_SL_COORDS = { lat: -13.762231281013394, lng: -76.23511980876593 }
+const VFR_MUELLE_TASA_COORDS = { lat: -13.7875, lng: -76.24027778 }
+const VFR_UMBRAL_GIRO_M = 700
+const VFR_UMBRAL_OBJETIVO_M = 500
+const VFR_UMBRAL_REARME_OBJETIVO_SL_M = 180
 const PILOTAGE_DEFAULT_SPEED_INITIAL_KT = 90
 const PILOTAGE_REALISTIC_BANK_DEG = 22
 const PILOTAGE_REALISTIC_TURN_RATE_MIN_DEG_PER_SEC = 2
@@ -1089,10 +1107,98 @@ function obtenerProgresoCarreraDespegueMetros(aeronave){
   return Number.isFinite(progreso) ? Math.max(0, progreso) : 0
 }
 
-function reiniciarSecuenciaDespegueAeronave(aeronave){
+function limitarVelocidadAutomaticaDespegueServidor(velocidadObjetivoKt){
+  const velocidadNormalizada = Number(velocidadObjetivoKt)
+  const velocidadSegura = Number.isFinite(velocidadNormalizada)
+    ? Math.max(0, velocidadNormalizada)
+    : 0
+
+  return Math.min(AIRBORNE_SPEED_MAX_KT, velocidadSegura)
+}
+
+function obtenerLimiteVelocidadControlKnotsServidor(aeronave){
+  return aeronave && aeronave.estado === "AIRBORNE"
+    ? AIRBORNE_SPEED_MAX_KT
+    : SPEED_CONTROL_MAX_KNOTS
+}
+
+function limitarVelocidadControlKnotsServidor(aeronave, velocidadKnots){
+  const velocidadNormalizada = Number(velocidadKnots)
+  const velocidadSegura = Number.isFinite(velocidadNormalizada)
+    ? Math.max(0, velocidadNormalizada)
+    : 0
+
+  return Math.min(
+    obtenerLimiteVelocidadControlKnotsServidor(aeronave),
+    velocidadSegura
+  )
+}
+
+function tieneOverrideVelocidadManualDespegueServidor(aeronave){
+  return Boolean(
+    aeronave &&
+    aeronave.estado === "AIRBORNE" &&
+    aeronave.takeoffManualSpeedActive === true
+  )
+}
+
+function actualizarOverrideVelocidadManualDespegueServidor(aeronave, activa){
   if(!aeronave) return
+  aeronave.takeoffManualSpeedActive = Boolean(
+    activa &&
+    aeronave.estado === "AIRBORNE"
+  )
+}
+
+function aplicarVelocidadObjetivoAirborneServidor(aeronave, intervaloMS){
+  if(!aeronave || aeronave.estado !== "AIRBORNE"){
+    return false
+  }
+
+  const velocidadActualRaw = Number(aeronave.velocidad)
+  const velocidadObjetivoRaw = Number(aeronave.velocidadObjetivo)
+  const velocidadBaseKt =
+    Number.isFinite(velocidadObjetivoRaw) && velocidadObjetivoRaw >= 0
+      ? velocidadObjetivoRaw
+      : (
+        Number.isFinite(velocidadActualRaw) && velocidadActualRaw >= 0
+          ? velocidadActualRaw
+          : 0
+      )
+  const velocidadObjetivoKt = limitarVelocidadControlKnotsServidor(
+    aeronave,
+    velocidadBaseKt
+  )
+  const perfil = obtenerPerfilDespegueAeronave(aeronave.tipo)
+  const segundosTick = Math.max(0.02, (intervaloMS || 50) / 1000)
+  const maxCambioKt = Math.max(
+    0.1,
+    (Number(perfil.CLIMB_ACCEL_KT_PER_SEC) || 0) * segundosTick
+  )
+  let velocidadActualKt =
+    Number.isFinite(velocidadActualRaw) && velocidadActualRaw >= 0
+      ? velocidadActualRaw
+      : 0
+
+  aeronave.velocidadObjetivo = velocidadObjetivoKt
+  if(velocidadActualKt < velocidadObjetivoKt){
+    velocidadActualKt = Math.min(velocidadObjetivoKt, velocidadActualKt + maxCambioKt)
+  } else if(velocidadActualKt > velocidadObjetivoKt){
+    velocidadActualKt = Math.max(velocidadObjetivoKt, velocidadActualKt - maxCambioKt)
+  }
+
+  aeronave.velocidad = velocidadActualKt
+  return true
+}
+
+function reiniciarSecuenciaDespegueAeronave(aeronave, opciones = {}){
+  if(!aeronave) return
+  const reiniciarFaseRdl = opciones.resetDepartureRdlPhase !== false
   aeronave.fase = null
   aeronave.takeoffRollProgressM = 0
+  if(reiniciarFaseRdl){
+    aeronave.departureRdlPhase = null
+  }
 }
 
 function registrarAvanceCarreraDespegue(aeronave, metrosRecorridos){
@@ -1152,7 +1258,9 @@ function calcularComandoDespegueAeronave(aeronave, segundosTick = 0.05){
       : perfil.DEFAULT_TARGET_ALT_FT
 
   if(fase === "CLIMB" && altitudActualFt >= (altitudObjetivoFt - 1)){
-    reiniciarSecuenciaDespegueAeronave(aeronave)
+    reiniciarSecuenciaDespegueAeronave(aeronave, {
+      resetDepartureRdlPhase: false
+    })
     return {
       activa: false,
       perfil,
@@ -1183,11 +1291,14 @@ function calcularComandoDespegueAeronave(aeronave, segundosTick = 0.05){
       velocidadActualKt >= (perfil.ROTATION_KT - 1)
 
     if(!listoParaElevar){
+      const velocidadObjetivoKt = limitarVelocidadAutomaticaDespegueServidor(
+        perfil.RUNWAY_TARGET_KT
+      )
       return {
         activa: true,
         perfil,
         fase: "RUNWAY",
-        velocidadObjetivoKt: perfil.RUNWAY_TARGET_KT,
+        velocidadObjetivoKt,
         aceleracionKt: (aceleracionMps2 / 0.514444) * deltaSegundos,
         climbFPM: 0,
         permitirAscenso: false,
@@ -1217,6 +1328,10 @@ function calcularComandoDespegueAeronave(aeronave, segundosTick = 0.05){
     climbFPM = perfil.ROC_TO_FL240_FPM
   }
 
+  velocidadObjetivoKt = limitarVelocidadAutomaticaDespegueServidor(
+    velocidadObjetivoKt
+  )
+
   return {
     activa: true,
     perfil,
@@ -1236,7 +1351,7 @@ function aplicarPerformanceDespegueAeronave(aeronave, intervaloMS){
     return false
   }
 
-  const velocidadObjetivoKt = Number.isFinite(Number(comandoDespegue.velocidadObjetivoKt))
+  const velocidadAutomaticaObjetivoKt = Number.isFinite(Number(comandoDespegue.velocidadObjetivoKt))
     ? Math.max(0, Number(comandoDespegue.velocidadObjetivoKt))
     : 0
   const aceleracionKt = Number.isFinite(Number(comandoDespegue.aceleracionKt))
@@ -1249,7 +1364,20 @@ function aplicarPerformanceDespegueAeronave(aeronave, intervaloMS){
     ? Math.max(0, Number(comandoDespegue.altitudObjetivoFt))
     : comandoDespegue.perfil.DEFAULT_TARGET_ALT_FT
 
-  aeronave.velocidadObjetivo = velocidadObjetivoKt
+  let velocidadObjetivoKt = velocidadAutomaticaObjetivoKt
+  let usarVelocidadManualDespegue = tieneOverrideVelocidadManualDespegueServidor(aeronave)
+  if(usarVelocidadManualDespegue){
+    const velocidadManualKt = Number(aeronave.velocidadObjetivo)
+    if(Number.isFinite(velocidadManualKt) && velocidadManualKt >= 0){
+      velocidadObjetivoKt = Math.max(0, velocidadManualKt)
+    } else {
+      usarVelocidadManualDespegue = false
+      actualizarOverrideVelocidadManualDespegueServidor(aeronave, false)
+    }
+  }
+  if(!usarVelocidadManualDespegue){
+    aeronave.velocidadObjetivo = velocidadObjetivoKt
+  }
   if(
     !Number.isFinite(Number(aeronave.altitudObjetivo)) ||
     Number(aeronave.altitudObjetivo) <= 0
@@ -1275,10 +1403,356 @@ function aplicarPerformanceDespegueAeronave(aeronave, intervaloMS){
     )
     if(aeronave.altitud >= (altitudObjetivoFt - 1)){
       aeronave.altitud = altitudObjetivoFt
-      reiniciarSecuenciaDespegueAeronave(aeronave)
+      reiniciarSecuenciaDespegueAeronave(aeronave, {
+        resetDepartureRdlPhase: false
+      })
     }
   } else if(normalizarFaseDespegue(aeronave.fase) === "RUNWAY"){
     aeronave.altitud = 0
+  }
+
+  return true
+}
+
+function obtenerRadialActualScoVerdaderoServidor(aeronave){
+  if(!aeronave) return null
+  return calcularRumboServidor(SCO_VOR_COORDS, {
+    lat: aeronave.lat,
+    lng: aeronave.lng
+  })
+}
+
+function obtenerDistanciaScoServidor(aeronave){
+  if(!aeronave) return null
+  return distanciaEntre(SCO_VOR_COORDS, {
+    lat: aeronave.lat,
+    lng: aeronave.lng
+  })
+}
+
+function procesarSalidaRdlServidor(aeronave, intervaloMS){
+  if(!aeronave || aeronave.estado !== "AIRBORNE"){
+    return false
+  }
+
+  if(normalizarModoSalidaServidor(aeronave.modoSalida) !== "RDL"){
+    aeronave.departureRdlPhase = null
+    return false
+  }
+
+  const radialMagnetico = normalizarDepartureRdlServidor(aeronave.departureRdl)
+  const direccion = normalizarDepartureRdlDirectionServidor(aeronave.departureRdlDirection)
+  if(radialMagnetico === null){
+    aeronave.departureRdlPhase = null
+    return false
+  }
+
+  const distanciaVor = obtenerDistanciaScoServidor(aeronave)
+  const radialActual = obtenerRadialActualScoVerdaderoServidor(aeronave)
+  if(!Number.isFinite(distanciaVor) || !Number.isFinite(radialActual)){
+    return false
+  }
+
+  const segundosTick = Math.max(0.02, (intervaloMS || 50) / 1000)
+  const maxCambioRumbo = DEPARTURE_RDL_TURN_RATE_DEG_PER_SEC * segundosTick
+  const radialObjetivoVerdadero = convertirRadialScoMagneticoAVerdadero(radialMagnetico)
+  const puntoInterceptacion = puntoPlanoEnRadialSco(
+    radialMagnetico,
+    DEPARTURE_RDL_INTERCEPT_DME_M
+  )
+  const rumboPuntoInterceptacion = calcularRumboServidor(
+    { lat: aeronave.lat, lng: aeronave.lng },
+    puntoInterceptacion
+  )
+  const distanciaPuntoInterceptacion = distanciaEntre(
+    { lat: aeronave.lat, lng: aeronave.lng },
+    puntoInterceptacion
+  )
+  const faseDespegue = normalizarFaseDespegue(aeronave.fase)
+  const distanciaActivacion =
+    direccion === "RIGHT"
+      ? DEPARTURE_RDL_RIGHT_TRIGGER_DME_M
+      : direccion === "LEFT"
+        ? DEPARTURE_RDL_LEFT_TRIGGER_DME_M
+        : DEPARTURE_RDL_AUTO_TRIGGER_DME_M
+  const errorRadial = diferenciaAngular(radialActual, radialObjetivoVerdadero)
+
+  let fase = typeof aeronave.departureRdlPhase === "string"
+    ? aeronave.departureRdlPhase.trim().toUpperCase()
+    : ""
+  if(
+    fase !== "RUNWAY" &&
+    fase !== "TURN" &&
+    fase !== "INTERCEPT" &&
+    fase !== "ON_RADIAL"
+  ){
+    fase = "RUNWAY"
+  }
+
+  if(!Number.isFinite(aeronave.angulo)){
+    aeronave.angulo = RUMBO_PISTA_22
+  }
+
+  if(fase === "RUNWAY"){
+    aeronave.angulo = RUMBO_PISTA_22
+    if(
+      distanciaVor >= distanciaActivacion &&
+      (faseDespegue === "CLIMB" || faseDespegue === null)
+    ){
+      fase = "TURN"
+    }
+  }
+
+  if(fase === "TURN"){
+    if(direccion){
+      aeronave.angulo = aplicarVirajeHaciaObjetivoEnSentido(
+        aeronave.angulo,
+        rumboPuntoInterceptacion,
+        direccion,
+        maxCambioRumbo
+      )
+      if(
+        distanciaAngularEnSentido(
+          aeronave.angulo,
+          rumboPuntoInterceptacion,
+          direccion
+        ) <= 0.6
+      ){
+        fase = "INTERCEPT"
+      }
+    } else {
+      aeronave.angulo = aplicarVirajeLimitado(
+        aeronave.angulo,
+        rumboPuntoInterceptacion,
+        maxCambioRumbo
+      )
+      if(
+        Math.abs(diferenciaAngular(aeronave.angulo, rumboPuntoInterceptacion)) <= 0.6
+      ){
+        fase = "INTERCEPT"
+      }
+    }
+  }
+
+  if(fase === "INTERCEPT"){
+    aeronave.angulo = aplicarVirajeLimitado(
+      aeronave.angulo,
+      rumboPuntoInterceptacion,
+      maxCambioRumbo
+    )
+    if(
+      distanciaPuntoInterceptacion <= DEPARTURE_RDL_INTERCEPT_POINT_TOL_M ||
+      (
+        distanciaVor >= (DEPARTURE_RDL_INTERCEPT_DME_M - 120) &&
+        Math.abs(errorRadial) <= DEPARTURE_RDL_CAPTURE_TOL_DEG
+      )
+    ){
+      fase = "ON_RADIAL"
+    }
+  }
+
+  if(fase === "ON_RADIAL"){
+    const correccion = Math.max(
+      -DEPARTURE_RDL_TRACK_CORRECTION_MAX_DEG,
+      Math.min(DEPARTURE_RDL_TRACK_CORRECTION_MAX_DEG, errorRadial * 1.5)
+    )
+    const rumboObjetivo = normalizarAngulo360(radialObjetivoVerdadero + correccion)
+    aeronave.angulo = aplicarVirajeLimitado(
+      aeronave.angulo,
+      rumboObjetivo,
+      maxCambioRumbo
+    )
+  }
+
+  aeronave.departureRdlPhase = fase
+  return true
+}
+
+function obtenerObjetivoVfrServidor(aeronave){
+  if(!aeronave) return null
+  const objetivo = aeronave.vfrObjetivo
+  const lat = Number(objetivo && objetivo.lat)
+  const lng = Number(objetivo && objetivo.lng)
+  if(!Number.isFinite(lat) || !Number.isFinite(lng)){
+    return null
+  }
+  return { lat, lng }
+}
+
+function finalizarSalidaVfrEnManualServidor(aeronave, posicionActual = null){
+  if(
+    !aeronave ||
+    aeronave.estado !== "AIRBORNE" ||
+    normalizarModoSalidaServidor(aeronave.modoSalida) !== "VFR"
+  ){
+    return false
+  }
+
+  const objetivo = obtenerObjetivoVfrServidor(aeronave)
+  if(!objetivo){
+    return false
+  }
+
+  const posicion = posicionActual || { lat: aeronave.lat, lng: aeronave.lng }
+  const distanciaObjetivoM = distanciaEntre(posicion, objetivo)
+  if(
+    !Number.isFinite(distanciaObjetivoM) ||
+    distanciaObjetivoM > VFR_UMBRAL_REARME_OBJETIVO_SL_M
+  ){
+    return false
+  }
+
+  aeronave.estado = "MANUAL"
+  aeronave.vfrFase = null
+  aeronave.vfrObjetivo = null
+  aeronave.vfrRumboContinuacion = null
+  return true
+}
+
+function procesarSalidaVfrServidor(aeronave, intervaloMS){
+  if(!aeronave || aeronave.estado !== "AIRBORNE"){
+    return false
+  }
+
+  if(normalizarModoSalidaServidor(aeronave.modoSalida) !== "VFR"){
+    aeronave.vfrFase = null
+    return false
+  }
+
+  const modoVfr = normalizarVfrSalidaServidor(aeronave.vfrSalida)
+  const posicionActual = { lat: aeronave.lat, lng: aeronave.lng }
+  if(!modoVfr || !Number.isFinite(posicionActual.lat) || !Number.isFinite(posicionActual.lng)){
+    aeronave.vfrFase = null
+    return false
+  }
+
+  const segundosTick = Math.max(0.02, (intervaloMS || 50) / 1000)
+  const velocidadBase =
+    Number.isFinite(Number(aeronave.velocidadObjetivo)) && Number(aeronave.velocidadObjetivo) > 0
+      ? Number(aeronave.velocidadObjetivo)
+      : (
+          Number.isFinite(Number(aeronave.velocidad)) && Number(aeronave.velocidad) > 0
+            ? (
+              estadoVelocidadEnMps(aeronave.estado)
+                ? (Number(aeronave.velocidad) / 0.514444)
+                : Number(aeronave.velocidad)
+            )
+            : 90
+        )
+  const tasaVirajeDegSeg = calcularTasaVirajeRealistaDegSeg(
+    velocidadBase,
+    PILOTAGE_REALISTIC_BANK_DEG
+  )
+  const maxCambio = Math.max(0.05, tasaVirajeDegSeg * segundosTick)
+  const aplicarRumboObjetivo = (headingObjetivo) => {
+    const headingBase = Number.isFinite(Number(aeronave.angulo))
+      ? Number(aeronave.angulo)
+      : RUMBO_PISTA_22
+    aeronave.angulo = aplicarVirajeLimitado(
+      headingBase,
+      headingObjetivo,
+      maxCambio
+    )
+  }
+
+  if(modoVfr === "MTASA"){
+    if(!String(aeronave.vfrFase || "").startsWith("MTASA_")){
+      aeronave.vfrFase = "MTASA_RUNWAY"
+    }
+
+    switch(aeronave.vfrFase){
+      case "MTASA_RUNWAY":
+        aplicarRumboObjetivo(RUMBO_PISTA_22)
+        if(distanciaEntre(posicionActual, VFR_PUNTO_GIRO_MTASA_COORDS) <= VFR_UMBRAL_GIRO_M){
+          aeronave.vfrFase = "MTASA_MUELLE"
+        }
+      break
+
+      case "MTASA_MUELLE":
+      {
+        const headingMuelle = calcularRumboServidor(posicionActual, VFR_MUELLE_TASA_COORDS)
+        aplicarRumboObjetivo(headingMuelle)
+        if(distanciaEntre(posicionActual, VFR_MUELLE_TASA_COORDS) <= VFR_UMBRAL_OBJETIVO_M){
+          aeronave.vfrFase = "MTASA_OBJETIVO"
+        }
+      }
+      break
+
+      case "MTASA_OBJETIVO":
+      {
+        if(finalizarSalidaVfrEnManualServidor(aeronave, posicionActual)){
+          return true
+        }
+        const objetivo = obtenerObjetivoVfrServidor(aeronave)
+        if(!objetivo){
+          return true
+        }
+        aplicarRumboObjetivo(calcularRumboServidor(posicionActual, objetivo))
+      }
+      break
+
+      default:
+        aeronave.vfrFase = "MTASA_RUNWAY"
+        aplicarRumboObjetivo(RUMBO_PISTA_22)
+      break
+    }
+
+    return true
+  }
+
+  let faseVfr = normalizarFaseSalidaVfrServidor(aeronave.vfrFase)
+  if(!faseVfr.startsWith("SL_")){
+    faseVfr = "SL_RUNWAY"
+  }
+  aeronave.vfrFase = faseVfr
+
+  switch(faseVfr){
+    case "SL_RUNWAY":
+      aplicarRumboObjetivo(RUMBO_PISTA_22)
+      if(distanciaEntre(posicionActual, VFR_PUNTO_GIRO_SL_COORDS) <= VFR_UMBRAL_GIRO_M){
+        if(obtenerObjetivoVfrServidor(aeronave)){
+          aeronave.vfrFase = "SL_OBJETIVO"
+        } else {
+          aeronave.vfrFase = "SL_CONTINUAR_RECTO"
+          aeronave.vfrRumboContinuacion = normalizarAngulo360(
+            Number(aeronave.angulo) || RUMBO_PISTA_22
+          )
+        }
+      }
+    break
+
+    case "SL_OBJETIVO":
+    {
+      const objetivo = obtenerObjetivoVfrServidor(aeronave)
+      if(!objetivo){
+        aeronave.vfrFase = "SL_CONTINUAR_RECTO"
+        aeronave.vfrRumboContinuacion = normalizarAngulo360(
+          Number(aeronave.angulo) || RUMBO_PISTA_22
+        )
+        aplicarRumboObjetivo(aeronave.vfrRumboContinuacion)
+        break
+      }
+      if(finalizarSalidaVfrEnManualServidor(aeronave, posicionActual)){
+        return true
+      }
+      aplicarRumboObjetivo(calcularRumboServidor(posicionActual, objetivo))
+    }
+    break
+
+    case "SL_CONTINUAR_RECTO":
+      aplicarRumboObjetivo(
+        normalizarAngulo360(
+          Number(aeronave.vfrRumboContinuacion) ||
+          Number(aeronave.angulo) ||
+          RUMBO_PISTA_22
+        )
+      )
+    break
+
+    default:
+      aeronave.vfrFase = "SL_RUNWAY"
+      aplicarRumboObjetivo(RUMBO_PISTA_22)
+    break
   }
 
   return true
@@ -1343,6 +1817,41 @@ function normalizarIndiceLoopRutaAirborneServidor(valor){
   return Math.max(0, Math.floor(indice))
 }
 
+function normalizarModoSalidaServidor(valor){
+  const modo = typeof valor === "string" ? valor.trim().toUpperCase() : ""
+  return modo === "VFR" || modo === "IFR" || modo === "RDL" ? modo : ""
+}
+
+function normalizarVfrSalidaServidor(valor){
+  const modo = typeof valor === "string" ? valor.trim().toUpperCase() : ""
+  const modoNormalizado = modo === "LS" ? "SL" : modo
+  return modoNormalizado === "MTASA" || modoNormalizado === "SL"
+    ? modoNormalizado
+    : null
+}
+
+function normalizarFaseSalidaVfrServidor(valor){
+  const fase = typeof valor === "string" ? valor.trim().toUpperCase() : ""
+  return fase.startsWith("LS_") ? `SL_${fase.slice(3)}` : fase
+}
+
+function normalizarDepartureRdlServidor(valor){
+  if(valor === null || valor === undefined){
+    return null
+  }
+  if(typeof valor === "string" && valor.trim() === ""){
+    return null
+  }
+  const radial = Math.round(Number(valor))
+  if(!Number.isFinite(radial)) return null
+  return Math.max(0, Math.min(360, radial))
+}
+
+function normalizarDepartureRdlDirectionServidor(valor){
+  const sentido = typeof valor === "string" ? valor.trim().toUpperCase() : ""
+  return sentido === "LEFT" || sentido === "RIGHT" ? sentido : null
+}
+
 function normalizarAngulo360(valor){
   const num = Number(valor)
   if(!Number.isFinite(num)) return 0
@@ -1361,6 +1870,42 @@ function aplicarVirajeLimitado(headingActual, headingObjetivo, maxCambioDeg){
     return objetivo
   }
   return normalizarAngulo360(actual + (Math.sign(diff) * limite))
+}
+
+function distanciaAngularEnSentido(headingActual, headingObjetivo, sentido){
+  const actual = normalizarAngulo360(headingActual)
+  const objetivo = normalizarAngulo360(headingObjetivo)
+  if(normalizarDepartureRdlDirectionServidor(sentido) === "LEFT"){
+    return (actual - objetivo + 360) % 360
+  }
+  return (objetivo - actual + 360) % 360
+}
+
+function aplicarVirajeSentidoFijo(headingActual, sentido, maxCambioDeg){
+  const actual = normalizarAngulo360(headingActual)
+  const limite = Math.max(0, Number(maxCambioDeg) || 0)
+  if(limite <= 0){
+    return actual
+  }
+  return normalizarAngulo360(
+    actual + (normalizarDepartureRdlDirectionServidor(sentido) === "LEFT" ? -limite : limite)
+  )
+}
+
+function aplicarVirajeHaciaObjetivoEnSentido(headingActual, headingObjetivo, sentido, maxCambioDeg){
+  const actual = normalizarAngulo360(headingActual)
+  const objetivo = normalizarAngulo360(headingObjetivo)
+  const limite = Math.max(0, Number(maxCambioDeg) || 0)
+  if(limite <= 0){
+    return actual
+  }
+
+  const distancia = distanciaAngularEnSentido(actual, objetivo, sentido)
+  if(distancia <= limite){
+    return objetivo
+  }
+
+  return aplicarVirajeSentidoFijo(actual, sentido, limite)
 }
 
 function calcularTasaVirajeRealistaDegSeg(
@@ -1851,6 +2396,9 @@ function avanzarRutaAirborneLineal(aeronave, intervaloMS){
     aeronave,
     intervaloMS
   )
+  if(!performanceDespegueAplicada){
+    aplicarVelocidadObjetivoAirborneServidor(aeronave, intervaloMS)
+  }
   const velocidadMPS = obtenerVelocidadMpsFallback(aeronave)
   if(!Number.isFinite(velocidadMPS) || velocidadMPS <= 0){
     return false
@@ -1985,6 +2533,8 @@ function avanzarMovimientoHacia(aeronave, movimiento, intervaloMS){
 
   const opciones = movimiento.opciones || {}
   const descensoProgresivo = Boolean(opciones.descensoProgresivo)
+  const ascensoProgresivo = Boolean(opciones.ascensoProgresivo)
+  const altitudProgresiva = descensoProgresivo || ascensoProgresivo
   const aplicarAceleracionProgresiva = Boolean(opciones.aplicarAceleracionProgresiva)
   const velocidadObjetivoFinalKt = Number.isFinite(Number(opciones.velocidadObjetivoFinalKt))
     ? Math.max(0, Number(opciones.velocidadObjetivoFinalKt))
@@ -2011,20 +2561,20 @@ function avanzarMovimientoHacia(aeronave, movimiento, intervaloMS){
         Number(opciones.tasaVirajeMaxDegSeg)
       )
     : PILOTAGE_REALISTIC_TURN_RATE_MAX_DEG_PER_SEC
-  const altitudInicialDescenso = Number.isFinite(Number(opciones.altitudInicial))
+  const altitudInicialMovimiento = Number.isFinite(Number(opciones.altitudInicial))
     ? Math.max(0, Number(opciones.altitudInicial))
     : Math.max(0, Number(aeronave.altitud) || 0)
-  const altitudObjetivoDescenso = Number.isFinite(Number(opciones.altitudObjetivo))
+  const altitudObjetivoMovimiento = Number.isFinite(Number(opciones.altitudObjetivo))
     ? Math.max(0, Number(opciones.altitudObjetivo))
     : 0
 
   const deltaSegundos = Math.max(0.02, (intervaloMS || 50) / 1000)
 
-  if(descensoProgresivo && !Number.isFinite(movimiento.distanciaInicialDescenso)){
-    movimiento.distanciaInicialDescenso = Math.max(1, distancia)
+  if(altitudProgresiva && !Number.isFinite(movimiento.distanciaInicialAltitud)){
+    movimiento.distanciaInicialAltitud = Math.max(1, distancia)
   }
-  if(descensoProgresivo && !Number.isFinite(movimiento.altitudInicialDescenso)){
-    movimiento.altitudInicialDescenso = altitudInicialDescenso
+  if(altitudProgresiva && !Number.isFinite(movimiento.altitudInicialMovimiento)){
+    movimiento.altitudInicialMovimiento = altitudInicialMovimiento
   }
 
   let velocidadKnotsActual = Number(movimiento.velocidadActualKt)
@@ -2105,8 +2655,8 @@ function avanzarMovimientoHacia(aeronave, movimiento, intervaloMS){
         aeronave.angulo = normalizarAngulo360(rumboDestino + 180)
       }
     }
-    if(descensoProgresivo){
-      aeronave.altitud = altitudObjetivoDescenso
+    if(altitudProgresiva){
+      aeronave.altitud = altitudObjetivoMovimiento
     }
     return { completado: true }
   }
@@ -2156,8 +2706,8 @@ function avanzarMovimientoHacia(aeronave, movimiento, intervaloMS){
           aeronave.angulo = normalizarAngulo360(rumboDestino + 180)
         }
       }
-      if(descensoProgresivo){
-        aeronave.altitud = altitudObjetivoDescenso
+      if(altitudProgresiva){
+        aeronave.altitud = altitudObjetivoMovimiento
       }
       return { completado: true }
     }
@@ -2170,20 +2720,20 @@ function avanzarMovimientoHacia(aeronave, movimiento, intervaloMS){
   aeronave.lat = nuevaLat
   aeronave.lng = nuevaLng
 
-  if(descensoProgresivo){
+  if(altitudProgresiva){
     const distanciaInicial = Math.max(
       1,
-      Number(movimiento.distanciaInicialDescenso) || distancia
+      Number(movimiento.distanciaInicialAltitud) || distancia
     )
     const ratioDistancia = Math.max(0, Math.min(1, distancia / distanciaInicial))
-    const altitudBase = Number(movimiento.altitudInicialDescenso)
+    const altitudBase = Number(movimiento.altitudInicialMovimiento)
     const altitudInicial = Number.isFinite(altitudBase)
       ? altitudBase
-      : altitudInicialDescenso
+      : altitudInicialMovimiento
     aeronave.altitud = Math.max(
       0,
-      altitudObjetivoDescenso +
-        ((altitudInicial - altitudObjetivoDescenso) * ratioDistancia)
+      altitudObjetivoMovimiento +
+        ((altitudInicial - altitudObjetivoMovimiento) * ratioDistancia)
     )
   }
 
@@ -2508,9 +3058,10 @@ function normalizarDatosCreacionAeronave(data = {}) {
   const lng = Number(data.lng)
   const altitud = Number(data.altitud)
   const angulo = Number(data.angulo)
+  const idRaw = typeof data.id === "string" ? data.id : String(data.id || "")
 
   return {
-    id: typeof data.id === "string" ? data.id.trim() : String(data.id || "").trim(),
+    id: idRaw.trim().slice(0, 13),
     tipo: typeof data.tipo === "string" ? data.tipo.trim() : String(data.tipo || "").trim(),
     lat: Number.isFinite(lat) ? lat : 0,
     lng: Number.isFinite(lng) ? lng : 0,
@@ -2564,6 +3115,15 @@ function crearRegistroAeronave(dataInicial = {}, opciones = {}) {
     rutaAirborneProgreso: 0,
     rutaAirborneLoop: false,
     rutaAirborneLoopStartIndex: 0,
+    modoSalida: null,
+    vfrSalida: null,
+    vfrFase: null,
+    vfrObjetivo: null,
+    vfrRumboContinuacion: null,
+    departureRdl: null,
+    departureRdlDirection: null,
+    departureRdlPhase: null,
+    takeoffManualSpeedActive: false,
     fase: null,
     takeoffRollProgressM: 0,
     arrivalProcedureName: null,
@@ -2596,6 +3156,23 @@ function construirPayloadActualizacionAeronave(aeronave, extras = {}) {
     velocidad: aeronave.velocidad,
     velocidadObjetivo: aeronave.velocidadObjetivo,
     estado: aeronave.estado,
+    modoSalida: normalizarModoSalidaServidor(aeronave.modoSalida) || null,
+    vfrSalida: normalizarVfrSalidaServidor(aeronave.vfrSalida),
+    vfrObjetivoLat: aeronave.vfrObjetivo &&
+      Number.isFinite(Number(aeronave.vfrObjetivo.lat))
+      ? Number(aeronave.vfrObjetivo.lat)
+      : null,
+    vfrObjetivoLng: aeronave.vfrObjetivo &&
+      Number.isFinite(Number(aeronave.vfrObjetivo.lng))
+      ? Number(aeronave.vfrObjetivo.lng)
+      : null,
+    vfrRumboContinuacion: Number.isFinite(Number(aeronave.vfrRumboContinuacion))
+      ? Number(aeronave.vfrRumboContinuacion)
+      : null,
+    departureRdl: normalizarDepartureRdlServidor(aeronave.departureRdl),
+    departureRdlDirection: normalizarDepartureRdlDirectionServidor(
+      aeronave.departureRdlDirection
+    ),
     puntoIngreso: normalizarPuntoRuta(aeronave.puntoIngreso),
     pilotageObjetivoLat: Number.isFinite(Number(aeronave.pilotageObjetivoLat))
       ? Number(aeronave.pilotageObjetivoLat)
@@ -2657,6 +3234,7 @@ function detenerAccionActualAeronave(aeronave) {
   aeronave.velocidadObjetivo = 0
   aeronave.altitudObjetivo = null
   aeronave.altitudCircuitoAutomaticaActiva = false
+  aeronave.takeoffManualSpeedActive = false
   aeronave.shortCircuitoActivo = false
   aeronave.extensionUpwindExtraLocal = 0
   aeronave.extensionDownwindExtraLocal = 0
@@ -2729,6 +3307,7 @@ function restablecerCircuitoOriginalAlCruzarUmbral22(nombreSala, sala, aeronave)
     ruta: rutaCircuitoBase,
     sentidoCircuito: normalizarSentidoCircuitoTexto(aeronave.circuitoSentido),
     shortCircuitoActivo: false,
+    resetCircuitoOriginal: true,
     extensionAeronave: {
       upwind: 0,
       downwind: 0
@@ -3168,13 +3747,20 @@ function iniciarMotorSala(nombreSala){
 	          emitirActualizacionAeronave(nombreSala, a)
 	          return
 		        }
-		      }
-
+			      }
+	
 		      if ((MOVIMIENTO_AUTORITATIVO_SERVIDOR || !a.owner) && !ESTADOS_RUTA_SERVIDOR.has(a.estado)) {
+		        if (a.estado === "AIRBORNE") {
+		          procesarSalidaVfrServidor(a, intervaloMS)
+		          procesarSalidaRdlServidor(a, intervaloMS)
+		        }
 		        const performanceDespegueAplicada =
-		          a.estado === "AIRBORNE"
-		            ? aplicarPerformanceDespegueAeronave(a, intervaloMS)
+			          a.estado === "AIRBORNE"
+			            ? aplicarPerformanceDespegueAeronave(a, intervaloMS)
 		            : false
+		        if(a.estado === "AIRBORNE" && !performanceDespegueAplicada){
+		          aplicarVelocidadObjetivoAirborneServidor(a, intervaloMS)
+		        }
 		        const velocidadMPS = obtenerVelocidadMpsFallback(a)
 		        if (velocidadMPS > 0) {
 		          const distanciaTick = velocidadMPS * (intervaloMS / 1000)
@@ -3185,14 +3771,17 @@ function iniciarMotorSala(nombreSala){
 	          )
 	          a.lat = nuevoPunto.lat
 	          a.lng = nuevoPunto.lng
-	          if (performanceDespegueAplicada) {
-	            registrarAvanceCarreraDespegue(a, distanciaTick)
-	          }
-	        }
+		          if (performanceDespegueAplicada) {
+		            registrarAvanceCarreraDespegue(a, distanciaTick)
+		          }
+		        }
+            if(a.estado === "AIRBORNE" && !performanceDespegueAplicada){
+              ajustarAltitudHaciaObjetivo(a, intervaloMS)
+            }
 
-	        emitirActualizacionAeronave(nombreSala, a)
-	        return
-	      }
+		        emitirActualizacionAeronave(nombreSala, a)
+		        return
+		      }
 
 	      if (!a.ruta || a.ruta.length < 2) return
 
@@ -5474,11 +6063,16 @@ socket.on("iniciarMovimiento", ({ id, destino, opciones, token } = {}) => {
     typeof opcionesMovimiento.estadoDuranteMovimiento === "string"
       ? opcionesMovimiento.estadoDuranteMovimiento.trim().toUpperCase()
       : ""
+  const altitudObjetivoMovimiento = Number(opcionesMovimiento.altitudObjetivo)
 
   aeronave.movimiento = {
     destino: destinoNormalizado,
     opciones: opcionesMovimiento,
     token: typeof token === "string" ? token : null
+  }
+
+  if(Number.isFinite(altitudObjetivoMovimiento)){
+    aeronave.altitudObjetivo = Math.max(0, altitudObjetivoMovimiento)
   }
 
   if (estadoDuranteMovimientoRaw) {
@@ -5661,7 +6255,9 @@ socket.on("acortarTramoCircuito", ({ id, metros }) => {
       -(CIRCUITO_LONGITUD_FINAL_BASE_M - CIRCUITO_LONGITUD_FINAL_SHORT_M)
   } else if (tramoObjetivo === "downwind") {
     const actual = aeronave.extensionDownwindExtraLocal || 0
-    const minimoExtra = actual > 0 ? 0 : -SHORT_CIRCUITO_PASO_M
+    const minimoExtra = actual > 0
+      ? 0
+      : -(CIRCUITO_LONGITUD_FINAL_BASE_M - CIRCUITO_LONGITUD_FINAL_SHORT_MIN_M)
     aeronave.extensionDownwindExtraLocal = Math.max(
       minimoExtra,
       actual - metrosSeguros
@@ -6091,8 +6687,16 @@ socket.on("actualizarAeronave", (data) => {
   }
 
   const estadoPrevio = aeronave.estado
+  const modoSalidaPrevio = normalizarModoSalidaServidor(aeronave.modoSalida) || null
+  const departureRdlPrevio = normalizarDepartureRdlServidor(aeronave.departureRdl)
+  const departureRdlDirectionPrevia = normalizarDepartureRdlDirectionServidor(
+    aeronave.departureRdlDirection
+  )
   if(typeof data.estado === "string"){
     aeronave.estado = data.estado
+  }
+  if(estadoPrevio !== "AIRBORNE" && aeronave.estado === "AIRBORNE"){
+    actualizarOverrideVelocidadManualDespegueServidor(aeronave, false)
   }
   if(aeronave.estado !== "AIRBORNE"){
     reiniciarSecuenciaDespegueAeronave(aeronave)
@@ -6124,14 +6728,65 @@ socket.on("actualizarAeronave", (data) => {
   ) {
     aeronave.orbitSentido = normalizarSentidoOrbitTexto(data.orbitSentido)
   }
-  if (typeof data.velocidad === "number" && Number.isFinite(data.velocidad)) {
-    aeronave.velocidad = Math.max(0, data.velocidad);
-  }
-  if (
-    typeof data.velocidadObjetivo === "number" &&
-    Number.isFinite(data.velocidadObjetivo)
+	  if (typeof data.velocidad === "number" && Number.isFinite(data.velocidad)) {
+	    aeronave.velocidad = Math.max(0, data.velocidad);
+	  }
+	  if(Object.prototype.hasOwnProperty.call(data, "modoSalida")){
+	    aeronave.modoSalida = normalizarModoSalidaServidor(data.modoSalida) || null
+	  }
+	  if(Object.prototype.hasOwnProperty.call(data, "vfrSalida")){
+	    aeronave.vfrSalida = normalizarVfrSalidaServidor(data.vfrSalida)
+	  }
+	  if(
+	    Object.prototype.hasOwnProperty.call(data, "vfrObjetivoLat") ||
+	    Object.prototype.hasOwnProperty.call(data, "vfrObjetivoLng")
+	  ){
+	    const latVfrObjetivo = Number(data.vfrObjetivoLat)
+	    const lngVfrObjetivo = Number(data.vfrObjetivoLng)
+	    aeronave.vfrObjetivo =
+	      Number.isFinite(latVfrObjetivo) && Number.isFinite(lngVfrObjetivo)
+	        ? { lat: latVfrObjetivo, lng: lngVfrObjetivo }
+	        : null
+	  }
+	  if(Object.prototype.hasOwnProperty.call(data, "vfrRumboContinuacion")){
+	    const rumboVfrContinuacion = Number(data.vfrRumboContinuacion)
+	    aeronave.vfrRumboContinuacion = Number.isFinite(rumboVfrContinuacion)
+	      ? rumboVfrContinuacion
+	      : null
+	  }
+	  if(Object.prototype.hasOwnProperty.call(data, "departureRdl")){
+	    aeronave.departureRdl = normalizarDepartureRdlServidor(data.departureRdl)
+	  }
+	  if(Object.prototype.hasOwnProperty.call(data, "departureRdlDirection")){
+	    aeronave.departureRdlDirection = normalizarDepartureRdlDirectionServidor(
+	      data.departureRdlDirection
+	    )
+	  }
+	  const modoSalidaActual = normalizarModoSalidaServidor(aeronave.modoSalida) || null
+	  const departureRdlActual = normalizarDepartureRdlServidor(aeronave.departureRdl)
+	  const departureRdlDirectionActual = normalizarDepartureRdlDirectionServidor(
+	    aeronave.departureRdlDirection
+	  )
+	  const reiniciarFaseRdl =
+	    modoSalidaActual !== modoSalidaPrevio ||
+	    departureRdlActual !== departureRdlPrevio ||
+	    departureRdlDirectionActual !== departureRdlDirectionPrevia ||
+	    (
+	      estadoPrevio !== "AIRBORNE" &&
+	      aeronave.estado === "AIRBORNE" &&
+	      modoSalidaActual === "RDL"
+	    )
+	  if(reiniciarFaseRdl){
+	    aeronave.departureRdlPhase = null
+	  }
+	  if (
+	    typeof data.velocidadObjetivo === "number" &&
+	    Number.isFinite(data.velocidadObjetivo)
   ) {
-    aeronave.velocidadObjetivo = Math.max(0, data.velocidadObjetivo);
+    aeronave.velocidadObjetivo = limitarVelocidadControlKnotsServidor(
+      aeronave,
+      data.velocidadObjetivo
+    );
   }
   if (
     typeof data.altitudObjetivo === "number" &&
@@ -6183,12 +6838,21 @@ socket.on("actualizarAeronave", (data) => {
       Number(data.altitudObjetivo)
     )
   }
-  if(syncTsRecibido !== null){
-    aeronave.syncTs = syncTsRecibido
-  }
-  if (MOVIMIENTO_AUTORITATIVO_SERVIDOR && esEstadoMovimientoServidor(aeronave.estado)) {
-    iniciarMotorSala(sala)
-  }
+	  if(syncTsRecibido !== null){
+	    aeronave.syncTs = syncTsRecibido
+	  }
+	  if(
+	    aeronave.estado !== "AIRBORNE" ||
+	    normalizarModoSalidaServidor(aeronave.modoSalida) !== "RDL"
+	  ){
+	    aeronave.departureRdlPhase = null
+	  }
+	  if(aeronave.estado !== "AIRBORNE"){
+      actualizarOverrideVelocidadManualDespegueServidor(aeronave, false)
+	  }
+	  if (MOVIMIENTO_AUTORITATIVO_SERVIDOR && esEstadoMovimientoServidor(aeronave.estado)) {
+	    iniciarMotorSala(sala)
+	  }
 
   socket.to(sala).emit(
     "actualizarAeronave",
@@ -6469,22 +7133,31 @@ socket.on("ajusteManual", ({ id, tipo, valor }) => {
   }
 
   if (tipo === "speed") {
-
-  const nudosEnMPS = valor * 0.514444
-
-  const velocidadBase = Number.isFinite(a.velocidad)
-    ? a.velocidad
-    : (
-      Number.isFinite(a.velocidadObjetivo)
-        ? a.velocidadObjetivo * 0.514444
-        : 0
-    )
-
-  a.velocidad = Math.max(
-    0,
-    velocidadBase + nudosEnMPS
+  const velocidadBaseKt =
+    Number.isFinite(a.velocidadObjetivo)
+      ? a.velocidadObjetivo
+      : (
+        Number.isFinite(a.velocidad)
+          ? (
+            estadoVelocidadEnMps(a.estado)
+              ? (a.velocidad / 0.514444)
+              : a.velocidad
+          )
+          : 0
+      )
+  const velocidadObjetivoManualKt = limitarVelocidadControlKnotsServidor(
+    a,
+    velocidadBaseKt + valor
   )
-  a.velocidadObjetivo = Math.round(a.velocidad / 0.514444)
+
+  a.velocidadObjetivo = velocidadObjetivoManualKt
+  if(a.estado === "AIRBORNE"){
+    actualizarOverrideVelocidadManualDespegueServidor(a, true)
+  } else {
+    a.velocidad = estadoVelocidadEnMps(a.estado)
+      ? (velocidadObjetivoManualKt * 0.514444)
+      : velocidadObjetivoManualKt
+  }
 
 }
 
@@ -6516,9 +7189,13 @@ socket.on("setSpeedKnots", ({ id, speedKnots }) => {
 
   if (typeof speedKnots !== "number" || !Number.isFinite(speedKnots)) return
 
-  const speedSafe = Math.max(0, Math.min(SPEED_CONTROL_MAX_KNOTS, speedKnots))
-  a.velocidad = speedSafe * 0.514444
+  const speedSafe = limitarVelocidadControlKnotsServidor(a, speedKnots)
   a.velocidadObjetivo = speedSafe
+  if(a.estado === "AIRBORNE"){
+    actualizarOverrideVelocidadManualDespegueServidor(a, true)
+  } else {
+    a.velocidad = speedSafe * 0.514444
+  }
 
   emitirActualizacionAeronave(salaNombre, a)
 

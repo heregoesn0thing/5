@@ -49,8 +49,8 @@ input{
 }
 
 .icon-wrapper{
-  width:80px;
-  height:70px;
+  width:68px;
+  height:58px;
   display:flex;
   flex-direction:column;
   align-items:center;
@@ -68,12 +68,12 @@ input{
 
 .callsign-label{
   position:absolute;
-  bottom:-18px;
-  font-size:11px;
+  bottom:-15px;
+  font-size:9px;
   font-weight:bold;
   color:white;
   background:black;
-  padding:2px 5px;
+  padding:1px 3px;
   border-radius:4px;
   white-space:nowrap;
 }
@@ -4207,6 +4207,17 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
   transition:all 0.25s ease;
 }
 
+.departure-rdl-opciones{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-top:0;
+  max-height:0;
+  overflow:hidden;
+  opacity:0;
+  transition:all 0.25s ease;
+}
+
 .departure-sid-opciones.activo{
   max-height:64px;
   margin-top:6px;
@@ -4214,6 +4225,12 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
 }
 
 .departure-vfr-opciones.activo{
+  max-height:64px;
+  margin-top:6px;
+  opacity:1;
+}
+
+.departure-rdl-opciones.activo{
   max-height:64px;
   margin-top:6px;
   opacity:1;
@@ -4245,6 +4262,36 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
   box-shadow:0 0 8px rgba(16,185,129,0.45);
 }
 
+.departure-rdl-input{
+  flex:1.1;
+  min-width:0;
+  height:30px;
+  padding:0 8px;
+  border-radius:6px;
+  border:1px solid #2c344a;
+  background:linear-gradient(145deg,#141a28,#1c2233);
+  color:#e2e8f0;
+  font-size:11px;
+  font-weight:700;
+  text-align:center;
+  outline:none;
+  box-sizing:border-box;
+}
+
+.departure-rdl-input:focus{
+  border-color:#38bdf8;
+  box-shadow:0 0 0 1px rgba(56,189,248,0.28);
+}
+
+.departure-rdl-input:disabled{
+  opacity:0.45;
+  cursor:not-allowed;
+}
+
+.departure-rdl-direction-btn{
+  flex:1;
+}
+
 .tma-radial-label{
   background: rgba(255,255,255,0.88);
   border: 1px solid rgba(0,0,0,0.35);
@@ -4257,6 +4304,27 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
   white-space: nowrap;
   text-align: center;
   line-height: 1.2;
+}
+
+.selected-rdl-route-label-marker{
+  background: transparent;
+  border: none;
+}
+
+.selected-rdl-route-label{
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  color: #111111;
+  padding: 0 2px;
+  pointer-events: none;
+  transform-origin: center center;
+  display: inline-block;
+  text-shadow:
+    0 0 2px rgba(255,255,255,0.98),
+    0 0 4px rgba(255,255,255,0.92),
+    0 0 7px rgba(255,255,255,0.88);
 }
 
 .training-zone-label-marker{
@@ -5931,6 +5999,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
   .landing-opciones,
   .departure-sid-opciones,
   .departure-vfr-opciones,
+  .departure-rdl-opciones,
   .circuit-row,
   .circuit-orbit-opciones,
   .circuit-join-opciones,
@@ -5946,10 +6015,15 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
   .landing-opciones .mini-btn,
   .departure-sid-opciones .sid-option-btn,
   .departure-vfr-opciones .sid-option-btn,
+  .departure-rdl-opciones .sid-option-btn,
   .circuit-row .circuit-btn,
   .circuit-orbit-opciones .circuit-orbit-btn,
   .manual-row .manual-btn{
     flex: 1 1 calc(50% - 3px);
+  }
+
+  .departure-rdl-opciones .departure-rdl-input{
+    flex: 1 1 100%;
   }
 
   .circuit-join-opciones .circuit-join-hint{
@@ -5959,7 +6033,8 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
   .landing-opciones.activo,
   .arrival-submenu.activo,
   .departure-sid-opciones.activo,
-  .departure-vfr-opciones.activo{
+  .departure-vfr-opciones.activo,
+  .departure-rdl-opciones.activo{
     max-height: 180px;
   }
 

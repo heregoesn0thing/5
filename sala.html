@@ -705,16 +705,28 @@
       </div>
     </div>
   </div>
-  <button
-    id="btnGroundPanel"
-    class="panel-controlador-toggle"
-    type="button"
-    aria-label="Mostrar u ocultar panel de ATC"
-    aria-expanded="false"
-    onclick="togglePanelControladorServicios()"
-  >
-    <span class="panel-derecho-text" aria-hidden="true">ATC</span>
-  </button>
+  <div class="panel-controlador-toggles-laterales">
+    <button
+      id="btnGroundPanel"
+      class="panel-controlador-toggle"
+      type="button"
+      aria-label="Mostrar u ocultar panel de ATC"
+      aria-expanded="false"
+      onclick="togglePanelControladorServicios()"
+    >
+      <span class="panel-derecho-text" aria-hidden="true">ATC</span>
+    </button>
+    <button
+      id="btnStrips"
+      class="panel-controlador-toggle"
+      type="button"
+      aria-label="Abrir o cerrar panel de STRIPS"
+      aria-expanded="false"
+      onclick="togglePanelControladorIzquierdo()"
+    >
+      <span class="panel-derecho-text" aria-hidden="true"><span class="panel-strips-acento">S</span>TRIPS</span>
+    </button>
+  </div>
 </div>
 
 
@@ -903,8 +915,19 @@ let rescateSeleccionado = null
 let rescateEstadoPendiente = null
 let contadorRectControladorExtra = 0
 let bloqueoClickRectControladorHasta = 0
+const DEPENDENCIAS_STRIPS_CONTROLADOR = ["SPSO_GND", "SPSO_TWR", "SPSO_APP"]
+const DEPENDENCIAS_STRIPS_CONTROLADOR_ALIAS = Object.freeze({
+  SPSO_AD: "SPSO_TWR"
+})
+const ANCHO_BASE_STRIP_CONTROLADOR_REAL = 920
+const ALTO_BASE_STRIP_CONTROLADOR_REAL = 160
+const STORAGE_KEY_PANEL_CONTROLADOR_STRIPS = "panelControladorStripsV2"
+const STORAGE_KEY_PANEL_CONTROLADOR_DEPENDENCIA_ACTIVA = "panelControladorDependenciaActivaV1"
+let dependenciaStripControladorActiva = DEPENDENCIAS_STRIPS_CONTROLADOR[0]
+let estadoStripsControladorSala = null
 const datosCasillerosControlador = Object.create(null)
-const STORAGE_KEY_DATOS_CASILLEROS_CONTROLADOR = "panelControladorDatosCasillerosV1"
+let stripControladorMenuContextualRectId = ""
+let resizeObserverStripsControlador = null
 const STORAGE_KEY_PANEL_CONTROLADOR_LUCES = "panelControladorLucesV1"
 const STORAGE_KEY_PANEL_CONTROLADOR_EMERGENCY = "panelControladorEmergencyV1"
 const CONTROLADOR_LIGHTS_HABILITADAS = false
@@ -921,6 +944,8 @@ const estadoEmergencyControlador = {
   white: false
 }
 let temporizadorConfirmacionCheck = null
+let temporizadorGuardadoStripsControladorSala = null
+let omitirPersistenciaStripsControlador = false
 const METAR_API_URL = "/api/metar-decoded?ids=SPSO&hours=0"
 const RWY_22_HEADING = 220
 const SPSO_ELEVATION_FT = 39
@@ -1078,6 +1103,7 @@ function aplicarVisibilidadPanelIzquierdoPorModo(){
   const panel = document.getElementById("menuControles")
   const panelControlador = document.getElementById("panelControladorIzquierdo")
   const panelControladorServicios = document.getElementById("panelControladorServicios")
+  const botonPanelControlador = document.getElementById("btnStrips")
   const vistaFlotante = document.getElementById("controladorVistaRect")
   if(!panel) return
 
@@ -1089,8 +1115,18 @@ function aplicarVisibilidadPanelIzquierdoPorModo(){
   if(panelControladorServicios){
     panelControladorServicios.classList.toggle("visible-modo-controlador", esControlador)
   }
+  if(botonPanelControlador){
+    botonPanelControlador.classList.toggle("visible-modo-controlador", esControlador)
+  }
   if(vistaFlotante){
     vistaFlotante.classList.toggle("visible-modo-controlador", esControlador)
+  }
+
+  actualizarEstadoPanelControladorIzquierdo()
+  if(esControlador){
+    requestAnimationFrame(() => {
+      ajustarPosicionPanelControladorIzquierdo()
+    })
   }
 
   if(!esControlador) return
@@ -1392,33 +1428,520 @@ function limpiarDatosCasillerosControladorEnMemoria(){
   })
 }
 
-function guardarDatosCasillerosControlador(){
+function normalizarDependenciaStripControlador(valor){
+  const dependenciaBase =
+    typeof valor === "string"
+      ? valor.trim().toUpperCase()
+      : ""
+  const dependencia =
+    DEPENDENCIAS_STRIPS_CONTROLADOR_ALIAS[dependenciaBase] ||
+    dependenciaBase
+  return DEPENDENCIAS_STRIPS_CONTROLADOR.includes(dependencia)
+    ? dependencia
+    : DEPENDENCIAS_STRIPS_CONTROLADOR[0]
+}
+
+function obtenerItemsBaseDependenciaStripControlador(baseDependencias, dependencia){
+  if(!baseDependencias || typeof baseDependencias !== "object") return []
+
+  const dependenciaNormalizada = normalizarDependenciaStripControlador(dependencia)
+  const clavesCompatibles = dependenciaNormalizada === "SPSO_TWR"
+    ? ["SPSO_TWR", "SPSO_AD"]
+    : [dependenciaNormalizada]
+
+  return clavesCompatibles.reduce((items, clave) => {
+    if(Array.isArray(baseDependencias[clave])){
+      items.push(...baseDependencias[clave])
+    }
+    return items
+  }, [])
+}
+
+function extraerNumeroStripControladorDesdeId(idRect){
+  const numero =
+    typeof idRect === "string"
+      ? Number.parseInt(idRect.replace("controladorRect", ""), 10)
+      : Number.NaN
+  return Number.isFinite(numero) && numero > 0 ? numero : 0
+}
+
+function clonarValorPlanoControlador(valor, fallback = null){
+  try{
+    return JSON.parse(JSON.stringify(valor ?? fallback))
+  } catch(_err){
+    return fallback
+  }
+}
+
+function crearEstadoStripsControladorSala(base = {}){
+  const dependencias = Object.create(null)
+  let maximoId = 0
+
+  DEPENDENCIAS_STRIPS_CONTROLADOR.forEach((dependencia) => {
+    const itemsBase = obtenerItemsBaseDependenciaStripControlador(
+      base?.dependencias,
+      dependencia
+    )
+    const vistos = new Set()
+
+    dependencias[dependencia] = itemsBase
+      .map((item) => {
+        const id = typeof item?.id === "string" ? item.id.trim() : ""
+        if(!/^controladorRect\d+$/.test(id) || vistos.has(id)) return null
+        vistos.add(id)
+        maximoId = Math.max(maximoId, extraerNumeroStripControladorDesdeId(id))
+        return {
+          id,
+          color: item?.color === "amarillo" ? "amarillo" : "cyan",
+          estadoCasilleros:
+            item?.estadoCasilleros &&
+            typeof item.estadoCasilleros === "object" &&
+            !Array.isArray(item.estadoCasilleros)
+              ? clonarValorPlanoControlador(item.estadoCasilleros, {})
+              : null
+        }
+      })
+      .filter(Boolean)
+  })
+
+  const siguienteIdBase = Number(base?.siguienteId)
+  return {
+    siguienteId: Math.max(
+      maximoId,
+      Number.isFinite(siguienteIdBase) ? Math.max(0, Math.floor(siguienteIdBase)) : 0
+    ),
+    dependencias
+  }
+}
+
+function obtenerListaStripsControladorSala(dependencia = dependenciaStripControladorActiva){
+  if(!estadoStripsControladorSala){
+    estadoStripsControladorSala = crearEstadoStripsControladorSala()
+  }
+  const dependenciaNormalizada = normalizarDependenciaStripControlador(dependencia)
+  if(!Array.isArray(estadoStripsControladorSala.dependencias[dependenciaNormalizada])){
+    estadoStripsControladorSala.dependencias[dependenciaNormalizada] = []
+  }
+  return estadoStripsControladorSala.dependencias[dependenciaNormalizada]
+}
+
+function guardarDependenciaStripControladorActiva(){
   try{
     localStorage.setItem(
-      STORAGE_KEY_DATOS_CASILLEROS_CONTROLADOR,
-      JSON.stringify(datosCasillerosControlador)
+      STORAGE_KEY_PANEL_CONTROLADOR_DEPENDENCIA_ACTIVA,
+      dependenciaStripControladorActiva
     )
-    return true
   } catch(_err){
-    return false
+
+  }
+}
+
+function sincronizarSelectorDependenciaStripControlador(){
+  const selector = document.getElementById("selectorDependenciaStripControlador")
+  if(!selector) return
+  selector.value = normalizarDependenciaStripControlador(dependenciaStripControladorActiva)
+}
+
+function obtenerMenuContextualStripsControlador(){
+  return document.getElementById("menuContextualStripsControlador")
+}
+
+function cerrarMenuContextualStripsControlador(){
+  const menu = obtenerMenuContextualStripsControlador()
+  if(!menu) return
+
+  menu.classList.remove("visible")
+  menu.setAttribute("aria-hidden", "true")
+  menu.style.left = ""
+  menu.style.top = ""
+  delete menu.dataset.rectId
+  delete menu.dataset.dependenciaOrigen
+  stripControladorMenuContextualRectId = ""
+}
+
+function abrirMenuContextualStripsControlador(rect, clientX, clientY){
+  if(!rect) return
+  if(rect.classList.contains("panel-controlador-rect-rojo")) return
+
+  const idRect = typeof rect.id === "string" ? rect.id.trim() : ""
+  if(!/^controladorRect\d+$/.test(idRect)) return
+
+  const menu = obtenerMenuContextualStripsControlador()
+  const listaOpciones = menu?.querySelector(".panel-controlador-menu-contextual-lista")
+  if(!menu || !listaOpciones) return
+
+  const dependenciaOrigen = normalizarDependenciaStripControlador(
+    dependenciaStripControladorActiva
+  )
+  const dependenciasDestino = DEPENDENCIAS_STRIPS_CONTROLADOR.filter(
+    dependencia => dependencia !== dependenciaOrigen
+  )
+  if(dependenciasDestino.length === 0) return
+
+  listaOpciones.innerHTML = ""
+  dependenciasDestino.forEach((dependenciaDestino) => {
+    const boton = document.createElement("button")
+    boton.type = "button"
+    boton.className = "panel-controlador-menu-contextual-opcion"
+    boton.dataset.dependenciaDestino = dependenciaDestino
+    boton.textContent = dependenciaDestino
+    listaOpciones.appendChild(boton)
+  })
+
+  menu.dataset.rectId = idRect
+  menu.dataset.dependenciaOrigen = dependenciaOrigen
+  menu.setAttribute("aria-hidden", "false")
+  menu.classList.add("visible")
+  menu.style.left = "0px"
+  menu.style.top = "0px"
+  stripControladorMenuContextualRectId = idRect
+
+  const margen = 12
+  const rectMenu = menu.getBoundingClientRect()
+  const maxLeft = Math.max(margen, window.innerWidth - rectMenu.width - margen)
+  const maxTop = Math.max(margen, window.innerHeight - rectMenu.height - margen)
+  const left = Math.min(Math.max(margen, clientX + 8), maxLeft)
+  const top = Math.min(Math.max(margen, clientY + 8), maxTop)
+
+  menu.style.left = `${left}px`
+  menu.style.top = `${top}px`
+}
+
+function enviarStripControladorADependencia(
+  idRect,
+  dependenciaDestino,
+  dependenciaOrigen = dependenciaStripControladorActiva
+){
+  const idRectSeguro = typeof idRect === "string" ? idRect.trim() : ""
+  if(!/^controladorRect\d+$/.test(idRectSeguro)) return false
+
+  const origen = normalizarDependenciaStripControlador(dependenciaOrigen)
+  const destino = normalizarDependenciaStripControlador(dependenciaDestino)
+  if(origen === destino) return false
+
+  const listaOrigen = obtenerListaStripsControladorSala(origen)
+  const indiceItem = listaOrigen.findIndex(
+    (item) => item && item.id === idRectSeguro
+  )
+  if(indiceItem < 0) return false
+
+  const [item] = listaOrigen.splice(indiceItem, 1)
+  if(!item) return false
+
+  const listaDestino = obtenerListaStripsControladorSala(destino)
+    .filter((existente) => existente && existente.id !== idRectSeguro)
+  listaDestino.push(item)
+  estadoStripsControladorSala.dependencias[destino] = listaDestino
+
+  cerrarMenuContextualStripsControlador()
+  cerrarVistaControlador()
+  renderizarStripsControladorDependencia(dependenciaStripControladorActiva)
+  return guardarDatosCasillerosControlador()
+}
+
+function inicializarMenuContextualStripsControlador(){
+  const menu = obtenerMenuContextualStripsControlador()
+  if(!menu || menu.dataset.initMenuContextual === "1") return
+  menu.dataset.initMenuContextual = "1"
+
+  menu.addEventListener("click", (e) => {
+    const boton = e.target.closest(".panel-controlador-menu-contextual-opcion")
+    if(!boton) return
+
+    e.preventDefault()
+    e.stopPropagation()
+    enviarStripControladorADependencia(
+      menu.dataset.rectId || stripControladorMenuContextualRectId,
+      boton.dataset.dependenciaDestino,
+      menu.dataset.dependenciaOrigen || dependenciaStripControladorActiva
+    )
+  })
+
+  menu.addEventListener("contextmenu", (e) => {
+    e.preventDefault()
+  })
+
+  document.addEventListener("click", (e) => {
+    if(!menu.classList.contains("visible")) return
+    if(menu.contains(e.target)) return
+    cerrarMenuContextualStripsControlador()
+  })
+
+  document.addEventListener("keydown", (e) => {
+    if(e.key === "Escape"){
+      cerrarMenuContextualStripsControlador()
+    }
+  })
+
+  window.addEventListener("resize", () => {
+    cerrarMenuContextualStripsControlador()
+  })
+
+  document.addEventListener("scroll", () => {
+    cerrarMenuContextualStripsControlador()
+  }, true)
+}
+
+function crearRectControladorDesdeEstado(item, panel){
+  if(!item || typeof item.id !== "string") return null
+
+  const idRect = item.id.trim()
+  if(idRect === "") return null
+
+  const rect = document.createElement("div")
+  rect.id = idRect
+  rect.className = "panel-controlador-rect"
+  rect.classList.add(
+    item.color === "amarillo"
+      ? "panel-controlador-rect-amarillo"
+      : "panel-controlador-rect-cyan"
+  )
+  rect.draggable = true
+
+  const numeroStrip = String(
+    Math.max(extraerNumeroStripControladorDesdeId(idRect), 1)
+  ).padStart(2, "0")
+  const tipoStrip = item.color === "amarillo"
+    ? "Departure Flight Strip"
+    : "Arrival Flight Strip"
+  rect.setAttribute("aria-label", `${tipoStrip} ${numeroStrip}`)
+
+  if(!datosCasillerosControlador[idRect]){
+    datosCasillerosControlador[idRect] = crearEstadoCasillerosControlador("")
+  }
+
+  aplicarVistaRealStripControlador(rect)
+  registrarEventosRectControlador(rect, panel)
+  return rect
+}
+
+function sincronizarListaStripsControladorDesdeDom(
+  dependencia = dependenciaStripControladorActiva
+){
+  const contenedor = document.getElementById("controladorStripsDrop")
+  if(!contenedor) return
+
+  const dependenciaNormalizada = normalizarDependenciaStripControlador(dependencia)
+  const listaActual = obtenerListaStripsControladorSala(dependenciaNormalizada)
+  const mapaActual = new Map(
+    listaActual.map((item) => [item.id, item])
+  )
+
+  estadoStripsControladorSala.dependencias[dependenciaNormalizada] = Array.from(
+    contenedor.querySelectorAll(".panel-controlador-rect[id^='controladorRect']")
+  ).map((rect) => {
+    const idRect = typeof rect.id === "string" ? rect.id.trim() : ""
+    const existente = mapaActual.get(idRect)
+    return {
+      id: idRect,
+      color:
+        rect.classList.contains("panel-controlador-rect-amarillo")
+          ? "amarillo"
+          : "cyan",
+      estadoCasilleros: existente?.estadoCasilleros || null
+    }
+  }).filter((item) => item.id !== "")
+}
+
+function construirPayloadStripsControladorSala(){
+  sincronizarListaStripsControladorDesdeDom()
+
+  const dependencias = Object.create(null)
+  let maximoId = contadorRectControladorExtra
+
+  DEPENDENCIAS_STRIPS_CONTROLADOR.forEach((dependencia) => {
+    dependencias[dependencia] = obtenerListaStripsControladorSala(dependencia)
+      .map((item) => {
+        const idRect = typeof item?.id === "string" ? item.id.trim() : ""
+        if(!/^controladorRect\d+$/.test(idRect)) return null
+
+        maximoId = Math.max(maximoId, extraerNumeroStripControladorDesdeId(idRect))
+
+        return {
+          id: idRect,
+          color: item?.color === "amarillo" ? "amarillo" : "cyan",
+          estadoCasilleros: clonarValorPlanoControlador(
+            obtenerEstadoCasillerosControlador(idRect, ""),
+            crearEstadoCasillerosControlador("")
+          )
+        }
+      })
+      .filter(Boolean)
+  })
+
+  return {
+    siguienteId: maximoId,
+    dependencias
+  }
+}
+
+function emitirStripsControladorServidor(payload = null){
+  if(!socket || !socket.connected) return false
+  const sala = obtenerSalaActiva()
+  if(!sala) return false
+
+  socket.emit(
+    "actualizarStripsControlador",
+    payload || construirPayloadStripsControladorSala()
+  )
+  return true
+}
+
+function programarGuardadoStripsControladorSala(retardoMs = 180){
+  if(omitirPersistenciaStripsControlador) return
+  if(temporizadorGuardadoStripsControladorSala){
+    clearTimeout(temporizadorGuardadoStripsControladorSala)
+  }
+  temporizadorGuardadoStripsControladorSala = setTimeout(() => {
+    temporizadorGuardadoStripsControladorSala = null
+    guardarDatosCasillerosControlador()
+  }, retardoMs)
+}
+
+function renderizarStripsControladorDependencia(
+  dependencia = dependenciaStripControladorActiva
+){
+  const panel = document.getElementById("panelControladorIzquierdo")
+  const contenedor = document.getElementById("controladorStripsDrop")
+  if(!panel || !contenedor) return
+
+  cerrarMenuContextualStripsControlador()
+  dependenciaStripControladorActiva = normalizarDependenciaStripControlador(dependencia)
+  guardarDependenciaStripControladorActiva()
+  sincronizarSelectorDependenciaStripControlador()
+  cerrarVistaControlador()
+
+  const persistenciaAnterior = omitirPersistenciaStripsControlador
+  omitirPersistenciaStripsControlador = true
+  try{
+    contenedor.querySelectorAll(".panel-controlador-rect[id^='controladorRect']")
+      .forEach((rect) => rect.remove())
+
+    obtenerListaStripsControladorSala(dependenciaStripControladorActiva)
+      .forEach((item) => {
+        const rect = crearRectControladorDesdeEstado(item, panel)
+        if(rect){
+          contenedor.appendChild(rect)
+        }
+      })
+  } finally{
+    omitirPersistenciaStripsControlador = persistenciaAnterior
+  }
+
+  requestAnimationFrame(() => {
+    actualizarEscalaStripsControlador()
+  })
+}
+
+function guardarDatosCasillerosControlador(){
+  if(omitirPersistenciaStripsControlador) return true
+
+  try{
+    const payload = construirPayloadStripsControladorSala()
+    localStorage.setItem(
+      STORAGE_KEY_PANEL_CONTROLADOR_STRIPS,
+      JSON.stringify(payload)
+    )
+    return emitirStripsControladorServidor(payload) || true
+  } catch(_err){
+    return emitirStripsControladorServidor()
   }
 }
 
 function cargarDatosCasillerosControladorGuardados(){
-  try{
-    const guardado = localStorage.getItem(STORAGE_KEY_DATOS_CASILLEROS_CONTROLADOR)
-    if(!guardado) return
-    const parsed = JSON.parse(guardado)
-    if(!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return
+  dependenciaStripControladorActiva = normalizarDependenciaStripControlador(
+    localStorage.getItem(STORAGE_KEY_PANEL_CONTROLADOR_DEPENDENCIA_ACTIVA)
+  )
+  estadoStripsControladorSala = crearEstadoStripsControladorSala()
+  sincronizarSelectorDependenciaStripControlador()
 
+  if(obtenerSalaActiva()){
+    renderizarStripsControladorDependencia(dependenciaStripControladorActiva)
+    return
+  }
+
+  try{
+    const guardado = localStorage.getItem(STORAGE_KEY_PANEL_CONTROLADOR_STRIPS)
+    if(!guardado){
+      renderizarStripsControladorDependencia(dependenciaStripControladorActiva)
+      return
+    }
+    const parsed = JSON.parse(guardado)
+    if(!parsed || typeof parsed !== "object" || Array.isArray(parsed)){
+      renderizarStripsControladorDependencia(dependenciaStripControladorActiva)
+      return
+    }
+
+    omitirPersistenciaStripsControlador = true
     limpiarDatosCasillerosControladorEnMemoria()
-    Object.entries(parsed).forEach(([idRect, estado]) => {
-      if(typeof idRect !== "string" || idRect.trim() === "") return
-      if(!estado || typeof estado !== "object" || Array.isArray(estado)) return
-      datosCasillerosControlador[idRect] = estado
+    estadoStripsControladorSala = crearEstadoStripsControladorSala(parsed)
+    contadorRectControladorExtra = Math.max(
+      contadorRectControladorExtra,
+      estadoStripsControladorSala.siguienteId
+    )
+
+    DEPENDENCIAS_STRIPS_CONTROLADOR.forEach((dependencia) => {
+      const itemsBase = Array.isArray(parsed?.dependencias?.[dependencia])
+        ? parsed.dependencias[dependencia]
+        : []
+      itemsBase.forEach((item) => {
+        const idRect = typeof item?.id === "string" ? item.id.trim() : ""
+        if(!/^controladorRect\d+$/.test(idRect)) return
+        datosCasillerosControlador[idRect] =
+          item?.estadoCasilleros &&
+          typeof item.estadoCasilleros === "object" &&
+          !Array.isArray(item.estadoCasilleros)
+            ? clonarValorPlanoControlador(item.estadoCasilleros, {})
+            : crearEstadoCasillerosControlador("")
+        obtenerEstadoCasillerosControlador(idRect, "")
+      })
     })
+    renderizarStripsControladorDependencia(dependenciaStripControladorActiva)
   } catch(_err){
-    
+    estadoStripsControladorSala = crearEstadoStripsControladorSala()
+    renderizarStripsControladorDependencia(dependenciaStripControladorActiva)
+  } finally{
+    omitirPersistenciaStripsControlador = false
+  }
+}
+
+function aplicarEstadoStripsControladorRemoto(data = {}){
+  if(temporizadorGuardadoStripsControladorSala){
+    clearTimeout(temporizadorGuardadoStripsControladorSala)
+    temporizadorGuardadoStripsControladorSala = null
+  }
+
+  omitirPersistenciaStripsControlador = true
+  try{
+    limpiarDatosCasillerosControladorEnMemoria()
+    estadoStripsControladorSala = crearEstadoStripsControladorSala(data)
+    contadorRectControladorExtra = Math.max(
+      contadorRectControladorExtra,
+      estadoStripsControladorSala.siguienteId
+    )
+
+    DEPENDENCIAS_STRIPS_CONTROLADOR.forEach((dependencia) => {
+      const itemsBase = Array.isArray(data?.dependencias?.[dependencia])
+        ? data.dependencias[dependencia]
+        : []
+
+      itemsBase.forEach((item) => {
+        const idRect = typeof item?.id === "string" ? item.id.trim() : ""
+        if(!/^controladorRect\d+$/.test(idRect)) return
+
+        datosCasillerosControlador[idRect] =
+          item?.estadoCasilleros &&
+          typeof item.estadoCasilleros === "object" &&
+          !Array.isArray(item.estadoCasilleros)
+            ? clonarValorPlanoControlador(item.estadoCasilleros, {})
+            : crearEstadoCasillerosControlador("")
+        obtenerEstadoCasillerosControlador(idRect, "")
+      })
+    })
+
+    renderizarStripsControladorDependencia(dependenciaStripControladorActiva)
+  } finally{
+    omitirPersistenciaStripsControlador = false
   }
 }
 
@@ -1445,6 +1968,7 @@ function crearEstadoCasillerosControlador(textoBase){
     cyan: {
       left: {
         col1: [texto, "", ""],
+        col1Diagonal: "",
         col2: {
           top: "",
           bottom: {
@@ -1563,6 +2087,13 @@ function obtenerEstadoCasillerosControlador(idRect, textoBase){
     }
     col1Normalizadas[i] = normalizarTexto(valor)
   }
+  const col1DiagonalNormalizada = normalizarTexto(
+    leftActual && typeof leftActual.col1Diagonal === "string"
+      ? leftActual.col1Diagonal
+      : leftActual && typeof leftActual.diagonal === "string"
+        ? leftActual.diagonal
+        : ""
+  )
   const MAX_ENTRADAS_BOTTOM_COL2 = 7
   let col2TopNormalizada = ""
   let col2BottomEntradasNormalizadas = []
@@ -1851,6 +2382,7 @@ function obtenerEstadoCasillerosControlador(idRect, textoBase){
 
   const cyanVacio =
     col1Normalizadas.every(valor => valor.trim() === "") &&
+    col1DiagonalNormalizada.trim() === "" &&
     col2TopNormalizada.trim() === "" &&
     col2BottomEntradasNormalizadas.every((entrada) => !entrada || entrada.value.trim() === "") &&
     col3EntradasNormalizadas.every((entrada) => !entrada || entrada.value.trim() === "") &&
@@ -1867,6 +2399,7 @@ function obtenerEstadoCasillerosControlador(idRect, textoBase){
   estado.cyan = {
     left: {
       col1: col1Normalizadas,
+      col1Diagonal: col1DiagonalNormalizada,
       col2: {
         top: col2TopNormalizada,
         bottom: {
@@ -2314,11 +2847,57 @@ function crearCasilleroEditableConPrefijoFijo(claseBase, prefijo, valorInicial, 
   return celda
 }
 
+function enfocarCasilleroEditableControlador(celda){
+  if(!celda || typeof celda.focus !== "function") return
+  celda.focus()
+  const seleccion = window.getSelection()
+  if(!seleccion) return
+  const rango = document.createRange()
+  rango.selectNodeContents(celda)
+  rango.collapse(false)
+  seleccion.removeAllRanges()
+  seleccion.addRange(rango)
+}
+
+function registrarEnfoqueFacilDiagonalControlador(
+  contenedor,
+  campoPrincipal,
+  campoSecundario = null
+){
+  if(!contenedor || contenedor.dataset.diagonalEasyFocusInit === "1") return
+  contenedor.dataset.diagonalEasyFocusInit = "1"
+
+  contenedor.addEventListener("pointerdown", (e) => {
+    if(
+      e.target &&
+      typeof e.target.closest === "function" &&
+      e.target.closest(
+        ".panel-controlador-casillero-editable, .panel-controlador-casillero-prefijo-editable"
+      )
+    ){
+      return
+    }
+
+    const rect = contenedor.getBoundingClientRect()
+    const offsetX = e.clientX - rect.left
+    const offsetY = e.clientY - rect.top
+    const enfocarSecundario = Boolean(
+      campoSecundario &&
+      (
+        offsetX >= rect.width * 0.54 ||
+        offsetY >= rect.height * 0.54
+      )
+    )
+
+    e.preventDefault()
+    enfocarCasilleroEditableControlador(
+      enfocarSecundario ? campoSecundario : campoPrincipal
+    )
+  })
+}
+
 function obtenerContenedorVistaControlador(){
-  return (
-    document.getElementById("controladorVistaRectContenido") ||
-    document.getElementById("controladorVistaRect")
-  )
+  return document.getElementById("controladorVistaRectContenido")
 }
 
 function mostrarConfirmacionCheckGuardado(ok){
@@ -2345,16 +2924,6 @@ function confirmarVistaControlador(){
 }
 
 function cerrarVistaControlador(){
-  const vista = document.getElementById("controladorVistaRect")
-  const contenido = obtenerContenedorVistaControlador()
-  if(contenido){
-    contenido.innerHTML = ""
-  }
-  if(vista){
-    vista.classList.remove("con-contenido")
-    vista.classList.remove("ocultar-acciones")
-    delete vista.dataset.previewSource
-  }
   const panel = document.getElementById("panelControladorIzquierdo")
   if(panel){
     panel.querySelectorAll(".panel-controlador-rect.seleccionado")
@@ -2474,6 +3043,10 @@ function actualizarMiniaturaStripControlador(rect){
     wrapCol3Mini.style.gridTemplateRows = `repeat(${filasCol3Mini}, minmax(0, 1fr))`
     wrapCol3Mini.style.setProperty("--col3-visible-rows", String(filasCol3Mini))
   }
+
+  if(!omitirPersistenciaStripsControlador){
+    programarGuardadoStripsControladorSala()
+  }
 }
 
 function construirContenidoMiniaturaStripAmarillo(){
@@ -2578,6 +3151,12 @@ function construirContenidoMiniaturaStripCyan(){
       crearCeldaMiniaturaStripControlador("layout-cyan-left-col1-field", `cyan.left.col1.${i}`)
     )
   }
+  col1.appendChild(
+    crearCeldaMiniaturaStripControlador(
+      "layout-cyan-left-col1-diagonal-mini",
+      "cyan.left.col1Diagonal"
+    )
+  )
   left.appendChild(col1)
   const col2 = document.createElement("div")
   col2.className = "layout-cyan-col layout-cyan-left-col2"
@@ -2635,7 +3214,7 @@ function construirContenidoMiniaturaStripCyan(){
       )
       celdaTopDiagonal.appendChild(
         crearCeldaMiniaturaStripControlador(
-          "layout-cyan-right-diagonal-mini layout-cyan-right-diagonal-mini-b",
+          "layout-cyan-right-diagonal-mini layout-cyan-right-diagonal-mini-b layout-cyan-right-diagonal-mini-top-first-b",
           "cyan.right.diagonal.topLeft.b"
         )
       )
@@ -2698,6 +3277,12 @@ function construirContenidoMiniaturaStripCyan(){
 function aplicarMiniaturaStripControlador(rect){
   if(!rect) return
   if(rect.classList.contains("panel-controlador-rect-rojo")) return
+  if(rect.classList.contains("panel-controlador-rect-real")){
+    if(!omitirPersistenciaStripsControlador){
+      programarGuardadoStripsControladorSala()
+    }
+    return
+  }
   if(rect.dataset.miniStripInit === "1") return
 
   rect.dataset.miniStripInit = "1"
@@ -2733,21 +3318,106 @@ function aplicarMiniaturaStripControlador(rect){
   actualizarMiniaturaStripControlador(rect)
 }
 
-function mostrarRectControladorEnVista(rect, opciones = {}){
-  const desdeHover = opciones && opciones.desdeHover === true
-  if(!rect) return
-  const vista = document.getElementById("controladorVistaRect")
-  const vistaContenido = obtenerContenedorVistaControlador()
-  if(!vista || !vistaContenido) return
-
+function seleccionarRectControlador(rect){
   const panel = document.getElementById("panelControladorIzquierdo")
-  if(panel && !desdeHover){
-    panel.querySelectorAll(".panel-controlador-rect.seleccionado")
-      .forEach(item => item.classList.remove("seleccionado"))
+  if(!panel) return
+  panel.querySelectorAll(".panel-controlador-rect.seleccionado")
+    .forEach((item) => item.classList.remove("seleccionado"))
+  if(rect){
     rect.classList.add("seleccionado")
   }
+}
 
-  vistaContenido.innerHTML = ""
+function obtenerAlturaBaseRectControladorReal(rect){
+  const vista = rect?.querySelector(".panel-controlador-vista-rect")
+  if(!vista) return ALTO_BASE_STRIP_CONTROLADOR_REAL
+
+  const alturaMedida = Math.max(
+    vista.offsetHeight || 0,
+    vista.scrollHeight || 0,
+    ALTO_BASE_STRIP_CONTROLADOR_REAL
+  )
+  return alturaMedida
+}
+
+function actualizarEscalaRectControladorReal(rect, anchoDisponible){
+  if(!rect || !rect.classList.contains("panel-controlador-rect-real")) return
+  if(!Number.isFinite(anchoDisponible) || anchoDisponible <= 0) return
+
+  const escala = Math.min(
+    1,
+    Math.max(0.24, anchoDisponible / ANCHO_BASE_STRIP_CONTROLADOR_REAL)
+  )
+  const alturaBase = obtenerAlturaBaseRectControladorReal(rect)
+  rect.style.setProperty("--strip-controlador-scale", escala.toFixed(4))
+  rect.style.width = `${Math.round(ANCHO_BASE_STRIP_CONTROLADOR_REAL * escala)}px`
+  rect.style.height = `${Math.round(alturaBase * escala)}px`
+}
+
+function actualizarEscalaStripsControlador(){
+  const contenedor = document.getElementById("controladorStripsDrop")
+  if(!contenedor) return
+
+  const anchoDisponible = Math.max(0, contenedor.clientWidth)
+  if(anchoDisponible <= 0) return
+
+  contenedor.querySelectorAll(".panel-controlador-rect-real")
+    .forEach((rect) => {
+      actualizarEscalaRectControladorReal(rect, anchoDisponible)
+    })
+}
+
+function inicializarEscalaStripsControlador(){
+  const contenedor = document.getElementById("controladorStripsDrop")
+  if(!contenedor) return
+
+  if(typeof ResizeObserver === "function" && !resizeObserverStripsControlador){
+    resizeObserverStripsControlador = new ResizeObserver(() => {
+      actualizarEscalaStripsControlador()
+    })
+    resizeObserverStripsControlador.observe(contenedor)
+  }
+
+  requestAnimationFrame(() => {
+    actualizarEscalaStripsControlador()
+  })
+}
+
+function aplicarVistaRealStripControlador(rect){
+  if(!rect) return
+  if(rect.classList.contains("panel-controlador-rect-rojo")) return
+
+  rect.classList.remove("panel-controlador-rect-mini")
+  rect.classList.add("panel-controlador-rect-real")
+  delete rect.dataset.miniStripInit
+  rect.textContent = ""
+  mostrarRectControladorEnVista(rect, {
+    soloConstruir: true,
+    destinoContenido: rect
+  })
+  requestAnimationFrame(() => {
+    actualizarEscalaStripsControlador()
+  })
+}
+
+function mostrarRectControladorEnVista(rect, opciones = {}){
+  const desdeHover = opciones && opciones.desdeHover === true
+  const soloConstruir = opciones && opciones.soloConstruir === true
+  const destinoContenido =
+    (opciones && opciones.destinoContenido) || obtenerContenedorVistaControlador()
+  if(!rect) return
+  if(!destinoContenido) return null
+
+  const vista = soloConstruir ? null : document.getElementById("controladorVistaRect")
+  if(!soloConstruir && !vista) return null
+
+  if(!soloConstruir && !desdeHover){
+    seleccionarRectControlador(rect)
+  }
+
+  if(!soloConstruir){
+    destinoContenido.innerHTML = ""
+  }
 
   const rectVista = document.createElement("div")
   rectVista.className = "panel-controlador-vista-rect"
@@ -2909,6 +3579,40 @@ function mostrarRectControladorEnVista(rect, opciones = {}){
       )
       col1.appendChild(celdaCol1)
     }
+    const col1Diagonal = crearCasilleroEditableNumericoDosDigitos(
+      "layout-cyan-left-col1-diagonal-input",
+      estadoCasilleros.cyan.left.col1Diagonal,
+      (valor) => {
+        estadoCasilleros.cyan.left.col1Diagonal = valor
+        actualizarMiniaturaStripControlador(rect)
+      },
+      {
+        permitirAlfanumericoMayus: true,
+        longitudMaxima: 6
+      }
+    )
+    col1.appendChild(col1Diagonal)
+    col1.addEventListener("pointerdown", (e) => {
+      if(
+        e.target &&
+        typeof e.target.closest === "function" &&
+        e.target.closest(
+          ".layout-cyan-left-col1-field, .layout-cyan-left-col1-diagonal-input"
+        )
+      ){
+        return
+      }
+
+      const rectCol1 = col1.getBoundingClientRect()
+      const offsetX = e.clientX - rectCol1.left
+      const offsetY = e.clientY - rectCol1.top
+      if(offsetX < rectCol1.width * 0.48 || offsetY < rectCol1.height * 0.4){
+        return
+      }
+
+      e.preventDefault()
+      enfocarCasilleroEditableControlador(col1Diagonal)
+    })
     left.appendChild(col1)
 
     const col2 = document.createElement("div")
@@ -3498,7 +4202,7 @@ function mostrarRectControladorEnVista(rect, opciones = {}){
           }
         )
         const ladoBTop = crearCasilleroEditable(
-          "layout-cyan-right-diagonal-input layout-cyan-right-diagonal-input-b",
+          "layout-cyan-right-diagonal-input layout-cyan-right-diagonal-input-b layout-cyan-right-diagonal-input-top-first-b",
           estadoCasilleros.cyan.right.diagonal.topLeft.b,
           (valor) => {
             estadoCasilleros.cyan.right.diagonal.topLeft.b = valor
@@ -3507,6 +4211,11 @@ function mostrarRectControladorEnVista(rect, opciones = {}){
         )
         celdaTopDiagonal.appendChild(ladoATop)
         celdaTopDiagonal.appendChild(ladoBTop)
+        registrarEnfoqueFacilDiagonalControlador(
+          celdaTopDiagonal,
+          ladoATop,
+          ladoBTop
+        )
         right.appendChild(celdaTopDiagonal)
       } else {
         const celdaTop = crearCasilleroEditable(
@@ -3548,6 +4257,11 @@ function mostrarRectControladorEnVista(rect, opciones = {}){
         )
         celdaBottomDiagonal.appendChild(ladoABottom)
         celdaBottomDiagonal.appendChild(ladoBBottom)
+        registrarEnfoqueFacilDiagonalControlador(
+          celdaBottomDiagonal,
+          ladoABottom,
+          ladoBBottom
+        )
         right.appendChild(celdaBottomDiagonal)
       } else {
         const celdaBottom = crearCasilleroEditable(
@@ -3591,31 +4305,18 @@ function mostrarRectControladorEnVista(rect, opciones = {}){
     rectVista.appendChild(casilleroSimple)
   }
 
-  vistaContenido.appendChild(rectVista)
-  vista.classList.add("con-contenido")
-  vista.classList.toggle("ocultar-acciones", desdeHover)
-  vista.dataset.previewSource = desdeHover ? "hover" : "click"
+  destinoContenido.appendChild(rectVista)
+  if(vista){
+    vista.classList.add("con-contenido")
+    vista.setAttribute("aria-hidden", "false")
+    vista.classList.toggle("ocultar-acciones", desdeHover)
+    vista.dataset.previewSource = desdeHover ? "hover" : "click"
+  }
+  return rectVista
 }
 
 function restaurarVistaControladorTrasHover(){
-  const vista = document.getElementById("controladorVistaRect")
-  const panel = document.getElementById("panelControladorIzquierdo")
-  if(!vista || !panel) return
-  if(vista.dataset.previewSource !== "hover") return
-
-  const seleccionado = panel.querySelector(".panel-controlador-rect.seleccionado")
-  if(seleccionado){
-    mostrarRectControladorEnVista(seleccionado)
-    return
-  }
-
-  const contenido = obtenerContenedorVistaControlador()
-  if(contenido){
-    contenido.innerHTML = ""
-  }
-  vista.classList.remove("con-contenido")
-  vista.classList.remove("ocultar-acciones")
-  delete vista.dataset.previewSource
+  return
 }
 
 function registrarEventosRectControlador(rect, panel){
@@ -3623,6 +4324,16 @@ function registrarEventosRectControlador(rect, panel){
   rect.dataset.dragInitRect = "1"
 
   rect.addEventListener("dragstart", (e) => {
+    if(
+      e.target &&
+      typeof e.target.closest === "function" &&
+      e.target.closest(
+        ".panel-controlador-casillero-editable, .panel-controlador-casillero-prefijo-editable"
+      )
+    ){
+      e.preventDefault()
+      return
+    }
     rect.classList.add("arrastrando")
     if(e.dataTransfer){
       e.dataTransfer.effectAllowed = "move"
@@ -3638,45 +4349,42 @@ function registrarEventosRectControlador(rect, panel){
 
   rect.addEventListener("click", () => {
     if(Date.now() < bloqueoClickRectControladorHasta) return
-    mostrarRectControladorEnVista(rect)
+    cerrarMenuContextualStripsControlador()
+    seleccionarRectControlador(rect)
   })
 
-  rect.addEventListener("mouseenter", () => {
-    if(rect.classList.contains("arrastrando")) return
-    mostrarRectControladorEnVista(rect, { desdeHover: true })
-  })
-
-  rect.addEventListener("mouseleave", () => {
-    restaurarVistaControladorTrasHover()
+  rect.addEventListener("contextmenu", (e) => {
+    if(rect.classList.contains("panel-controlador-rect-rojo")) return
+    e.preventDefault()
+    e.stopPropagation()
+    seleccionarRectControlador(rect)
+    abrirMenuContextualStripsControlador(rect, e.clientX, e.clientY)
   })
 }
 
 function crearRectControlador(color){
   const panel = document.getElementById("panelControladorIzquierdo")
-  const contenedor = document.getElementById("controladorSector2Drop")
+  const contenedor = document.getElementById("controladorStripsDrop")
   if(!panel || !contenedor) return
 
   contadorRectControladorExtra += 1
   const idRect = `controladorRect${contadorRectControladorExtra}`
-  const rect = document.createElement("div")
-  rect.id = idRect
-  rect.className = "panel-controlador-rect"
-  rect.classList.add(
-    color === "amarillo"
-      ? "panel-controlador-rect-amarillo"
-      : "panel-controlador-rect-cyan"
-  )
-  rect.draggable = true
-  const numeroStrip = String(contadorRectControladorExtra).padStart(2, "0")
-  const tipoStrip = color === "amarillo"
-    ? "Departure Flight Strip"
-    : "Arrival Flight Strip"
-  rect.setAttribute("aria-label", `${tipoStrip} ${numeroStrip}`)
   datosCasillerosControlador[idRect] = crearEstadoCasillerosControlador("")
-
-  aplicarMiniaturaStripControlador(rect)
-  registrarEventosRectControlador(rect, panel)
+  const dependencia = normalizarDependenciaStripControlador(dependenciaStripControladorActiva)
+  const item = {
+    id: idRect,
+    color: color === "amarillo" ? "amarillo" : "cyan",
+    estadoCasilleros: null
+  }
+  obtenerListaStripsControladorSala(dependencia).push(item)
+  const rect = crearRectControladorDesdeEstado(item, panel)
+  if(!rect) return
   contenedor.appendChild(rect)
+  seleccionarRectControlador(rect)
+  requestAnimationFrame(() => {
+    actualizarEscalaStripsControlador()
+  })
+  programarGuardadoStripsControladorSala(60)
 }
 
 function eliminarStripControladorSeleccionado(){
@@ -3700,6 +4408,12 @@ function eliminarStripControladorSeleccionado(){
   const idRect = typeof rectSeleccionado.id === "string" ? rectSeleccionado.id : ""
   if(idRect !== ""){
     delete datosCasillerosControlador[idRect]
+    const dependencia = normalizarDependenciaStripControlador(
+      dependenciaStripControladorActiva
+    )
+    const listaDependencia = obtenerListaStripsControladorSala(dependencia)
+    estadoStripsControladorSala.dependencias[dependencia] =
+      listaDependencia.filter((item) => item && item.id !== idRect)
   }
 
   rectSeleccionado.remove()
@@ -3715,6 +4429,9 @@ function inicializarPanelControladorDragDrop(){
   const btnAgregarRectCyan = document.getElementById("btnAgregarRectCyan")
   const btnAgregarRectAmarillo = document.getElementById("btnAgregarRectAmarillo")
   const btnEliminarRectControlador = document.getElementById("btnEliminarRectControlador")
+  const selectorDependencia = document.getElementById("selectorDependenciaStripControlador")
+
+  inicializarMenuContextualStripsControlador()
 
   const idsActuales = Array.from(
     panel.querySelectorAll(".panel-controlador-rect[id^='controladorRect']")
@@ -3733,6 +4450,7 @@ function inicializarPanelControladorDragDrop(){
   panel.querySelectorAll(".panel-controlador-caja").forEach(zona => {
     zona.addEventListener("dragenter", (e) => {
       e.preventDefault()
+      cerrarMenuContextualStripsControlador()
       zona.classList.add("zona-arrastre-activa")
     })
 
@@ -3762,13 +4480,30 @@ function inicializarPanelControladorDragDrop(){
         )
       if(!rectArrastrado) return
       moverRectControladorSegunCursor(zona, e.clientY, rectArrastrado)
+      sincronizarListaStripsControladorDesdeDom()
+      programarGuardadoStripsControladorSala(60)
     })
   })
+
+  if(selectorDependencia){
+    selectorDependencia.value = normalizarDependenciaStripControlador(
+      dependenciaStripControladorActiva
+    )
+    selectorDependencia.addEventListener("change", () => {
+      cerrarMenuContextualStripsControlador()
+      sincronizarListaStripsControladorDesdeDom()
+      dependenciaStripControladorActiva = normalizarDependenciaStripControlador(
+        selectorDependencia.value
+      )
+      renderizarStripsControladorDependencia(dependenciaStripControladorActiva)
+    })
+  }
 
   if(btnAgregarRectCyan){
     btnAgregarRectCyan.addEventListener("click", (e) => {
       e.preventDefault()
       e.stopPropagation()
+      cerrarMenuContextualStripsControlador()
       crearRectControlador("cyan")
     })
   }
@@ -3777,6 +4512,7 @@ function inicializarPanelControladorDragDrop(){
     btnAgregarRectAmarillo.addEventListener("click", (e) => {
       e.preventDefault()
       e.stopPropagation()
+      cerrarMenuContextualStripsControlador()
       crearRectControlador("amarillo")
     })
   }
@@ -3785,6 +4521,7 @@ function inicializarPanelControladorDragDrop(){
     btnEliminarRectControlador.addEventListener("click", (e) => {
       e.preventDefault()
       e.stopPropagation()
+      cerrarMenuContextualStripsControlador()
       eliminarStripControladorSeleccionado()
     })
   }
@@ -4371,6 +5108,9 @@ socket.on("actualizarRescate", data => {
 })
 socket.on("actualizarServiciosControlador", data => {
   aplicarEstadoServiciosControladorRemoto(data)
+})
+socket.on("actualizarStripsControlador", data => {
+  aplicarEstadoStripsControladorRemoto(data)
 })
 socket.on("letraPanelSala", data => {
   const letraRecibida =
@@ -28957,6 +29697,7 @@ function toggleWeatherPanel(forzarActivo = null){
   actualizarEstadoBotonPilotage()
   emitirModoOperacionServidor()
   inicializarPanelControladorDragDrop()
+  inicializarPanelControladorMovible()
   inicializarPanelControladorServicios()
 
   actualizarOpcionAeronaveWeather(Boolean(btnWeather && btnWeather.classList.contains("activo")))
@@ -29150,18 +29891,338 @@ function toggleSelectorModoOperacion(){
   boton.setAttribute("aria-expanded", String(expandido));
 }
 
-function togglePanelControladorIzquierdo(){
+function esObjetivoEditableAtajoStrips(target){
+  if(!(target instanceof Element)) return false
+  if(target.isContentEditable) return true
+
+  return Boolean(
+    target.closest(
+      "input, textarea, select, [contenteditable='true'], .panel-controlador-casillero-editable, .panel-controlador-casillero-prefijo-editable"
+    )
+  )
+}
+
+function estaPanelControladorIzquierdoAbierto(){
+  const panel = document.getElementById("panelControladorIzquierdo");
+  return Boolean(
+    panel &&
+    panel.classList.contains("visible-modo-controlador") &&
+    !panel.classList.contains("contraido")
+  );
+}
+
+function centrarPanelControladorIzquierdo(){
+  const panel = document.getElementById("panelControladorIzquierdo");
+  if(!panel) return;
+
+  const rect = panel.getBoundingClientRect();
+  if(rect.width <= 0 || rect.height <= 0) return;
+
+  const margen = 12;
+  const leftObjetivo = (window.innerWidth - rect.width) / 2;
+  const topObjetivo = (window.innerHeight - rect.height) / 2;
+  const maxLeft = Math.max(margen, window.innerWidth - rect.width - margen);
+  const maxTop = Math.max(margen, window.innerHeight - rect.height - margen);
+
+  panel.style.left = `${limitarValorPanelControlador(leftObjetivo, margen, maxLeft)}px`;
+  panel.style.top = `${limitarValorPanelControlador(topObjetivo, margen, maxTop)}px`;
+}
+
+function abrirPanelControladorIzquierdo(opciones = {}){
   const panel = document.getElementById("panelControladorIzquierdo");
   const boton = document.getElementById("btnStrips");
   if(!panel || !boton) return;
 
-  panel.classList.toggle("contraido");
-  const expandido = !panel.classList.contains("contraido");
-  boton.setAttribute("aria-expanded", String(expandido));
+  panel.classList.remove("contraido");
+  actualizarEstadoPanelControladorIzquierdo();
 
-  if(!expandido){
-    cerrarVistaControlador();
+  const debeCentrar =
+    opciones.centrar === true ||
+    (
+      opciones.centrar !== false &&
+      panel.dataset.userPositioned !== "1" &&
+      panel.dataset.userResized !== "1"
+    );
+
+  requestAnimationFrame(() => {
+    if(debeCentrar){
+      centrarPanelControladorIzquierdo();
+    } else {
+      ajustarPosicionPanelControladorIzquierdo();
+    }
+    actualizarEscalaStripsControlador()
+  });
+}
+
+function cerrarPanelControladorIzquierdo(){
+  const panel = document.getElementById("panelControladorIzquierdo");
+  if(!panel) return;
+
+  panel.classList.add("contraido");
+  actualizarEstadoPanelControladorIzquierdo();
+  cerrarMenuContextualStripsControlador();
+  cerrarVistaControlador();
+}
+
+function togglePanelControladorIzquierdo(){
+  if(estaPanelControladorIzquierdoAbierto()){
+    cerrarPanelControladorIzquierdo();
+    return;
   }
+
+  abrirPanelControladorIzquierdo();
+}
+
+function manejarAtajosTecladoStripsControlador(e){
+  if(modoOperacion !== "controlador") return;
+  if(e.defaultPrevented) return;
+  if(e.altKey || e.ctrlKey || e.metaKey) return;
+  if(esObjetivoEditableAtajoStrips(e.target)) return;
+
+  if(e.key === "Escape"){
+    if(estaPanelControladorIzquierdoAbierto()){
+      cerrarPanelControladorIzquierdo();
+    }
+    return;
+  }
+
+  if(e.repeat) return;
+  const tecla = typeof e.key === "string" ? e.key.trim().toLowerCase() : "";
+  if(tecla !== "s") return;
+  if(estaPanelControladorIzquierdoAbierto()){
+    return;
+  }
+
+  e.preventDefault();
+  abrirPanelControladorIzquierdo({ centrar: true });
+}
+
+document.addEventListener("keydown", manejarAtajosTecladoStripsControlador);
+
+function actualizarEstadoPanelControladorIzquierdo(){
+  const panel = document.getElementById("panelControladorIzquierdo");
+  const boton = document.getElementById("btnStrips");
+  const botonCerrar = document.getElementById("btnCerrarPanelControlador");
+  if(!boton) return;
+
+  const visible = Boolean(
+    panel &&
+    panel.classList.contains("visible-modo-controlador")
+  );
+  const abierto = Boolean(
+    visible &&
+    !panel.classList.contains("contraido")
+  );
+
+  boton.setAttribute("aria-expanded", String(abierto));
+  if(panel){
+    panel.setAttribute("aria-hidden", String(!abierto));
+  }
+  if(botonCerrar){
+    botonCerrar.setAttribute("aria-label", "Cerrar panel de STRIPS");
+    botonCerrar.textContent = "\u00d7";
+  }
+}
+
+function limitarValorPanelControlador(valor, minimo, maximo){
+  return Math.min(Math.max(valor, minimo), maximo);
+}
+
+function ajustarPosicionPanelControladorIzquierdo(){
+  const panel = document.getElementById("panelControladorIzquierdo");
+  if(!panel) return;
+
+  const rect = panel.getBoundingClientRect();
+  if(rect.width <= 0 || rect.height <= 0) return;
+
+  const margen = 8;
+  const maxLeft = Math.max(margen, window.innerWidth - rect.width - margen);
+  const maxTop = Math.max(margen, window.innerHeight - rect.height - margen);
+  const leftActual = Number.parseFloat(panel.style.left);
+  const topActual = Number.parseFloat(panel.style.top);
+  const leftBase = Number.isFinite(leftActual) ? leftActual : rect.left;
+  const topBase = Number.isFinite(topActual) ? topActual : rect.top;
+
+  panel.style.left = `${limitarValorPanelControlador(leftBase, margen, maxLeft)}px`;
+  panel.style.top = `${limitarValorPanelControlador(topBase, margen, maxTop)}px`;
+}
+
+function inicializarPanelControladorMovible(){
+  const panel = document.getElementById("panelControladorIzquierdo");
+  const header = document.getElementById("panelControladorIzquierdoHeader");
+  if(!panel || !header) return;
+  if(panel.dataset.movableInit === "1"){
+    inicializarResizePanelControlador();
+    inicializarEscalaStripsControlador();
+    return;
+  }
+  panel.dataset.movableInit = "1";
+
+  let arrastrando = false;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  function obtenerPuntoEvento(evento){
+    if(evento.touches && evento.touches.length > 0) return evento.touches[0];
+    if(evento.changedTouches && evento.changedTouches.length > 0) return evento.changedTouches[0];
+    return evento;
+  }
+
+  function iniciarArrastre(evento){
+    if(evento.target.closest("button")) return;
+
+    const punto = obtenerPuntoEvento(evento);
+    if(!punto) return;
+
+    const rect = panel.getBoundingClientRect();
+    arrastrando = true;
+    offsetX = punto.clientX - rect.left;
+    offsetY = punto.clientY - rect.top;
+    panel.classList.add("arrastrando-panel");
+    evento.preventDefault();
+  }
+
+  function arrastrar(evento){
+    if(!arrastrando) return;
+
+    const punto = obtenerPuntoEvento(evento);
+    if(!punto) return;
+
+    const rect = panel.getBoundingClientRect();
+    const margen = 8;
+    const maxLeft = Math.max(margen, window.innerWidth - rect.width - margen);
+    const maxTop = Math.max(margen, window.innerHeight - rect.height - margen);
+    const siguienteLeft = limitarValorPanelControlador(
+      punto.clientX - offsetX,
+      margen,
+      maxLeft
+    );
+    const siguienteTop = limitarValorPanelControlador(
+      punto.clientY - offsetY,
+      margen,
+      maxTop
+    );
+
+    panel.style.left = `${siguienteLeft}px`;
+    panel.style.top = `${siguienteTop}px`;
+    panel.dataset.userPositioned = "1";
+    evento.preventDefault();
+  }
+
+  function detenerArrastre(){
+    if(!arrastrando) return;
+    arrastrando = false;
+    panel.classList.remove("arrastrando-panel");
+  }
+
+  header.addEventListener("mousedown", iniciarArrastre);
+  header.addEventListener("touchstart", iniciarArrastre, { passive: false });
+  document.addEventListener("mousemove", arrastrar);
+  document.addEventListener("touchmove", arrastrar, { passive: false });
+  document.addEventListener("mouseup", detenerArrastre);
+  document.addEventListener("touchend", detenerArrastre);
+  window.addEventListener("resize", () => {
+    ajustarPosicionPanelControladorIzquierdo()
+    actualizarEscalaStripsControlador()
+  });
+  inicializarResizePanelControlador();
+  inicializarEscalaStripsControlador();
+}
+
+function inicializarResizePanelControlador(){
+  const panel = document.getElementById("panelControladorIzquierdo");
+  const grip = document.getElementById("panelControladorResizeGrip");
+  if(!panel || !grip) return;
+  if(panel.dataset.resizeInit === "1") return;
+  panel.dataset.resizeInit = "1";
+
+  let redimensionando = false;
+  let anchoInicial = 0;
+  let altoInicial = 0;
+  let startX = 0;
+  let startY = 0;
+
+  function obtenerPuntoEvento(evento){
+    if(evento.touches && evento.touches.length > 0) return evento.touches[0];
+    if(evento.changedTouches && evento.changedTouches.length > 0) return evento.changedTouches[0];
+    return evento;
+  }
+
+  function obtenerLimitesResize(){
+    const estilos = window.getComputedStyle(panel);
+    const margen = 16;
+    const minWidth = Number.parseFloat(estilos.minWidth) || 640;
+    const minHeight = Number.parseFloat(estilos.minHeight) || 360;
+    const maxWidthCss = Number.parseFloat(estilos.maxWidth);
+    const maxHeightCss = Number.parseFloat(estilos.maxHeight);
+    const maxWidthViewport = Math.max(margen, window.innerWidth - margen);
+    const maxHeightViewport = Math.max(margen, window.innerHeight - margen);
+
+    return {
+      minWidth: Math.min(maxWidthViewport, minWidth),
+      minHeight: Math.min(maxHeightViewport, minHeight),
+      maxWidth: Number.isFinite(maxWidthCss)
+        ? Math.min(maxWidthViewport, maxWidthCss)
+        : maxWidthViewport,
+      maxHeight: Number.isFinite(maxHeightCss)
+        ? Math.min(maxHeightViewport, maxHeightCss)
+        : maxHeightViewport
+    };
+  }
+
+  function iniciarResize(evento){
+    const punto = obtenerPuntoEvento(evento);
+    if(!punto) return;
+
+    const rect = panel.getBoundingClientRect();
+    anchoInicial = rect.width;
+    altoInicial = rect.height;
+    startX = punto.clientX;
+    startY = punto.clientY;
+    redimensionando = true;
+    panel.classList.add("redimensionando-panel");
+    evento.preventDefault();
+    evento.stopPropagation();
+  }
+
+  function redimensionar(evento){
+    if(!redimensionando) return;
+
+    const punto = obtenerPuntoEvento(evento);
+    if(!punto) return;
+
+    const limites = obtenerLimitesResize();
+    const siguienteAncho = limitarValorPanelControlador(
+      anchoInicial + (punto.clientX - startX),
+      limites.minWidth,
+      limites.maxWidth
+    );
+    const siguienteAlto = limitarValorPanelControlador(
+      altoInicial + (punto.clientY - startY),
+      limites.minHeight,
+      limites.maxHeight
+    );
+
+    panel.style.width = `${Math.round(siguienteAncho)}px`;
+    panel.style.height = `${Math.round(siguienteAlto)}px`;
+    panel.dataset.userResized = "1";
+    ajustarPosicionPanelControladorIzquierdo();
+    actualizarEscalaStripsControlador()
+    evento.preventDefault();
+  }
+
+  function detenerResize(){
+    if(!redimensionando) return;
+    redimensionando = false;
+    panel.classList.remove("redimensionando-panel");
+  }
+
+  grip.addEventListener("mousedown", iniciarResize);
+  grip.addEventListener("touchstart", iniciarResize, { passive: false });
+  document.addEventListener("mousemove", redimensionar);
+  document.addEventListener("touchmove", redimensionar, { passive: false });
+  document.addEventListener("mouseup", detenerResize);
+  document.addEventListener("touchend", detenerResize);
 }
 
 function togglePanelControladorServicios(){
@@ -29251,6 +30312,7 @@ function actualizarIndicadorDireccionRosa(dirTexto){
 window.addEventListener("DOMContentLoaded", () => {
   aplicarVisibilidadPanelIzquierdoPorModo()
   inicializarPanelControladorDragDrop()
+  inicializarPanelControladorMovible()
   actualizarEstadoPanelRescate()
   actualizarLuzEmergencyControlador()
   inicializarCirculosSectorUno()
@@ -29342,77 +30404,85 @@ window.addEventListener("DOMContentLoaded", () => {
 
 </div>
 
-<div id="panelControladorIzquierdo" class="contraido">
+<div id="panelControladorIzquierdo" class="contraido" aria-hidden="true">
+  <div id="panelControladorIzquierdoHeader" class="panel-controlador-header">
+    <span class="panel-controlador-header-titulo">STRIPS</span>
+    <button
+      id="btnCerrarPanelControlador"
+      class="panel-controlador-header-accion"
+      type="button"
+      aria-label="Cerrar panel de STRIPS"
+      onclick="cerrarPanelControladorIzquierdo()"
+    >
+      &times;
+    </button>
+  </div>
   <div class="panel-controlador-contenido">
-    <div class="panel-controlador-acciones">
-      <button
-        id="btnAgregarRectCyan"
-        class="panel-controlador-btn panel-controlador-btn-cyan"
-        type="button"
-        aria-label="Add Arrival Flight Strip"
-        title="Add Arrival Flight Strip"
-      >
-        &#8600; A
-      </button>
-      <button
-        id="btnAgregarRectAmarillo"
-        class="panel-controlador-btn panel-controlador-btn-amarillo"
-        type="button"
-        aria-label="Add Departure Flight Strip"
-        title="Add Departure Flight Strip"
-      >
-        &#8599; D
-      </button>
-      <button
-        id="btnEliminarRectControlador"
-        class="panel-controlador-btn panel-controlador-btn-eliminar"
-        type="button"
-        aria-label="Eliminar strip seleccionado"
-        title="Eliminar strip seleccionado"
-      >
-        &#128465;
-      </button>
-    </div>
-    <section class="panel-controlador-sector panel-controlador-sector-uno">
-      <div id="controladorSector1Drop" class="panel-controlador-caja" data-sector="1">
-        <div id="controladorWorkAreas" class="panel-controlador-rect panel-controlador-rect-rojo" draggable="true">
-          Work Areas
-        </div>
+    <div class="panel-controlador-controles">
+      <div class="panel-controlador-selector-wrap">
+        <select
+          id="selectorDependenciaStripControlador"
+          class="panel-controlador-selector"
+          aria-label="Seleccionar dependencia de strips"
+        >
+          <option value="SPSO_GND">SPSO_GND</option>
+          <option value="SPSO_TWR">SPSO_TWR</option>
+          <option value="SPSO_APP">SPSO_APP</option>
+        </select>
       </div>
-    </section>
-    <section class="panel-controlador-sector panel-controlador-sector-dos">
-      <div id="controladorSector2Drop" class="panel-controlador-caja" data-sector="2"></div>
-    </section>
-  </div>
-  <button id="btnStrips"
-          class="panel-controlador-toggle"
+      <div class="panel-controlador-acciones">
+        <button
+          id="btnAgregarRectCyan"
+          class="panel-controlador-btn panel-controlador-btn-cyan"
           type="button"
-          aria-label="Mostrar u ocultar panel de STRIPS"
-          aria-expanded="false"
-          onclick="togglePanelControladorIzquierdo()">
-    <span class="panel-derecho-text" aria-hidden="true">STRIPS</span>
-  </button>
-</div>
-<div id="controladorVistaRect" class="panel-controlador-vista-flotante" aria-live="polite">
-  <div class="controlador-vista-acciones">
-    <button
-      type="button"
-      class="controlador-vista-btn controlador-vista-btn-ok"
-      aria-label="Confirmar cambios"
-      onclick="confirmarVistaControlador()"
-    >
-      &#10003;
-    </button>
-    <button
-      type="button"
-      class="controlador-vista-btn controlador-vista-btn-cerrar"
-      aria-label="Cerrar vista real"
-      onclick="cerrarVistaControlador()"
-    >
-      &#10005;
-    </button>
+          aria-label="Add Arrival Flight Strip"
+          title="Add Arrival Flight Strip"
+        >
+          &#8600; A
+        </button>
+        <button
+          id="btnAgregarRectAmarillo"
+          class="panel-controlador-btn panel-controlador-btn-amarillo"
+          type="button"
+          aria-label="Add Departure Flight Strip"
+          title="Add Departure Flight Strip"
+        >
+          &#8599; D
+        </button>
+        <button
+          id="btnEliminarRectControlador"
+          class="panel-controlador-btn panel-controlador-btn-eliminar"
+          type="button"
+          aria-label="Eliminar strip seleccionado"
+          title="Eliminar strip seleccionado"
+        >
+          &#128465;
+        </button>
+      </div>
+    </div>
+    <div class="panel-controlador-cuerpo">
+      <section
+        id="controladorVistaRect"
+        class="panel-controlador-sector panel-controlador-vista-inline"
+        aria-live="polite"
+        aria-hidden="false"
+      >
+        <div
+          id="controladorStripsDrop"
+          class="controlador-vista-contenido panel-controlador-caja panel-controlador-caja-real"
+        ></div>
+      </section>
+    </div>
   </div>
-  <div id="controladorVistaRectContenido" class="controlador-vista-contenido"></div>
+  <div id="panelControladorResizeGrip" class="panel-controlador-resize-grip" aria-hidden="true"></div>
+</div>
+<div
+  id="menuContextualStripsControlador"
+  class="panel-controlador-menu-contextual"
+  aria-hidden="true"
+>
+  <div class="panel-controlador-menu-contextual-titulo">Enviar strip a</div>
+  <div class="panel-controlador-menu-contextual-lista"></div>
 </div>
 
 <div id="panelDerechoCentro" class="contraido">
@@ -30405,6 +31475,7 @@ sincronizarContenedorTimePendiente();
 sincronizarContenedorLetterPendiente();
 cargarDatosCasillerosControladorGuardados();
 inicializarPanelControladorDragDrop();
+inicializarPanelControladorMovible();
 aplicarVisibilidadPanelIzquierdoPorModo();
 cargarMetarDesdeApi();
 actualizarIconoPanelDerechoCentro();

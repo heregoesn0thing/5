@@ -5672,6 +5672,103 @@ io.on("connection", (socket) => {
     return estado;
   };
 
+  const DEPENDENCIAS_STRIPS_CONTROLADOR = ["SPSO_GND", "SPSO_TWR", "SPSO_APP"];
+  const DEPENDENCIAS_STRIPS_CONTROLADOR_ALIAS = Object.freeze({
+    SPSO_AD: "SPSO_TWR"
+  });
+
+  const normalizarDependenciaStripControlador = (valor) => {
+    const dependenciaBase =
+      typeof valor === "string"
+        ? valor.trim().toUpperCase()
+        : "";
+    const dependencia =
+      DEPENDENCIAS_STRIPS_CONTROLADOR_ALIAS[dependenciaBase] ||
+      dependenciaBase;
+    return DEPENDENCIAS_STRIPS_CONTROLADOR.includes(dependencia)
+      ? dependencia
+      : DEPENDENCIAS_STRIPS_CONTROLADOR[0];
+  };
+
+  const obtenerItemsBaseDependenciaStripControlador = (baseDependencias, dependencia) => {
+    if (!baseDependencias || typeof baseDependencias !== "object") return [];
+
+    const dependenciaNormalizada = normalizarDependenciaStripControlador(dependencia);
+    const clavesCompatibles =
+      dependenciaNormalizada === "SPSO_TWR"
+        ? ["SPSO_TWR", "SPSO_AD"]
+        : [dependenciaNormalizada];
+
+    return clavesCompatibles.reduce((items, clave) => {
+      if (Array.isArray(baseDependencias[clave])) {
+        items.push(...baseDependencias[clave]);
+      }
+      return items;
+    }, []);
+  };
+
+  const clonarValorPlanoControlador = (valor, fallback = null) => {
+    try {
+      return JSON.parse(JSON.stringify(valor ?? fallback));
+    } catch (_err) {
+      return fallback;
+    }
+  };
+
+  const extraerNumeroStripControladorDesdeId = (idRect) => {
+    const numero =
+      typeof idRect === "string"
+        ? Number.parseInt(idRect.replace("controladorRect", ""), 10)
+        : Number.NaN;
+    return Number.isFinite(numero) && numero > 0 ? numero : 0;
+  };
+
+  const crearEstadoStripsControlador = (base = {}) => {
+    const dependencias = {};
+    let maximoId = 0;
+
+    DEPENDENCIAS_STRIPS_CONTROLADOR.forEach((dependencia) => {
+      const itemsBase = obtenerItemsBaseDependenciaStripControlador(
+        base?.dependencias,
+        dependencia
+      );
+      const vistos = new Set();
+
+      dependencias[dependencia] = itemsBase
+        .map((item) => {
+          const id = typeof item?.id === "string" ? item.id.trim() : "";
+          if (!/^controladorRect\d+$/.test(id) || vistos.has(id)) {
+            return null;
+          }
+
+          vistos.add(id);
+          maximoId = Math.max(maximoId, extraerNumeroStripControladorDesdeId(id));
+
+          return {
+            id,
+            color: item?.color === "amarillo" ? "amarillo" : "cyan",
+            estadoCasilleros:
+              item?.estadoCasilleros &&
+              typeof item.estadoCasilleros === "object" &&
+              !Array.isArray(item.estadoCasilleros)
+                ? clonarValorPlanoControlador(item.estadoCasilleros, {})
+                : {}
+          };
+        })
+        .filter(Boolean);
+    });
+
+    const siguienteIdBase = Number(base?.siguienteId);
+
+    return {
+      siguienteId: Math.max(
+        maximoId,
+        Number.isFinite(siguienteIdBase) ? Math.max(0, Math.floor(siguienteIdBase)) : 0
+      ),
+      dependencias
+    };
+  };
+
   
   socket.on("crearSala", ({ nombre, horaInicial }) => {
 
@@ -5686,6 +5783,7 @@ io.on("connection", (socket) => {
       aeronaves: [],
       rescate: null,
       serviciosControlador: crearEstadoServiciosControlador(),
+      stripsControlador: crearEstadoStripsControlador(),
       extensionExtra: 0,
       extensionUpwindExtra: 0,
       extensionDownwindExtra: 0
@@ -5774,6 +5872,10 @@ socket.on("cambiarHora", ({ hora }) => {
       salas[nombre].serviciosControlador
     );
     socket.emit("actualizarServiciosControlador", salas[nombre].serviciosControlador);
+    salas[nombre].stripsControlador = crearEstadoStripsControlador(
+      salas[nombre].stripsControlador
+    );
+    socket.emit("actualizarStripsControlador", salas[nombre].stripsControlador);
 if (peligroSalas[nombre]) {
   socket.emit("peligroActivado");
 }
@@ -5830,6 +5932,25 @@ if (peligroSalas[nombre]) {
     const estado = normalizarEstadoServiciosControlador(data, base);
     salas[salaNombre].serviciosControlador = estado;
     io.to(salaNombre).emit("actualizarServiciosControlador", estado);
+  });
+
+  socket.on("actualizarStripsControlador", (data = {}) => {
+    const salaNombre = socket.sala;
+    if (!salaNombre || !salas[salaNombre]) return;
+
+    const base = salas[salaNombre].stripsControlador || crearEstadoStripsControlador();
+    const estado = crearEstadoStripsControlador({
+      siguienteId:
+        Number.isFinite(Number(data?.siguienteId))
+          ? Number(data.siguienteId)
+          : base.siguienteId,
+      dependencias: data?.dependencias && typeof data.dependencias === "object"
+        ? data.dependencias
+        : base.dependencias
+    });
+
+    salas[salaNombre].stripsControlador = estado;
+    socket.to(salaNombre).emit("actualizarStripsControlador", estado);
   });
 
 socket.on("solicitarRutaCircuito", () => {

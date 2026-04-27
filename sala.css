@@ -1314,7 +1314,10 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
   transform-origin: center center;
 }
 
-#panelControladorIzquierdo,
+#panelControladorIzquierdo{
+  transform-origin: left top;
+}
+
 #panelControladorServicios{
   transform-origin: left center;
 }
@@ -2217,21 +2220,35 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
 #panelControladorIzquierdo,
 #panelControladorServicios{
   position: fixed;
-  left: 0;
-  transform: translateY(-50%);
-  z-index: 1900;
   display: none;
-  align-items: center;
 }
 
 #panelControladorIzquierdo{
-  top: 50%;
+  left: calc(var(--safe-left) + 24px);
+  top: calc(var(--safe-top) + 72px);
+  z-index: 1900;
+  flex-direction: column;
+  width: min(1040px, calc(100vw - 48px));
+  min-width: min(860px, calc(100vw - 48px));
+  max-width: min(96vw, 1320px);
+  height: min(76vh, 760px);
+  min-height: 420px;
+  max-height: min(88vh, 920px);
+  background: linear-gradient(165deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.96));
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  border-radius: 14px;
+  box-shadow: 0 18px 34px rgba(2, 6, 23, 0.52);
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  resize: none;
 }
 
 #panelControladorServicios{
+  left: 0;
   top: 50%;
   transform: translateY(calc(-50% + 96px));
   z-index: 1895;
+  align-items: center;
 }
 
 #panelControladorIzquierdo.visible-modo-controlador,
@@ -2239,18 +2256,119 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
   display: flex;
 }
 
+#panelControladorIzquierdo.visible-modo-controlador.contraido{
+  display: none;
+}
+
+#panelControladorServicios .panel-controlador-toggles-laterales{
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+#btnStrips{
+  display: none;
+}
+
+#btnStrips.visible-modo-controlador{
+  display: flex;
+}
+
+#btnGroundPanel[aria-expanded="true"],
+#btnStrips[aria-expanded="true"]{
+  background: #2e3650;
+  color: #00e0ff;
+}
+
+#btnStrips .panel-strips-acento{
+  color: #00e0ff;
+}
+
+#panelControladorIzquierdo.arrastrando-panel{
+  box-shadow:
+    0 22px 42px rgba(2, 6, 23, 0.62),
+    0 0 0 1px rgba(125, 211, 252, 0.22);
+}
+
+#panelControladorIzquierdo.redimensionando-panel{
+  box-shadow:
+    0 24px 46px rgba(2, 6, 23, 0.68),
+    0 0 0 1px rgba(34, 211, 238, 0.28);
+}
+
+#panelControladorIzquierdo .panel-controlador-header{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, rgba(8, 47, 73, 0.92), rgba(15, 23, 42, 0.92));
+  border-bottom: 1px solid rgba(125, 211, 252, 0.22);
+  cursor: move;
+  user-select: none;
+}
+
+#panelControladorIzquierdo .panel-controlador-header-titulo{
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #e0f2fe;
+}
+
+#panelControladorIzquierdo .panel-controlador-header-accion{
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(127, 29, 29, 0.34);
+  color: #fee2e2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+#panelControladorIzquierdo .panel-controlador-header-accion:hover{
+  background: rgba(220, 38, 38, 0.72);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
 #panelControladorIzquierdo .panel-controlador-contenido{
-  width: 356px;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
   padding: 8px;
-  border-radius: 12px;
-  background: linear-gradient(165deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95));
-  border: 1px solid rgba(96, 165, 250, 0.35);
-  box-shadow: 0 12px 24px rgba(2, 6, 23, 0.5);
-  overflow: hidden;
-  transition: width 0.3s ease, padding 0.3s ease, opacity 0.2s ease, border-color 0.2s ease;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  max-height: none;
+}
+
+#panelControladorIzquierdo .panel-controlador-controles{
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+#panelControladorIzquierdo .panel-controlador-cuerpo{
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 #panelControladorServicios .panel-controlador-servicios-contenido{
@@ -2302,15 +2420,21 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
 }
 
 #panelControladorIzquierdo.contraido .panel-controlador-contenido{
-  width: 0;
-  max-height: 0;
-  padding-left: 0;
-  padding-top: 0;
-  padding-right: 0;
-  padding-bottom: 0;
-  border-color: transparent;
-  opacity: 0;
-  pointer-events: none;
+  display: none;
+}
+
+#panelControladorIzquierdo.contraido{
+  width: min(260px, calc(100vw - 36px));
+  min-width: 0;
+  max-width: min(76vw, 320px);
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  resize: none;
+}
+
+#panelControladorIzquierdo.contraido .panel-controlador-header{
+  border-bottom: none;
 }
 
 #panelControladorServicios.contraido .panel-controlador-servicios-contenido{
@@ -2449,6 +2573,50 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
 }
 
 
+#panelControladorIzquierdo .panel-controlador-selector-wrap{
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+#panelControladorIzquierdo .panel-controlador-selector-label{
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.9px;
+  color: #cbd5e1;
+}
+
+#panelControladorIzquierdo .panel-controlador-selector{
+  width: 100%;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid rgba(125, 211, 252, 0.35);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.92));
+  color: #e2e8f0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.45px;
+  outline: none;
+  cursor: pointer;
+  color-scheme: dark;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+#panelControladorIzquierdo .panel-controlador-selector:focus{
+  border-color: rgba(103, 232, 249, 0.75);
+  box-shadow:
+    0 0 0 2px rgba(34, 211, 238, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+#panelControladorIzquierdo .panel-controlador-selector option,
+#panelControladorIzquierdo .panel-controlador-selector optgroup{
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
 #panelControladorIzquierdo .panel-controlador-acciones{
   grid-column: 1 / -1;
   display: grid;
@@ -2494,14 +2662,14 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
 }
 
 #panelControladorIzquierdo .panel-controlador-sector{
-  min-height: 102px;
+  min-height: 0;
   border-radius: 10px;
   border: 1px solid rgba(125, 211, 252, 0.3);
   background: rgba(15, 23, 42, 0.78);
-  padding: 8px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 #panelControladorIzquierdo .panel-controlador-caja{
@@ -2509,37 +2677,172 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
   border-radius: 8px;
   border: 1px solid rgba(147, 197, 253, 0.35);
   background: rgba(2, 6, 23, 0.48);
-  padding: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+#panelControladorIzquierdo .panel-controlador-caja-real{
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 0;
+  border: none;
+  background: transparent;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+#panelControladorIzquierdo #controladorWorkAreas{
+  display: none;
+}
+
+#menuContextualStripsControlador{
+  position: fixed;
+  top: 0;
+  left: 0;
+  min-width: 172px;
+  padding: 8px;
+  border: 1px solid rgba(125, 211, 252, 0.28);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98));
+  box-shadow:
+    0 18px 40px rgba(2, 6, 23, 0.52),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  z-index: 1910;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px) scale(0.98);
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease;
+}
+
+#menuContextualStripsControlador.visible{
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+#menuContextualStripsControlador[aria-hidden="true"]{
+  display: none;
+}
+
+#menuContextualStripsControlador .panel-controlador-menu-contextual-titulo{
+  margin-bottom: 8px;
+  padding: 0 4px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.95px;
+  text-transform: uppercase;
+  color: #93c5fd;
+}
+
+#menuContextualStripsControlador .panel-controlador-menu-contextual-lista{
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-height: 64px;
-  overflow: visible;
+}
+
+#menuContextualStripsControlador .panel-controlador-menu-contextual-opcion{
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 8px;
+  background: rgba(30, 41, 59, 0.92);
+  color: #e2e8f0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.45px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    transform 0.16s ease;
+}
+
+#menuContextualStripsControlador .panel-controlador-menu-contextual-opcion:hover,
+#menuContextualStripsControlador .panel-controlador-menu-contextual-opcion:focus-visible{
+  border-color: rgba(103, 232, 249, 0.6);
+  background: rgba(14, 116, 144, 0.38);
+  outline: none;
+}
+
+#menuContextualStripsControlador .panel-controlador-menu-contextual-opcion:active{
+  transform: translateY(1px);
 }
 
 #controladorVistaRect{
-  position: fixed;
-  left: 18px;
-  bottom: 18px;
-  width: 760px;
-  max-width: none;
-  --desplazamiento-linea-derecha: 48px;
-  z-index: 1890;
-  display: none;
+  position: relative;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  width: 100%;
+  max-width: 100%;
+  --desplazamiento-linea-derecha: 58px;
+  z-index: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
   pointer-events: auto;
+}
+
+#panelControladorIzquierdo #controladorVistaRect{
+  scale: 1;
+  transform-origin: left top;
+}
+
+#controladorVistaRect.panel-controlador-vista-inline{
+  padding: 12px;
+  flex: 1 1 auto;
 }
 
 #controladorVistaRect .controlador-vista-contenido{
   width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: stretch;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+#controladorVistaRect .controlador-vista-contenido:empty::before{
+  content: "Usa A o D para crear un strip editable.";
+  width: 100%;
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 14px;
+  border: 1px dashed rgba(148, 163, 184, 0.34);
+  border-radius: 8px;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.35px;
+  text-align: center;
 }
 
 #controladorVistaRect .controlador-vista-acciones{
-  position: absolute;
-  top: -34px;
-  right: 0;
-  display: flex;
+  display: none;
   gap: 6px;
+  align-self: flex-end;
   pointer-events: auto;
+}
+
+#controladorVistaRect.con-contenido .controlador-vista-acciones{
+  display: flex;
 }
 
 #controladorVistaRect.ocultar-acciones .controlador-vista-acciones{
@@ -2583,7 +2886,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
 }
 
 #controladorVistaRect.visible-modo-controlador.con-contenido{
-  display: block;
+  display: flex;
 }
 
 #panelControladorIzquierdo .panel-controlador-caja.zona-arrastre-activa{
@@ -2592,14 +2895,18 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
 }
 
 #panelControladorIzquierdo .panel-controlador-rect{
-  height: 22px;
-  border-radius: 5px;
+  width: 100%;
+  height: auto;
+  min-height: 54px;
+  max-height: 72px;
+  aspect-ratio: 7 / 1;
+  border-radius: 7px;
   border: 1px solid rgba(125, 211, 252, 0.5);
   background: rgba(30, 41, 59, 0.95);
   color: #e2e8f0;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.35px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2614,6 +2921,25 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
     filter 0.18s ease;
 }
 
+#panelControladorIzquierdo .panel-controlador-rect-real{
+  width: 920px;
+  min-width: 0;
+  max-width: none;
+  height: 160px;
+  min-height: 0;
+  max-height: none;
+  aspect-ratio: auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+  cursor: default;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  --strip-controlador-scale: 1;
+}
+
 #panelControladorIzquierdo .panel-controlador-rect:hover{
   transform: scale(1.12) translateY(-1px);
   box-shadow:
@@ -2623,10 +2949,27 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
   z-index: 12;
 }
 
+#panelControladorIzquierdo .panel-controlador-rect-real:hover{
+  transform: none;
+  box-shadow: none;
+  filter: none;
+}
+
 #panelControladorIzquierdo .panel-controlador-rect.seleccionado{
   box-shadow:
     0 0 0 1px rgba(187, 247, 208, 0.9),
     0 0 0 3px rgba(34, 197, 94, 0.28);
+}
+
+#panelControladorIzquierdo .panel-controlador-rect-real.seleccionado{
+  box-shadow: none;
+}
+
+#panelControladorIzquierdo .panel-controlador-rect-real.seleccionado > .panel-controlador-vista-rect{
+  box-shadow:
+    0 0 0 2px rgba(187, 247, 208, 0.9),
+    0 0 0 5px rgba(34, 197, 94, 0.24),
+    0 18px 28px rgba(2, 6, 23, 0.5);
 }
 
 #panelControladorIzquierdo .panel-controlador-rect.arrastrando{
@@ -2634,8 +2977,17 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
   border-style: dashed;
 }
 
+#panelControladorIzquierdo .panel-controlador-rect-real.arrastrando{
+  opacity: 0.55;
+  border-style: none;
+}
+
 #panelControladorIzquierdo .panel-controlador-rect:active{
   cursor: grabbing;
+}
+
+#panelControladorIzquierdo .panel-controlador-rect-real:active{
+  cursor: default;
 }
 
 #panelControladorIzquierdo .panel-controlador-rect-cyan{
@@ -2690,7 +3042,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
   align-items: stretch;
   justify-content: stretch;
   overflow: hidden;
-  font-size: 5px;
+  font-size: 6px;
   font-weight: 700;
   letter-spacing: 0;
   line-height: 1;
@@ -2702,7 +3054,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 1px;
+  padding: 0 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2746,6 +3098,12 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
   border-bottom: 1px solid transparent;
 }
 
+#panelControladorIzquierdo .panel-controlador-mini-vista .layout-cyan-left-col1 > .layout-cyan-left-col1-field:nth-child(3){
+  justify-content: flex-start;
+  text-align: left;
+  padding-left: 2px;
+}
+
 #panelControladorIzquierdo .panel-controlador-mini-vista .layout-cyan-left-col2{
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2757,7 +3115,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
 
 #panelControladorIzquierdo .panel-controlador-mini-vista .layout-cyan-left-col2-top{
   border-right: 1px solid transparent;
-  font-size: 6px;
+  font-size: 8px;
   font-weight: 800;
 }
 
@@ -2771,13 +3129,13 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
 }
 
 #panelControladorIzquierdo .panel-controlador-mini-vista .layout-cyan-left-col2-bottom-item{
-  font-size: clamp(2px, calc(5px - (var(--bottom-col2-visible-rows, 1) * 0.35px)), 4px);
+  font-size: clamp(3px, calc(6px - (var(--bottom-col2-visible-rows, 1) * 0.35px)), 5px);
   font-weight: 800;
   line-height: 1;
   border-bottom: 1px solid transparent;
   justify-content: flex-start;
   text-align: left;
-  padding-left: 1px;
+  padding-left: 2px;
 }
 
 #panelControladorIzquierdo .panel-controlador-mini-vista .layout-cyan-left-col2-bottom-item:last-child{
@@ -2801,7 +3159,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
 }
 
 #panelControladorIzquierdo .panel-controlador-mini-vista .layout-cyan-left-col3-item{
-  font-size: clamp(2px, calc(5px - (var(--col3-visible-rows, 1) * 0.35px)), 4px);
+  font-size: clamp(3px, calc(6px - (var(--col3-visible-rows, 1) * 0.35px)), 5px);
   font-weight: 800;
   line-height: 1;
   border-bottom: 1px solid transparent;
@@ -2868,6 +3226,26 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
   );
 }
 
+#panelControladorIzquierdo .panel-controlador-mini-vista .layout-cyan-left-col1-diagonal-mini{
+  position: absolute;
+  left: 50%;
+  top: 54%;
+  width: 50%;
+  max-width: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translate(0, 0) rotate(-45deg);
+  transform-origin: center;
+  font-size: 4px;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  z-index: 1;
+}
+
 #panelControladorIzquierdo .panel-controlador-mini-vista .layout-cyan-right{
   grid-column: 4 / 5;
   display: grid;
@@ -2911,6 +3289,12 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
   right: 1px;
   bottom: 0;
   text-align: right;
+}
+
+#panelControladorIzquierdo .panel-controlador-mini-vista .layout-cyan-right-diagonal-mini-top-first-b{
+  width: min(6ch, calc(100% - 2px));
+  max-width: calc(100% - 2px);
+  text-overflow: clip;
 }
 
 #panelControladorIzquierdo .panel-controlador-mini-vista .layout-cyan-right-diagonal-mini-top-first-a,
@@ -3041,24 +3425,52 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
 #panelControladorIzquierdo .panel-controlador-mini-vista .layout-amarillo-col23-t-flecha-texto{
   position: relative;
   z-index: 1;
-  font-size: 4px;
+  font-size: 5px;
 }
 
 #controladorVistaRect .panel-controlador-vista-rect{
   width: 100%;
-  height: 95px;
-  min-height: 95px;
+  min-width: 920px;
+  height: 100%;
+  min-height: 160px;
   border-radius: 0;
   border: 2px solid rgba(148, 163, 184, 0.55);
   background: rgba(51, 65, 85, 0.95);
   color: #e2e8f0;
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 800;
-  letter-spacing: 0.7px;
+  letter-spacing: 0.8px;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 18px 28px rgba(2, 6, 23, 0.5);
+  transform-origin: left top;
+  transform: scale(var(--strip-controlador-scale, 1));
+}
+
+#panelControladorIzquierdo .panel-controlador-resize-grip{
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 0 5px 5px 0;
+  cursor: nwse-resize;
+  touch-action: none;
+  z-index: 4;
+}
+
+#panelControladorIzquierdo .panel-controlador-resize-grip::before{
+  content: "";
+  width: 12px;
+  height: 12px;
+  border-right: 2px solid rgba(125, 211, 252, 0.85);
+  border-bottom: 2px solid rgba(125, 211, 252, 0.85);
+  border-radius: 0 0 4px 0;
+  opacity: 0.95;
 }
 
 #controladorVistaRect .panel-controlador-vista-rect-cyan{
@@ -3124,6 +3536,12 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
   border-bottom: 2px solid transparent;
 }
 
+#controladorVistaRect .layout-cyan-left-col1 > .layout-cyan-left-col1-field:nth-child(3){
+  justify-content: flex-start;
+  text-align: left;
+  padding-left: 6px;
+}
+
 #controladorVistaRect .layout-cyan-left-col2{
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3135,7 +3553,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
 
 #controladorVistaRect .layout-cyan-left-col2-top{
   border-right: 2px solid transparent;
-  font-size: 30px;
+  font-size: 34px;
   font-weight: 900;
   letter-spacing: 0.5px;
 }
@@ -3150,14 +3568,14 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
 }
 
 #controladorVistaRect .layout-cyan-left-col2-bottom-item{
-  font-size: clamp(6px, calc(13px - (var(--bottom-col2-visible-rows, 1) * 0.9px)), 11px);
+  font-size: clamp(7px, calc(15px - (var(--bottom-col2-visible-rows, 1) * 0.95px)), 13px);
   font-weight: 900;
   letter-spacing: 0.3px;
   line-height: 1;
   border-bottom: 2px solid transparent;
   justify-content: flex-start;
   text-align: left;
-  padding-left: 4px;
+  padding-left: 5px;
 }
 
 #controladorVistaRect .layout-cyan-left-col2-bottom-item:last-child{
@@ -3181,7 +3599,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
 }
 
 #controladorVistaRect .layout-cyan-left-col3-item{
-  font-size: clamp(6px, calc(13px - (var(--col3-visible-rows, 1) * 0.9px)), 11px);
+  font-size: clamp(7px, calc(15px - (var(--col3-visible-rows, 1) * 0.95px)), 13px);
   font-weight: 900;
   letter-spacing: 0.3px;
   line-height: 1;
@@ -3227,7 +3645,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
   display: flex;
   align-items: center;
   padding: 0 2px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   line-height: 1;
   white-space: nowrap;
@@ -3247,6 +3665,14 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
   bottom: 2px;
   justify-content: flex-end;
   text-align: right;
+}
+
+#controladorVistaRect .layout-cyan-right-diagonal-input-top-first-b.panel-controlador-casillero-editable{
+  width: min(6ch, calc(100% - 4px));
+  max-width: calc(100% - 4px);
+  font-size: 11px;
+  letter-spacing: 0;
+  text-overflow: clip;
 }
 
 #controladorVistaRect .layout-cyan-right-diagonal-input-top-first-a.panel-controlador-casillero-editable,
@@ -3311,7 +3737,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
 
 #controladorVistaRect .panel-controlador-layout-cyan .layout-cyan-left > .layout-cyan-left-col2 > .layout-cyan-left-col2-top{
   border-right: 2px solid transparent;
-  font-size: 30px;
+  font-size: 34px;
   font-weight: 900;
   letter-spacing: 0.5px;
 }
@@ -3356,6 +3782,26 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
 
 #controladorVistaRect .panel-controlador-layout-cyan .layout-cyan-left > .layout-cyan-left-col1{
   position: relative;
+}
+
+#controladorVistaRect .panel-controlador-layout-cyan .layout-cyan-left > .layout-cyan-left-col1 > .layout-cyan-left-col1-diagonal-input.panel-controlador-casillero-editable{
+  position: absolute;
+  left: 50%;
+  top: 54%;
+  width: 50%;
+  height: 50%;
+  padding: 0 2px;
+  justify-content: center;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  transform: rotate(-45deg);
+  transform-origin: center;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.15px;
+  z-index: 1;
 }
 
 #controladorVistaRect .panel-controlador-layout-cyan .layout-cyan-left > .layout-cyan-left-col1::after{
@@ -3481,9 +3927,9 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
 #controladorVistaRect .layout-amarillo-col1::after{
   content: "";
   position: absolute;
-  right: -60px;
+  right: -72px;
   top: 50%;
-  width: 60px;
+  width: 72px;
   height: 2px;
   background: rgba(66, 32, 6, 0.5);
   transform-origin: left center;
@@ -3516,7 +3962,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
 }
 
 #controladorVistaRect .layout-amarillo-col23-fila-top.panel-controlador-casillero-con-prefijo{
-  padding-left: 35px;
+  padding-left: 42px;
 }
 
 #controladorVistaRect .layout-amarillo-col23-fila-middle{
@@ -3564,7 +4010,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
   justify-content: center;
   user-select: none;
   cursor: default;
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 800;
   letter-spacing: 0;
   line-height: 1;
@@ -3607,7 +4053,7 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
 }
 
 #controladorVistaRect .layout-amarillo-etiqueta{
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 800;
   letter-spacing: 0.6px;
   justify-content: center;
@@ -6098,22 +6544,32 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
   #panelControladorIzquierdo,
   #panelControladorServicios{
     left: calc(var(--safe-left) + 8px);
-    top: auto;
     transform: none;
-    align-items: flex-end;
   }
 
   #panelControladorIzquierdo{
-    bottom: calc(var(--safe-bottom) + 10px);
+    top: calc(var(--safe-top) + 56px);
+    bottom: auto;
+    width: min(96vw, 520px);
+    min-width: 0;
+    max-width: min(96vw, 520px);
+    height: min(68dvh, 600px);
+    min-height: 280px;
+    max-height: min(68dvh, 600px);
   }
 
   #panelControladorServicios{
+    top: auto;
     bottom: calc(var(--safe-bottom) + 104px);
+    align-items: flex-end;
   }
 
   #panelControladorIzquierdo .panel-controlador-contenido{
-    width: min(86vw, 340px);
-    grid-template-columns: 1fr;
+    max-height: none;
+  }
+
+  #panelControladorIzquierdo .panel-controlador-resize-grip{
+    display: none;
   }
 
   #panelControladorServicios .panel-controlador-servicios-contenido{
@@ -6122,16 +6578,11 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
   }
 
   #controladorVistaRect{
-    left: calc(var(--safe-left) + 8px);
-    right: calc(var(--safe-right) + 8px);
-    bottom: calc(var(--safe-bottom) + 8px);
-    width: auto;
-    overflow-x: auto;
-    overflow-y: visible;
+    width: 100%;
   }
 
   #controladorVistaRect .controlador-vista-contenido{
-    min-width: 760px;
+    min-width: 0;
   }
 
   #panelDerechoCentro{

@@ -10144,19 +10144,34 @@ function obtenerProgresoCarreraDespegueMetros(aeronave){
 
 const AIRBORNE_SPEED_MAX_KT = 250
 
-function obtenerLimiteVelocidadControlKnots(aeronave = null){
-  return aeronave && aeronave.estado === "AIRBORNE"
-    ? AIRBORNE_SPEED_MAX_KT
-    : SPEED_CONTROL_MAX_KT
+function obtenerLimiteVelocidadPerfilKnots(aeronave = null){
+  if(!aeronave){
+    return SPEED_CONTROL_MAX_KT
+  }
+
+  const perfil = obtenerPerfilDespegueAeronave(aeronave.tipo)
+  const limitePerfil = Number(perfil && perfil.CRUISE_MAX_KT)
+  if(Number.isFinite(limitePerfil) && limitePerfil > 0){
+    return Math.min(SPEED_CONTROL_MAX_KT, Math.max(0, limitePerfil))
+  }
+
+  return Math.min(SPEED_CONTROL_MAX_KT, AIRBORNE_SPEED_MAX_KT)
 }
 
-function limitarVelocidadAutomaticaDespegueCliente(velocidadObjetivoKt){
+function obtenerLimiteVelocidadControlKnots(aeronave = null){
+  return Math.round(SPEED_CONTROL_MAX_MACH * KNOTS_PER_MACH)
+}
+
+function limitarVelocidadAutomaticaDespegueCliente(velocidadObjetivoKt, aeronave = null){
   const velocidadNormalizada = Number(velocidadObjetivoKt)
   const velocidadSegura = Number.isFinite(velocidadNormalizada)
     ? Math.max(0, velocidadNormalizada)
     : 0
 
-  return Math.min(AIRBORNE_SPEED_MAX_KT, velocidadSegura)
+  return Math.min(
+    obtenerLimiteVelocidadPerfilKnots(aeronave),
+    velocidadSegura
+  )
 }
 
 function tieneOverrideVelocidadManualDespegueCliente(aeronave){
@@ -10225,7 +10240,8 @@ function calcularComandoDespegueAeronave(aeronave, segundosTick = 0.05){
 
     if(!listoParaElevar){
       const velocidadObjetivoKt = limitarVelocidadAutomaticaDespegueCliente(
-        perfil.RUNWAY_TARGET_KT
+        perfil.RUNWAY_TARGET_KT,
+        aeronave
       )
       return {
         perfil,
@@ -10266,7 +10282,8 @@ function calcularComandoDespegueAeronave(aeronave, segundosTick = 0.05){
   }
 
   velocidadObjetivoKt = limitarVelocidadAutomaticaDespegueCliente(
-    velocidadObjetivoKt
+    velocidadObjetivoKt,
+    aeronave
   )
 
   return {

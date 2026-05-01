@@ -1128,19 +1128,34 @@ function obtenerProgresoCarreraDespegueMetros(aeronave){
   return Number.isFinite(progreso) ? Math.max(0, progreso) : 0
 }
 
-function limitarVelocidadAutomaticaDespegueServidor(velocidadObjetivoKt){
+function limitarVelocidadAutomaticaDespegueServidor(velocidadObjetivoKt, aeronave = null){
   const velocidadNormalizada = Number(velocidadObjetivoKt)
   const velocidadSegura = Number.isFinite(velocidadNormalizada)
     ? Math.max(0, velocidadNormalizada)
     : 0
 
-  return Math.min(AIRBORNE_SPEED_MAX_KT, velocidadSegura)
+  return Math.min(
+    obtenerLimiteVelocidadPerfilKnotsServidor(aeronave),
+    velocidadSegura
+  )
+}
+
+function obtenerLimiteVelocidadPerfilKnotsServidor(aeronave){
+  if(!aeronave){
+    return SPEED_CONTROL_MAX_KNOTS
+  }
+
+  const perfil = obtenerPerfilDespegueAeronave(aeronave.tipo)
+  const limitePerfil = Number(perfil && perfil.CRUISE_MAX_KT)
+  if(Number.isFinite(limitePerfil) && limitePerfil > 0){
+    return Math.min(SPEED_CONTROL_MAX_KNOTS, Math.max(0, limitePerfil))
+  }
+
+  return Math.min(SPEED_CONTROL_MAX_KNOTS, AIRBORNE_SPEED_MAX_KT)
 }
 
 function obtenerLimiteVelocidadControlKnotsServidor(aeronave){
-  return aeronave && aeronave.estado === "AIRBORNE"
-    ? AIRBORNE_SPEED_MAX_KT
-    : SPEED_CONTROL_MAX_KNOTS
+  return SPEED_CONTROL_MAX_KNOTS
 }
 
 function limitarVelocidadControlKnotsServidor(aeronave, velocidadKnots){
@@ -1313,7 +1328,8 @@ function calcularComandoDespegueAeronave(aeronave, segundosTick = 0.05){
 
     if(!listoParaElevar){
       const velocidadObjetivoKt = limitarVelocidadAutomaticaDespegueServidor(
-        perfil.RUNWAY_TARGET_KT
+        perfil.RUNWAY_TARGET_KT,
+        aeronave
       )
       return {
         activa: true,
@@ -1350,7 +1366,8 @@ function calcularComandoDespegueAeronave(aeronave, segundosTick = 0.05){
   }
 
   velocidadObjetivoKt = limitarVelocidadAutomaticaDespegueServidor(
-    velocidadObjetivoKt
+    velocidadObjetivoKt,
+    aeronave
   )
 
   return {

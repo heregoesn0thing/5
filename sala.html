@@ -130,6 +130,7 @@
       <div><span class="label">DME</span><span class="valor" id="info-dme">---</span></div>
       <div><span class="label">RDL</span><span class="valor" id="info-rdl">---</span></div>
       <div><span class="label">Lat/Lng</span><span class="valor" id="info-latlng">---</span></div>
+
     </div>
 
     <section id="panelTcasLateral" class="tcas-panel panel-tcas-view" aria-hidden="true">
@@ -480,7 +481,43 @@
 
   </div>
 
-  
+  <div id="panelInfoPilotageControls" class="panel-info-pilotage-controls" aria-hidden="true" hidden>
+    <label class="panel-info-pilotage-field" for="panelInfoPilotageSpeed">
+      <span class="panel-info-pilotage-field-label">SPD</span>
+      <span class="panel-info-pilotage-input-wrap">
+        <input
+          id="panelInfoPilotageSpeed"
+          class="panel-info-pilotage-input"
+          type="number"
+          min="0"
+          max="6614"
+          step="1"
+          value=""
+          inputmode="numeric"
+          aria-label="Pilot mode speed in knots"
+        >
+        <span class="panel-info-pilotage-unit">kt</span>
+      </span>
+    </label>
+    <label class="panel-info-pilotage-field" for="panelInfoPilotageLevel">
+      <span class="panel-info-pilotage-field-label">LVL</span>
+      <span class="panel-info-pilotage-input-wrap">
+        <input
+          id="panelInfoPilotageLevel"
+          class="panel-info-pilotage-input"
+          type="number"
+          min="0"
+          max="45000"
+          step="100"
+          value=""
+          inputmode="numeric"
+          aria-label="Pilot mode level in feet"
+        >
+        <span class="panel-info-pilotage-unit">ft</span>
+      </span>
+    </label>
+  </div>
+
   <div class="boton-lateral" onclick="togglePanelIzq()">
     <span id="iconoLateral">&#8250;</span>
   </div>
@@ -503,7 +540,7 @@
 
   <button id="btnBuscarLugar" class="btn-accion" type="button" title="Search" aria-label="Search">&#128269;</button>
   <button id="btnPilotage" class="btn-accion" onclick="togglePilotage()" type="button">P</button>
-  <button onclick="toggleMenuAcciones()" id="btnMenuPrincipal">
+  <button onclick="toggleMenuAcciones()" id="btnSettings">
     &#128736;
   </button>
 
@@ -1097,6 +1134,7 @@ function establecerModoOperacion(modo){
   if(modoOperacion === "controlador"){
     cerrarPanelCrearAeronave()
   }
+  sincronizarCasillerosPilotagePanelInfo()
 }
 
 function aplicarVisibilidadPanelIzquierdoPorModo(){
@@ -4543,6 +4581,20 @@ function limpiarPanelMetar(){
     setValorPanelMetar(id, "--")
   })
   sincronizarContenedorLetterPendiente()
+  actualizarLineaMetarControlador(null)
+}
+
+function actualizarLineaMetarControlador(registro){
+  const linea = document.getElementById("metarLineaControlador")
+  if(!linea) return
+
+  const texto =
+    registro && typeof registro.rawText === "string"
+      ? registro.rawText.trim()
+      : ""
+
+  linea.textContent = texto
+  linea.classList.toggle("sin-contenido", texto === "")
 }
 
 function parsearTemperaturaMetar(token){
@@ -4696,6 +4748,7 @@ function parsearLineaMetar(linea){
       : "--"
 
   return {
+    rawText: lineaNormalizada,
     horaUtc: `${String(hora).padStart(2, "0")}:${String(minuto).padStart(2, "0")}:00`,
     minutosUtc: (hora * 60) + minuto,
     epochUtc: null,
@@ -4794,6 +4847,7 @@ function aplicarRegistroMetarEnPanel(registro){
     return
   }
 
+  actualizarLineaMetarControlador(registro)
   setValorPanelMetar("metarDirValue", registro.dir)
   setValorPanelMetar("metarWspdValue", registro.wspd)
   setValorPanelMetar("metarGustValue", registro.gust)
@@ -5096,7 +5150,7 @@ socket.on("cargarAeronaves", lista => {
 }
 
 
-      seleccionarAeronave(nueva)
+      manejarClickAeronave(nueva)
 
     })
 
@@ -12826,7 +12880,7 @@ clearedToLandPendiente: false,
 }
 
 
-    seleccionarAeronave(nueva)
+    manejarClickAeronave(nueva)
   })
 
   cerrarPanelCrearAeronave()
@@ -12964,7 +13018,7 @@ socket.on("crearAeronave", data => {
       return
     }
 
-    seleccionarAeronave(nueva)
+    manejarClickAeronave(nueva)
 
   })
 
@@ -13985,6 +14039,35 @@ function inicializarAutoApagadoPilotagePorControles(){
   }, true)
 }
 
+function manejarClickAeronave(obj){
+  if(!obj){
+    return
+  }
+
+  const panelControles = document.getElementById("menuControles")
+  const aeronaveActual = obtenerAeronaveVinculadaPanel() || aeronaveSeleccionada
+  const mismaAeronaveSeleccionada = Boolean(
+    aeronaveActual &&
+    aeronaveActual.id === obj.id
+  )
+  const panelAbierto = Boolean(
+    panelControles && panelControles.classList.contains("activo")
+  )
+
+  seleccionarAeronave(obj)
+
+  if(modoOperacion === "controlador" || !esAeronaveDelCreadorLocal(obj)){
+    return
+  }
+
+  if(mismaAeronaveSeleccionada && panelAbierto){
+    replegarPanelControlesIzquierdo()
+    return
+  }
+
+  asignarPanelControlesAeronave(obj, true)
+}
+
 function seleccionarAeronave(obj){
   if(rescateSeleccionado){
     rescateSeleccionado = null
@@ -14766,6 +14849,196 @@ document.getElementById("header-id").textContent = a.id || "---"
   }
 
   actualizarPanelTcas(a)
+  sincronizarCasillerosPilotagePanelInfo(a)
+}
+
+function obtenerAeronaveObjetivoPanelInfoPilotage(){
+  return obtenerAeronaveVinculadaPanel() || aeronaveSeleccionada || null
+}
+
+function sincronizarCasillerosPilotagePanelInfo(aeronave = null, forzar = false){
+  const contenedor = document.getElementById("panelInfoPilotageControls")
+  const speedInput = document.getElementById("panelInfoPilotageSpeed")
+  const levelInput = document.getElementById("panelInfoPilotageLevel")
+  if(!contenedor || !speedInput || !levelInput) return
+
+  const visible = modoOperacion === "piloto"
+  contenedor.hidden = !visible
+  contenedor.setAttribute("aria-hidden", String(!visible))
+
+  const aeronaveObjetivo = visible
+    ? (aeronave || obtenerAeronaveObjetivoPanelInfoPilotage())
+    : null
+  const editable = Boolean(
+    aeronaveObjetivo && esAeronaveDelCreadorLocal(aeronaveObjetivo)
+  )
+
+  speedInput.disabled = !editable
+  levelInput.disabled = !editable
+  speedInput.max = String(obtenerLimiteVelocidadControlKnots(aeronaveObjetivo))
+  levelInput.min = String(obtenerAltitudMinimaHoldingMumopFt(aeronaveObjetivo))
+  levelInput.max = String(ALTITUD_INICIAL_MAX_FT)
+
+  if(!editable){
+    if(forzar || document.activeElement !== speedInput){
+      speedInput.value = ""
+    }
+    if(forzar || document.activeElement !== levelInput){
+      levelInput.value = ""
+    }
+    return
+  }
+
+  const velocidadReferencia = Math.max(
+    0,
+    Math.round(obtenerVelocidadEnNudos(aeronaveObjetivo) || 0)
+  )
+  const nivelReferencia = Math.max(
+    obtenerAltitudMinimaHoldingMumopFt(aeronaveObjetivo),
+    normalizarAltitudInicialCreacion(Number(aeronaveObjetivo.altitud) || 0)
+  )
+
+  if(forzar || document.activeElement !== speedInput){
+    speedInput.value = String(velocidadReferencia)
+  }
+  if(forzar || document.activeElement !== levelInput){
+    levelInput.value = String(nivelReferencia)
+  }
+}
+
+function aplicarCasilleroPilotagePanelInfo(tipo){
+  const aeronave = obtenerAeronaveObjetivoPanelInfoPilotage()
+  if(!aeronave){
+    sincronizarCasillerosPilotagePanelInfo(null, true)
+    return
+  }
+
+  const inputId =
+    tipo === "speed"
+      ? "panelInfoPilotageSpeed"
+      : "panelInfoPilotageLevel"
+  const input = document.getElementById(inputId)
+  if(!input) return
+
+  const valorNum = Number.parseFloat(input.value)
+  if(!Number.isFinite(valorNum)){
+    sincronizarCasillerosPilotagePanelInfo(aeronave, true)
+    return
+  }
+
+  if(tipo === "speed"){
+    aplicarVelocidadActualInstantaneaPilotagePanel(valorNum, aeronave)
+  } else {
+    aplicarAltitudActualInstantaneaPilotagePanel(valorNum, aeronave)
+  }
+
+  sincronizarCasillerosPilotagePanelInfo(aeronave, true)
+}
+
+function inicializarCasillerosPilotagePanelInfo(){
+  const configuraciones = [
+    { id: "panelInfoPilotageSpeed", tipo: "speed" },
+    { id: "panelInfoPilotageLevel", tipo: "altitude" }
+  ]
+
+  configuraciones.forEach(({ id, tipo }) => {
+    const input = document.getElementById(id)
+    if(!input || input.dataset.pilotagePanelBind === "1") return
+
+    input.dataset.pilotagePanelBind = "1"
+
+    input.addEventListener("keydown", (e) => {
+      if(e.key === "Enter"){
+        e.preventDefault()
+        aplicarCasilleroPilotagePanelInfo(tipo)
+        return
+      }
+
+      if(e.key === "Escape"){
+        e.preventDefault()
+        sincronizarCasillerosPilotagePanelInfo(null, true)
+        input.blur()
+      }
+    })
+
+    input.addEventListener("blur", () => {
+      aplicarCasilleroPilotagePanelInfo(tipo)
+    })
+  })
+
+  sincronizarCasillerosPilotagePanelInfo(null, true)
+}
+
+function aplicarVelocidadActualInstantaneaPilotagePanel(valor, aeronave = null){
+  const a = aeronave || obtenerAeronaveObjetivoPanelInfoPilotage()
+  if(!a) return
+
+  const targetKnots = limitarVelocidadControlKnots(
+    Number.isFinite(Number(valor)) ? Math.round(Number(valor)) : 0,
+    a
+  )
+  const velocidadActual = Math.max(0, Math.round(obtenerVelocidadEnNudos(a) || 0))
+
+  if(Math.abs(targetKnots - velocidadActual) < 1){
+    sincronizarSpeedControlPanel(a)
+    actualizarPanelInfoAeronave(a)
+    actualizarPanelInfo(a)
+    actualizarDisplaysManual(a)
+    return
+  }
+
+  a.velocidadObjetivo = targetKnots
+  a.velocidad = estadoVelocidadEnMpsCliente(a.estado)
+    ? (targetKnots * 0.514444)
+    : targetKnots
+  a.pilotageSpeedAutoActiva = false
+  actualizarOverrideVelocidadManualDespegueCliente(a, true)
+
+  socket.emit("setValoresActualesAeronave", {
+    id: a.id,
+    speedKnots: targetKnots
+  })
+
+  sincronizarSpeedControlPanel(a)
+  actualizarPanelInfoAeronave(a)
+  actualizarPanelInfo(a)
+  actualizarDisplaysManual(a)
+}
+
+function aplicarAltitudActualInstantaneaPilotagePanel(valor, aeronave = null){
+  const a = aeronave || obtenerAeronaveObjetivoPanelInfoPilotage()
+  if(!a) return
+
+  const altitudMinimaFt = obtenerAltitudMinimaHoldingMumopFt(a)
+  const altitudNuevaFt = Math.max(
+    altitudMinimaFt,
+    normalizarAltitudInicialCreacion(valor)
+  )
+  const altitudActualFt = Math.max(0, Math.round(Number(a.altitud) || 0))
+
+  if(Math.abs(altitudNuevaFt - altitudActualFt) < 1){
+    sincronizarLevelControlPanel(a)
+    actualizarPanelInfoAeronave(a)
+    actualizarPanelInfo(a)
+    actualizarDisplaysManual(a)
+    return
+  }
+
+  a.altitud = altitudNuevaFt
+  a.altitudObjetivo = altitudNuevaFt
+
+  socket.emit("setValoresActualesAeronave", {
+    id: a.id,
+    altitudeFt: altitudNuevaFt
+  })
+
+  sincronizarLevelControlPanel(a)
+  actualizarPanelInfoAeronave(a)
+  actualizarPanelInfo(a)
+  actualizarDisplaysManual(a)
+  actualizarBotonTaxi()
+  actualizarEstadoBotonTakeoff(a)
+  actualizarEstadoGrupoLanding()
 }
 
 function limpiarPanelInfoAeronave(){
@@ -14791,6 +15064,7 @@ function limpiarPanelInfoAeronave(){
     botonFocusAircraft.setAttribute("aria-label", "Go to aircraft")
   }
   actualizarPanelTcas(null)
+  sincronizarCasillerosPilotagePanelInfo(null, true)
 
   const aircraftInfoEl = document.getElementById("aircraftInfo")
   if(aircraftInfoEl){
@@ -14808,6 +15082,7 @@ function limpiarPanelInfoAeronave(){
 
 function actualizarPanelInfoAeronaveSeleccionada(){
   if(!aeronaveSeleccionada){
+    sincronizarCasillerosPilotagePanelInfo(null, true)
     sincronizarVisibilidadRutasAeronaves()
     if(typeof window.sincronizarEstadoBotonesArrivalDesdeAeronave === "function"){
       window.sincronizarEstadoBotonesArrivalDesdeAeronave()
@@ -16047,6 +16322,10 @@ function sincronizarLevelControlPanel(aeronave = null){
 
 function aplicarLevelInicialManual(valor){
   const aeronave = obtenerAeronaveObjetivoControles() || aeronaveSeleccionada
+  aplicarAltitudObjetivoAbsoluta(valor, aeronave)
+}
+
+function aplicarAltitudObjetivoAbsoluta(valor, aeronave = null){
   if(!aeronave){
     return
   }
@@ -16184,6 +16463,21 @@ function limitarVelocidadControlKnots(knots, aeronave = null){
   return Math.max(0, Math.min(maxKnots, speedNum))
 }
 
+function obtenerVelocidadReferenciaControl(aeronave){
+  if(!aeronave){
+    return 0
+  }
+
+  if(
+    aeronave.estado === "AIRBORNE" &&
+    Number.isFinite(Number(aeronave.velocidadObjetivo))
+  ){
+    return limitarVelocidadControlKnots(aeronave.velocidadObjetivo, aeronave)
+  }
+
+  return Math.max(0, Math.round(obtenerVelocidadEnNudos(aeronave) || 0))
+}
+
 function estadoVelocidadEnMpsCliente(estado){
   const estadoNormalizado = typeof estado === "string" ? estado.trim() : ""
   return estadoNormalizado !== "AIRBORNE" &&
@@ -16250,17 +16544,11 @@ function sincronizarSpeedControlPanel(aeronave = null){
     return
   }
 
-  const speedKnotsRaw =
-    a.estado === "AIRBORNE" &&
-    Number.isFinite(Number(a.velocidadObjetivo))
-      ? Number(a.velocidadObjetivo)
-      : (
-        (a.estado === "MANUAL" || a.estado === "AUTO")
-          ? Math.round((a.velocidad || 0) / 0.514444)
-          : Math.round(obtenerVelocidadEnNudos(a) || 0)
-      )
   const limiteKnots = obtenerLimiteVelocidadControlKnots(a)
-  const speedKnots = limitarVelocidadControlKnots(speedKnotsRaw, a)
+  const speedKnots = limitarVelocidadControlKnots(
+    obtenerVelocidadReferenciaControl(a),
+    a
+  )
 
   if(speedControlMode === SPEED_CONTROL_MODE_MACH){
     const mach = Math.max(0, Math.min(limiteKnots / KNOTS_PER_MACH, speedKnots / KNOTS_PER_MACH))
@@ -16326,6 +16614,33 @@ function aplicarSpeedDesdeSlider(valor){
   }
 
   actualizarPanelInfoAeronave(a)
+  actualizarDisplaysManual(a)
+}
+
+function aplicarVelocidadObjetivoAbsoluta(valor, aeronave = null){
+  const a = aeronave || obtenerAeronaveObjetivoPanelInfoPilotage()
+  if(!a) return
+
+  const targetKnots = limitarVelocidadControlKnots(
+    Number.isFinite(Number(valor)) ? Math.round(Number(valor)) : 0,
+    a
+  )
+  const velocidadActual = obtenerVelocidadReferenciaControl(a)
+
+  if(Math.abs(targetKnots - velocidadActual) < 1){
+    sincronizarSpeedControlPanel(a)
+    actualizarPanelInfoAeronave(a)
+    actualizarPanelInfo(a)
+    actualizarDisplaysManual(a)
+    return
+  }
+
+  actualizarOverrideVelocidadManualDespegueCliente(a, true)
+  aplicarVelocidadObjetivoLocal(a, targetKnots)
+  sincronizarSpeedControlPanel(a)
+  programarSyncSpeed(a)
+  actualizarPanelInfoAeronave(a)
+  actualizarPanelInfo(a)
   actualizarDisplaysManual(a)
 }
 
@@ -29577,6 +29892,7 @@ function inicializarEdicionValoresManual(){
 
 window.addEventListener("DOMContentLoaded", inicializarEdicionValoresManual)
 window.addEventListener("DOMContentLoaded", inicializarAutoApagadoPilotagePorControles)
+window.addEventListener("DOMContentLoaded", inicializarCasillerosPilotagePanelInfo)
 document.addEventListener("keydown", manejarAtajosTecladoPanelManual)
 window.addEventListener("DOMContentLoaded", inicializarAlineacionBotonLateralCentro)
 window.addEventListener("DOMContentLoaded", inicializarTogglePanelInfoView)
@@ -30625,6 +30941,7 @@ window.addEventListener("DOMContentLoaded", () => {
     <span class="panel-derecho-text">WEATHER</span>
   </button>
 </div>
+<div id="metarLineaControlador" class="sin-contenido" aria-live="polite"></div>
 
 <script>
 (function inicializarBotonesArrival(){

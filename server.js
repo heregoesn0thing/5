@@ -1089,6 +1089,27 @@ function obtenerVelocidadMpsFallback(a){
   return 0
 }
 
+function obtenerVelocidadKnotsFallbackServidor(a, fallbackKt = GO_AROUND_SPEED_DEFAULT_KT){
+  if(!a){
+    return Math.max(0, Number(fallbackKt) || 0)
+  }
+
+  const velocidadObjetivo = Number(a.velocidadObjetivo)
+  if(Number.isFinite(velocidadObjetivo) && velocidadObjetivo > 0){
+    return limitarVelocidadControlKnotsServidor(a, velocidadObjetivo)
+  }
+
+  const velocidad = Number(a.velocidad)
+  if(Number.isFinite(velocidad) && velocidad > 0){
+    const velocidadKnots = estadoVelocidadEnMps(a.estado)
+      ? (velocidad / 0.514444)
+      : velocidad
+    return limitarVelocidadControlKnotsServidor(a, velocidadKnots)
+  }
+
+  return limitarVelocidadControlKnotsServidor(a, fallbackKt)
+}
+
 function obtenerPerfilDespegueAeronave(tipo){
   const clave = String(tipo || "").trim().toUpperCase()
   return TAKEOFF_PROFILES[clave] || TAKEOFF_PROFILE_BASE
@@ -3639,13 +3660,20 @@ function actualizarLetraSalaCadaHora(nombre, horaActual) {
 function iniciarMotorSala(nombreSala){
 
   if (motoresSalas[nombreSala]) return
+  let ultimoTickMotorMs = Date.now()
 
   motoresSalas[nombreSala] = setInterval(() => {
 
     const sala = salas[nombreSala]
     if (!sala) return
 
-	    const intervaloMS = 50
+	    const ahoraTickMotorMs = Date.now()
+	    const intervaloBrutoMs = ahoraTickMotorMs - ultimoTickMotorMs
+	    ultimoTickMotorMs = ahoraTickMotorMs
+	    const intervaloMS =
+	      Number.isFinite(intervaloBrutoMs) && intervaloBrutoMs > 0
+	        ? Math.min(250, intervaloBrutoMs)
+	        : 50
 	
 	    sala.aeronaves.forEach(a => {
 	if (a.estado !== "CLEARED TO LAND") {
@@ -5153,6 +5181,10 @@ function prepararAeronaveParaCircuito(salaNombre, sala, aeronave, opciones = {})
   aeronave.arrivalHoldingMumopManualAltitudeFt = null
   aeronave.fase = null
   aeronave.takeoffRollProgressM = 0
+  const velocidadIngresoCircuitoKt = obtenerVelocidadKnotsFallbackServidor(
+    aeronave,
+    GO_AROUND_SPEED_DEFAULT_KT
+  )
 
   aeronave.ruta = generarRutaServidorParaAeronave(sala, aeronave)
 
@@ -5199,7 +5231,7 @@ function prepararAeronaveParaCircuito(salaNombre, sala, aeronave, opciones = {})
         aeronave.movimiento = {
           destino: proyeccionIngreso.puntoIntercepto,
           opciones: {
-            velocidadObjetivoFinalKt: GO_AROUND_SPEED_DEFAULT_KT,
+            velocidadObjetivoFinalKt: velocidadIngresoCircuitoKt,
             virajeRealista: true,
             bancoMaxGrados: PILOTAGE_REALISTIC_BANK_DEG,
             tasaVirajeMinDegSeg: PILOTAGE_REALISTIC_TURN_RATE_MIN_DEG_PER_SEC,
@@ -5214,8 +5246,8 @@ function prepararAeronaveParaCircuito(salaNombre, sala, aeronave, opciones = {})
       }
       aeronave.estado = "INTERCEPTING ARC"
       reiniciarGuiadoInterceptacionCircuito(aeronave)
-      aeronave.velocidad = GO_AROUND_SPEED_DEFAULT_KT * 0.514444
-      aeronave.velocidadObjetivo = GO_AROUND_SPEED_DEFAULT_KT
+      aeronave.velocidad = velocidadIngresoCircuitoKt * 0.514444
+      aeronave.velocidadObjetivo = velocidadIngresoCircuitoKt
 
       iniciarMotorSala(salaNombre)
       return true
@@ -5255,8 +5287,8 @@ function prepararAeronaveParaCircuito(salaNombre, sala, aeronave, opciones = {})
       aeronave.ingresoDownwindTipo = null
       aeronave.estado = "INTERCEPTING ARC"
       reiniciarGuiadoInterceptacionCircuito(aeronave)
-      aeronave.velocidad = GO_AROUND_SPEED_DEFAULT_KT * 0.514444
-      aeronave.velocidadObjetivo = GO_AROUND_SPEED_DEFAULT_KT
+      aeronave.velocidad = velocidadIngresoCircuitoKt * 0.514444
+      aeronave.velocidadObjetivo = velocidadIngresoCircuitoKt
 
       iniciarMotorSala(salaNombre)
       return true
@@ -5291,8 +5323,8 @@ function prepararAeronaveParaCircuito(salaNombre, sala, aeronave, opciones = {})
     aeronave.puntoIntercepto = aeronave.ingresoDownwindWaypoints[0]
     aeronave.estado = "INTERCEPTING ARC"
     reiniciarGuiadoInterceptacionCircuito(aeronave)
-    aeronave.velocidad = GO_AROUND_SPEED_DEFAULT_KT * 0.514444
-    aeronave.velocidadObjetivo = GO_AROUND_SPEED_DEFAULT_KT
+    aeronave.velocidad = velocidadIngresoCircuitoKt * 0.514444
+    aeronave.velocidadObjetivo = velocidadIngresoCircuitoKt
 
     iniciarMotorSala(salaNombre)
     return true
@@ -5335,8 +5367,8 @@ function prepararAeronaveParaCircuito(salaNombre, sala, aeronave, opciones = {})
   aeronave.puntoIntercepto = mejor.puntoIntercepto
   aeronave.estado = "INTERCEPTING ARC"
   reiniciarGuiadoInterceptacionCircuito(aeronave)
-  aeronave.velocidad = GO_AROUND_SPEED_DEFAULT_KT * 0.514444
-  aeronave.velocidadObjetivo = GO_AROUND_SPEED_DEFAULT_KT
+  aeronave.velocidad = velocidadIngresoCircuitoKt * 0.514444
+  aeronave.velocidadObjetivo = velocidadIngresoCircuitoKt
 
   iniciarMotorSala(salaNombre)
   return true
@@ -5876,8 +5908,13 @@ socket.on("cambiarHora", ({ hora }) => {
       salas[nombre].stripsControlador
     );
     socket.emit("actualizarStripsControlador", salas[nombre].stripsControlador);
-if (peligroSalas[nombre]) {
-  socket.emit("peligroActivado");
+{
+  const estadoPeligroSala = normalizarEstadoPeligroSala(peligroSalas[nombre]);
+  if (estadoPeligroSala.activo) {
+    socket.emit("peligroActivado", {
+      tipo: estadoPeligroSala.tipo
+    });
+  }
 }
 
     socket.emit("rutaCircuito", {
@@ -7321,6 +7358,79 @@ socket.on("setSpeedKnots", ({ id, speedKnots }) => {
   emitirActualizacionAeronave(salaNombre, a)
 
 })
+socket.on("setValoresActualesAeronave", ({ id, speedKnots, altitudeFt } = {}) => {
+
+  const salaNombre = socket.sala
+  if(!salaNombre) return
+
+  const sala = salas[salaNombre]
+  if(!sala) return
+
+  const a = sala.aeronaves.find(av => av.id === id)
+  if(!a) return
+
+  if(!socketPuedeControlarAeronave(salaNombre, sala, a, socket.id)) return
+
+  let actualizado = false
+
+  if(typeof speedKnots === "number" && Number.isFinite(speedKnots)){
+    const speedSafe = limitarVelocidadControlKnotsServidor(a, speedKnots)
+    a.velocidadObjetivo = speedSafe
+    a.velocidad =
+      a.estado !== "AIRBORNE" && esEstadoMovimientoServidor(a.estado)
+      ? (speedSafe * 0.514444)
+      : speedSafe
+    if(a.estado === "AIRBORNE"){
+      actualizarOverrideVelocidadManualDespegueServidor(a, true)
+    }
+    actualizado = true
+  }
+
+  if(typeof altitudeFt === "number" && Number.isFinite(altitudeFt)){
+    const claveLlegada = obtenerClaveProcedimientoLlegadaServidor(
+      a.arrivalProcedureName
+    )
+    const altitudMinimaFt =
+      claveLlegada === PROCEDIMIENTO_LLEGADA_GEBED3_HOLDING_MUMOP_CLAVE &&
+      Boolean(a.rutaAirborneLoop)
+        ? ALTITUD_MINIMA_HOLDING_MUMOP_FT
+        : 0
+    const altitudSafe = Math.round(
+      Math.max(
+        altitudMinimaFt,
+        Math.min(45000, Number(altitudeFt))
+      ) / 100
+    ) * 100
+
+    a.altitud = altitudSafe
+    a.altitudObjetivo = altitudSafe
+
+    if(
+      a.altitudCircuitoAutomaticaActiva &&
+      esEstadoCircuitoConAltitudAutomatica(a.estado)
+    ){
+      a.altitudCircuitoAutomaticaActiva = false
+    }
+
+    if(
+      claveLlegada === PROCEDIMIENTO_LLEGADA_GEBED3_HOLDING_MUMOP_CLAVE &&
+      Boolean(a.rutaAirborneLoop)
+    ){
+      a.arrivalHoldingMumopManualAltitudeFt = Math.max(
+        ALTITUD_MINIMA_HOLDING_MUMOP_FT,
+        altitudSafe
+      )
+    }
+
+    actualizado = true
+  }
+
+  if(!actualizado) return
+
+  a.syncTs = Date.now()
+  emitirActualizacionAeronave(salaNombre, a)
+
+})
   
 socket.on("controlTiempo", ({ accion }) => {
 
@@ -7391,21 +7501,49 @@ socket.on("desactivarPeligroSala", () => {
   io.to(sala).emit("peligroDesactivado");
 });
 const PASSWORD = "0223";
+const PASSWORD_INCURSION_GIF = "1020";
+
+function normalizarEstadoPeligroSala(estado){
+  if(estado && typeof estado === "object"){
+    return {
+      activo: estado.activo === true,
+      tipo: estado.tipo === "gif" ? "gif" : "svg"
+    };
+  }
+
+  return {
+    activo: estado === true,
+    tipo: "svg"
+  };
+}
 
 socket.on("activarPeligroSala", ({ clave }) => {
 
   const sala = socket.sala;
   if (!sala) return;
 
-  if(clave !== PASSWORD){
+  const claveNormalizada = String(clave || "").trim();
+  const tipoPeligro =
+    claveNormalizada === PASSWORD_INCURSION_GIF
+      ? "gif"
+      : claveNormalizada === PASSWORD
+        ? "svg"
+        : "";
+
+  if(!tipoPeligro){
     return;
   }
 
-  if(peligroSalas[sala]) return;
+  if(normalizarEstadoPeligroSala(peligroSalas[sala]).activo) return;
 
-  peligroSalas[sala] = true;
+  peligroSalas[sala] = {
+    activo: true,
+    tipo: tipoPeligro
+  };
 
-  io.to(sala).emit("peligroActivado");
+  io.to(sala).emit("peligroActivado", {
+    tipo: tipoPeligro
+  });
 
   setTimeout(() => {
     peligroSalas[sala] = false;

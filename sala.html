@@ -15298,7 +15298,8 @@ function actualizarPosicionBotonLateralCentro(){
     const menuRect = menu.getBoundingClientRect()
     const weatherRect = btnWeather.getBoundingClientRect()
     const centroWeatherY = weatherRect.top + (weatherRect.height / 2)
-    boton.style.top = `${centroWeatherY - menuRect.top}px`
+    const ajusteVerticalPx = modoOperacion === "piloto" ? 10 : 0
+    boton.style.top = `${centroWeatherY - menuRect.top - ajusteVerticalPx}px`
     return
   }
 
@@ -30656,7 +30657,7 @@ window.addEventListener("DOMContentLoaded", () => {
   <div class="panel-header">
     <span class="manual-header-title">MANUAL CONTROL</span>
     <div class="manual-header-actions">
-      <button id="btnManualEye" class="manual-header-btn" type="button" title="View panel">
+      <button id="btnManualEye" class="manual-header-btn" type="button" title="Focus Aircraft">
         &#128065;
       </button>
       <button id="btnManualM" class="manual-header-btn" type="button" title="Manual mode">

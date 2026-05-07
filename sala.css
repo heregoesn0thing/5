@@ -5063,13 +5063,22 @@ body[data-modo-operacion="piloto"] #menuAcciones.midiendo-distancia #btnPilotage
 }
 
 .rescate-wrapper{
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rescate-rotor{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center;
+  transition: transform 0.08s linear;
 }
 
 .rescate-img{
   display: block;
-  transform-origin: center;
-  transition: transform 0.08s linear;
+  pointer-events: none;
 }
 
 .rescate-panel{

@@ -7696,26 +7696,37 @@ function iniciarPyrotechnicControlador(){
   iniciarPyrotechnicControladorDesdeTimestamp(Date.now(), true)
 }
 
+function obtenerLadoContenedorRescatePx(anchoPx, altoPx){
+  const diagonal = Math.sqrt((anchoPx * anchoPx) + (altoPx * altoPx))
+  return Math.max(12, Math.ceil(diagonal + 2))
+}
+
 function crearIconoRescate(anchoPx, altoPx){
+  const ladoPx = obtenerLadoContenedorRescatePx(anchoPx, altoPx)
   return L.divIcon({
     className: "rescate-icon",
     html: `
-      <div class="rescate-wrapper" style="width:${anchoPx}px; height:${altoPx}px;">
-        <img src="img/Rescate.svg" class="rescate-img"
-          style="width:${anchoPx}px; height:${altoPx}px; display:block;" />
+      <div class="rescate-wrapper" style="width:${ladoPx}px; height:${ladoPx}px;">
+        <div class="rescate-rotor" style="width:${ladoPx}px; height:${ladoPx}px;">
+          <img src="img/Rescate.svg" class="rescate-img"
+            style="width:${anchoPx}px; height:${altoPx}px; display:block;" />
+        </div>
       </div>
     `,
-    iconSize: [anchoPx, altoPx],
-    iconAnchor: [anchoPx / 2, altoPx / 2]
+    iconSize: [ladoPx, ladoPx],
+    iconAnchor: [Math.round(ladoPx / 2), Math.round(ladoPx / 2)]
   })
 }
 
 function obtenerTamanoIconoRescatePx(){
   const zoom = map.getZoom()
-  const factor = Math.max(1, Math.pow(2, zoom - RESCATE_ICON_BASE_ZOOM))
+  const factor = Math.max(
+    0.55,
+    Math.min(1.25, 1 + ((zoom - RESCATE_ICON_BASE_ZOOM) * 0.14))
+  )
   return {
-    anchoPx: Math.max(6, Math.round(RESCATE_ICON_WIDTH_PX * factor)),
-    altoPx: Math.max(6, Math.round(RESCATE_ICON_HEIGHT_PX * factor))
+    anchoPx: Math.max(5, Math.round(RESCATE_ICON_WIDTH_PX * factor)),
+    altoPx: Math.max(4, Math.round(RESCATE_ICON_HEIGHT_PX * factor))
   }
 }
 
@@ -7738,7 +7749,7 @@ function crearVehiculoRescate(){
       e.originalEvent.stopPropagation()
     }
     if(modoOperacion !== "controlador"){
-      return
+      establecerModoOperacion("controlador")
     }
     seleccionarVehiculoRescate()
   })
@@ -7796,8 +7807,10 @@ function actualizarVisibilidadRescate(){
   const visible = map.getZoom() >= RESCATE_MIN_ZOOM
   const estaVisible = map.hasLayer(vehiculoRescate.marker)
 
-  if(visible && !estaVisible){
-    vehiculoRescate.marker.addTo(map)
+  if(visible){
+    if(!estaVisible){
+      vehiculoRescate.marker.addTo(map)
+    }
     actualizarIconoRescateFijo()
     actualizarRotacionRescate(vehiculoRescate)
     actualizarEtiquetaRescate()
@@ -7823,8 +7836,8 @@ function actualizarRotacionRescate(a){
   if(!a || !a.marker || !a.esRescate) return
   const el = a.marker.getElement()
   if(!el) return
-  const img = el.querySelector(".rescate-img")
-  if(!img) return
+  const rotor = el.querySelector(".rescate-rotor")
+  if(!rotor) return
   const anguloBase = Number.isFinite(Number(a.angulo)) ? Number(a.angulo) : 0
   const anguloObjetivo = normalizarAngulo360(
     anguloBase + RESCATE_ORIENTACION_OFFSET
@@ -7835,8 +7848,8 @@ function actualizarRotacionRescate(a){
     const deltaVisual = ((anguloObjetivo - a.anguloVisual + 540) % 360) - 180
     a.anguloVisual += deltaVisual
   }
-  img.style.transform = `rotate(${a.anguloVisual}deg)`
-  img.style.transformOrigin = "center"
+  rotor.style.transform = `rotate(${a.anguloVisual}deg)`
+  rotor.style.transformOrigin = "center"
 }
 
 function puedeArrastrarRescateIdle(a){
@@ -8248,9 +8261,28 @@ function aplicarVelocidadRescateDesdeSlider(valor){
   emitirEstadoRescate(a, true)
 }
 
+function abrirPanelControladorServicios(){
+  const panel = document.getElementById("panelControladorServicios")
+  const boton = document.getElementById("btnGroundPanel")
+  if(!panel || !boton) return
+  panel.classList.remove("contraido")
+  boton.setAttribute("aria-expanded", "true")
+}
+
+function cerrarPanelControladorServicios(){
+  const panel = document.getElementById("panelControladorServicios")
+  const boton = document.getElementById("btnGroundPanel")
+  if(!panel || !boton) return
+  panel.classList.add("contraido")
+  boton.setAttribute("aria-expanded", "false")
+}
+
 function seleccionarVehiculoRescate(){
   if(!vehiculoRescate) return
   rescateSeleccionado = vehiculoRescate
+  if(modoOperacion === "controlador"){
+    abrirPanelControladorServicios()
+  }
   actualizarEstadoPanelRescate()
 }
 
@@ -9322,6 +9354,19 @@ const PILOTAGE_DEFAULT_SPEED_INITIAL_KT = 90
 const PILOTAGE_REALISTIC_BANK_DEG = 22
 const PILOTAGE_REALISTIC_TURN_RATE_MIN_DEG_PER_SEC = 2
 const PILOTAGE_REALISTIC_TURN_RATE_MAX_DEG_PER_SEC = 5.8
+const CIRCUITO_LIGERO_BANK_DEG = 24
+const CIRCUITO_LIGERO_TASA_VIRAJE_DEG_PER_SEC = 5
+const CIRCUITO_AMPLO_BANK_DEG = 22
+const CIRCUITO_AMPLO_TASA_VIRAJE_MIN_DEG_PER_SEC = 5
+const CIRCUITO_AMPLO_TASA_VIRAJE_MAX_DEG_PER_SEC = 5
+const TIPOS_AERONAVE_CIRCUITO_LIGERO = new Set([
+  "C152", "C172", "C180", "C206", "PA28", "Z42", "CH2000",
+  "PA23", "PA31", "PA34", "PA44", "C303", "C402"
+])
+const TIPOS_AERONAVE_CIRCUITO_AMPLO = new Set([
+  "C208", "PC12", "BE20", "B190", "DHC6", "AN32", "KT1",
+  "A319", "A320", "B737", "B738WX", "F22", "RFAL", "B2"
+])
 const PILOTAGE_CONTINUATION_STEP_METERS = 20 * 1852
 const REJOIN_DCT_PILOTAGE_TARGET_TOLERANCE_M = 35
 const RUMBO_PISTA_22 = 220
@@ -9340,6 +9385,67 @@ const ZOOM_INICIAL_MAPA = 16
 function metrosPorPixelEnZoom(lat, zoom){
   const latRad = lat * Math.PI / 180
   return (156543.03392 * Math.cos(latRad)) / Math.pow(2, zoom)
+}
+
+function obtenerConfiguracionVirajeRealistaBase(){
+  return {
+    bancoMaxGrados: PILOTAGE_REALISTIC_BANK_DEG,
+    tasaVirajeMinDegSeg: PILOTAGE_REALISTIC_TURN_RATE_MIN_DEG_PER_SEC,
+    tasaVirajeMaxDegSeg: PILOTAGE_REALISTIC_TURN_RATE_MAX_DEG_PER_SEC
+  }
+}
+
+function obtenerConfiguracionVirajeCircuitoAeronave(aeronave){
+  const tipo = String(aeronave && aeronave.tipo ? aeronave.tipo : "").trim().toUpperCase()
+  const configuracionAmplia = {
+    bancoMaxGrados: CIRCUITO_AMPLO_BANK_DEG,
+    tasaVirajeMinDegSeg: CIRCUITO_AMPLO_TASA_VIRAJE_MIN_DEG_PER_SEC,
+    tasaVirajeMaxDegSeg: CIRCUITO_AMPLO_TASA_VIRAJE_MAX_DEG_PER_SEC
+  }
+  const configuracionLigera = {
+    bancoMaxGrados: CIRCUITO_LIGERO_BANK_DEG,
+    tasaVirajeMinDegSeg: CIRCUITO_LIGERO_TASA_VIRAJE_DEG_PER_SEC,
+    tasaVirajeMaxDegSeg: CIRCUITO_LIGERO_TASA_VIRAJE_DEG_PER_SEC
+  }
+
+  if(TIPOS_AERONAVE_CIRCUITO_AMPLO.has(tipo)){
+    return configuracionAmplia
+  }
+  if(TIPOS_AERONAVE_CIRCUITO_LIGERO.has(tipo)){
+    return configuracionLigera
+  }
+
+  const velocidadKnots = obtenerVelocidadEnNudos(aeronave)
+  if(Number.isFinite(velocidadKnots) && velocidadKnots > 125){
+    return configuracionAmplia
+  }
+
+  return configuracionLigera
+}
+
+function esEstadoVirajeCircuito(estado){
+  const estadoNormalizado = String(estado || "").trim().toUpperCase()
+  return (
+    estadoNormalizado === "CIRCUIT" ||
+    estadoNormalizado === "JOINING" ||
+    estadoNormalizado === "TNG_INTERCEPT" ||
+    estadoNormalizado === "INTERCEPTING ARC" ||
+    estadoNormalizado === "INTERCEPTING LEG" ||
+    estadoNormalizado === "INTERCEPTING"
+  )
+}
+
+function obtenerConfiguracionVirajeRealistaAeronave(aeronave, estadoOverride = null){
+  const estadoReferencia =
+    estadoOverride !== null && estadoOverride !== undefined
+      ? estadoOverride
+      : (aeronave && aeronave.estado)
+
+  if(esEstadoVirajeCircuito(estadoReferencia)){
+    return obtenerConfiguracionVirajeCircuitoAeronave(aeronave)
+  }
+
+  return obtenerConfiguracionVirajeRealistaBase()
 }
 
 function pixelesParaMetros(lat, metros, zoom){
@@ -12205,13 +12311,13 @@ function obtenerObjetivoPilotageAeronave(aeronave){
 }
 
 function prepararDefaultsPilotageSiNoAsignados(aeronave){
+  const configuracionViraje = obtenerConfiguracionVirajeRealistaAeronave(aeronave)
+
   if(!aeronave){
     return {
       aplicarAceleracionProgresiva: false,
       virajeRealista: true,
-      bancoMaxGrados: PILOTAGE_REALISTIC_BANK_DEG,
-      tasaVirajeMinDegSeg: PILOTAGE_REALISTIC_TURN_RATE_MIN_DEG_PER_SEC,
-      tasaVirajeMaxDegSeg: PILOTAGE_REALISTIC_TURN_RATE_MAX_DEG_PER_SEC
+      ...configuracionViraje
     }
   }
 
@@ -12231,9 +12337,7 @@ function prepararDefaultsPilotageSiNoAsignados(aeronave){
     return {
       aplicarAceleracionProgresiva: false,
       virajeRealista: true,
-      bancoMaxGrados: PILOTAGE_REALISTIC_BANK_DEG,
-      tasaVirajeMinDegSeg: PILOTAGE_REALISTIC_TURN_RATE_MIN_DEG_PER_SEC,
-      tasaVirajeMaxDegSeg: PILOTAGE_REALISTIC_TURN_RATE_MAX_DEG_PER_SEC
+      ...configuracionViraje
     }
   }
 
@@ -12244,9 +12348,7 @@ function prepararDefaultsPilotageSiNoAsignados(aeronave){
   return {
     aplicarAceleracionProgresiva: false,
     virajeRealista: true,
-    bancoMaxGrados: PILOTAGE_REALISTIC_BANK_DEG,
-    tasaVirajeMinDegSeg: PILOTAGE_REALISTIC_TURN_RATE_MIN_DEG_PER_SEC,
-    tasaVirajeMaxDegSeg: PILOTAGE_REALISTIC_TURN_RATE_MAX_DEG_PER_SEC
+    ...configuracionViraje
   }
 }
 
@@ -17589,6 +17691,7 @@ function procesarClickMapaJoinCircuito(latlng){
     lng: Number(proyeccion.puntoIntercepto.lng)
   }
   const sentidoCircuito = normalizarSentidoCircuitoCliente(aeronave.circuitoSentido)
+  const configuracionVirajeCircuito = obtenerConfiguracionVirajeCircuitoAeronave(aeronave)
   cancelarOrbitParaJoinCircuito(aeronave)
   aeronave.joinCircuitoPunto = puntoIngreso
   mostrarMarcadorPuntoJoinAeronave(aeronave)
@@ -17615,9 +17718,7 @@ function procesarClickMapaJoinCircuito(latlng){
         Number(aeronave.velocidadObjetivo) || PILOTAGE_DEFAULT_SPEED_INITIAL_KT
       ),
       virajeRealista: true,
-      bancoMaxGrados: PILOTAGE_REALISTIC_BANK_DEG,
-      tasaVirajeMinDegSeg: PILOTAGE_REALISTIC_TURN_RATE_MIN_DEG_PER_SEC,
-      tasaVirajeMaxDegSeg: PILOTAGE_REALISTIC_TURN_RATE_MAX_DEG_PER_SEC,
+      ...configuracionVirajeCircuito,
       umbralCongelarRumboM: 12,
       estadoDuranteMovimiento: "JOINING"
     }
@@ -18891,6 +18992,7 @@ function iniciarInterceptacionMuelleTasaTouchAndGo(a, altitudObjetivo = 1500){
   actualizarPanelInfoAeronave(a)
   actualizarPanelInfo(a)
   sincronizarEstadoAeronaveLocal(a)
+  const configuracionVirajeCircuito = obtenerConfiguracionVirajeCircuitoAeronave(a)
 
   moverAeronaveHacia(a, [muelleTasa.lat, muelleTasa.lng], () => {
     if(a.intervaloTouchAndGoClimb){
@@ -18905,9 +19007,8 @@ function iniciarInterceptacionMuelleTasaTouchAndGo(a, altitudObjetivo = 1500){
     reingresarCircuito(a, "downwind")
   }, {
     virajeRealista: true,
-    bancoMaxGrados: PILOTAGE_REALISTIC_BANK_DEG,
-    tasaVirajeMinDegSeg: PILOTAGE_REALISTIC_TURN_RATE_MIN_DEG_PER_SEC,
-    tasaVirajeMaxDegSeg: PILOTAGE_REALISTIC_TURN_RATE_MAX_DEG_PER_SEC
+    ...configuracionVirajeCircuito,
+    estadoDuranteMovimiento: "TNG_INTERCEPT"
   })
 }
 
@@ -19720,22 +19821,30 @@ function moverAeronaveHacia(a, destino, callback, opciones = {}){
   const rumboFijo = Number(opciones.rumboFijo)
   const usarRumboFijo = Number.isFinite(rumboFijo)
   const moverEnReversa = Boolean(opciones.moverEnReversa)
+  const estadoDuranteMovimiento =
+    typeof opciones.estadoDuranteMovimiento === "string"
+      ? opciones.estadoDuranteMovimiento
+      : null
+  const configuracionVirajeContextual = obtenerConfiguracionVirajeRealistaAeronave(
+    a,
+    estadoDuranteMovimiento
+  )
   const umbralCongelarRumboM = Number.isFinite(Number(opciones.umbralCongelarRumboM))
     ? Math.max(0, Number(opciones.umbralCongelarRumboM))
     : 8
   const virajeRealista = Boolean(opciones.virajeRealista)
   const bancoMaxGrados = Number.isFinite(Number(opciones.bancoMaxGrados))
     ? Math.max(1, Number(opciones.bancoMaxGrados))
-    : PILOTAGE_REALISTIC_BANK_DEG
+    : configuracionVirajeContextual.bancoMaxGrados
   const tasaVirajeMinDegSeg = Number.isFinite(Number(opciones.tasaVirajeMinDegSeg))
     ? Math.max(0.2, Number(opciones.tasaVirajeMinDegSeg))
-    : PILOTAGE_REALISTIC_TURN_RATE_MIN_DEG_PER_SEC
+    : configuracionVirajeContextual.tasaVirajeMinDegSeg
   const tasaVirajeMaxDegSeg = Number.isFinite(Number(opciones.tasaVirajeMaxDegSeg))
     ? Math.max(
         tasaVirajeMinDegSeg,
         Number(opciones.tasaVirajeMaxDegSeg)
       )
-    : PILOTAGE_REALISTIC_TURN_RATE_MAX_DEG_PER_SEC
+    : configuracionVirajeContextual.tasaVirajeMaxDegSeg
   const altitudInicialMovimiento = Number.isFinite(Number(opciones.altitudInicial))
     ? Math.max(0, Number(opciones.altitudInicial))
     : Math.max(0, Number(a.altitud) || 0)
@@ -24563,7 +24672,6 @@ let rutaProcedimientoSeleccionadaEtiquetaLayer = null
 let rutaProcedimientoSeleccionadaEtiquetaFrame = null
 
 
-const vorPisco = [-13.744, -76.220]
 const radio5NM = 5 * 1852
 const vorSco = [-13.738611, -76.212778]
 const radio10NM = 10 * 1852
@@ -27692,7 +27800,7 @@ chkVor.addEventListener("change", () => {
 
   if(chkVor.checked){
 
-    circuloVor = L.circle(vorPisco, {
+    circuloVor = L.circle(vorSco, {
       radius: radio5NM,
       color: "#ffffff",
       weight: 2,
@@ -28785,6 +28893,7 @@ if(chkRutas){
 
 function girarSuavemente(a, headingActual, headingObjetivo, deltaTiempo = 0.05){
   const dt = Number.isFinite(deltaTiempo) && deltaTiempo > 0 ? deltaTiempo : 0.05
+  const configuracionViraje = obtenerConfiguracionVirajeRealistaAeronave(a)
   const velocidadBase = Number.isFinite(Number(a && a.velocidadObjetivo)) && Number(a.velocidadObjetivo) > 0
     ? Number(a.velocidadObjetivo)
     : (
@@ -28798,7 +28907,9 @@ function girarSuavemente(a, headingActual, headingObjetivo, deltaTiempo = 0.05){
       )
   const tasaVirajeDegSeg = calcularTasaVirajeRealistaDegSeg(
     velocidadBase,
-    PILOTAGE_REALISTIC_BANK_DEG
+    configuracionViraje.bancoMaxGrados,
+    configuracionViraje.tasaVirajeMinDegSeg,
+    configuracionViraje.tasaVirajeMaxDegSeg
   )
   const maxCambio = Math.max(0.05, tasaVirajeDegSeg * dt)
 
@@ -30561,12 +30672,14 @@ function inicializarResizePanelControlador(){
 
 function togglePanelControladorServicios(){
   const panel = document.getElementById("panelControladorServicios");
-  const boton = document.getElementById("btnGroundPanel");
-  if(!panel || !boton) return;
+  if(!panel) return;
 
-  panel.classList.toggle("contraido");
-  const expandido = !panel.classList.contains("contraido");
-  boton.setAttribute("aria-expanded", String(expandido));
+  if(panel.classList.contains("contraido")){
+    abrirPanelControladorServicios();
+    return;
+  }
+
+  cerrarPanelControladorServicios();
 }
 
 function inicializarCirculosSectorUno(){

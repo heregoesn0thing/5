@@ -527,6 +527,7 @@
 
   <div id="submenuAcciones" class="fab-row">
     <button id="btnCapas" class="btn-accion" type="button">&#8942;</button>
+    <button id="btnSim" class="btn-accion btn-sim" type="button" title="SIM" aria-pressed="false">SIM</button>
     <button id="btnDanger" class="btn-accion" onclick="activarModoPeligro()">&#9888;</button>
     <button id="btnWeather" class="btn-accion" type="button">&#127780;</button>
     <button id="btnMedirDistancia" class="btn-accion" type="button" title="Distance">&#128207;</button>
@@ -5199,6 +5200,8 @@ socket.on("estadoTiempo", (data) => {
   const estabaPausado = pausado
 
   pausado = data.pausado;
+  sincronizarPausaRelojMovimientoAeronaves(estabaPausado)
+  aeronaves.forEach(actualizarInteraccion)
 
   const horaPanelServidor =
     data && typeof data.panelHora === "string"
@@ -6197,12 +6200,20 @@ const KOPRA_COORDS = calcularPuntoEnRadialSco(
   DISTANCIA_KOPRA_VOR_SCO_M,
   307
 )
-crearTriangulo("KOPRA", KOPRA_COORDS[0], KOPRA_COORDS[1])
+const marcadorKopra = crearMarcadorTrianguloMapa(
+  "KOPRA",
+  KOPRA_COORDS[0],
+  KOPRA_COORDS[1]
+).addTo(map)
 const TELOT_COORDS = calcularPuntoEnRadialSco(
   DISTANCIA_TELOT_VOR_SCO_M,
   330
 )
-crearTriangulo("TELOT", TELOT_COORDS[0], TELOT_COORDS[1])
+const marcadorTelot = crearMarcadorTrianguloMapa(
+  "TELOT",
+  TELOT_COORDS[0],
+  TELOT_COORDS[1]
+).addTo(map)
 const GEBED_COORDS = calcularPuntoEnRadialSco(
   DISTANCIA_GEBED_VOR_SCO_M,
   341
@@ -6846,7 +6857,12 @@ const RUTA_ILS_U = compactarRutaAirbornePuntos([
   SILAM_COORDS,
   [-13.734536864537288, -76.21175399048074]
 ])
-crearPuntoRnavMapa("ESEDI", -12.577222, -76.951667)
+const ESEDI_COORDS = [-12.577222, -76.951667]
+const marcadorEsedi = crearMarcadorPuntoRnavMapa(
+  "ESEDI",
+  ESEDI_COORDS[0],
+  ESEDI_COORDS[1]
+).addTo(map)
 const ASOXI_COORDS = [-12.760556, -76.606389]
 marcadorAsoxi = crearMarcadorTrianguloMapa(
   "ASOXI",
@@ -7050,6 +7066,135 @@ const grupoRutas = L.layerGroup([
     crearMarcadorPuntoRnavMapa(punto.nombre, punto.lat, punto.lng)
   )
 ])
+
+const DISTANCIA_PUNTOS_SIM_PISCO_M = 50 * 1852
+const PUNTOS_SIM_PISCO_MAPA = [
+  { nombre: "ROKOP", radial: 60 },
+  { nombre: "KOSKO", radial: 90 },
+  { nombre: "ZATOL", radial: 136 },
+  { nombre: "BOGAR", radial: 210 },
+  { nombre: "BOUVA", radial: 320 },
+  { nombre: "TELOT", radial: 330 },
+  { nombre: "GEBED", radial: 341 }
+].map((punto) => {
+  const coords = calcularPuntoEnRadialSco(
+    DISTANCIA_PUNTOS_SIM_PISCO_M,
+    punto.radial
+  )
+  return {
+    ...punto,
+    distanciaNm: 50,
+    lat: coords[0],
+    lng: coords[1]
+  }
+})
+
+function construirTooltipPuntoSimPisco(punto){
+  const radial = String(punto.radial).padStart(3, "0")
+  return `
+    <div class="visual-reference-tooltip-card">
+      <div class="visual-reference-tooltip-title">${punto.nombre}</div>
+      <div class="visual-reference-tooltip-line">50NM SCO R${radial}</div>
+    </div>
+  `
+}
+
+function crearMarcadorPuntoSimPisco(punto){
+  const marcador = crearMarcadorTrianguloMapa(
+    punto.nombre,
+    punto.lat,
+    punto.lng,
+    true,
+    {
+      interactive: true,
+      keyboard: false,
+      bubblingMouseEvents: false
+    }
+  )
+  marcador.bindTooltip(construirTooltipPuntoSimPisco(punto), {
+    permanent: false,
+    direction: "top",
+    offset: [0, -8],
+    className: "visual-reference-tooltip",
+    sticky: true
+  })
+  return marcador
+}
+
+const marcadoresPuntosPiscoActual = [
+  marcadorKopra,
+  marcadorTelot,
+  marcadorGebed,
+  marcadorKolmi,
+  marcadorMumop,
+  marcadorSilam,
+  marcadorEsedi,
+  marcadorAsoxi
+].filter(Boolean)
+const marcadoresPuntosPiscoSim = PUNTOS_SIM_PISCO_MAPA
+  .map(crearMarcadorPuntoSimPisco)
+  .filter(Boolean)
+let modoSimPiscoActivo = false
+
+function actualizarBotonModoSimPisco(){
+  const btnSim = document.getElementById("btnSim")
+  if(!btnSim) return
+  btnSim.classList.toggle("activo", modoSimPiscoActivo)
+  btnSim.setAttribute("aria-pressed", modoSimPiscoActivo ? "true" : "false")
+}
+
+function actualizarVisibilidadGrupoRutasMapa(){
+  const chkRutasLocal = document.getElementById("chkRutas")
+  const mostrarRutasActuales = Boolean(
+    chkRutasLocal &&
+    chkRutasLocal.checked &&
+    !modoSimPiscoActivo
+  )
+
+  if(mostrarRutasActuales){
+    if(!map.hasLayer(grupoRutas)){
+      grupoRutas.addTo(map)
+    }
+    return
+  }
+
+  if(map.hasLayer(grupoRutas)){
+    map.removeLayer(grupoRutas)
+  }
+}
+
+function actualizarVisibilidadPuntosPisco(){
+  marcadoresPuntosPiscoActual.forEach((marcador) => {
+    establecerVisibilidadMarcadorMapa(marcador, !modoSimPiscoActivo)
+  })
+  marcadoresPuntosPiscoSim.forEach((marcador) => {
+    establecerVisibilidadMarcadorMapa(marcador, modoSimPiscoActivo)
+  })
+  actualizarVisibilidadGrupoRutasMapa()
+  actualizarBotonModoSimPisco()
+}
+
+function establecerModoSimPisco(activo){
+  modoSimPiscoActivo = Boolean(activo)
+  actualizarVisibilidadPuntosPisco()
+}
+
+function alternarModoSimPisco(){
+  establecerModoSimPisco(!modoSimPiscoActivo)
+}
+
+;(function inicializarBotonSimPisco(){
+  const btnSim = document.getElementById("btnSim")
+  if(!btnSim) return
+
+  btnSim.addEventListener("click", (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    alternarModoSimPisco()
+  })
+
+  actualizarVisibilidadPuntosPisco()
+})()
 
 marcadorTrianguloVorTHover = crearMarcadorTrianguloMapa(
   "",
@@ -9244,7 +9389,7 @@ const PUNTOS_BUSQUEDA_LOCAL_MAPA = [
   crearEntradaBusquedaLocalMapa("KOLMI", KOLMI_COORDS[0], KOLMI_COORDS[1], "Fix del simulador"),
   crearEntradaBusquedaLocalMapa("MUMOP", MUMOP_COORDS[0], MUMOP_COORDS[1], "Fix del simulador"),
   crearEntradaBusquedaLocalMapa("SILAM", SILAM_COORDS[0], SILAM_COORDS[1], "Fix del simulador"),
-  crearEntradaBusquedaLocalMapa("ESEDI", -12.577222, -76.951667, "Fix del simulador"),
+  crearEntradaBusquedaLocalMapa("ESEDI", ESEDI_COORDS[0], ESEDI_COORDS[1], "Fix del simulador"),
   crearEntradaBusquedaLocalMapa("ASOXI", ASOXI_COORDS[0], ASOXI_COORDS[1], "Fix del simulador"),
   crearEntradaBusquedaLocalMapa(
     "SCO VOR",
@@ -9273,6 +9418,16 @@ const PUNTOS_BUSQUEDA_LOCAL_MAPA = [
       punto.lat,
       punto.lng,
       "Punto RNAV"
+    )
+  ),
+  ...PUNTOS_SIM_PISCO_MAPA.map((punto) =>
+    crearEntradaBusquedaLocalMapa(
+      punto.nombre,
+      punto.lat,
+      punto.lng,
+      "Fix SIM Pisco",
+      [`${punto.nombre} SIM`, `R${String(punto.radial).padStart(3, "0")}`],
+      `50NM SCO R${String(punto.radial).padStart(3, "0")}`
     )
   ),
   ...AERODROMOS_MAPA.map((aerodromo) =>
@@ -11238,6 +11393,24 @@ let circuitoLayer = null
 
 
 let pausado = false;
+
+function movimientoAeronavesPausadoPorReloj(){
+  return pausado === true
+}
+
+function sincronizarPausaRelojMovimientoAeronaves(estabaPausado){
+  if(estabaPausado === pausado) return
+
+  if(animacionInterpolacionRemota){
+    cancelAnimationFrame(animacionInterpolacionRemota)
+    animacionInterpolacionRemota = null
+  }
+
+  aeronaves.forEach(avion => {
+    if(!avion || (!avion.remoto && !avion.interpRemotaForzada)) return
+    limpiarInterpolacionRemotaAeronave(avion)
+  })
+}
 
 function toggleTiempo() {
 
@@ -13458,6 +13631,7 @@ function limpiarInterpolacionRemotaAeronave(avion){
 
 function aplicarPosicionServidorInstantanea(avion, lat, lng, anguloServidor){
   if(!avion || !avion.marker) return
+  if(movimientoAeronavesPausadoPorReloj()) return
 
   const latNum = Number(lat)
   const lngNum = Number(lng)
@@ -18545,6 +18719,8 @@ function iniciarMonitoreoTouchAndGo(a){
   }
 
   a.monitorTouchAndGo = setInterval(() => {
+    if(movimientoAeronavesPausadoPorReloj()) return
+
     if(!a.touchAndGoPendiente){
       clearInterval(a.monitorTouchAndGo)
       a.monitorTouchAndGo = null
@@ -18947,6 +19123,11 @@ function continuarAscensoTouchAndGoHasta(a, altitudObjetivo = 1500){
       return
     }
 
+    if(movimientoAeronavesPausadoPorReloj()){
+      ultimoTiempo = performance.now()
+      return
+    }
+
     const ahora = performance.now()
     const deltaSegundos = Math.max(0.02, (ahora - ultimoTiempo) / 1000)
     ultimoTiempo = ahora
@@ -19196,6 +19377,8 @@ function iniciarMonitoreoAterrizaje(a){
 
   a.monitorAterrizaje = setInterval(() => {
 
+    if(movimientoAeronavesPausadoPorReloj()) return
+
     if(!tieneAutorizacionLandingActiva(a)){
       clearInterval(a.monitorAterrizaje)
       a.monitorAterrizaje = null
@@ -19268,6 +19451,11 @@ function moverAeronaveAlineadaEjeRwy22(a, destino, callback, opciones = {}){
     if(!a.marker){
       clearInterval(a.intervaloMovimiento)
       a.intervaloMovimiento = null
+      return
+    }
+
+    if(movimientoAeronavesPausadoPorReloj()){
+      ultimoTiempo = performance.now()
       return
     }
 
@@ -19859,6 +20047,11 @@ function moverAeronaveHacia(a, destino, callback, opciones = {}){
 
   a.intervaloMovimiento = setInterval(() => {
 
+    if(movimientoAeronavesPausadoPorReloj()){
+      ultimoTiempo = performance.now()
+      return
+    }
+
     const actual = a.marker.getLatLng()
     const destinoLatLng = L.latLng(destino[0], destino[1])
     const distancia = map.distance(actual, destinoLatLng)
@@ -20194,6 +20387,11 @@ function seguirRutaRollout(a, ruta){
   function motorRollout(){
     if(a.estado !== "ROLLOUT") return
 
+    if(movimientoAeronavesPausadoPorReloj()){
+      ultimoTiempo = performance.now()
+      return
+    }
+
     if(indice >= puntosNormalizados.length){
       finalizarTaxi(a)
       return
@@ -20430,6 +20628,11 @@ function iniciarAscensoTouchAndGo(a){
     if(!a.marker){
       clearInterval(a.intervaloTouchAndGoClimb)
       a.intervaloTouchAndGoClimb = null
+      return
+    }
+
+    if(movimientoAeronavesPausadoPorReloj()){
+      ultimoTiempo = performance.now()
       return
     }
 
@@ -22348,7 +22551,7 @@ function esAeronaveSeleccionada(a){
 function puedeArrastrarAeronaveIdle(a){
   return Boolean(
     a &&
-    a.estado === "IDLE" &&
+    (a.estado === "IDLE" || pausado) &&
     modoOperacion !== "controlador" &&
     esAeronaveDelCreadorLocal(a)
   )
@@ -23244,6 +23447,11 @@ function despegar(aeronaveOverride = null){
 
   let ultimoTickVuelo = performance.now()
   a.intervaloVuelo = setInterval(()=>{
+
+    if(movimientoAeronavesPausadoPorReloj()){
+      ultimoTickVuelo = performance.now()
+      return
+    }
 
     
 
@@ -28878,17 +29086,10 @@ if(chkVorV){
 
 if(chkRutas){
   chkRutas.addEventListener("change", () => {
-    if(chkRutas.checked){
-      grupoRutas.addTo(map)
-      return
-    }
-
-    map.removeLayer(grupoRutas)
+    actualizarVisibilidadGrupoRutasMapa()
   })
 
-  if(chkRutas.checked){
-    grupoRutas.addTo(map)
-  }
+  actualizarVisibilidadGrupoRutasMapa()
 }
 
 function girarSuavemente(a, headingActual, headingObjetivo, deltaTiempo = 0.05){
@@ -29131,6 +29332,11 @@ function iniciarInterpolacionRemota(){
   if(animacionInterpolacionRemota) return
 
   const tick = () => {
+    if(movimientoAeronavesPausadoPorReloj()){
+      animacionInterpolacionRemota = null
+      return
+    }
+
     const ahora = Date.now()
     let hayTrabajo = false
 
@@ -29202,6 +29408,10 @@ function registrarMovimientoServidor(a, token, callback){
 
 function registrarSnapshotRemoto(avion, lat, lng, anguloServidor, syncTs){
   if(!avion || !avion.marker) return
+  if(movimientoAeronavesPausadoPorReloj()){
+    limpiarInterpolacionRemotaAeronave(avion)
+    return
+  }
 
   const latNum = Number(lat)
   const lngNum = Number(lng)
@@ -29377,6 +29587,11 @@ function moverPorPuntos(a){
   function motor(){
 
     if(a.estado !== "TAXI") return
+
+    if(movimientoAeronavesPausadoPorReloj()){
+      ultimoTiempo = performance.now()
+      return
+    }
 
     const ahora = performance.now()
     const deltaTime = Math.max(0.016, (ahora - ultimoTiempo) / 1000)
@@ -31931,4 +32146,3 @@ inicializarLayoutMobile();
 </script>
 </body>
 </html>
-

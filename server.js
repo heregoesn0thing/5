@@ -3773,6 +3773,12 @@ function iniciarMotorSala(nombreSala){
     const sala = salas[nombreSala]
     if (!sala) return
 
+    const relojSala = relojesSalas[nombreSala]
+    if (relojSala && relojSala.pausado) {
+      ultimoTickMotorMs = Date.now()
+      return
+    }
+
 	    const ahoraTickMotorMs = Date.now()
 	    const intervaloBrutoMs = ahoraTickMotorMs - ultimoTickMotorMs
 	    ultimoTickMotorMs = ahoraTickMotorMs
@@ -6022,6 +6028,8 @@ io.on("connection", (socket) => {
     const segundosIniciales = horaInicial
       ? convertirHoraASegundos(horaInicial)
       : 0;
+    const horaInicialNormalizada = formatearHora(segundosIniciales);
+    const horaInicialTexto = horaObjetoATexto(horaInicialNormalizada);
 
     salas[nombre] = {
       jugadores: [],
@@ -6038,12 +6046,12 @@ relojesSalas[nombre] = {
   tiempoBase: segundosIniciales,
   timestampBase: Date.now(),
   velocidad: 1,
-  pausado: true,
-  panelHoraInicio: null,
-  letraActual: "--",
-  letraAsignada: false,
+  pausado: false,
+  panelHoraInicio: horaInicialTexto,
+  letraActual: generarLetraAleatoriaAZ(),
+  letraAsignada: true,
   segundosAcumuladosLetra: 0,
-  ultimoSegundoLetra: null
+  ultimoSegundoLetra: convertirHoraObjetoASegundos(horaInicialNormalizada)
 };
 
 

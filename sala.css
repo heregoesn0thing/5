@@ -834,6 +834,37 @@ body[data-modo-operacion="piloto"] #btnBuscarLugar{
   box-shadow:0 0 12px rgba(45,212,191,0.45);
 }
 
+.arrival-sim-row{
+  flex-wrap: wrap;
+}
+
+#arrivalSimOpciones{
+  display: none;
+}
+
+#arrivalSimOpciones.activo:not([hidden]){
+  display: flex;
+}
+
+#arrivalSimGebedOpciones{
+  display: none;
+}
+
+#arrivalSimGebedOpciones.activo:not([hidden]){
+  display: flex;
+}
+
+.arrival-sim-btn,
+.arrival-sim-subbtn{
+  min-width: 86px;
+  font-size: 11px;
+}
+
+.arrival-sim-approach-btn{
+  min-width: 118px;
+  flex: 1 1 118px;
+}
+
 #btnDrawMapa{
   width: auto;
   min-width: 88px;

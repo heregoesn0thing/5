@@ -295,6 +295,18 @@
       T
     </button>
   </div>
+  <div class="arrival-row arrival-sim-row" id="arrivalSimOpciones" aria-hidden="true" hidden>
+    <button class="btn-lateral arrival-btn arrival-sim-btn" type="button" data-arrival-sim="ILMAR1A">ILMAR 1A</button>
+    <button class="btn-lateral arrival-btn arrival-sim-btn" type="button" data-arrival-sim="ROKOP1A">ROKOP 1A</button>
+    <button class="btn-lateral arrival-btn arrival-sim-btn" type="button" data-arrival-sim="KOSKO1A">KOSKO 1A</button>
+    <button class="btn-lateral arrival-btn arrival-sim-btn" type="button" data-arrival-sim="ZATOL1A">ZATOL 1A</button>
+    <button class="btn-lateral arrival-btn arrival-sim-btn" type="button" data-arrival-sim="GEBED1A" aria-controls="arrivalSimGebedOpciones" aria-expanded="false">GEBED 1A</button>
+    <button class="btn-lateral arrival-btn arrival-sim-btn arrival-sim-approach-btn" type="button" data-arrival-sim="VORYRWY22" aria-hidden="true" hidden>VOR Y RWY 22</button>
+  </div>
+  <div class="arrival-row arrival-submenu arrival-leaf-row arrival-sim-submenu" id="arrivalSimGebedOpciones" aria-hidden="true" hidden>
+    <button class="btn-lateral arrival-btn arrival-sim-subbtn" type="button" data-arrival-sim-option="GEBED1A_MUMOP">MUMOP</button>
+    <button class="btn-lateral arrival-btn arrival-sim-subbtn" type="button" data-arrival-sim-option="GEBED1A_SCO">VOR SCO</button>
+  </div>
 </div>
 
     
@@ -362,6 +374,10 @@
   <div id="departureSidOpciones" class="departure-sid-opciones">
     <button class="sid-option-btn" type="button" data-sid="KOPRA1">KOPRA1</button>
     <button class="sid-option-btn" type="button" data-sid="TELOT1">TELOT1</button>
+    <button class="sid-option-btn sid-option-sim" type="button" data-sid="TELOT1F" hidden>TELOT 1F</button>
+    <button class="sid-option-btn sid-option-sim" type="button" data-sid="BOUVA1F" hidden>BOUVA 1F</button>
+    <button class="sid-option-btn sid-option-sim" type="button" data-sid="ZATOL1F" hidden>ZATOL 1F</button>
+    <button class="sid-option-btn sid-option-sim" type="button" data-sid="ILMAR1F" hidden>ILMAR 1F</button>
   </div>
   <div id="departureRdlOpciones" class="departure-rdl-opciones">
     <input
@@ -6330,6 +6346,9 @@ let marcadorTrianguloIlsTHover = null
 let marcadorTrianguloVorUHover = null
 let marcadorTrianguloVorTHover = null
 let etiquetaSuperiorTrianguloVorTIf = null
+let marcadorTrianguloVorYAntiguoIfHover = null
+let marcadorTrianguloVorYIfHover = null
+let etiquetaSuperiorTrianguloVorYIf = null
 
 function construirTooltipLlegadaMumopIAF(mostrarIaf = false){
   return `
@@ -6446,7 +6465,7 @@ function construirTooltipTrianguloLlegadaFinal(){
 
 function construirTooltipKolmiLlegadaFinal(){
   const modo = obtenerModoLlegadaFinalVisual()
-  if(modo === "VOR" || estaHoverLlegadaVorTActivo()){
+  if(modo === "VOR" || estaHoverLlegadaVorTActivo() || estaHoverLlegadaVorYActivo()){
     return `
       <div class="visual-reference-tooltip-card visual-reference-tooltip-card-mumop">
         <div class="visual-reference-tooltip-accent">(FAF)</div>
@@ -6472,7 +6491,8 @@ function actualizarTooltipHoverKolmiLlegadaFinal(){
     marcadorKolmi,
     Boolean(obtenerModoLlegadaFinalVisual()) ||
       estaHoverLlegadaIlsTActivo() ||
-      estaHoverLlegadaVorTActivo(),
+      estaHoverLlegadaVorTActivo() ||
+      estaHoverLlegadaVorYActivo(),
     construirTooltipKolmiLlegadaFinal()
   )
 }
@@ -6499,6 +6519,10 @@ function estaHoverLlegadaIlsTActivo(){
 
 function estaHoverLlegadaVorTActivo(){
   return estaRutaArrivalHabilitadaPorInterfaz("APROXIMACION VOR T")
+}
+
+function estaHoverLlegadaVorYActivo(){
+  return estaRutaArrivalHabilitadaPorInterfaz("VOR Y RWY 22")
 }
 
 function obtenerModoLlegadaUVisual(){
@@ -6595,7 +6619,8 @@ function actualizarTooltipHoverVorScoIlsT(){
     estaHoverLlegadaIlsUActivo() ||
       estaHoverLlegadaIlsTActivo() ||
       estaHoverLlegadaVorUActivo() ||
-      estaHoverLlegadaVorTActivo(),
+      estaHoverLlegadaVorTActivo() ||
+      estaHoverLlegadaVorYActivo(),
     construirTooltipVorScoIlsT()
   )
 }
@@ -6634,14 +6659,23 @@ function actualizarTooltipHoverTrianguloVorT(){
   )
 }
 
+function actualizarTooltipHoverTrianguloVorY(){
+  sincronizarTooltipHoverMarcador(
+    marcadorTrianguloVorYIfHover,
+    estaHoverLlegadaVorYActivo(),
+    construirTooltipTrianguloVorT()
+  )
+}
+
 function actualizarEtiquetasLlegadas(){
   const modoLlegadaFinal = obtenerModoLlegadaFinalVisual()
   const hoverIlsUActivo = estaHoverLlegadaIlsUActivo()
   const hoverVorUActivo = estaHoverLlegadaVorUActivo()
   const hoverIlsTActivo = estaHoverLlegadaIlsTActivo()
   const hoverVorTActivo = estaHoverLlegadaVorTActivo()
+  const hoverVorYActivo = estaHoverLlegadaVorYActivo()
   const modoLlegadaU = obtenerModoLlegadaUVisual()
-  const mostrarKolmiFaf = modoLlegadaFinal === "VOR" || hoverVorTActivo
+  const mostrarKolmiFaf = modoLlegadaFinal === "VOR" || hoverVorTActivo || hoverVorYActivo
   const mostrarKolmiFap = !mostrarKolmiFaf && (
     modoLlegadaFinal === "ILS" ||
     hoverIlsTActivo
@@ -6671,6 +6705,10 @@ function actualizarEtiquetasLlegadas(){
     hoverVorTActivo
   )
   establecerVisibilidadMarcadorMapa(
+    etiquetaSuperiorTrianguloVorYIf,
+    hoverVorYActivo
+  )
+  establecerVisibilidadMarcadorMapa(
     etiquetaSuperiorSilamFap,
     modoLlegadaU === "ILS"
   )
@@ -6680,11 +6718,11 @@ function actualizarEtiquetasLlegadas(){
   )
   establecerVisibilidadMarcadorMapa(
     etiquetaDerechaVorScoIaf,
-    hoverIlsUActivo || hoverIlsTActivo || hoverVorUActivo || hoverVorTActivo
+    hoverIlsUActivo || hoverIlsTActivo || hoverVorUActivo || hoverVorTActivo || hoverVorYActivo
   )
   establecerVisibilidadMarcadorMapa(
     marcadorVorScoIafHover,
-    hoverIlsUActivo || hoverIlsTActivo || hoverVorUActivo || hoverVorTActivo
+    hoverIlsUActivo || hoverIlsTActivo || hoverVorUActivo || hoverVorTActivo || hoverVorYActivo
   )
 }
 
@@ -6738,6 +6776,7 @@ function actualizarTooltipsHoverLlegadas(){
   actualizarTooltipHoverTrianguloIlsU()
   actualizarTooltipHoverTrianguloVorU()
   actualizarTooltipHoverTrianguloVorT()
+  actualizarTooltipHoverTrianguloVorY()
   actualizarTooltipHoverSilamIlsU()
   actualizarTooltipHoverVorScoIlsT()
   actualizarTooltipHoverTrianguloIlsT()
@@ -6918,6 +6957,13 @@ const RUTA_VOR_T = [
   KOLMI_COORDS,
   [-13.734536864537288, -76.21175399048074]
 ]
+const RUTA_VOR_Y_RWY22 = [
+  [-13.738611, -76.212778],
+  PUNTO_SCO_RADIAL_017_8NM,
+  ...RUTA_SCO_SEMICIRCULO_017_A_041.slice(1),
+  KOLMI_COORDS,
+  [-13.734536864537288, -76.21175399048074]
+]
 const PUNTO_ILS_T_INTERCEPCION_LINEA_CENTRAL_ILS =
   calcularInterseccionSemiejeConCirculoMapa(
     [-13.734536864537288, -76.21175399048074],
@@ -7088,13 +7134,50 @@ const PUNTOS_SIM_PISCO_MAPA = [
     lng: coords[1]
   }
 })
+const PUNTOS_SIM_PISCO_LLEGADAS_EXTRA = [
+  { nombre: "ILMAR", radial: 210, distanciaNm: 35 }
+].map((punto) => {
+  const distanciaNm = Number.isFinite(Number(punto.distanciaNm))
+    ? Number(punto.distanciaNm)
+    : 50
+  const coords = calcularPuntoEnRadialSco(
+    distanciaNm * 1852,
+    punto.radial
+  )
+  return {
+    ...punto,
+    distanciaNm,
+    lat: coords[0],
+    lng: coords[1]
+  }
+})
+const PUNTOS_SIM_PISCO_TODOS = [
+  ...PUNTOS_SIM_PISCO_MAPA,
+  ...PUNTOS_SIM_PISCO_LLEGADAS_EXTRA
+]
+function obtenerPuntoSimPiscoMapa(nombre){
+  const nombreNormalizado = String(nombre || "").trim().toUpperCase()
+  return PUNTOS_SIM_PISCO_TODOS.find(
+    punto => String(punto.nombre || "").trim().toUpperCase() === nombreNormalizado
+  ) || null
+}
+const SID_SIM_PISCO_LABELS = {
+  TELOT1F: "TELOT 1F",
+  BOUVA1F: "BOUVA 1F",
+  ZATOL1F: "ZATOL 1F",
+  ILMAR1F: "ILMAR 1F"
+}
+const SID_SIM_PISCO_VALORES = new Set(Object.keys(SID_SIM_PISCO_LABELS))
 
 function construirTooltipPuntoSimPisco(punto){
   const radial = String(punto.radial).padStart(3, "0")
+  const distanciaNm = Number.isFinite(Number(punto.distanciaNm))
+    ? Number(punto.distanciaNm)
+    : 50
   return `
     <div class="visual-reference-tooltip-card">
       <div class="visual-reference-tooltip-title">${punto.nombre}</div>
-      <div class="visual-reference-tooltip-line">50NM SCO R${radial}</div>
+      <div class="visual-reference-tooltip-line">${distanciaNm}NM SCO R${radial}</div>
     </div>
   `
 }
@@ -7125,16 +7208,16 @@ const marcadoresPuntosPiscoActual = [
   marcadorKopra,
   marcadorTelot,
   marcadorGebed,
-  marcadorKolmi,
   marcadorMumop,
   marcadorSilam,
   marcadorEsedi,
   marcadorAsoxi
 ].filter(Boolean)
-const marcadoresPuntosPiscoSim = PUNTOS_SIM_PISCO_MAPA
+const marcadoresPuntosPiscoSim = PUNTOS_SIM_PISCO_TODOS
   .map(crearMarcadorPuntoSimPisco)
   .filter(Boolean)
 let modoSimPiscoActivo = false
+let arrivalSimGebed1AAbierto = false
 
 function actualizarBotonModoSimPisco(){
   const btnSim = document.getElementById("btnSim")
@@ -7163,15 +7246,273 @@ function actualizarVisibilidadGrupoRutasMapa(){
   }
 }
 
-function actualizarVisibilidadPuntosPisco(){
+function sincronizarBotonesSidModoSimPisco(){
+  const botonesSid = Array.from(
+    document.querySelectorAll("#departureSidOpciones .sid-option-btn")
+  )
+  botonesSid.forEach((boton) => {
+    const esBotonSim = boton.classList.contains("sid-option-sim")
+    boton.hidden = modoSimPiscoActivo ? !esBotonSim : esBotonSim
+    if(!modoSimPiscoActivo && esBotonSim){
+      boton.classList.remove("activo")
+    }
+  })
+}
+
+function sincronizarBotonesArrivalModoSimPisco(){
+  const grupoArrival = document.getElementById("grupoArrival")
+  const filaSim = document.getElementById("arrivalSimOpciones")
+  const filaGebedSim = document.getElementById("arrivalSimGebedOpciones")
+  if(!grupoArrival || !filaSim) return
+
+  if(!modoSimPiscoActivo){
+    arrivalSimGebed1AAbierto = false
+  }
+
+  ;["arrivalBtnGebed3", "arrivalBtnIls", "arrivalBtnVor"].forEach((idBoton) => {
+    const boton = document.getElementById(idBoton)
+    if(!boton) return
+    boton.hidden = modoSimPiscoActivo
+    boton.classList.remove("activo")
+    if(boton.hasAttribute("aria-expanded")){
+      boton.setAttribute("aria-expanded", "false")
+    }
+  })
+
+  Array.from(grupoArrival.querySelectorAll(".arrival-row")).forEach((fila) => {
+    const esFilaSimPrincipal = fila === filaSim
+    const esFilaGebedSim = fila === filaGebedSim
+    const esFilaSim = esFilaSimPrincipal || esFilaGebedSim
+    fila.hidden = modoSimPiscoActivo ? !esFilaSim : esFilaSim
+    if(esFilaSimPrincipal){
+      fila.classList.toggle("activo", modoSimPiscoActivo)
+      fila.setAttribute("aria-hidden", modoSimPiscoActivo ? "false" : "true")
+      if(!modoSimPiscoActivo){
+        fila.querySelectorAll(".arrival-sim-btn").forEach((boton) => {
+          boton.classList.remove("activo")
+          if(boton.hasAttribute("aria-expanded")){
+            boton.setAttribute("aria-expanded", "false")
+          }
+        })
+      }
+      return
+    }
+    if(esFilaGebedSim){
+      if(!modoSimPiscoActivo){
+        fila.classList.remove("activo")
+        fila.querySelectorAll(".arrival-sim-subbtn").forEach((boton) => {
+          boton.classList.remove("activo")
+        })
+      }
+      fila.setAttribute(
+        "aria-hidden",
+        modoSimPiscoActivo && fila.classList.contains("activo") ? "false" : "true"
+      )
+      return
+    }
+
+    if(modoSimPiscoActivo){
+      fila.classList.remove("activo")
+      fila.setAttribute("aria-hidden", "true")
+    }
+  })
+
+  if(modoSimPiscoActivo){
+    grupoArrival.querySelectorAll(".arrival-main-btn").forEach((boton) => {
+      boton.classList.remove("activo")
+      if(boton.hasAttribute("aria-expanded")){
+        boton.setAttribute("aria-expanded", "false")
+      }
+    })
+    if(typeof window.reiniciarBotonesArrival === "function"){
+      window.reiniciarBotonesArrival()
+    }
+  }
+}
+
+function actualizarInterfazModoSimPisco(actualizarTakeoff = true){
+  sincronizarBotonesSidModoSimPisco()
+  sincronizarBotonesArrivalModoSimPisco()
+  if(typeof window.sincronizarCapasVisualesArrival === "function"){
+    window.sincronizarCapasVisualesArrival()
+  }
+  if(actualizarTakeoff && typeof actualizarEstadoBotonTakeoff === "function"){
+    actualizarEstadoBotonTakeoff()
+  }
+}
+
+function seleccionarBotonArrivalSimPisco(botonSeleccionado){
+  if(!botonSeleccionado) return
+  const estabaActivo = botonSeleccionado.classList.contains("activo")
+  const claveSeleccionada = String(botonSeleccionado.dataset.arrivalSim || "")
+    .trim()
+    .toUpperCase()
+  const botones = document.querySelectorAll("#arrivalSimOpciones .arrival-sim-btn")
+  botones.forEach((boton) => {
+    boton.classList.remove("activo")
+    if(
+      boton !== botonSeleccionado &&
+      boton.hasAttribute("aria-expanded")
+    ){
+      boton.setAttribute("aria-expanded", "false")
+    }
+  })
+  if(claveSeleccionada === "GEBED1A"){
+    arrivalSimGebed1AAbierto = true
+    botonSeleccionado.classList.add("activo")
+    botonSeleccionado.setAttribute("aria-expanded", "true")
+    if(typeof window.activarArrivalSimPisco === "function"){
+      const activado = window.activarArrivalSimPisco(
+        botonSeleccionado.dataset.arrivalSim,
+        botonSeleccionado
+      )
+      if(activado === false){
+        arrivalSimGebed1AAbierto = false
+        botonSeleccionado.classList.remove("activo")
+        botonSeleccionado.setAttribute("aria-expanded", "false")
+      }
+    }
+    return
+  }
+
+  arrivalSimGebed1AAbierto = false
+  if(claveSeleccionada !== "GEBED1A"){
+    const filaGebed = document.getElementById("arrivalSimGebedOpciones")
+    if(filaGebed){
+      filaGebed.classList.remove("activo")
+      filaGebed.setAttribute("aria-hidden", "true")
+      filaGebed.hidden = true
+      filaGebed.querySelectorAll(".arrival-sim-subbtn").forEach((boton) => {
+        boton.classList.remove("activo")
+      })
+    }
+  }
+  if(!estabaActivo){
+    botonSeleccionado.classList.add("activo")
+    if(typeof window.activarArrivalSimPisco === "function"){
+      const activado = window.activarArrivalSimPisco(
+        botonSeleccionado.dataset.arrivalSim,
+        botonSeleccionado
+      )
+      if(activado === false){
+        botonSeleccionado.classList.remove("activo")
+        if(botonSeleccionado.hasAttribute("aria-expanded")){
+          botonSeleccionado.setAttribute("aria-expanded", "false")
+        }
+      }
+    }
+  } else if(typeof window.desactivarArrivalSimPisco === "function"){
+    window.desactivarArrivalSimPisco(
+      botonSeleccionado.dataset.arrivalSim,
+      botonSeleccionado
+    )
+  }
+}
+
+function seleccionarSubbotonArrivalSimPisco(botonSeleccionado){
+  if(!botonSeleccionado) return
+  const estabaActivo = botonSeleccionado.classList.contains("activo")
+  const botones = document.querySelectorAll(
+    "#arrivalSimGebedOpciones .arrival-sim-subbtn"
+  )
+  botones.forEach((boton) => boton.classList.remove("activo"))
+  if(!estabaActivo || arrivalSimGebed1AAbierto){
+    arrivalSimGebed1AAbierto = true
+    botonSeleccionado.classList.add("activo")
+    const btnGebed = document.querySelector(
+      '#arrivalSimOpciones [data-arrival-sim="GEBED1A"]'
+    )
+    if(btnGebed){
+      btnGebed.classList.add("activo")
+      btnGebed.setAttribute("aria-expanded", "true")
+    }
+    if(typeof window.activarArrivalSimPisco === "function"){
+      const activado = window.activarArrivalSimPisco(
+        botonSeleccionado.dataset.arrivalSimOption,
+        botonSeleccionado
+      )
+      if(activado === false){
+        botonSeleccionado.classList.remove("activo")
+      } else {
+        const filaGebed = document.getElementById("arrivalSimGebedOpciones")
+        if(filaGebed){
+          filaGebed.hidden = false
+          filaGebed.classList.add("activo")
+          filaGebed.setAttribute("aria-hidden", "false")
+        }
+        botonSeleccionado.classList.add("activo")
+      }
+    }
+  } else if(typeof window.desactivarArrivalSimPisco === "function"){
+    window.desactivarArrivalSimPisco(
+      botonSeleccionado.dataset.arrivalSimOption,
+      botonSeleccionado
+    )
+  }
+}
+
+function seleccionarBotonSidSimPisco(botonSeleccionado){
+  if(!botonSeleccionado) return
+  const sid = botonSeleccionado.dataset.sid || ""
+  configurarSIDDesdeDeparture(sid)
+  document
+    .querySelectorAll("#departureSidOpciones .sid-option-btn")
+    .forEach((boton) => boton.classList.remove("activo"))
+  botonSeleccionado.classList.add("activo")
+}
+
+function inicializarBotonesSimPiscoUI(){
+  const sidOpciones = document.getElementById("departureSidOpciones")
+  if(sidOpciones){
+    sidOpciones.addEventListener("click", (e) => {
+      const botonSim = e.target.closest(".sid-option-sim")
+      if(!botonSim || !sidOpciones.contains(botonSim)){
+        return
+      }
+      e.preventDefault()
+      e.stopPropagation()
+      seleccionarBotonSidSimPisco(botonSim)
+    })
+  }
+
+  const filaArrivalSim = document.getElementById("arrivalSimOpciones")
+  if(filaArrivalSim){
+    filaArrivalSim.addEventListener("click", (e) => {
+      const botonSim = e.target.closest(".arrival-sim-btn")
+      if(!botonSim || !filaArrivalSim.contains(botonSim)){
+        return
+      }
+      e.preventDefault()
+      e.stopPropagation()
+      seleccionarBotonArrivalSimPisco(botonSim)
+    })
+  }
+
+  const filaGebedSim = document.getElementById("arrivalSimGebedOpciones")
+  if(filaGebedSim){
+    filaGebedSim.addEventListener("click", (e) => {
+      const botonSim = e.target.closest(".arrival-sim-subbtn")
+      if(!botonSim || !filaGebedSim.contains(botonSim)){
+        return
+      }
+      e.preventDefault()
+      e.stopPropagation()
+      seleccionarSubbotonArrivalSimPisco(botonSim)
+    })
+  }
+}
+
+function actualizarVisibilidadPuntosPisco(actualizarTakeoff = true){
   marcadoresPuntosPiscoActual.forEach((marcador) => {
     establecerVisibilidadMarcadorMapa(marcador, !modoSimPiscoActivo)
   })
   marcadoresPuntosPiscoSim.forEach((marcador) => {
     establecerVisibilidadMarcadorMapa(marcador, modoSimPiscoActivo)
   })
+  establecerVisibilidadMarcadorMapa(marcadorKolmi, true)
   actualizarVisibilidadGrupoRutasMapa()
   actualizarBotonModoSimPisco()
+  actualizarInterfazModoSimPisco(actualizarTakeoff)
 }
 
 function establecerModoSimPisco(activo){
@@ -7193,7 +7534,8 @@ function alternarModoSimPisco(){
     alternarModoSimPisco()
   })
 
-  actualizarVisibilidadPuntosPisco()
+  inicializarBotonesSimPiscoUI()
+  actualizarVisibilidadPuntosPisco(false)
 })()
 
 marcadorTrianguloVorTHover = crearMarcadorTrianguloMapa(
@@ -7244,6 +7586,52 @@ function crearEstiloRutaLlegadaMapa(opciones = {}){
 const grupoVorT = L.layerGroup([
   marcadorTrianguloVorTHover,
   L.polyline(RUTA_VOR_T, crearEstiloRutaLlegadaMapa())
+])
+
+marcadorTrianguloVorYAntiguoIfHover = crearMarcadorTrianguloMapa(
+  "",
+  PUNTO_SCO_RADIAL_017_8NM[0],
+  PUNTO_SCO_RADIAL_017_8NM[1],
+  false,
+  {
+    interactive: false,
+    keyboard: false,
+    bubblingMouseEvents: false
+  }
+)
+marcadorTrianguloVorYIfHover = crearMarcadorTrianguloMapa(
+  "",
+  PUNTO_SCO_RADIAL_041_INTERCEPT[0],
+  PUNTO_SCO_RADIAL_041_INTERCEPT[1],
+  false,
+  {
+    interactive: true,
+    keyboard: false,
+    bubblingMouseEvents: false
+  }
+)
+etiquetaSuperiorTrianguloVorYIf = crearMarcadorEtiquetaSuperiorTrianguloMapa(
+  "IF",
+  PUNTO_SCO_RADIAL_041_INTERCEPT[0],
+  PUNTO_SCO_RADIAL_041_INTERCEPT[1]
+)
+marcadorTrianguloVorYIfHover.on("mouseover", () => {
+  actualizarTooltipHoverTrianguloVorY()
+  if(marcadorTrianguloVorYIfHover.getTooltip()){
+    marcadorTrianguloVorYIfHover.openTooltip()
+  }
+})
+
+marcadorTrianguloVorYIfHover.on("mouseout", () => {
+  if(marcadorTrianguloVorYIfHover.getTooltip()){
+    marcadorTrianguloVorYIfHover.closeTooltip()
+  }
+})
+
+const grupoVorY = L.layerGroup([
+  marcadorTrianguloVorYAntiguoIfHover,
+  marcadorTrianguloVorYIfHover,
+  L.polyline(RUTA_VOR_Y_RWY22, crearEstiloRutaLlegadaMapa())
 ])
 
 marcadorTrianguloVorUHover = crearMarcadorTrianguloMapa(
@@ -7478,10 +7866,26 @@ const RUTA_STAR_GEBED3_HOLDING_MUMOP_CAPA = compactarRutaAirbornePuntos([
   ...construirRutaHoldingMumop()
 ])
 const GEBED3_HOLDING_MUMOP_LINE_WEIGHT = ARRIVAL_ROUTE_LINE_WEIGHT
+const GEBED_SIM_PISCO_COORDS = (() => {
+  const puntoGebedSim = obtenerPuntoSimPiscoMapa("GEBED")
+  return puntoGebedSim
+    ? [puntoGebedSim.lat, puntoGebedSim.lng]
+    : GEBED_COORDS
+})()
+const RUTA_SIM_GEBED1A_HOLDING_MUMOP_CAPA = compactarRutaAirbornePuntos([
+  GEBED_SIM_PISCO_COORDS,
+  ...construirRutaHoldingMumop()
+])
 
 const grupoStarRoute = L.layerGroup([
   L.polyline(
     RUTA_STAR_GEBED3_HOLDING_MUMOP_CAPA,
+    crearEstiloRutaLlegadaMapa({ weight: GEBED3_HOLDING_MUMOP_LINE_WEIGHT })
+  )
+])
+const grupoSimGebed1AMumopRoute = L.layerGroup([
+  L.polyline(
+    RUTA_SIM_GEBED1A_HOLDING_MUMOP_CAPA,
     crearEstiloRutaLlegadaMapa({ weight: GEBED3_HOLDING_MUMOP_LINE_WEIGHT })
   )
 ])
@@ -9420,16 +9824,19 @@ const PUNTOS_BUSQUEDA_LOCAL_MAPA = [
       "Punto RNAV"
     )
   ),
-  ...PUNTOS_SIM_PISCO_MAPA.map((punto) =>
-    crearEntradaBusquedaLocalMapa(
+  ...PUNTOS_SIM_PISCO_TODOS.map((punto) => {
+    const distanciaNm = Number.isFinite(Number(punto.distanciaNm))
+      ? Number(punto.distanciaNm)
+      : 50
+    return crearEntradaBusquedaLocalMapa(
       punto.nombre,
       punto.lat,
       punto.lng,
       "Fix SIM Pisco",
       [`${punto.nombre} SIM`, `R${String(punto.radial).padStart(3, "0")}`],
-      `50NM SCO R${String(punto.radial).padStart(3, "0")}`
+      `${distanciaNm}NM SCO R${String(punto.radial).padStart(3, "0")}`
     )
-  ),
+  }),
   ...AERODROMOS_MAPA.map((aerodromo) =>
     crearEntradaBusquedaLocalMapa(
       aerodromo.nombre,
@@ -15933,7 +16340,8 @@ function obtenerReferenciaAvisoLandingReadyLlegada(aeronave){
     claveProcedimiento === "APROXIMACION ILS T" ||
     claveProcedimiento === "APROXIMACION ILS V" ||
     claveProcedimiento === "APROXIMACION VOR V" ||
-    claveProcedimiento === "APROXIMACION VOR T"
+    claveProcedimiento === "APROXIMACION VOR T" ||
+    claveProcedimiento === "VOR Y RWY 22"
   ){
     return estaSobreTramoFinalLuegoDeReferencia(
       aeronave,
@@ -19236,7 +19644,8 @@ function esLlegadaConSalidaAutomaticaLandE(aeronave){
     claveProcedimiento === "APROXIMACION ILS V" ||
     claveProcedimiento === "APROXIMACION VOR V" ||
     claveProcedimiento === "APROXIMACION VOR U" ||
-    claveProcedimiento === "APROXIMACION VOR T"
+    claveProcedimiento === "APROXIMACION VOR T" ||
+    claveProcedimiento === "VOR Y RWY 22"
   )
 }
 
@@ -23624,7 +24033,8 @@ function actualizarDepartureInfo(a){
   document.getElementById("depTipo").textContent = a.tipo
   document.getElementById("depStand").textContent = "N/A"
   document.getElementById("depRunway").textContent = "RWY 22"
-  document.getElementById("depSID").textContent = a.sid || "NONE"
+  document.getElementById("depSID").textContent =
+    a.sid ? formatearSidSalidaVisual(a.sid) : "NONE"
 
   document.getElementById("depAltitud").textContent =
     formatearNivelAltitud(a.altitud)
@@ -23782,7 +24192,16 @@ function sincronizarDepartureRdlPanel(aeronave = null){
 }
 
 function normalizarSidSalida(sidValor){
-  return String(sidValor || "").trim().toUpperCase()
+  return String(sidValor || "").trim().toUpperCase().replace(/\s+/g, "")
+}
+
+function esSidSimPiscoVisual(sidValor){
+  return SID_SIM_PISCO_VALORES.has(normalizarSidSalida(sidValor))
+}
+
+function formatearSidSalidaVisual(sidValor){
+  const sid = normalizarSidSalida(sidValor)
+  return SID_SIM_PISCO_LABELS[sid] || sid
 }
 
 function esSidSalidaValida(sidValor){
@@ -23822,6 +24241,13 @@ function normalizarNombreProcedimientoLlegada(valor){
 const PROCEDIMIENTO_LLEGADA_HOLDING_SCO_CLAVE = "HOLDING SCO ANTIHORARIO"
 const PROCEDIMIENTO_LLEGADA_GEBED3_HOLDING_MUMOP_CLAVE = "GEBED3 / HOLDING MUMOP"
 const ALTITUD_MINIMA_HOLDING_MUMOP_FT = 4000
+const PROCEDIMIENTOS_LLEGADA_SIM_HOLDING_SCO_CLAVES = new Set([
+  "ROKOP 1A",
+  "KOSKO 1A",
+  "ZATOL 1A",
+  "ILMAR 1A",
+  "GEBED 1A / VOR SCO"
+])
 
 function obtenerClaveProcedimientoLlegada(valor){
   const nombre = normalizarNombreProcedimientoLlegada(valor)
@@ -23840,10 +24266,15 @@ function esLlegadaHoldingScoActiva(aeronave){
     return false
   }
 
+  const claveProcedimiento = obtenerClaveProcedimientoLlegada(
+    aeronave.arrivalProcedureName
+  )
   return (
     Boolean(aeronave.rutaAirborneLoop) &&
-    obtenerClaveProcedimientoLlegada(aeronave.arrivalProcedureName) ===
-      PROCEDIMIENTO_LLEGADA_HOLDING_SCO_CLAVE
+    (
+      claveProcedimiento === PROCEDIMIENTO_LLEGADA_HOLDING_SCO_CLAVE ||
+      PROCEDIMIENTOS_LLEGADA_SIM_HOLDING_SCO_CLAVES.has(claveProcedimiento)
+    )
   )
 }
 
@@ -24105,7 +24536,9 @@ function actualizarEstadoBotonTakeoff(aeronave = null){
   const vfrSalida = obtenerVfrSalidaAeronave(a)
   const vfrSalidaValida = Boolean(vfrSalida)
   const vfrObjetivoValido = Boolean(obtenerObjetivoVfrAeronave(a))
-  const sidValida = Boolean(a && esSidSalidaValida(a.sid))
+  const sidValida = Boolean(a && esSidSalidaValida(a.sid) && !modoSimPiscoActivo)
+  const sidSimVisual = Boolean(a && modoSimPiscoActivo && esSidSimPiscoVisual(a.sid))
+  const sidActualOcultaPorSim = Boolean(a && modoSimPiscoActivo && esSidSalidaValida(a.sid))
   const departureRdlValor = obtenerDepartureRdlValorAeronave(a)
   const departureRdlDireccion = obtenerDepartureRdlDireccionAeronave(a)
   const vfrListo = !vfrActivo || (vfrSalidaValida && vfrObjetivoValido)
@@ -24213,7 +24646,7 @@ function actualizarEstadoBotonTakeoff(aeronave = null){
     btn.style.opacity = habilitarSid ? "1" : "0.45"
     btn.style.cursor = habilitarSid ? "pointer" : "not-allowed"
     const sidBoton = normalizarSidSalida(btn.dataset.sid)
-    btn.classList.toggle("activo", sidValida && sidBoton === sidActual)
+    btn.classList.toggle("activo", Boolean(a) && sidBoton === sidActual)
   })
 
   if(rdlInput){
@@ -24253,6 +24686,10 @@ function actualizarEstadoBotonTakeoff(aeronave = null){
       btnTakeoff.title = "Selecciona MTASA o SL"
     } else if(vfrActivo && !vfrObjetivoValido){
       btnTakeoff.title = "Selecciona punto en el mapa"
+    } else if(ifrActivo && sidActualOcultaPorSim){
+      btnTakeoff.title = "Selecciona una SID SIM"
+    } else if(ifrActivo && sidSimVisual){
+      btnTakeoff.title = "SID SIM seleccionada sin ruta automatica"
     } else if(ifrActivo && !sidValida){
       btnTakeoff.title = "Selecciona KOPRA1 o TELOT1"
     } else if(rdlModoActivo && departureRdlValor === null){
@@ -24296,7 +24733,9 @@ function configurarSIDDesdeDeparture(sidNombre){
   }
 
   const sidNormalizada = normalizarSidSalida(sidNombre)
-  a.sid = esSidSalidaValida(sidNormalizada) ? sidNormalizada : null
+  a.sid = esSidSalidaValida(sidNormalizada) || esSidSimPiscoVisual(sidNormalizada)
+    ? sidNormalizada
+    : null
 
   actualizarDepartureInfo(a)
   actualizarPanelInfo(a)
@@ -25860,6 +26299,7 @@ function estiloRutaProcedimientoSeleccionadaActiva(){
 function esAproximacionIlsOVor(claveProcedimiento){
   return (
     claveProcedimiento === "GEBED3 / HOLDING MUMOP" ||
+    claveProcedimiento === "VOR Y RWY 22" ||
     claveProcedimiento === "APROXIMACION VOR V" ||
     claveProcedimiento === "APROXIMACION VOR T" ||
     claveProcedimiento === "APROXIMACION VOR U" ||
@@ -25881,6 +26321,7 @@ function esProcedimientoLlegadaSoportado(claveProcedimiento){
   return (
     claveProcedimiento === PROCEDIMIENTO_LLEGADA_HOLDING_SCO_CLAVE ||
     claveProcedimiento === "GEBED3 / HOLDING MUMOP" ||
+    claveProcedimiento === "VOR Y RWY 22" ||
     claveProcedimiento === "APROXIMACION VOR V" ||
     claveProcedimiento === "APROXIMACION VOR T" ||
     claveProcedimiento === "APROXIMACION VOR U" ||
@@ -26276,9 +26717,23 @@ function construirRutaProcedimientoPublicadaAeronave(aeronave){
     case PROCEDIMIENTO_LLEGADA_HOLDING_SCO_CLAVE: {
       return compactarRutaAirbornePuntos(construirRutaHoldingSco())
     }
+    case "ROKOP 1A":
+      return construirRutaPublicadaLlegadaSimPiscoHoldingSco("ROKOP")
+    case "KOSKO 1A":
+      return construirRutaPublicadaLlegadaSimPiscoHoldingSco("KOSKO")
+    case "ZATOL 1A":
+      return construirRutaPublicadaLlegadaSimPiscoHoldingSco("ZATOL")
+    case "ILMAR 1A":
+      return construirRutaPublicadaLlegadaSimPiscoHoldingSco("ILMAR")
+    case "GEBED 1A / VOR SCO":
+      return construirRutaPublicadaLlegadaSimPiscoHoldingSco("GEBED")
+    case "GEBED 1A / MUMOP":
+      return construirRutaPublicadaLlegadaSimPiscoHoldingMumop("GEBED")
     case "GEBED3 / HOLDING MUMOP": {
       return compactarRutaAirbornePuntos(RUTA_STAR_GEBED3_HOLDING_MUMOP_CAPA)
     }
+    case "VOR Y RWY 22":
+      return compactarRutaAirbornePuntos(RUTA_VOR_Y_RWY22)
     case "APROXIMACION VOR T":
       return compactarRutaAirbornePuntos(RUTA_VOR_T)
     case "APROXIMACION VOR U":
@@ -26360,6 +26815,20 @@ function estaRutaArrivalHabilitadaPorInterfaz(claveProcedimiento){
     return Boolean(
       (botonVorT && botonVorT.classList.contains("activo")) ||
       (checkboxVorT && checkboxVorT.checked)
+    )
+  }
+
+  if(claveProcedimiento === "VOR Y RWY 22"){
+    const filaSim = document.getElementById("arrivalSimOpciones")
+    const botonVorY = document.querySelector(
+      '#arrivalSimOpciones [data-arrival-sim="VORYRWY22"]'
+    )
+    return Boolean(
+      filaSim &&
+      !filaSim.hidden &&
+      filaSim.classList.contains("activo") &&
+      botonVorY &&
+      botonVorY.classList.contains("activo")
     )
   }
 
@@ -26747,6 +27216,195 @@ function obtenerProyeccionIngresoArrivalSeleccionado(rutaBase, puntoIngreso){
   )
 }
 
+function estaRadialEnRangoCircular(radial, inicio, fin){
+  const valor = normalizarAngulo360(radial)
+  const desde = normalizarAngulo360(inicio)
+  const hasta = normalizarAngulo360(fin)
+  if(desde <= hasta){
+    return valor >= desde && valor <= hasta
+  }
+  return valor >= desde || valor <= hasta
+}
+
+function obtenerRadialScoMagneticoDesdePunto(punto){
+  if(!punto) return null
+  const lat = Number(punto.lat)
+  const lng = Number(punto.lng)
+  if(!Number.isFinite(lat) || !Number.isFinite(lng)){
+    return null
+  }
+
+  const radialVerdadero = calcularBearing(
+    { lat: SCO_VOR.lat, lng: SCO_VOR.lng },
+    { lat, lng }
+  )
+  if(!Number.isFinite(radialVerdadero)){
+    return null
+  }
+
+  return normalizarAngulo360(
+    radialVerdadero + VARIACION_MAGNETICA_VOR_SCO_OESTE_DEG
+  )
+}
+
+function obtenerTipoIngresoHoldingScoPorRadial(radialMagnetico){
+  if(!Number.isFinite(radialMagnetico)){
+    return "directa"
+  }
+  if(estaRadialEnRangoCircular(radialMagnetico, 87, 267)){
+    return "directa"
+  }
+  if(estaRadialEnRangoCircular(radialMagnetico, 268, 17)){
+    return "gotaInversa"
+  }
+  if(estaRadialEnRangoCircular(radialMagnetico, 18, 86)){
+    return "gota"
+  }
+  return "directa"
+}
+
+function generarCurvaIngresoHoldingSco(puntoInicio, puntoFin, rumboSalida, rumboLlegada){
+  const latInicio = Number(Array.isArray(puntoInicio) ? puntoInicio[0] : null)
+  const lngInicio = Number(Array.isArray(puntoInicio) ? puntoInicio[1] : null)
+  const latFin = Number(Array.isArray(puntoFin) ? puntoFin[0] : null)
+  const lngFin = Number(Array.isArray(puntoFin) ? puntoFin[1] : null)
+  if(
+    !Number.isFinite(latInicio) ||
+    !Number.isFinite(lngInicio) ||
+    !Number.isFinite(latFin) ||
+    !Number.isFinite(lngFin)
+  ){
+    return []
+  }
+
+  const distanciaM = calcularDistancia(latInicio, lngInicio, latFin, lngFin)
+  const distanciaSeguraM = Number.isFinite(distanciaM)
+    ? Math.max(450, distanciaM)
+    : 1852
+  const controlSalidaM = Math.max(
+    0.35 * 1852,
+    Math.min(distanciaSeguraM * 0.55, 1.2 * 1852)
+  )
+  const controlLlegadaM = Math.max(
+    0.3 * 1852,
+    Math.min(distanciaSeguraM * 0.48, 1.05 * 1852)
+  )
+  const segmentos = Math.max(14, Math.min(32, Math.round(distanciaSeguraM / 120)))
+
+  return generarEmpalmeCurvoConRumbos(
+    puntoInicio,
+    rumboSalida,
+    puntoFin,
+    rumboLlegada,
+    controlSalidaM,
+    controlLlegadaM,
+    segmentos
+  )
+}
+
+function construirPuntosEntradaHoldingScoPorRadial(posicionActual){
+  const vorSco = [SCO_VOR.lat, SCO_VOR.lng]
+  const radialLlegada = obtenerRadialScoMagneticoDesdePunto(posicionActual)
+  const tipoIngreso = obtenerTipoIngresoHoldingScoPorRadial(radialLlegada)
+  const radialInicial = convertirRadialScoMagneticoAVerdadero(
+    HOLDING_SCO_RADIAL_INICIAL
+  )
+  const rumboAlejamiento = normalizarAngulo360(radialInicial + 180)
+  const puntoInicioAcercamiento = calcularPuntoDesplazado(
+    SCO_VOR.lat,
+    SCO_VOR.lng,
+    HOLDING_SCO_TRAMO_RECTO_M,
+    rumboAlejamiento
+  )
+
+  if(tipoIngreso === "directa"){
+    return [vorSco]
+  }
+
+  if(tipoIngreso === "gotaInversa"){
+    const puntoGotaInversa = calcularPuntoDesplazado(
+      SCO_VOR.lat,
+      SCO_VOR.lng,
+      HOLDING_SCO_TRAMO_RECTO_M,
+      normalizarAngulo360(rumboAlejamiento + 35)
+    )
+    const rumboInicioAGotaInversa = calcularBearing(
+      { lat: puntoInicioAcercamiento[0], lng: puntoInicioAcercamiento[1] },
+      { lat: puntoGotaInversa[0], lng: puntoGotaInversa[1] }
+    )
+    const curvaHaciaGotaInversa = generarCurvaIngresoHoldingSco(
+      puntoInicioAcercamiento,
+      puntoGotaInversa,
+      rumboAlejamiento,
+      rumboInicioAGotaInversa
+    )
+    const curvaRetornoVor = generarCurvaIngresoHoldingSco(
+      puntoGotaInversa,
+      vorSco,
+      rumboInicioAGotaInversa,
+      radialInicial
+    )
+    return [
+      vorSco,
+      puntoInicioAcercamiento,
+      ...curvaHaciaGotaInversa.slice(1),
+      ...curvaRetornoVor.slice(1)
+    ]
+  }
+
+  const puntoGota = calcularPuntoDesplazado(
+    SCO_VOR.lat,
+    SCO_VOR.lng,
+    HOLDING_SCO_TRAMO_RECTO_M,
+    normalizarAngulo360(rumboAlejamiento + 35)
+  )
+  const rumboVorAGota = calcularBearing(
+    { lat: vorSco[0], lng: vorSco[1] },
+    { lat: puntoGota[0], lng: puntoGota[1] }
+  )
+  const curvaHaciaGota = generarCurvaIngresoHoldingSco(
+    vorSco,
+    puntoGota,
+    rumboAlejamiento,
+    rumboVorAGota
+  )
+  const curvaHaciaInicioAcercamiento = generarCurvaIngresoHoldingSco(
+    puntoGota,
+    puntoInicioAcercamiento,
+    rumboVorAGota,
+    radialInicial
+  )
+  return [
+    vorSco,
+    ...curvaHaciaGota.slice(1),
+    ...curvaHaciaInicioAcercamiento.slice(1),
+    vorSco
+  ]
+}
+
+function encontrarIndiceInicioLoopHoldingSco(ruta){
+  if(!Array.isArray(ruta) || ruta.length < 2){
+    return -1
+  }
+  let indiceVor = -1
+  for(let i = 1; i < ruta.length - 1; i++){
+    const punto = ruta[i]
+    if(!Array.isArray(punto) || punto.length < 2){
+      continue
+    }
+    const distancia = calcularDistancia(
+      Number(punto[0]),
+      Number(punto[1]),
+      SCO_VOR.lat,
+      SCO_VOR.lng
+    )
+    if(Number.isFinite(distancia) && distancia <= 80){
+      indiceVor = i
+    }
+  }
+  return indiceVor
+}
+
 function construirPlanLlegadaHoldingScoConIngresoSeleccionado(aeronave, puntoIngreso){
   const posicionActual = obtenerPosicionActualAeronave(aeronave)
   const rutaHolding = compactarRutaAirbornePuntos(construirRutaHoldingSco())
@@ -26754,33 +27412,17 @@ function construirPlanLlegadaHoldingScoConIngresoSeleccionado(aeronave, puntoIng
     return null
   }
 
-  const proyeccion = obtenerProyeccionIngresoArrivalSeleccionado(
-    rutaHolding,
-    puntoIngreso
-  )
-  if(!proyeccion || !proyeccion.puntoIntercepto){
-    return null
-  }
-
-  const puntoSeleccionado = [
-    Number(proyeccion.puntoIntercepto.lat),
-    Number(proyeccion.puntoIntercepto.lng)
-  ]
-  const rutaHoldingCiclica = [
-    puntoSeleccionado,
-    ...rutaHolding.slice(proyeccion.indiceB),
-    ...rutaHolding.slice(1, proyeccion.indiceB),
-    puntoSeleccionado
-  ]
+  const puntosEntrada = construirPuntosEntradaHoldingScoPorRadial(posicionActual)
   const ruta = compactarRutaAirbornePuntos([
     [posicionActual.lat, posicionActual.lng],
-    ...rutaHoldingCiclica
+    ...puntosEntrada,
+    ...rutaHolding.slice(1)
   ])
   if(ruta.length < 2){
     return null
   }
 
-  let loopStartIndex = encontrarIndicePuntoEnRuta(ruta, puntoSeleccionado, 80, 0)
+  let loopStartIndex = encontrarIndiceInicioLoopHoldingSco(ruta)
   if(loopStartIndex < 0 || loopStartIndex >= ruta.length - 1){
     loopStartIndex = Math.max(0, Math.min(ruta.length - 2, 1))
   }
@@ -26809,22 +27451,11 @@ function construirRutaLlegadaDesdeHoldingScoHaciaRutaBaseConIngresoSeleccionado(
     return null
   }
 
-  const proyeccion = obtenerProyeccionIngresoArrivalSeleccionado(
-    rutaHolding,
-    puntoIngreso
-  )
-  if(!proyeccion || !proyeccion.puntoIntercepto){
-    return null
-  }
-
-  const puntoSeleccionado = [
-    Number(proyeccion.puntoIntercepto.lat),
-    Number(proyeccion.puntoIntercepto.lng)
-  ]
+  const puntosEntrada = construirPuntosEntradaHoldingScoPorRadial(posicionActual)
   const rutaSalida = compactarRutaAirbornePuntos([
     [posicionActual.lat, posicionActual.lng],
-    puntoSeleccionado,
-    ...rutaHolding.slice(proyeccion.indiceB),
+    ...puntosEntrada,
+    ...rutaHolding.slice(1),
     ...rutaProcedimiento.slice(1)
   ])
 
@@ -26901,33 +27532,17 @@ function construirPlanLlegadaHoldingScoDesdeActual(aeronave){
     return null
   }
 
-  const proyeccion = obtenerProyeccionRutaLinealMasCercanaCliente(
-    posicionActual,
-    rutaHolding
-  )
-  if(!proyeccion || !proyeccion.puntoIntercepto){
-    return null
-  }
-
-  const puntoIngreso = [
-    Number(proyeccion.puntoIntercepto.lat),
-    Number(proyeccion.puntoIntercepto.lng)
-  ]
-  const rutaHoldingCiclica = [
-    puntoIngreso,
-    ...rutaHolding.slice(proyeccion.indiceB),
-    ...rutaHolding.slice(1, proyeccion.indiceB),
-    puntoIngreso
-  ]
+  const puntosEntrada = construirPuntosEntradaHoldingScoPorRadial(posicionActual)
   const ruta = compactarRutaAirbornePuntos([
     [posicionActual.lat, posicionActual.lng],
-    ...rutaHoldingCiclica
+    ...puntosEntrada,
+    ...rutaHolding.slice(1)
   ])
   if(ruta.length < 2){
     return null
   }
 
-  let loopStartIndex = encontrarIndicePuntoEnRuta(ruta, puntoIngreso, 60, 0)
+  let loopStartIndex = encontrarIndiceInicioLoopHoldingSco(ruta)
   if(loopStartIndex < 0){
     loopStartIndex = Math.min(1, ruta.length - 2)
   }
@@ -26939,8 +27554,111 @@ function construirPlanLlegadaHoldingScoDesdeActual(aeronave){
   }
 }
 
+function construirRutaPublicadaLlegadaSimPiscoHoldingSco(nombrePuntoSim){
+  const puntoSim = obtenerPuntoSimPiscoMapa(nombrePuntoSim)
+  const rutaHolding = compactarRutaAirbornePuntos(construirRutaHoldingSco())
+  if(!puntoSim || !Array.isArray(rutaHolding) || rutaHolding.length < 2){
+    return null
+  }
+
+  const puntosEntrada = construirPuntosEntradaHoldingScoPorRadial(puntoSim)
+  const ruta = compactarRutaAirbornePuntos([
+    [puntoSim.lat, puntoSim.lng],
+    ...puntosEntrada,
+    ...rutaHolding.slice(1)
+  ])
+  return ruta.length >= 2 ? ruta : null
+}
+
+function construirPlanLlegadaHoldingScoDesdePuntoSim(aeronave, nombrePuntoSim){
+  const posicionActual = obtenerPosicionActualAeronave(aeronave)
+  const puntoSim = obtenerPuntoSimPiscoMapa(nombrePuntoSim)
+  const rutaPublicada = construirRutaPublicadaLlegadaSimPiscoHoldingSco(nombrePuntoSim)
+  if(
+    !posicionActual ||
+    !puntoSim ||
+    !Array.isArray(rutaPublicada) ||
+    rutaPublicada.length < 2
+  ){
+    return null
+  }
+
+  const ruta = compactarRutaAirbornePuntos([
+    [posicionActual.lat, posicionActual.lng],
+    [puntoSim.lat, puntoSim.lng],
+    ...rutaPublicada.slice(1)
+  ])
+  if(ruta.length < 2){
+    return null
+  }
+
+  let loopStartIndex = encontrarIndiceInicioLoopHoldingSco(ruta)
+  if(loopStartIndex < 0){
+    loopStartIndex = Math.min(2, ruta.length - 2)
+  }
+  loopStartIndex = Math.max(0, Math.min(ruta.length - 2, loopStartIndex))
+
+  return {
+    ruta,
+    loopStartIndex
+  }
+}
+
+function construirRutaPublicadaLlegadaSimPiscoHoldingMumop(nombrePuntoSim){
+  const puntoSim = obtenerPuntoSimPiscoMapa(nombrePuntoSim)
+  const rutaHoldingMumop = compactarRutaAirbornePuntos(construirRutaHoldingMumop())
+  if(!puntoSim || !Array.isArray(rutaHoldingMumop) || rutaHoldingMumop.length < 2){
+    return null
+  }
+
+  const ruta = compactarRutaAirbornePuntos([
+    [puntoSim.lat, puntoSim.lng],
+    ...rutaHoldingMumop
+  ])
+  return ruta.length >= 2 ? ruta : null
+}
+
+function construirPlanLlegadaHoldingMumopDesdePuntoSim(aeronave, nombrePuntoSim){
+  const posicionActual = obtenerPosicionActualAeronave(aeronave)
+  const puntoSim = obtenerPuntoSimPiscoMapa(nombrePuntoSim)
+  const rutaPublicada = construirRutaPublicadaLlegadaSimPiscoHoldingMumop(
+    nombrePuntoSim
+  )
+  if(
+    !posicionActual ||
+    !puntoSim ||
+    !Array.isArray(rutaPublicada) ||
+    rutaPublicada.length < 2
+  ){
+    return null
+  }
+
+  const ruta = compactarRutaAirbornePuntos([
+    [posicionActual.lat, posicionActual.lng],
+    [puntoSim.lat, puntoSim.lng],
+    ...rutaPublicada.slice(1)
+  ])
+  if(ruta.length < 2){
+    return null
+  }
+
+  let loopStartIndex = encontrarIndicePuntoEnRuta(ruta, MUMOP_COORDS, 120, 1)
+  if(loopStartIndex < 0 || loopStartIndex >= ruta.length - 1){
+    loopStartIndex = Math.max(0, Math.min(ruta.length - 2, 2))
+  }
+
+  return {
+    ruta,
+    loopStartIndex
+  }
+}
+
 function construirRutaLlegadaVorTDesdeActual(aeronave){
   return construirRutaLlegadaDesdeHoldingScoHaciaRutaBase(aeronave, RUTA_VOR_T)
+}
+
+function construirRutaLlegadaVorYRwy22DesdeActual(aeronave){
+  return construirRutaLlegadaDesdeHoldingScoHaciaRutaBase(aeronave, RUTA_VOR_Y_RWY22)
 }
 
 function construirRutaLlegadaVorUDesdeActual(aeronave){
@@ -26959,6 +27677,33 @@ function construirRutaLlegadaDesdeHoldingScoHaciaRutaBase(aeronave, rutaBase){
       [posicionActual.lat, posicionActual.lng],
       ...rutaProcedimiento
     ]
+  }
+
+  const rutaActual = clonarRutaAirborneLocal(aeronave && aeronave.rutaAirborne)
+  const loopStartIndexActual = normalizarIndiceLoopRutaAirborne(
+    aeronave && aeronave.rutaAirborneLoopStartIndex
+  )
+  const indiceActual = Number.isFinite(Number(aeronave && aeronave.rutaAirborneIndice))
+    ? Math.max(0, Math.floor(Number(aeronave.rutaAirborneIndice)))
+    : -1
+  if(
+    Boolean(aeronave && aeronave.rutaAirborneLoop) &&
+    Array.isArray(rutaActual) &&
+    rutaActual.length >= 2 &&
+    loopStartIndexActual > 0 &&
+    loopStartIndexActual < rutaActual.length &&
+    indiceActual >= 0 &&
+    indiceActual < loopStartIndexActual
+  ){
+    const puntosHastaCompletarEntradaHolding = rutaActual.slice(indiceActual + 1)
+    const rutaSalidaPendiente = compactarRutaAirbornePuntos([
+      [posicionActual.lat, posicionActual.lng],
+      ...puntosHastaCompletarEntradaHolding,
+      ...rutaProcedimiento.slice(1)
+    ])
+    if(rutaSalidaPendiente.length >= 2){
+      return rutaSalidaPendiente
+    }
   }
 
   const rutaHolding = compactarRutaAirbornePuntos(construirRutaHoldingSco())
@@ -31303,6 +32048,13 @@ window.addEventListener("DOMContentLoaded", () => {
   const btnIlsT = document.getElementById("arrivalBtnIlsT")
   const btnVorU = document.getElementById("arrivalBtnVorU")
   const btnVorT = document.getElementById("arrivalBtnVorT")
+  const btnSimGebed1A = document.querySelector(
+    '#arrivalSimOpciones [data-arrival-sim="GEBED1A"]'
+  )
+  const btnVorYRwy22 = document.querySelector(
+    '#arrivalSimOpciones [data-arrival-sim="VORYRWY22"]'
+  )
+  const menuGebedSim = document.getElementById("arrivalSimGebedOpciones")
 
   if(!btnGebed3 || !menuGebed3){
     return
@@ -31321,6 +32073,12 @@ window.addEventListener("DOMContentLoaded", () => {
   )
   const botonesSeleccion = Array.from(
     document.querySelectorAll("#grupoArrival [data-arrival-group]")
+  )
+  const botonesArrivalSim = Array.from(
+    document.querySelectorAll("#arrivalSimOpciones [data-arrival-sim]")
+  )
+  const botonesArrivalSimOpciones = Array.from(
+    document.querySelectorAll("#arrivalSimGebedOpciones [data-arrival-sim-option]")
   )
 
   function aplicarEstadoMenu(boton, menu, abierto){
@@ -31353,13 +32111,33 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   function sincronizarCapasVisualesArrival(){
+    sincronizarVisibilidadBotonVorYRwy22()
+
+    const clavesSimHoldingSco = new Set([
+      "ROKOP1A",
+      "KOSKO1A",
+      "ZATOL1A",
+      "ILMAR1A"
+    ])
+    const simHoldingScoActivo = botonesArrivalSim.some(btn =>
+      btn.classList.contains("activo") &&
+      clavesSimHoldingSco.has(String(btn.dataset.arrivalSim || "").trim().toUpperCase())
+    ) || botonesArrivalSimOpciones.some(btn =>
+      btn.classList.contains("activo") &&
+      String(btn.dataset.arrivalSimOption || "").trim().toUpperCase() === "GEBED1A_SCO"
+    )
+    const simHoldingMumopActivo = botonesArrivalSimOpciones.some(btn =>
+      btn.classList.contains("activo") &&
+      String(btn.dataset.arrivalSimOption || "").trim().toUpperCase() === "GEBED1A_MUMOP"
+    )
     const holdingActivo = Boolean(
       (btnIls && btnIls.classList.contains("activo")) ||
       (btnVor && btnVor.classList.contains("activo")) ||
       (chkVorU && chkVorU.checked) ||
       (chkVorT && chkVorT.checked) ||
       (chkIlsU && chkIlsU.checked) ||
-      (chkIlsT && chkIlsT.checked)
+      (chkIlsT && chkIlsT.checked) ||
+      simHoldingScoActivo
     )
     if(holdingActivo){
       dibujarHoldingSco()
@@ -31369,6 +32147,11 @@ window.addEventListener("DOMContentLoaded", () => {
 
     const vorUActivo = Boolean(btnVorU && btnVorU.classList.contains("activo"))
     const vorTActivo = Boolean(btnVorT && btnVorT.classList.contains("activo"))
+    const vorYActivo = Boolean(
+      modoSimPiscoActivo &&
+      btnVorYRwy22 &&
+      btnVorYRwy22.classList.contains("activo")
+    )
     const gebed3Activo = Boolean(btnGebed3 && btnGebed3.classList.contains("activo"))
     const ilsVActivo = Boolean(btnGebed3IlsV && btnGebed3IlsV.classList.contains("activo"))
     const vorVActivo = Boolean(btnGebed3VorV && btnGebed3VorV.classList.contains("activo"))
@@ -31381,6 +32164,11 @@ window.addEventListener("DOMContentLoaded", () => {
       establecerVisibilidadCapaMapa(grupoStarRoute, false)
     }
 
+    establecerVisibilidadCapaMapa(
+      grupoSimGebed1AMumopRoute,
+      simHoldingMumopActivo
+    )
+
     if(vorUActivo){
       establecerVisibilidadCapaMapa(grupoVorU, true)
     } else if(!chkVorU || !chkVorU.checked){
@@ -31392,6 +32180,8 @@ window.addEventListener("DOMContentLoaded", () => {
     } else if(!chkVorT || !chkVorT.checked){
       establecerVisibilidadCapaMapa(grupoVorT, false)
     }
+
+    establecerVisibilidadCapaMapa(grupoVorY, vorYActivo)
 
     if(ilsVActivo){
       establecerVisibilidadCapaMapa(grupoIlsV, true)
@@ -31422,6 +32212,8 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  window.sincronizarCapasVisualesArrival = sincronizarCapasVisualesArrival
+
   function limpiarBotonesSeleccion(grupo){
     botonesSeleccion
       .filter(btn => btn.dataset.arrivalGroup === grupo)
@@ -31432,8 +32224,11 @@ window.addEventListener("DOMContentLoaded", () => {
     aplicarEstadoMenu(btnGebed3, menuGebed3, false)
     aplicarEstadoMenu(btnIls, menuIls, false)
     aplicarEstadoMenu(btnVor, menuVor, false)
+    aplicarEstadoMenu(btnSimGebed1A, menuGebedSim, false)
     botonesGebed3.forEach(btn => btn.classList.remove("activo"))
     botonesSeleccion.forEach(btn => btn.classList.remove("activo"))
+    botonesArrivalSim.forEach(btn => btn.classList.remove("activo"))
+    botonesArrivalSimOpciones.forEach(btn => btn.classList.remove("activo"))
   }
 
   function obtenerAeronaveArrivalActivaUI(){
@@ -31450,6 +32245,41 @@ window.addEventListener("DOMContentLoaded", () => {
     }
 
     return null
+  }
+
+  function esProcedimientoVorYRwy22Activo(aeronave){
+    return obtenerClaveProcedimientoLlegada(
+      aeronave && aeronave.arrivalProcedureName
+    ) === "VOR Y RWY 22"
+  }
+
+  function puedeActivarAproximacionVorYRwy22(aeronave){
+    const altitudActual = Number(aeronave && aeronave.altitud)
+    return Boolean(
+      modoSimPiscoActivo &&
+      aeronave &&
+      esAeronaveDelCreadorLocal(aeronave) &&
+      Number.isFinite(altitudActual) &&
+      Math.round(altitudActual) !== 0 &&
+      esLlegadaHoldingScoActiva(aeronave)
+    )
+  }
+
+  function sincronizarVisibilidadBotonVorYRwy22(){
+    if(!btnVorYRwy22){
+      return false
+    }
+
+    const aeronave = obtenerAeronaveArrivalActivaUI()
+    const puedeActivar = puedeActivarAproximacionVorYRwy22(aeronave)
+    const activo = esProcedimientoVorYRwy22Activo(aeronave)
+    btnVorYRwy22.hidden = !puedeActivar
+    btnVorYRwy22.disabled = !puedeActivar
+    btnVorYRwy22.setAttribute("aria-hidden", puedeActivar ? "false" : "true")
+    if(!puedeActivar && !activo){
+      btnVorYRwy22.classList.remove("activo")
+    }
+    return puedeActivar
   }
 
   function obtenerSeleccionArrivalPendienteUI(){
@@ -31503,6 +32333,29 @@ window.addEventListener("DOMContentLoaded", () => {
     return true
   }
 
+  function marcarBotonArrivalSim(claveArrivalSim){
+    const clave = String(claveArrivalSim || "").trim().toUpperCase()
+    const boton = botonesArrivalSim.find(btn =>
+      String(btn.dataset.arrivalSim || "").trim().toUpperCase() === clave
+    )
+    if(boton){
+      boton.classList.add("activo")
+    }
+    return boton || null
+  }
+
+  function marcarSubbotonArrivalSimGebed(claveOpcion){
+    const clave = String(claveOpcion || "").trim().toUpperCase()
+    abrirOpcionesGebed1ASim(true)
+    const boton = botonesArrivalSimOpciones.find(btn =>
+      String(btn.dataset.arrivalSimOption || "").trim().toUpperCase() === clave
+    )
+    if(boton){
+      boton.classList.add("activo")
+    }
+    return boton || null
+  }
+
   function sincronizarEstadoBotonesArrivalDesdeAeronave(){
     const preferirMenuIls = Boolean(btnIls && btnIls.classList.contains("activo"))
     const preferirMenuVor = Boolean(btnVor && btnVor.classList.contains("activo"))
@@ -31522,6 +32375,29 @@ window.addEventListener("DOMContentLoaded", () => {
     )
 
     switch(claveProcedimiento){
+      case "ROKOP 1A":
+        marcarBotonArrivalSim("ROKOP1A")
+        break
+      case "KOSKO 1A":
+        marcarBotonArrivalSim("KOSKO1A")
+        break
+      case "ZATOL 1A":
+        marcarBotonArrivalSim("ZATOL1A")
+        break
+      case "ILMAR 1A":
+        marcarBotonArrivalSim("ILMAR1A")
+        break
+      case "GEBED 1A / VOR SCO":
+        marcarBotonArrivalSim("GEBED1A")
+        marcarSubbotonArrivalSimGebed("GEBED1A_SCO")
+        break
+      case "GEBED 1A / MUMOP":
+        marcarBotonArrivalSim("GEBED1A")
+        marcarSubbotonArrivalSimGebed("GEBED1A_MUMOP")
+        break
+      case "VOR Y RWY 22":
+        marcarBotonArrivalSim("VORYRWY22")
+        break
       case "GEBED3 / HOLDING MUMOP":
         aplicarEstadoMenu(btnGebed3, menuGebed3, true)
         if(btnGebed3Mumop) btnGebed3Mumop.classList.add("activo")
@@ -31559,6 +32435,11 @@ window.addEventListener("DOMContentLoaded", () => {
         break
       default:
         break
+    }
+
+    if(!claveProcedimiento && arrivalSimGebed1AAbierto && modoSimPiscoActivo){
+      marcarBotonArrivalSim("GEBED1A")
+      abrirOpcionesGebed1ASim(true)
     }
 
     sincronizarCapasVisualesArrival()
@@ -31803,6 +32684,36 @@ window.addEventListener("DOMContentLoaded", () => {
     })
   }
 
+  function activarAproximacionVorYRwy22(){
+    if(!modoSimPiscoActivo){
+      return false
+    }
+
+    const aeronave = obtenerAeronaveLlegadaValida()
+    if(!aeronave){
+      return false
+    }
+
+    if(!puedeActivarAproximacionVorYRwy22(aeronave)){
+      alert("VOR Y RWY 22 available only for aircraft going to or established in Holding SCO")
+      return false
+    }
+
+    const rutaVorY = construirRutaLlegadaVorYRwy22DesdeActual(aeronave)
+    if(!Array.isArray(rutaVorY) || rutaVorY.length < 2){
+      alert("Unable to build VOR Y RWY 22 route")
+      return false
+    }
+
+    return activarProcedimientoLlegadaAirborne(aeronave, rutaVorY, {
+      state: "AIRBORNE",
+      loop: false,
+      loopStartIndex: 0,
+      minAltitudeFt: ALTITUD_MINIMA_ARRIVAL_ILS_VOR_FT,
+      procedureName: "VOR Y RWY 22"
+    })
+  }
+
   function activarAproximacionVorU(){
     return iniciarSeleccionArrival({
       rutaPreview: construirRutaHoldingSco(),
@@ -31951,6 +32862,139 @@ window.addEventListener("DOMContentLoaded", () => {
         }
       }
     })
+  }
+
+  const LLEGADAS_SIM_PISCO_HOLDING_SCO = {
+    ROKOP1A: { punto: "ROKOP", procedimiento: "ROKOP 1A" },
+    KOSKO1A: { punto: "KOSKO", procedimiento: "KOSKO 1A" },
+    ZATOL1A: { punto: "ZATOL", procedimiento: "ZATOL 1A" },
+    ILMAR1A: { punto: "ILMAR", procedimiento: "ILMAR 1A" },
+    GEBED1A_SCO: { punto: "GEBED", procedimiento: "GEBED 1A / VOR SCO" }
+  }
+
+  function abrirOpcionesGebed1ASim(abierto){
+    const abrir = Boolean(abierto && modoSimPiscoActivo)
+    arrivalSimGebed1AAbierto = abrir
+    if(menuGebedSim){
+      menuGebedSim.hidden = !abrir
+    }
+    aplicarEstadoMenu(btnSimGebed1A, menuGebedSim, abrir)
+    if(!abrir && menuGebedSim){
+      menuGebedSim.querySelectorAll(".arrival-sim-subbtn").forEach((boton) => {
+        boton.classList.remove("activo")
+      })
+    }
+  }
+
+  function activarLlegadaSimPiscoHoldingSco(claveArrivalSim){
+    const clave = String(claveArrivalSim || "").trim().toUpperCase()
+    const configuracion = LLEGADAS_SIM_PISCO_HOLDING_SCO[clave]
+    if(!configuracion){
+      return false
+    }
+
+    const aeronave = obtenerAeronaveLlegadaValida()
+    if(!aeronave){
+      return false
+    }
+
+    const planLlegada = construirPlanLlegadaHoldingScoDesdePuntoSim(
+      aeronave,
+      configuracion.punto
+    )
+    if(
+      !planLlegada ||
+      !Array.isArray(planLlegada.ruta) ||
+      planLlegada.ruta.length < 2
+    ){
+      alert(`Unable to build ${configuracion.procedimiento} route`)
+      return false
+    }
+
+    return activarProcedimientoLlegadaAirborne(aeronave, planLlegada.ruta, {
+      state: "AIRBORNE",
+      loop: true,
+      loopStartIndex: planLlegada.loopStartIndex,
+      minAltitudeFt: ALTITUD_MINIMA_ARRIVAL_ILS_VOR_FT,
+      initialSpeedKt: VELOCIDAD_INICIAL_ARRIVAL_ILS_VOR_KT,
+      procedureName: configuracion.procedimiento
+    })
+  }
+
+  function activarLlegadaGebed1AHoldingMumop(){
+    const aeronave = obtenerAeronaveLlegadaValida()
+    if(!aeronave){
+      return false
+    }
+
+    const planGebedMumop = construirPlanLlegadaHoldingMumopDesdePuntoSim(
+      aeronave,
+      "GEBED"
+    )
+    if(
+      !planGebedMumop ||
+      !Array.isArray(planGebedMumop.ruta) ||
+      planGebedMumop.ruta.length < 2
+    ){
+      alert("Unable to build GEBED 1A / MUMOP route")
+      return false
+    }
+
+    return activarProcedimientoLlegadaAirborne(aeronave, planGebedMumop.ruta, {
+      state: "AIRBORNE",
+      loop: true,
+      loopStartIndex: planGebedMumop.loopStartIndex,
+      minAltitudeFt: ALTITUD_MINIMA_HOLDING_MUMOP_FT,
+      initialSpeedKt: VELOCIDAD_INICIAL_ARRIVAL_ILS_VOR_KT,
+      procedureName: "GEBED 1A / MUMOP"
+    })
+  }
+
+  window.activarArrivalSimPisco = function activarArrivalSimPisco(claveArrivalSim){
+    const clave = String(claveArrivalSim || "").trim().toUpperCase()
+    if(clave === "GEBED1A"){
+      abrirOpcionesGebed1ASim(true)
+      sincronizarCapasVisualesArrival()
+      return true
+    }
+
+    if(clave === "VORYRWY22"){
+      const activado = activarAproximacionVorYRwy22()
+      if(activado){
+        abrirOpcionesGebed1ASim(false)
+        sincronizarCapasVisualesArrival()
+      }
+      return activado
+    }
+
+    if(clave === "GEBED1A_MUMOP"){
+      const activado = activarLlegadaGebed1AHoldingMumop()
+      if(activado){
+        abrirOpcionesGebed1ASim(true)
+        sincronizarCapasVisualesArrival()
+      }
+      return activado
+    }
+
+    if(Object.prototype.hasOwnProperty.call(LLEGADAS_SIM_PISCO_HOLDING_SCO, clave)){
+      const activado = activarLlegadaSimPiscoHoldingSco(clave)
+      if(activado){
+        if(clave === "GEBED1A_SCO"){
+          abrirOpcionesGebed1ASim(true)
+        }
+        sincronizarCapasVisualesArrival()
+      }
+      return activado
+    }
+
+    sincronizarCapasVisualesArrival()
+    return true
+  }
+
+  window.desactivarArrivalSimPisco = function desactivarArrivalSimPisco(){
+    abrirOpcionesGebed1ASim(false)
+    sincronizarCapasVisualesArrival()
+    return true
   }
 
   btnGebed3.addEventListener("click", event => {
